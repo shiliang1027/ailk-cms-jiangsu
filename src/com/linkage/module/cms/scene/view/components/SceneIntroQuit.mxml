@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+                    minimizable="false"
+                    maximizable="false"
+                    dragable="true"
+                    styleName="windowScene"
+                    width="600"
+                    height="350"
+                    close="{PopUpManager.removePopUp(this);this.visible = false;}"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+            import com.ailk.common.ui.chart.core.ChartParam;
+            import com.ailk.common.ui.chart.core.PrettyChartType;
+            import com.ailk.common.ui.chart.core.SerialParam;
+            import com.ailk.common.ui.chart.event.PrettyChartEvent;
+            import com.ailk.common.ui.chart.renderer.HorizontalLine;
+            import com.linkage.module.cms.gsscene.view.components.sceneintro.components.SceneIntroKPIDetail;
+            import com.linkage.module.cms.scene.domain.common.IUser;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.events.FlexEvent;
+            import mx.managers.PopUpManager;
+            import mx.rpc.events.FaultEvent;
+            import mx.rpc.remoting.RemoteObject;
+
+            [Inject("user")]
+            public var user:IUser;
+
+            [Bindable]
+            public var pieChartLabel:String = "退服基站";
+
+//            [Inject("sceneIntroDM")]
+//            [Bindable]
+//            public var sceneIntroDM:SceneIntroDM;
+
+            /**
+             *下钻网元告警列表
+             **/
+            public var doDrillAlarm:Function;
+
+            private var log:ILogger = Log.getLoggerByClass(SceneIntroQuit);
+
+            private var initFlag:Boolean = true;
+
+            public function loadStatDatas():void
+            {
+                var rmtObj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_panels", "", "/cms/messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        log.info("加载退服基站类型统计成功：");
+                        log.debug(data);
+                        loadData(data);
+                    },
+                    function(e:FaultEvent):void
+                    {
+                        log.info("加载退服基站类型统计失败：" + e.fault.faultDetail);
+                    });
+                log.info("rmtObj.loadQuitData(user)");
+                rmtObj.loadQuitData(user);
+            }
+
+            public function loadData(data:Object):void
+            {
+                log.info("饼图加载数据！");
+                /* if(initFlag){
+                    this.pieChartBuildChart();
+                    initFlag = false;
+                } */
+                this.pieChartBuildChart();
+                var dataArrayColl:ArrayCollection = new ArrayCollection();
+                dataArrayColl.addAll(data.quitDatas as IList);
+                log.info(dataArrayColl);
+                pieChart.chartData(dataArrayColl, true);
+            }
+
+            /**
+             *
+             * 创建图形。
+             **/
+            public function pieChartBuildChart():void
+            {
+                pieChart.xAxisFontSize = 13;
+                pieChart.justifyMaxValue = true;
+                var series:ArrayCollection = new ArrayCollection();
+                var sp:SerialParam = new SerialParam("value", pieChartLabel);
+                sp.chartType = "pie";
+                series.addItem(sp);
+
+                pieChart.series = series;
+                pieChart.canDropLabels = true;
+                pieChart.xAxisFontSize = 12;
+                var chartparam:ChartParam = new ChartParam();
+                chartparam.labelStep = 1;
+                chartparam.itemClickEnable = true;
+                chartparam.xAxisProperty = 'moTypeName';
+                chartparam.use3DColumn = true;
+                pieChart.chartParam = chartparam;
+            }
+
+            protected function pieChart_DataClickHandler(event:PrettyChartEvent):void
+            {
+                log.info("饼图级联，加载设备告警统计！");
+                log.info(event.data);
+                var param:Object = event.data;
+                doDrillAlarm(param);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+    <s:VGroup width="100%"
+              height="100%"
+              verticalAlign="middle"
+              horizontalAlign="center"
+              gap="10">
+        <s:Group width="96%"
+                 height="96%">
+            <s:Rect alpha="1"
+                    x="0"
+                    y="0"
+                    width="100%"
+                    height="100%"
+                    radiusX="10"
+                    radiusY="10">
+                <s:fill>
+                    <s:LinearGradient>
+                        <s:GradientEntry color="0XBDCEE0"
+                                         alpha="0.5"/>
+                    </s:LinearGradient>
+                </s:fill>
+            </s:Rect>
+            <ailk_chart:PrettyChart id="pieChart"
+                                    showYaxisTitle="true"
+                                    showXaxisTitle="true"
+                                    horizontalCenter="0"
+                                    verticalCenter="0"
+                                    DataClick="pieChart_DataClickHandler(event)"
+                                    width="100%"
+                                    height="90%"/>
+        </s:Group>
+    </s:VGroup>
+</ailk_compts:Window>

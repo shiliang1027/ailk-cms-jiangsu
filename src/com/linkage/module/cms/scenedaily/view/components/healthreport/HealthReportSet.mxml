@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		  width="100%"
+		  height="100%"
+		  gap="1"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  xmlns:tree="com.linkage.system.component.tree.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-9-6
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.event.healthreport.HealthReportSetEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+
+			[Inject("healthReportSetPM")]
+			[Bindable]
+			public var healthReportSetPM:HealthReportSetPM;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			private var log:ILogger = Log.getLoggerByClass(HealthReportSet);
+			//当前健康指标分类信息ID
+			private var currentkpiTypeId:String = "1";
+			private var currentTreeNodeId:String;
+
+			public function init():void
+			{
+				healthReportSetPM.getHealthTree();
+				gsm_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+			}
+
+			/**
+			 * 展示树
+			 */
+			[MessageHandler(selector="SHOW_HEALTH_REPORT_TREE")]
+			public function showTree(event:HealthReportSetEvent):void
+			{
+				healthTree.validateNow();
+				healthTree.expandChildrenOf(healthReportSetPM.healthReportSetDM.healthTreeData, true);
+				var xmlList:XMLList = healthReportSetPM.healthReportSetDM.healthTreeData.children();
+				this.healthTree.selectedItem = getFirstNodeInfo(xmlList);
+				var selectedNode:XML = healthTree.selectedItem as XML;
+				currentTreeNodeId = selectedNode.@labelId;
+				healthReportSetPM.getHealthReportInfo(selectedNode.@labelId, currentkpiTypeId);
+			}
+
+			/**
+			 * 获取树第一个叶子节点信息
+			 */
+			private function getFirstNodeInfo(xml:XMLList):XML
+			{
+				for each(var xmlChildren:XML in xml)
+				{
+					if(!xmlChildren.hasComplexContent())
+					{
+						log.debug("选定第一个子节点：====" + xmlChildren.@labelName + ",labelId:" + xmlChildren.@labelId);
+						return xmlChildren;
+					}
+					return getFirstNodeInfo(xmlChildren.children()); //递归调用   
+				}
+				return null;
+			}
+
+
+			//tree节点切换事件，控制叶子节点事件
+			public function treeChanged(evt:Event):void
+			{
+				if(gsm_dataGrid.headerRenderer != null)
+				{
+					gsm_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+				}
+				if(td_dataGrid != null)
+				{
+					td_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+				}
+				if(qzy_dataGrid.headerRenderer != null)
+				{
+					qzy_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+				}
+				if(yw_dataGrid.headerRenderer != null)
+				{
+					yw_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+				}
+				var itemIsBranch:Boolean = healthTree.dataDescriptor.isBranch(healthTree.selectedItem);
+				var selectedNode:XML = Tree(evt.target).selectedItem as XML;
+				if(!itemIsBranch)
+				{
+					currentTreeNodeId = selectedNode.@labelId;
+					log.debug("当前节点ID=" + currentTreeNodeId + ",当前指标类型ID=" + currentkpiTypeId);
+					healthReportSetPM.getHealthReportInfo(selectedNode.@labelId, currentkpiTypeId);
+				}
+			}
+
+//tarbur切换事件
+			protected function healthSetViewStack_changeHandler(event:IndexChangedEvent):void
+			{
+				if(gsm_dataGrid.headerRenderer != null)
+				{
+					gsm_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+				}
+				if(td_dataGrid != null)
+				{
+					td_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+				}
+				if(qzy_dataGrid.headerRenderer != null)
+				{
+					qzy_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+				}
+				if(yw_dataGrid.headerRenderer != null)
+				{
+					yw_dataGrid.headerRenderer = new ClassFactory(HealthHeaderCheckRenderer);
+				}
+				if(event.newIndex == 0)
+				{
+					currentkpiTypeId = "1";
+				}
+				if(event.newIndex == 1)
+				{
+					currentkpiTypeId = "2";
+				}
+				if(event.newIndex == 2)
+				{
+					currentkpiTypeId = "3";
+				}
+				if(event.newIndex == 3)
+				{
+					currentkpiTypeId = "4";
+				}
+				log.debug("tabbur 切换--->>当前节点ID=" + currentTreeNodeId + ",当前指标类型ID=" + currentkpiTypeId);
+				var e:HealthReportSetEvent = new HealthReportSetEvent(HealthReportSetEvent.GET_HEALTH_REPORT_KPI_INFO);
+				e.treeNodeId = currentTreeNodeId;
+				e.kpiTypeId = currentkpiTypeId;
+				msgDispatcher(e);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var param:Object = new Object;
+				param.treeNodeId = this.currentTreeNodeId;
+				param.kpiTypeId = "1";
+				param.datas = healthReportSetPM.healthReportSetDM.healthReportInfo;
+				healthReportSetPM.saveHealthReport(param);
+			}
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				var param:Object = new Object;
+				param.treeNodeId = this.currentTreeNodeId;
+				param.kpiTypeId = "2";
+				param.datas = healthReportSetPM.healthReportSetDM.healthReportInfo;
+				healthReportSetPM.saveHealthReport(param);
+			}
+
+			protected function button3_clickHandler(event:MouseEvent):void
+			{
+				var param:Object = new Object;
+				param.treeNodeId = this.currentTreeNodeId;
+				param.kpiTypeId = "3";
+				param.datas = healthReportSetPM.healthReportSetDM.healthReportInfo;
+				healthReportSetPM.saveHealthReport(param);
+			}
+
+			protected function button4_clickHandler(event:MouseEvent):void
+			{
+				var param:Object = new Object;
+				param.treeNodeId = this.currentTreeNodeId;
+				param.kpiTypeId = "4";
+				param.datas = healthReportSetPM.healthReportSetDM.healthReportInfo;
+				healthReportSetPM.saveHealthReport(param);
+			}
+
+			/**
+			 *  返回保存提示信息
+			 */
+			[MessageHandler(selector="RETURN_HEALTH_REPORT_KPI_INFO")]
+			public function returnSaveStr(event:HealthReportSetEvent):void
+			{
+				log.debug("返回：" + event.returnInfo);
+
+				Alert.show(event.returnInfo, "提示");
+			}
+
+			public function setAllSelected(flag:Boolean):void
+			{
+				for each(var data:Object in healthReportSetPM.healthReportSetDM.healthReportInfo)
+				{
+					data.isSelected = flag ? 1 : 0;
+				}
+				healthReportSetPM.healthReportSetDM.healthReportInfo.refresh();
+			}
+		]]>
+	</fx:Script>
+
+	<mx:Spacer height="10"/>
+	<s:Label text="健康报告分类设置"
+			 textAlign="center"
+			 width="100%"/>
+	<mx:HDividedBox width="100%"
+					height="100%">
+		<mx:Tree id="healthTree"
+				 width="245"
+				 height="100%"
+				 borderAlpha="0"
+				 labelField="@labelName"
+				 showRoot="false"
+				 contentBackgroundAlpha="0"
+				 dataProvider="{healthReportSetPM.healthReportSetDM.healthTreeData}"
+				 change="treeChanged(event);"/>
+		<s:VGroup gap="0"
+				  width="100%"
+				  height="100%">
+			<s:TabBar id="healthSetTabBar"
+					  styleName="sceneTabBar1"
+					  dataProvider="{healthSetViewStack}"/>
+			<mx:ViewStack id="healthSetViewStack"
+						  creationPolicy="all"
+						  height="100%"
+						  width="100%"
+						  right="100"
+						  bottom="100"
+						  backgroundAlpha="0"
+						  change="healthSetViewStack_changeHandler(event)">
+				<s:NavigatorContent label="GSM客户感知指标"
+									width="100%"
+									height="100%">
+					<s:VGroup width="100%"
+							  height="100%">
+						<mx:AdvancedDataGrid dataProvider="{healthReportSetPM.healthReportSetDM.healthReportInfo}"
+											 width="100%"
+											 height="100%"
+											 styleName="sceneDG"
+											 id="gsm_dataGrid">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn headerText="指标名称">
+									<mx:itemRenderer>
+										<fx:Component>
+											<mx:CheckBox label="{data.kpiName}"
+														 width="300"
+														 selected="{data.isSelected==1?true:false}"
+														 change="checkbox1_changeHandler(event)">
+												<fx:Script>
+													<![CDATA[
+														protected function checkbox1_changeHandler(event:Event):void
+														{
+															data.isSelected = CheckBox(event.target).selected ? 1 : 0;
+
+														}
+													]]>
+												</fx:Script>
+											</mx:CheckBox>
+										</fx:Component>
+									</mx:itemRenderer>
+								</mx:AdvancedDataGridColumn>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:HGroup width="100%"
+								  horizontalAlign="right">
+							<s:Button label="保存"
+									  click="button1_clickHandler(event)"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:NavigatorContent>
+				<s:NavigatorContent label="TD客户感知指标"
+									width="100%"
+									height="100%">
+					<s:VGroup width="100%"
+							  height="100%">
+						<mx:AdvancedDataGrid dataProvider="{healthReportSetPM.healthReportSetDM.healthReportInfo}"
+											 width="100%"
+											 height="100%"
+											 styleName="sceneDG"
+											 id="td_dataGrid">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn headerText="指标名称">
+									<mx:itemRenderer>
+										<fx:Component>
+											<mx:CheckBox label="{data.kpiName}"
+														 width="300"
+														 selected="{data.isSelected==1?true:false}"
+														 change="checkbox1_changeHandler(event)">
+												<fx:Script>
+													<![CDATA[
+														protected function checkbox1_changeHandler(event:Event):void
+														{
+															data.isSelected = CheckBox(event.target).selected ? 1 : 0;
+
+														}
+													]]>
+												</fx:Script>
+											</mx:CheckBox>
+										</fx:Component>
+									</mx:itemRenderer>
+								</mx:AdvancedDataGridColumn>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:HGroup width="100%"
+								  horizontalAlign="right">
+							<s:Button label="保存"
+									  click="button2_clickHandler(event)"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:NavigatorContent>
+				<s:NavigatorContent label="全专业质量指标"
+									width="100%"
+									height="100%">
+					<s:VGroup width="100%"
+							  height="100%">
+						<mx:AdvancedDataGrid dataProvider="{healthReportSetPM.healthReportSetDM.healthReportInfo}"
+											 width="100%"
+											 height="100%"
+											 styleName="sceneDG"
+											 id="qzy_dataGrid">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn headerText="指标名称">
+									<mx:itemRenderer>
+										<fx:Component>
+											<mx:CheckBox label="{data.kpiName}"
+														 width="300"
+														 selected="{data.isSelected==1?true:false}"
+														 change="checkbox1_changeHandler(event)">
+												<fx:Script>
+													<![CDATA[
+														protected function checkbox1_changeHandler(event:Event):void
+														{
+															data.isSelected = CheckBox(event.target).selected ? 1 : 0;
+
+														}
+													]]>
+												</fx:Script>
+											</mx:CheckBox>
+										</fx:Component>
+									</mx:itemRenderer>
+								</mx:AdvancedDataGridColumn>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:HGroup width="100%"
+								  horizontalAlign="right">
+							<s:Button label="保存"
+									  click="button3_clickHandler(event)"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:NavigatorContent>
+				<s:NavigatorContent label="业务量指标"
+									width="100%"
+									height="100%">
+					<s:VGroup width="100%"
+							  height="100%">
+						<mx:AdvancedDataGrid dataProvider="{healthReportSetPM.healthReportSetDM.healthReportInfo}"
+											 width="100%"
+											 height="100%"
+											 styleName="sceneDG"
+											 id="yw_dataGrid">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn headerText="指标名称">
+									<mx:itemRenderer>
+										<fx:Component>
+											<mx:CheckBox label="{data.kpiName}"
+														 width="300"
+														 selected="{data.isSelected==1?true:false}"
+														 change="checkbox1_changeHandler(event)">
+												<fx:Script>
+													<![CDATA[
+														protected function checkbox1_changeHandler(event:Event):void
+														{
+															data.isSelected = CheckBox(event.target).selected ? 1 : 0;
+
+														}
+													]]>
+												</fx:Script>
+											</mx:CheckBox>
+										</fx:Component>
+									</mx:itemRenderer>
+								</mx:AdvancedDataGridColumn>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:HGroup width="100%"
+								  horizontalAlign="right">
+							<s:Button label="保存"
+									  click="button4_clickHandler(event)"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+		</s:VGroup>
+	</mx:HDividedBox>
+</s:VGroup>

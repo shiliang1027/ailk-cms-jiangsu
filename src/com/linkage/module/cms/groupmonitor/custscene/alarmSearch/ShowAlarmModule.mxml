@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%"
+		   xmlns:alarmSearch="com.linkage.module.cms.groupmonitor.custscene.alarmSearch.*"
+		   preinitialize="init(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.groupmonitor.custscene.alarmSearch.common.AlarmSeverityColumnRenderer;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			import com.linkage.system.rpc.remoting.BlazeDSUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalCollectionView;
+			import mx.collections.HierarchicalData;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridGroupItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			//日志
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.groupmonitor.custscene.alarmSearch.ShowAlarm");
+			
+			public var loadManger:LoadManager;
+			
+			private var scObj:Object = new Object();
+			
+			public static var destination:String  = "flexdestination_cms_performance_buss_RelationQueryServImp";
+			public static var src:String  = "com.linkage.module.cms.warn.report.relation.serv.RelationQueryServImp";
+			public static var endpoint:String = "messagebroker/amf";
+			
+			private var _hcv:HierarchicalCollectionView;
+			public var parameters:Object;
+			
+			protected function init(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.DEBUG;
+				target.filters = ["com.linkage.module.cms.groupmonitor.custscene.*","com.linkage.system.*"];
+				Log.addTarget(target);
+				
+				logger.info(">>> 初始化日志组建完成 ......");
+				
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				endpoint = this.parameters["context"] + endpoint;
+			}
+			
+			//初始化查询结果表格  根据配置设置展示列、加载数据
+			private function initResultPanel():void
+			{
+				loadManger = new LoadManager(alarmDataGrid);
+				
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint,
+					function(result:Object):void
+					{
+						logger.info(">>> 加载告警列表配置列数据成功。");
+						initColumn(result as ArrayCollection);
+						
+						
+						logger.info(">>> 开始查询数据 。。。");
+						
+						doQuery();
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error(">>> 加载告警列表配置列数据失败！{0}", event.fault.faultString);
+					});
+				
+				logger.info(">>> 开始查询表格列数据 。。。module_key：" +　this.parameters.module_key + " loginName：" + this.parameters.login_name);
+				remoteService.queryDisCols(this.parameters.module_key, this.parameters.login_name as String);
+			}
+			
+			public function initColumn(colData:ArrayCollection):void
+			{
+				var alarmColArr:Array = new Array();
+				
+				for each(var col:String in colData)
+				{
+					var dgColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dgColumn.headerText = col.split(",")[0];
+					dgColumn.dataField = col.split(",")[1];
+					
+					logger.info(">>> 初始化列 : " + col);
+					
+					switch (dgColumn.dataField)
+					{
+						case "alarmseverity": // 告警级别
+							dgColumn.itemRenderer = new ClassFactory(AlarmSeverityColumnRenderer);
+							break;
+						case "eventtime": // 告警时间
+							dgColumn.width = 140;
+							break;
+						case "alarmtitle": // 告警标题
+						case "alarmtext": // 告警正文
+							dgColumn.wordWrap = false;
+							break;
+					}
+					alarmColArr.push(dgColumn);
+				}
+				
+				alarmDataGrid.columns = alarmColArr;
+				
+				logger.info(">>> 初始化列 完成！"); 
+			}
+			
+			public function doQuery():void
+			{
+				logger.info(">>> 查询告警");
+				
+				scObj['login_name'] = this.parameters.login_name;
+				scObj['alarmuniqueid'] = this.parameters.alarmuniqueid;
+				scObj['module_key'] = this.parameters.module_key;
+				scObj['dalTime'] = this.parameters.dalTime;
+				
+				
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint,
+					function(result:Object):void
+					{
+						logger.info(">>> 查询告警成功");
+						loadManger.hideLoading();
+						if(null == result)
+						{
+							logger.error(">>> 查询告警为null");
+							Alert.show("没有记录！");
+							return;
+						}
+						setData(result);
+						
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error(">>> 查询告警失败！ ：", event.fault.faultString);
+						loadManger.hideLoading();
+					});
+				
+				logger.info(">>> 查询条件=========================");
+				logger.info(">>> scObj['alarmuniqueid']:" + scObj['alarmuniqueid']);
+				logger.info(">>> scObj['login_name']:" + scObj['login_name']);
+				logger.info(">>> scObj['module_key']:" + scObj['module_key']);
+				logger.info(">>> scObj['dalTime']:" + scObj['dalTime']);
+				logger.info(">>> 查询条件=========================");
+				
+				remoteService.getRelationDataTree(scObj);
+				loadManger.showLoading(" 正在查询，请稍后 ");
+			}
+			
+			public function setData(data:Object):void
+			{
+				logger.info(">>> 设置查询结果数据。。。");
+				_hcv = new HierarchicalCollectionView(new HierarchicalData(data));
+				alarmDataGrid.dataProvider = _hcv;
+				_hcv.openNodes = getParent([data]);
+				logger.info(">>> 设置查询结果数据 结束! length:" + _hcv.length);
+				
+			}
+			
+			private function getParent(data:Object):ArrayCollection
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				
+				for each(var alarm:Object in data)
+				{
+					if(alarm.hasOwnProperty('children'))
+					{
+						arr.addItem(alarm);
+						
+						arr.addAll(getParent(alarm['children']));
+					}
+				}
+				
+				return arr;
+			}
+			
+			protected function showWarnDetail(event:ListEvent):void
+			{
+				var id:Object = event.itemRenderer.data.alarmuniqueid;
+				
+				var dalTime:Object = event.itemRenderer.data.daltime;
+				
+				if(String(dalTime).indexOf('-') >= 0)//如果是格式化过的日期  则转换成秒数。
+					dalTime = DateFormatter.parseDateString(event.itemRenderer.data.daltime).getTime() / 1000;
+				
+				var url:String = "/cms/warn/rule/report/nonprofess/NonprofessWarnAction!queryWarnInfo.action?alarmNo=" + id + "&dalTime=" + dalTime;
+				ExternalInterface.call("openUrl", url);
+			}
+			
+			[Embed(source="img/treeOpen.png")]
+			public static var treeOpen:Class;
+			
+			[Embed(source="img/treeClose.png")]
+			public static var treeClose:Class;
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:AdvancedDataGrid id="alarmDataGrid"
+						 width="100%" 
+						 height="100%"
+						 sortExpertMode="true"
+						 displayItemsExpanded="false"
+						 doubleClickEnabled="true"
+						 itemDoubleClick="showWarnDetail(event)"
+						 groupItemRenderer="{new ClassFactory(AdvancedDataGridGroupItemRenderer)}"
+						 folderClosedIcon="{null}" 
+						 folderOpenIcon="{null}" 
+						 defaultLeafIcon="{null}"
+						 disclosureClosedIcon="{treeClose}" 
+						 disclosureOpenIcon="{treeOpen}"
+						 editable="false"
+						 enabled="true"
+						 draggableColumns="false"
+						 creationComplete="initResultPanel()"
+						 horizontalScrollPolicy="auto"/>
+</mx:Module>

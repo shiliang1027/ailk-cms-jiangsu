@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  minWidth="400" minHeight="180"
+			  width="100%"
+			  height="100%"
+			  mouseEnabled="true"
+			  closable="false"
+			  minimizable="false"
+			  maximize="window_ResizeHandler(1)"
+			  restore="window_ResizeHandler(2)"
+			  title="{_title}">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.ListEvent;
+			import spark.components.Group;
+			import com.ailk.common.system.logging.ILogger;
+			//显示标题
+			private var _title:String = "业务性能越限按业务监控级别统计";
+			[Bindable]
+			public var gridFunction:Function;
+			
+			public var log:ILogger;
+			//业务监控报表统计类别
+			[Bindable]
+			public var businessType:String = "业务监控级别";
+			//报表数据
+			[Bindable]
+			private var reportDatas:ArrayCollection = new ArrayCollection();
+			
+			public static var _servMap:Object = {'speechSounds': '语音专线', 'internetWork':'互联网专线', 'transmission':  '传输专线', 'gprs': 'GPRS业务', 'shortMMS': '短信业务'};
+			public function set dataProvider(value:ArrayCollection):void{
+				reportDatas = value;
+			}
+			//窗口事件变化
+			protected function window_ResizeHandler(type:Number):void
+			{
+				var p:Group = this.parent as Group;
+				var nums:Number = p.numChildren;
+				var thisIndex:Number = p.getChildIndex(this);
+				
+				for (var index:Number = 0; index < nums; index++){
+					if (index != thisIndex){
+						p.getChildAt(index).visible = type == 2;
+						p.getChildAt(index)["includeInLayout"] = type == 2;
+					}
+				}
+			}
+			
+			protected function reportList_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object = AdvancedDataGrid(event.currentTarget).selectedItem;
+				var columnIndex:int  = 	event.columnIndex;
+				var col:AdvancedDataGridColumn = AdvancedDataGrid(event.currentTarget).columns[columnIndex];
+				log.info("1-->data.businessTypeId:"+data.businessTypeId);
+				log.info("2-->col.dataField:"+col.dataField);
+				log.info("3-->data.servTypeName:"+_servMap[col.dataField]);
+				var servTypeName:String = _servMap[col.dataField];
+				var businessTypeId:String = data.businessTypeId;
+				gridFunction(businessTypeId,servTypeName);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:HGroup width="100%"
+			  height="100%"
+			  verticalAlign="middle">
+		<s:Scroller width="100%" height="100%" verticalScrollPolicy="auto" horizontalScrollPolicy="off">
+			<s:VGroup width="100%" height="100%">
+				<mx:AdvancedDataGrid width="100%" height="100%"	
+					headerHeight="29" rowHeight="29" itemClick="reportList_itemClickHandler(event)"
+					id="reportList" dataProvider="{reportDatas}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="{businessType}" dataField="businessType" minWidth="120"
+												   showDataTips="true"  itemRenderer="mx.controls.Label">
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="语音" dataField="speechSounds" minWidth="95"
+												   showDataTips="true"  itemRenderer="mx.controls.Label">
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="互联网" dataField="internetWork" minWidth="95"
+												   showDataTips="true"  itemRenderer="mx.controls.Label">
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="传输" dataField="transmission" minWidth="95"
+												   showDataTips="true"  itemRenderer="mx.controls.Label">
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="GPRS" dataField="gprs" minWidth="95"
+												   showDataTips="true"  itemRenderer="mx.controls.Label">
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="短彩信" dataField="shortMMS" minWidth="95"
+												   showDataTips="true"  itemRenderer="mx.controls.Label">
+						</mx:AdvancedDataGridColumn>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:VGroup>
+	  </s:Scroller>
+  </s:HGroup>
+</panel:Window>

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+						 title="告警统计"
+						 width="400"
+						 minWidth="180"
+						 minHeight="24"
+						 dragable="true"
+						 close="closePanel()"
+						 resizable="true"
+						 maximizable="false"
+						 creationComplete="flowAlarm_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.CanvasEvent;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.structure.map.IMap;
+
+			import mx.collections.XMLListCollection;
+			import mx.events.FlexEvent;
+
+			private var log:ILogger = Log.getLogger("com.linkage.module.topo.framework.view.component.spareparts.ResourceStatisticPanel");
+			//资源统计是否启用
+			private var _resStatEnabled:Boolean = false;
+			// 默认是否显示(在启用状态下才有效)
+			private var _defaultShow:Boolean = true;
+			// 数据源
+			private var _dataSource:IDataSource = null;
+			// 展现的数据列表
+			[Bindable]
+			private var dataList:XMLListCollection = new XMLListCollection();
+			// 上次的刷新时间
+			private var _lastRefreshTime:Number = 0;
+
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+
+			/**
+			 * 资源统计面板是否启用
+			 */
+			public function set resStatEnabled(value:Boolean):void
+			{
+				_resStatEnabled = value;
+			}
+
+			/**
+			 * 默认是否显示
+			 */
+			public function set defaultShow(value:Boolean):void
+			{
+				_defaultShow = value;
+			}
+
+			override public function initPanel():void
+			{
+				if (_resStatEnabled && _defaultShow)
+				{
+					showPanel();
+				}
+			}
+
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				super.topoCanvas = value;
+
+
+				// 层次切换,重新获取数据
+				_topoCanvas.addEventListener(CanvasEvent.LAYER_CHANGED, function(event:CanvasEvent):void
+					{
+						if (showStatus)
+						{
+							_lastRefreshTime = 0;
+							loadData();
+						}
+					});
+				// 告警刷新后,重新获取数据
+				_topoCanvas.addEventListener(CanvasEvent.ALARM_CHANGED, function(event:CanvasEvent):void
+					{
+						if (showStatus)
+						{
+							loadData();
+						}
+					});
+
+				// 面板显隐切换
+				_topoCanvas.addEventListener(TopoEvent.STATISTIC_TOGGLE, function(event:TopoEvent):void
+					{
+						if (_resStatEnabled)
+						{
+							if (showStatus)
+							{
+								closePanel();
+							}
+							else
+							{
+								showPanel();
+							}
+						}
+					});
+
+			}
+
+			// 加载数据
+			private function loadData():void
+			{
+				var refreshTime:Number = new Date().getTime();
+				if (refreshTime - _lastRefreshTime < 5000)
+				{
+					// 5s之内不再刷新
+					return;
+				}
+//				log.debug("[刷新资源统计面板]Start... {0}", _topoCanvas.topoId);
+				_lastRefreshTime = refreshTime;
+				var data:String = DataUtil.buildMapXML(Constants.XML_KEY_PID, _topoCanvas.topoId);
+				_dataSource.notify(_topoCanvas.topoName, DataUtil.buildXML(Constants.TP_MC_RESOURCE_STATISTIC, data), function(result:String):void
+					{
+						var map:IMap = DataUtil.getActionResultMap(new XML(result));
+						if (map.get(Constants.XML_KEY_SUCCESS) == "1")
+						{
+							var data:XML = new XML(map.get(Constants.XML_KEY_ELEMENTXML));
+							dataList.removeAll();
+							dataList.source = data.child("mo_type");
+							dataList.refresh();
+//							log.debug("[刷新资源统计面板]End. 耗时:{0}s", (new Date().getTime() - refreshTime) / 1000.00);
+						}
+						else
+						{
+							log.error("获取资源统计数据失败: {0}", map.get(Constants.XML_KEY_MSG));
+						}
+					}, function():void
+					{
+					}, function():void
+					{
+						log.error("获取资源统计数据失败!(通信异常)");
+					});
+			}
+
+			// 展示元素的信息
+			private function showPanel():void
+			{
+				show();
+				loadData();
+			}
+
+			// 关闭面板
+			private function closePanel():void
+			{
+				hide();
+			}
+
+			// 网元数量按照数字排序
+			private function sortDevNumber(obj1:Object, obj2:Object):int
+			{
+				var num1:int = int(obj1.@dev_num);
+				var num2:int = int(obj2.@dev_num);
+				if (num1 == num2)
+				{
+					return 0;
+				}
+				return num1 > num2 ? 1 : -1;
+			}
+
+			// 告警网元数量按照数字排序
+			private function sortAlarmNumber(obj1:Object, obj2:Object):int
+			{
+				var num1:int = int(obj1.@alarm_num);
+				var num2:int = int(obj2.@alarm_num);
+				if (num1 == num2)
+				{
+					return 0;
+				}
+				return num1 > num2 ? 1 : -1;
+			}
+
+
+			//======================== 表格监听事件 =========================
+			private var _dataGridListeners:Array = [];
+
+			/**
+			 * 给表格添加监听事件
+			 *
+			 * @param type
+			 * @param listener
+			 */
+			public function addDataGridEventListener(type:String, listener:Function):void
+			{
+				if (dataGrid == null)
+				{
+					_dataGridListeners.push({type: type, listener: listener});
+				}
+				else
+				{
+					dataGrid.addEventListener(type, listener);
+				}
+			}
+
+			private function flowAlarm_creationCompleteHandler(event:FlexEvent):void
+			{
+				_dataGridListeners.forEach(function(item:*, index:int, array:Array):void
+					{
+						dataGrid.addEventListener(item.type, item.listener);
+					});
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="dataGrid"
+						 width="100%"
+						 height="100%"
+						 dataProvider="{dataList}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="@name"
+									   headerText="网元类型"/>
+			<mx:AdvancedDataGridColumn dataField="@dev_num"
+									   headerText="网元数量"
+									   sortCompareFunction="sortDevNumber"/>
+			<mx:AdvancedDataGridColumn dataField="@alarm_num"
+									   headerText="告警网元数量"
+									   sortCompareFunction="sortAlarmNumber"/>
+		</mx:columns>
+
+	</mx:AdvancedDataGrid>
+</panel:AbstractCEPWindow>

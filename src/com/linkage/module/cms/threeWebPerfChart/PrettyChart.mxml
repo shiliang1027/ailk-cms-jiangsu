@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         width="100%"
+         height="100%">
+    <fx:Script>
+        <![CDATA[
+            import mx.charts.renderers.CircleItemRenderer;
+            import mx.collections.ArrayCollection;
+            import mx.events.FlexEvent;
+
+            [Bindable]
+            public var title1:String = "";
+
+            [Bindable]
+            public var title2:String = "";
+
+            [Bindable]
+            public var title3:String = "";
+
+            [Bindable]
+            public var title4:String = "";
+
+            public function chartData(ac:ArrayCollection):void
+            {
+                linechart.dataProvider = ac;
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <mx:SolidColorStroke id="s1"
+                             color="0X00FF00"
+                             weight="2"/>
+        <mx:SolidColorStroke id="s2"
+                             color="0X0000FF"
+                             weight="2"/>
+        <mx:SolidColorStroke id="s3"
+                             color="0XFF0000"
+                             weight="2"/>
+        <mx:SolidColorStroke id="s4"
+                             color="0X0EECF1"
+                             weight="2"/>
+    </fx:Declarations>
+
+
+    <mx:LineChart id="linechart"
+                  height="100%"
+                  width="100%"
+                  paddingLeft="5"
+                  paddingRight="5"
+                  showDataTips="true">
+        <mx:horizontalAxisRenderers>
+            <mx:AxisRenderer axis="{ca}"
+                             canDropLabels="true"/>
+        </mx:horizontalAxisRenderers>
+        <mx:horizontalAxis>
+            <mx:CategoryAxis id="ca"
+                             categoryField="gather_time"/>
+        </mx:horizontalAxis>
+
+        <mx:series>
+            <mx:LineSeries yField="perf_2G_value"
+                           form="curve"
+                           itemRenderer="mx.charts.renderers.CircleItemRenderer"
+                           interpolateValues="false"
+                           displayName="{title1}"
+                           lineStroke="{s1}"/>
+            <mx:LineSeries yField="perf_3G_value"
+                           form="curve"
+                           itemRenderer="mx.charts.renderers.CircleItemRenderer"
+                           interpolateValues="false"
+                           displayName="{title2}"
+                           lineStroke="{s2}"/>
+            <mx:LineSeries yField="perf_4G_value"
+                           form="curve"
+                           itemRenderer="mx.charts.renderers.CircleItemRenderer"
+                           interpolateValues="false"
+                           displayName="{title3}"
+                           lineStroke="{s3}"/>
+            <mx:LineSeries yField="perf_23G_value"
+                           form="curve"
+                           itemRenderer="mx.charts.renderers.CircleItemRenderer"
+                           interpolateValues="false"
+                           displayName="{title4}"
+                           lineStroke="{s4}"/>
+        </mx:series>
+    </mx:LineChart>
+
+</s:Group>

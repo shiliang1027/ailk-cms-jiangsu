@@ -1,0 +1,977 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="700"
+					height="500"
+					title="无线性能钻取"
+					styleName="windowScene"
+					visible="false"
+					minimizable="false"
+					resizable="true"
+					dragable="true"
+					close="wirelessView_closeHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+					xmlns:view="com.linkage.module.cms.scene.kpicustom.view.*"
+					xmlns:wireless="com.linkage.module.cms.oneline.view.components.wireless.*">
+	<ailk_compts:states>
+		<s:State name="provView"/>
+		<s:State name="cityView"/>
+		<s:State name="moView"/>
+	</ailk_compts:states>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.oneline.WirelessContext;
+			import com.linkage.module.cms.oneline.domain.wireless.IUser;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			import com.linkage.module.cms.oneline.event.wireless.WirelessEvent;
+			import com.linkage.module.cms.oneline.view.components.wireless.renderer.KpiDGItemRenderer;
+			import com.linkage.module.cms.oneline.view.components.wireless.renderer.KpiItemRenderer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.DateField;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.AdvancedDataGridEvent;
+			import mx.events.StateChangeEvent;
+			import mx.utils.ObjectUtil;
+			
+			import spark.events.IndexChangeEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(WirelessView);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[Bindable]
+			[Inject("wirelessViewPM")]
+			public var pm:WirelessViewPM;
+
+			[MessageDispatcher]
+			public var dispatcher:Function;
+
+			[Embed(source="../../../../../../../../assets/shiftBtn2_1.png")]
+			[Bindable]
+			private static var pic21:Class;
+
+			[Embed(source="../../../../../../../../assets/shiftBtn2_2.png")]
+			[Bindable]
+			private static var pic22:Class;
+
+			[Embed(source="../../../../../../../../assets/shiftBtn2_3.png")]
+			[Bindable]
+			private static var pic23:Class;
+
+			[Embed(source="../../../../../../../../assets/shiftBtn2_4.png")]
+			[Bindable]
+			private static var pic24:Class;
+
+			private var currentParam:Object=new Object();
+			//告警是否初始化
+			private var alarmInit:Boolean=false;
+
+			[Init]
+			public function wirelessInit():void
+			{
+				user.context=this.parentApplication.parameters['context'];
+				user.account=this.parentApplication.parameters['account'];
+				user.areaId=this.parentApplication.parameters['areaId'];
+			}
+
+			protected function wirelessView_closeHandler(event:WindowEvent):void
+			{
+				this.visible=false;
+			}
+
+			[MessageHandler(selector="WIRELESSVIEWSHOW")]
+			public function viewShowHandler(e:WirelessEvent):void
+			{
+				this.visible=true;
+				var s:Rectangle=systemManager.screen;
+				var appWidth:Number;
+				var appHeight:Number;
+				var parentWidth:Number;
+				var parentHeight:Number;
+
+				appWidth=s.width;
+				appHeight=s.height;
+				parentWidth=this.parent.width;
+				parentHeight=this.parent.height;
+				x=Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+				y=Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+				this.maximizeButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+
+				this.addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE, onCurrentStateChangeHandler);
+				currentParam.cityId="00";
+				currentParam.view="1";
+				currentParam.type=e.param.type;
+				loadKpis();
+			}
+
+			private function onCurrentStateChangeHandler(event:StateChangeEvent):void
+			{
+				log.debug("onCurrentStateChangeHandler newState:{0},oldState:{1}", event.newState, event.oldState);
+				pm.dm.tabs.removeAll();
+				if (event.newState == "provView")
+				{
+					pm.dm.tabs.addItem({id: "1", name: "地市列表"});
+				}
+				else if (event.newState == "cityView")
+				{
+					pm.dm.tabs.addItem({id: "1", name: (currentParam.type == "bsc" ? "BSC列表" : "RNC列表")});
+				}
+				else if (event.newState == "moView")
+				{
+					pm.dm.tabs.addItem({id: "1", name: "小区列表"});
+				}
+			}
+
+			private function loadKpis():void
+			{
+				enableView(false);
+				var evt:WirelessEvent=new WirelessEvent(WirelessEvent.LOADKPIS);
+				var param:Object=new Object();
+				param.cityId=currentParam.cityId;
+				param.type=currentParam.type;
+				param.view=currentParam.view;
+				if (currentParam.moId)
+				{
+					param.moId=currentParam.moId;
+				}
+				evt.param=param;
+				dispatcher(evt);
+			}
+
+			private function loadKpiColorData():void
+			{
+				enableView(false);
+				var kpiIds:Array=new Array();
+				for each (var item:*in pm.dm.moKpis)
+				{
+					if (item.selected)
+					{
+						kpiIds.push(item.id);
+					}
+				}
+				var evt:WirelessEvent=new WirelessEvent(WirelessEvent.LOADKPICOLORDATA);
+				var param:Object=new Object();
+				param.cityId=currentParam.cityId;
+				param.kpiIds=kpiIds.join(",");
+				;
+				param.type=currentParam.type;
+				param.view=currentParam.view;
+//				if (currentParam.moFlag)
+//				{
+//					param.type=currentParam.moFlag;
+//				}
+				if (currentParam.moId)
+				{
+					param.moId=currentParam.moId;
+				}
+				evt.param=param;
+				dispatcher(evt);
+			}
+
+			private function loadKpiDGData():void
+			{
+				enableView(false);
+				var evt:WirelessEvent=new WirelessEvent(WirelessEvent.LOADKPIDGDATA);
+				var param:Object=new Object();
+				param.cityId=currentParam.cityId;
+				param.type=currentParam.type;
+				param.view=currentParam.view;
+//				if (currentParam.moFlag)
+//				{
+//					param.type=currentParam.moFlag;
+//				}
+				if (currentParam.moId)
+				{
+					param.moId=currentParam.moId;
+				}
+				evt.param=param;
+				dispatcher(evt);
+			}
+
+			protected function kpis_changeHandler(event:IndexChangeEvent):void
+			{
+				log.debug("kpis_changeHandler index:{0}", event.newIndex);
+				if (kpiList.selectedItem && kpiList.selectedItem.id)
+				{
+					var evt:WirelessEvent=new WirelessEvent(WirelessEvent.LOADKPICOLLECTDATA);
+					var param:Object=new Object();
+					param.kpiId=kpiList.selectedItem.id;
+					param.cityId=currentParam.cityId;
+					param.type=currentParam.type;
+					param.view=currentParam.view;
+					if (kpiList.selectedItem.mo_type_id)
+					{
+						param.mo_type_id=kpiList.selectedItem.mo_type_id;
+						currentParam.mo_type_id=param.mo_type_id;
+					}
+					if (kpiList.selectedItem.time_interval)
+					{
+						param.time_interval=kpiList.selectedItem.time_interval;
+					}
+					if (currentParam.moId)
+					{
+						param.moId=currentParam.moId;
+					}
+					if (currentParam.startTime)
+					{
+						param.startTime=currentParam.startTime;
+					}
+					if (currentParam.endTime)
+					{
+						param.endTime=currentParam.endTime;
+					}
+					evt.param=param;
+					dispatcher(evt);
+					enableView(false);
+				}
+			}
+
+			protected function matrix_changeHandler(event:IndexChangeEvent):void
+			{
+				log.debug("matrix_changeHandler index:{0}", event.newIndex);
+				if (currentParam.view == "1")
+				{
+					currentParam.view="2";
+					this.currentState="cityView";
+					currentParam.cityId=matrixList.selectedItem.id;
+					currentParam.cityName=matrixList.selectedItem.name;
+				}
+				else if (currentParam.view == "2")
+				{
+					currentParam.view="3";
+					currentParam.moId=matrixList.selectedItem.id;
+					this.currentState="moView";
+				}
+				else if (currentParam.view == "3")
+				{
+					currentParam.moId=matrixList.selectedItem.id;
+					currentParam.view="4";
+				}
+//				pm.dm.tabs=new ArrayCollection([{id: "1", name: "小区列表"}]);
+//				var evt:IndexChangeEvent=new IndexChangeEvent(IndexChangeEvent.CHANGE);
+//				evt.newIndex=kpiList.selectedIndex;
+//				kpiList.dispatchEvent(evt);
+//				loadKpiDGData();
+				if (currentParam.view != "4")
+				{
+					loadKpis();
+				}else{
+//					var evt:GisHotEvent=new GisHotEvent(GisHotEvent.GISHOTVIEWSHOW);
+//					var param:Object=new Object();
+//					param.id=matrixList.selectedItem.id;
+//					evt.param=param;
+//					dispatcher(evt);
+				}
+			}
+
+			protected function matrix_clickHandler(event:MouseEvent):void
+			{
+//				var item:*=getClickItem(event.target);
+//				if (item)
+//				{
+//					var point:Point=this.contentGroup.globalToLocal(new Point(event.stageX, event.stageY));
+//					if (point.x + menuBC.width > this.width)
+//					{
+//						point.x-=menuBC.width;
+//					}
+//					menuBC.right=this.width - point.x - menuBC.width;
+//					menuBC.top=point.y;
+//					menuBC.visible=true;
+//				}
+//				else
+//				{
+//					menuBC.visible=false;
+//				}
+			}
+
+			private function getClickItem(target:*):*
+			{
+				if (!target)
+				{
+					return null;
+				}
+				if (target is KpiItemRenderer)
+				{
+					return target;
+				}
+				target=target.parent;
+				return getClickItem(target);
+			}
+
+//			protected function bsc_clickHandler(event:MouseEvent):void
+//			{
+//				// TODO Auto-generated method stub
+//				menuBC.visible=false;
+//				this.currentState="moView";
+//				currentParam.moFlag="bsc";
+//				currentParam.cityId=matrixList.selectedItem.id;
+//				pm.dm.tabs=new ArrayCollection([{id: "1", name: "BSC列表"}]);
+//				loadKpis();
+//			}
+//
+//			protected function rnc_clickHandler(event:MouseEvent):void
+//			{
+//				// TODO Auto-generated method stub
+//				menuBC.visible=false;
+//				this.currentState="moView";
+//				currentParam.moFlag="rnc";
+//				currentParam.cityId=matrixList.selectedItem.id;
+//				pm.dm.tabs=new ArrayCollection([{id: "1", name: "RNC列表"}]);
+//				loadKpis();
+//			}
+
+			protected function img1_clickHandler(event:MouseEvent):void
+			{
+				flowGroup.height == 0 ? flowGroupOpenEffect.play() : flowGroupCloseEffect.play();
+			}
+
+			protected function img1_mouseOver(event:MouseEvent):void
+			{
+				this.img1.source=this.img1.source == pic24 ? pic23 : this.img1.source == pic22 ? pic21 : pic23;
+			}
+
+			protected function img1_mouseOut(event:MouseEvent):void
+			{
+				this.img1.source=this.img1.source == pic23 ? pic24 : this.img1.source == pic21 ? pic22 : pic24;
+			}
+
+			protected function kpiChoose_clickHandler(event:MouseEvent):void
+			{
+				var point:Point=this.contentGroup.globalToLocal(new Point(event.stageX, event.stageY));
+				if (point.x + kpiChooseView.width > this.width)
+				{
+					point.x-=kpiChooseView.width;
+				}
+				kpiChooseView.right=this.width - point.x - kpiChooseView.width;
+				kpiChooseView.top=point.y;
+				kpiChooseView.visible=true;
+			}
+
+			private var loadKpiColorOnly:Boolean=false;
+
+			[MessageHandler(selector="DOLOADKPICOLORDATA")]
+			public function doLoadKpisColorDataHandler(e:WirelessEvent):void
+			{
+				loadKpiColorOnly=true;
+				loadKpiColorData();
+			}
+
+			[MessageHandler(selector="LOADKPISCOMPLETE")]
+			public function loadKpisCompleteHandler(e:WirelessEvent):void
+			{
+				//TODO
+				log.debug("LOADKPISCOMPLETE");
+				enableView(true);
+				kpiList.selectedIndex=0;
+//				log.debug(kpiList.selectedItem);
+				kpiList.dispatchEvent(new IndexChangeEvent(IndexChangeEvent.CHANGE));
+				for each (var item:*in pm.dm.moKpis)
+				{
+					item.selected=true;
+				}
+				loadKpiColorData();
+			}
+
+			[MessageHandler(selector="LOADKPISERROR")]
+			public function loadKpisErrorHandler(e:WirelessEvent):void
+			{
+				//测试，正式运行注释如下代码
+				log.debug("LOADKPISERROR");
+				enableView(true);
+				Alert.show("查询指标列表失败", "错误");
+//				kpiList.selectedIndex=0;
+//				log.debug(kpiList.selectedItem);
+//				var evt:IndexChangeEvent=new IndexChangeEvent(IndexChangeEvent.CHANGE);
+//				evt.newIndex=kpiList.selectedIndex;
+//				kpiList.dispatchEvent(evt);
+//				for each (var item:*in pm.dm.moKpis)
+//				{
+//					item.selected=true;
+//				}
+//				loadKpiColorData();
+//				loadKpiDGData();
+			}
+
+			[MessageHandler(selector="LOADKPICOLLECTDATACOMPLETE")]
+			public function loadKpisCollectDataCompleteHandler(e:WirelessEvent):void
+			{
+				//TODO
+				log.debug("LOADKPICOLLECTDATACOMPLETE");
+				delete currentParam.startTime;
+				delete currentParam.endTime;
+				enableView(true);
+				buildChart();
+			}
+
+			[MessageHandler(selector="LOADKPICOLLECTDATAERROR")]
+			public function loadKpisCollectDataErrorHandler(e:WirelessEvent):void
+			{
+				//测试，正式运行注释如下代码
+				log.debug("LOADKPICOLLECTDATAERROR");
+				enableView(true);
+				Alert.show("查询指标汇总趋势数据失败", "错误");
+//				buildChart();
+			}
+
+			private function buildChart():void
+			{
+				pc.xAxisFontSize=13;
+				//				pc.defaultStyleURL = 'style.xml';
+				pc.justifyMaxValue=true;
+				var series:ArrayCollection=new ArrayCollection();
+
+//				for each (var item:*in data.moOrAreas)
+//				{
+				var sp:SerialParam=new SerialParam("value", kpiList.selectedItem.name);
+				series.addItem(sp);
+//				}
+				pc.series=series;
+				var chartParam:ChartParam=new ChartParam();
+				chartParam.title=kpiList.selectedItem.name;
+				chartParam.xAxisProperty='time';
+				chartParam.leftYaxisSuffix=kpiList.selectedItem.unit;
+				chartParam.labelStep=uint(pm.dm.kpiCollectData.length / 4);
+//				horizontalLines=new ArrayCollection();
+//				if (data.up_threshold && data.up_threshold != "0")
+//				{
+//					var up_threshold:HorizontalLine=new HorizontalLine()
+//					up_threshold.yValue=data.up_threshold;
+//					up_threshold.lineColor=0xFF0000;
+//					up_threshold.dashedLine=false;
+//					horizontalLines.addItem(up_threshold);
+//				}
+//				if (data.down_threshold && data.down_threshold != "0")
+//				{
+//					var down_threshold:HorizontalLine=new HorizontalLine()
+//					down_threshold.yValue=data.down_threshold;
+//					down_threshold.lineColor=0xFF0000;
+//					down_threshold.dashedLine=false;
+//					horizontalLines.addItem(down_threshold);
+//				}
+//				if (showHideThresholdCB.selected)
+//				{
+//					chartParam.horizontalLines=horizontalLines;
+//				}
+				pc.chartParam=chartParam;
+				pc.chartData(pm.dm.kpiCollectData, true);
+
+			}
+
+			[MessageHandler(selector="LOADKPICOLORDATACOMPLETE")]
+			public function loadKpisColorDataCompleteHandler(e:WirelessEvent):void
+			{
+				log.debug("LOADKPICOLORDATACOMPLETE");
+				enableView(true);
+				if (loadKpiColorOnly)
+				{
+					loadKpiColorOnly=false;
+					return;
+				}
+				loadKpiDGData();
+				matrixList.validateNow();
+			}
+
+			[MessageHandler(selector="LOADKPICOLORDATAERROR")]
+			public function loadKpisColorDataErrorHandler(e:WirelessEvent):void
+			{
+				log.debug("LOADKPICOLORDATAERROR");
+				enableView(true);
+				Alert.show("查询劣化数据失败", "错误");
+//				loadKpiDGData();
+			}
+
+			protected function goBack_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+//				this.currentState='cityView';
+//				currentParam.cityId="00";
+//				delete currentParam.moFlag;
+//				pm.dm.tabs=new ArrayCollection([{id: "1", name: "地市列表"}]);
+				delete currentParam.moId;
+				if (currentParam.view == "3" || currentParam.view == "4")
+				{
+					this.currentState='cityView';
+					currentParam.view="2";
+				}
+				else if (currentParam.view == "2")
+				{
+					this.currentState='provView';
+					currentParam.view="1";
+					currentParam.cityId="00";
+					currentParam.cityName="全省";
+				}
+				loadKpis();
+
+			}
+
+			[MessageHandler(selector="LOADKPIDGDATACOMPLETE")]
+			public function loadKpisDGDataCompleteHandler(e:WirelessEvent):void
+			{
+				log.debug("LOADKPIDGDATACOMPLETE");
+				enableView(true);
+				var column:AdvancedDataGridColumn;
+				var columns:Array=new Array();
+				for (var i:int=0; i < pm.dm.kpiGDData.title.length; i++)
+				{
+					column=new AdvancedDataGridColumn();
+					column.dataField=pm.dm.kpiGDData.column[i];
+					column.headerText=pm.dm.kpiGDData.title[i];
+					var width:Number=(pm.dm.kpiGDData.title[i].length) * 16;
+					if (width < 100)
+					{
+						width=100;
+					}
+					column.width=width;
+					if (i > 1)
+					{
+						column.itemRenderer=new ClassFactory(KpiDGItemRenderer);
+					}
+					columns.push(column);
+				}
+				kpiDG.columns=columns;
+				kpiDG.dataProvider=pm.dm.kpiGDData.dataList;
+			}
+
+			[MessageHandler(selector="LOADKPIDGDATAERROR")]
+			public function loadKpisDGDataErrorHandler(e:WirelessEvent):void
+			{
+				log.debug("LOADKPIDGDATAERROR");
+				enableView(true);
+				Alert.show("查询表格数据失败", "错误");
+//				var column:AdvancedDataGridColumn;
+//				var columns:Array = new Array();
+//				for(var i:int=0;i<pm.dm.kpiGDData.title.length;i++){
+//					column = new AdvancedDataGridColumn();
+//					column.dataField = pm.dm.kpiGDData.column[i];
+//					column.headerText = pm.dm.kpiGDData.title[i];
+//					columns.push(column);
+//				}
+//				kpiDG.columns = columns;
+//				kpiDG.dataProvider = pm.dm.kpiGDData.dataList;
+			}
+
+			private function loadAlarm(rule:String):void
+			{
+				log.debug("加载告警:{0}", rule);
+				if (!alarmInit)
+				{
+					log.debug(this.parentApplication.parameters["user"]);
+					this.alarmFlow.params={mapInfo: this.parentApplication.parameters["user"]};
+					this.alarmFlow.ruleContent=rule;
+					this.alarmFlow.initInfo();
+					alarmInit=true;
+				}
+				else
+				{
+					this.alarmFlow.reload(rule);
+				}
+			}
+
+			private function stopAlarmFlow(flag:Boolean=true):void
+			{
+				if (flag)
+				{
+					this.alarmFlow.stopLoad();
+				}
+				else
+				{
+//					this.alarmFlow.start();
+					var rule:String="";
+					if (currentParam.type == "bsc")
+					{
+						rule+="alarmnetype='BSC'";
+					}
+					else if (currentParam.type == "rnc")
+					{
+						rule+="alarmnetype='RNC'";
+					}
+					if (currentParam.view != "1")
+					{
+						rule+="&alarmregion='" + currentParam.cityId + "'";
+					}
+//					if(currentParam.perf_type_id){
+//						rule += "&alarmnetype='"+currentParam.perf_type_id+"'";
+//					}
+					loadAlarm(rule);
+				}
+			}
+
+			private function enableView(flag:Boolean=true):void
+			{
+//				kpiList.enabled=flag;
+//				matrixList.enabled=flag;
+//				kpiChooseView.enabled=flag;
+//				timeChooseView.enabled=flag;
+				this.enabled=flag;
+			}
+
+			private function timeChoose_clickHandler(event:MouseEvent):void
+			{
+				timeChooseView.x=event.currentTarget.x + event.currentTarget.width;
+				timeChooseView.y=event.currentTarget.y - 4;
+				timeChooseView.visible=!timeChooseView.visible;
+
+			}
+
+			[MessageHandler(selector="DOLOADKPICOLLECTDATA")]
+			public function doLoadKpisCollectDataHandler(e:WirelessEvent):void
+			{
+				currentParam.startTime=e.param.startTime;
+				currentParam.endTime=e.param.endTime;
+				kpiList.dispatchEvent(new IndexChangeEvent(IndexChangeEvent.CHANGE));
+			}
+
+			protected function kpiDG_headerReleaseHandler(event:AdvancedDataGridEvent):void
+			{
+				// TODO Auto-generated method stub
+				var column:AdvancedDataGridColumn=AdvancedDataGridColumn(event.currentTarget.columns[event.columnIndex]);
+				var columnName:String=column.dataField;
+				column.sortCompareFunction=function(obj1:Object, obj2:Object):int
+				{
+					return superSort(obj1, obj2, columnName);
+				};
+			}
+
+			public function superSort(obj1:Object, obj2:Object, columnName:String):int
+			{
+
+				//验证数据类型 Numbe Date String      
+
+				if (!isNaN(obj1[columnName]))
+				{
+					return number_sortCompareFunc(obj1, obj2, columnName);
+				}
+
+				if (strIsDate(obj1[columnName]))
+				{
+					var inputFormat:String=getInputFormat(obj1[columnName]);
+					return date_sortCompareFunc(obj1, obj2, columnName, inputFormat);
+				}
+				return string_sortCompareFunc(obj1, obj2, columnName);
+			}
+
+			/**
+			 * 日期的排序
+			 */
+
+			private function date_sortCompareFunc(obj1:Object, obj2:Object, columnName:String, inputFormat:String):int
+			{
+				var date1:Date=DateField.stringToDate(obj1[columnName], inputFormat);
+				var date2:Date=DateField.stringToDate(obj2[columnName], inputFormat);
+				return ObjectUtil.dateCompare(date1, date2);
+			}
+
+			/**
+
+			 * 字符串的排序
+
+			 */
+
+			private function string_sortCompareFunc(obj1:Object, obj2:Object, columnName:String):int
+			{
+				var str1:String=obj1[columnName];
+				var str2:String=obj2[columnName];
+				return ObjectUtil.stringCompare(str1, str2, false);
+			}
+
+			/**
+
+			 * 数字的排序
+
+			 */
+
+			private function number_sortCompareFunc(obj1:Object, obj2:Object, columnName:String):int
+			{
+				var num1:Number=Number(obj1[columnName]);
+				var num2:Number=Number(obj2[columnName]);
+				return ObjectUtil.numericCompare(num1, num2);
+
+			}
+
+			/**
+
+			 * 验证一个字符串是否是日期格式
+
+			 */
+
+			private function strIsDate(str:String):Boolean
+			{
+
+				var inputFormat:String=getInputFormat(str);
+				//如果找不到日期表示符号则直接返回false      
+				if (inputFormat == null)
+				{
+					return false;
+				}
+
+				var date:Date=DateField.stringToDate(str, inputFormat);
+				//如果是日期date不为null      
+				if (date != null)
+				{
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+
+			/**
+
+			 * 得到日期的格式  判断的顺序为 2009-11-12 2009/11/12 2009.11.12
+
+			 */
+
+			private function getInputFormat(str:String):String
+			{
+				if (str.indexOf("-") != -1)
+				{
+					return "YYYY-MM-DD JJ:NN:SS";
+				}
+
+				if (str.indexOf("/") != -1)
+				{
+					return "YYYY/MM/DD JJ:NN:SS";
+				}
+
+				if (str.indexOf(".") != -1)
+				{
+					return "YYYY.MM.DD JJ:NN:SS";
+				}
+				return null;
+			}
+		]]>
+	</fx:Script>
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-11-22
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{WirelessContext}"/>
+		</parsley:ContextBuilder>
+
+		<s:Animate id="flowGroupOpenEffect"
+				   target="{flowGroup}"
+				   repeatCount="1"
+				   duration="500"
+				   effectStart="img1.enabled=false;flowBtn.enabled=false;img1.removeEventListener(MouseEvent.MOUSE_OVER,img1_mouseOver);img1.removeEventListener(MouseEvent.MOUSE_OUT,img1_mouseOut);"
+				   effectEnd="img1.enabled=true;flowBtn.enabled=true;flowBtn.label='收起流水';img1.source=pic22;img1.addEventListener(MouseEvent.MOUSE_OVER,img1_mouseOver);img1.addEventListener(MouseEvent.MOUSE_OUT,img1_mouseOut);stopAlarmFlow(false);">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="height"
+									valueFrom="0"
+									valueTo="220"/>
+			</s:motionPaths>
+		</s:Animate>
+		<s:Animate id="flowGroupCloseEffect"
+				   target="{flowGroup}"
+				   repeatCount="1"
+				   duration="500"
+				   effectStart="img1.enabled=false;flowBtn.enabled=false;img1.removeEventListener(MouseEvent.MOUSE_OVER,img1_mouseOver);img1.removeEventListener(MouseEvent.MOUSE_OUT,img1_mouseOut);"
+				   effectEnd="img1.enabled=true;flowBtn.enabled=true;flowBtn.label='展开流水';img1.source=pic24;img1.addEventListener(MouseEvent.MOUSE_OVER,img1_mouseOver);img1.addEventListener(MouseEvent.MOUSE_OUT,img1_mouseOut);stopAlarmFlow(true);">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="height"
+									valueFrom="220"
+									valueTo="0"/>
+			</s:motionPaths>
+		</s:Animate>
+	</fx:Declarations>
+
+	<mx:HDividedBox width="100%"
+					height="100%"
+					bottom="5">
+		<s:BorderContainer width="100%"
+						   minWidth="560"
+						   height="100%">
+			<mx:VDividedBox width="100%"
+							height="100%">
+				<s:HGroup width="100%"
+						  height="100%">
+					<s:VGroup width="100%"
+							  height="100%"
+							  paddingLeft="2"
+							  paddingTop="2"
+							  paddingRight="2">
+						<mx:Image source="@Embed(source='assets/cog_edit.png')"
+								  width="16"
+								  height="16"
+								  buttonMode="true"
+								  toolTip="时间选择"
+								  click="timeChoose_clickHandler(event)"/>
+						<ailk_chart:PrettyChart clipAndEnableScrolling="true"
+												top="20"
+												id="pc"
+												width="100%"
+												height="100%"/>
+					</s:VGroup>
+					<s:List styleName="sceneList"
+							id="kpiList"
+							change="kpis_changeHandler(event)"
+							borderVisible="false"
+							requireSelection="true"
+							contentBackgroundAlpha="0"
+							height="100%"
+							maxWidth="200"
+							minWidth="130"
+							dataProvider="{pm.dm.kpis}"
+							itemRenderer="com.linkage.module.cms.oneline.view.components.wireless.renderer.RadioKpiItemRenderer">
+						<s:layout>
+							<s:VerticalLayout gap="5"
+											  verticalAlign="middle"/>
+						</s:layout>
+					</s:List>
+				</s:HGroup>
+				<s:VGroup width="100%"
+						  height="300"
+						  gap="0">
+					<s:TabBar dataProvider="{pm.dm.tabs}"
+							  labelField="name"
+							  width="100%"
+							  styleName="sceneTabBar"
+							  buttonMode="true"/>
+					<mx:AdvancedDataGrid id="kpiDG"
+										 headerRelease="kpiDG_headerReleaseHandler(event)"
+										 width="100%"
+										 horizontalScrollPolicy="auto"
+										 styleName="sceneDG"
+										 height="100%"
+										 verticalAlign="middle"
+										 wordWrap="false">
+					</mx:AdvancedDataGrid>
+				</s:VGroup>
+			</mx:VDividedBox>
+		</s:BorderContainer>
+		<s:BorderContainer width="40%"
+						   height="100%">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<s:HGroup width="100%"
+					  paddingLeft="5"
+					  paddingTop="2"
+					  paddingBottom="2"
+					  verticalAlign="middle">
+				<mx:Image source="@Embed(source='assets/cog_edit.png')"
+						  width="16"
+						  height="16"
+						  buttonMode="true"
+						  toolTip="指标渲染配置"
+						  click="kpiChoose_clickHandler(event)"/>
+				<mx:Image includeIn="cityView,moView"
+						  source="@Embed(source='assets/edit_arrow.png')"
+						  width="16"
+						  height="16"
+						  buttonMode="true"
+						  toolTip="返回上级"
+						  click="goBack_clickHandler(event)"/>
+			</s:HGroup>
+			<s:List styleName="sceneList"
+					id="matrixList"
+					change="matrix_changeHandler(event)"
+					borderVisible="false"
+					contentBackgroundAlpha="0"
+					height="100%"
+					width="100%"
+					dataProvider="{pm.dm.matrixDatas}"
+					itemRenderer="com.linkage.module.cms.oneline.view.components.wireless.renderer.KpiItemRenderer">
+
+				<s:layout>
+					<s:TileLayout verticalGap="2"
+								  requestedColumnCount="3"
+								  columnAlign="justifyUsingWidth"
+								  columnWidth="10"/>
+				</s:layout>
+			</s:List>
+
+		</s:BorderContainer>
+	</mx:HDividedBox>
+
+	<s:Group width="100%"
+			 height="100%"
+			 clipAndEnableScrolling="true">
+
+
+		<mx:VDividedBox width="100%"
+						height="100%">
+			<s:Group width="100%"
+					 height="100%">
+				<s:HGroup id="imgOne"
+						  width="100%"
+						  bottom="0"
+						  height="5"
+						  horizontalAlign="center">
+					<mx:Image id="img1"
+							  click="img1_clickHandler(event)"
+							  buttonMode="true"
+							  source="{pic24}">
+					</mx:Image>
+				</s:HGroup>
+				<s:Button right="20"
+						  bottom="0"
+						  buttonMode="true"
+						  click="img1_clickHandler(event)"
+						  id="flowBtn"
+						  label="展开流水"
+						  cornerRadius="5"/>
+			</s:Group>
+			<s:BorderContainer id="flowGroup"
+							   styleName="bgstyle1"
+							   width="100%"
+							   height="0"
+							   cornerRadius="6">
+				<s:layout>
+					<s:VerticalLayout gap="0"/>
+				</s:layout>
+				<pubflow:alarm id="alarmFlow"
+							   moduleKey="sceneflowalarm"
+							   width="100%"
+							   height="100%">
+				</pubflow:alarm>
+			</s:BorderContainer>
+		</mx:VDividedBox>
+	</s:Group>
+
+	<!--<s:BorderContainer id="menuBC"
+		 minWidth="0"
+		 minHeight="0"
+		 styleName="bgstyle1"
+		 visible="false">
+		 <s:layout>
+		 <s:VerticalLayout paddingLeft="5"
+		 paddingRight="5"
+		 paddingTop="2"
+		 paddingBottom="2"/>
+		 </s:layout>
+		 <s:Button label="BSC"
+		 buttonMode="true"
+		 click="bsc_clickHandler(event)"/>
+		 <s:Button label="RNC"
+		 buttonMode="true"
+		 click="rnc_clickHandler(event)"/>
+		 </s:BorderContainer>-->
+	<wireless:KpiChooseView id="kpiChooseView"/>
+
+	<wireless:TimeChooseView id="timeChooseView"/>
+</ailk_compts:Window>

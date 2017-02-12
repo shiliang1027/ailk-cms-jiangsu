@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    width="200"
+                    styleName="window"
+                    minimizable="false"
+                    maximizable="false"
+                    close="{this.visible = false; this.includeInLayout=false;}">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.kpi.SummaryMonitorFirst;
+			import com.linkage.module.cms.perfmonitornew.kpiNew.SummaryMonitorRenderer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.CalendarLayoutChangeEvent;
+			
+			import spark.components.RadioButtonGroup;
+			import spark.events.IndexChangeEvent;
+
+           /*  [Bindable]
+            public var selectedItem:Object = {"name": "今天"}; */
+			
+			[Bindable]
+            public var selectedItemArr:ArrayCollection = new ArrayCollection();
+			[Bindable]
+            public var c1:Boolean;
+			[Bindable]
+            public var c2:Boolean;
+			[Bindable]
+            public var c3:Boolean;
+			[Bindable]
+            public var c4:Boolean;
+			[Bindable]
+            public var c5:Boolean;
+
+            public var change:Function;
+
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.common.EasyDate");
+
+            private var rbg:RadioButtonGroup = new RadioButtonGroup;
+
+            public function reset():void
+            {
+				cb1.selected = false;
+				cb2.selected = false;
+				cb3.selected = false;
+				cb4.selected = false;
+				cb5.selected = false; 
+				dateField.text = "";
+                selectedItemArr.removeAll();
+            }
+
+            protected function changeHandler():void
+            {
+				selectedItemArr.removeAll();
+			
+//                selectedItem = {"name": rbg.selectedValue};
+				
+				if(cb1.selected){
+					c1 = true;
+					selectedItemArr.addItem({"name": "日常值"});
+				}else{
+					c1 = false;
+				}
+				if(cb2.selected){
+					c2 = true;
+					selectedItemArr.addItem({"name": "昨天"});
+				}else{
+					c2 = false;
+				}
+				if(cb3.selected){
+					c3 = true;
+					selectedItemArr.addItem({"name": "上周"});
+				}else{
+					c3 = false;
+				}
+				if(cb4.selected){
+					c4 = true;
+					selectedItemArr.addItem({"name": "上月"});
+				}else{
+					c4 = false;
+				}
+				if(cb5.selected){
+					c5 = true;
+					selectedItemArr.addItem({"name": "去年"});
+				}else{
+					c5 = false;
+				}
+				
+				if(dateField.text.length> 0)
+				{
+					var dateSelect:String = dateField.selectedDate.getFullYear()+"-"+String(dateField.selectedDate.getMonth()+1)+"-"+dateField.selectedDate.getDate();
+					selectedItemArr.addItem({"name": dateField.text});
+				}
+
+				log.info(selectedItemArr);
+                if (change != null)
+                    change.call();
+				
+				log.info("end:");
+            }
+//
+//            public function unselectedList():void
+//            {
+////				if(SummaryMonitorFirst.normalKPIflag == true)
+////				{
+////					cb1.visible = true;
+////					cb1.includeInLayout = true;
+////				}
+//               /*  rb1.selected = false;
+//                rb2.selected = false;
+//                rb3.selected = false;
+//                rb4.selected = false;
+//                rb5.selected = false; */
+//                 cb1.selected = false;
+//				 cb2.selected = false;
+//				 cb3.selected = false;
+//				 cb4.selected = false;
+//				 cb5.selected = false; 
+//				 dateField.text = "";
+//            }
+
+            /* protected function datefield1_changeHandler(event:CalendarLayoutChangeEvent):void
+            {
+                unselectedList();
+
+                selectedItem = {"name": dateField.text};
+				log.info("datefield1_changeHandler:"+selectedItem);
+
+                if (change != null)
+                    change.call();
+				
+				log.info("end:111");
+            } */
+			
+			
+			[Bindable]
+			public var normalKPIflag:Boolean=false;
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:VGroup gap="5"
+              width="100%"
+              horizontalAlign="left"
+              verticalAlign="middle"
+              paddingBottom="10"
+              paddingLeft="10"
+              paddingTop="5">
+        <s:VGroup id="timeList" 
+                  width="100%">
+			<!--<s:CheckBox id="cb1"
+						label="日常值"
+						visible="{normalKPIflag}"
+						includeInLayout="{normalKPIflag}"/>-->
+			<s:CheckBox id="cb1"
+						label="日常值" selected="{c1}"/>
+            <s:CheckBox id="cb2"
+                           label="昨天" selected="{c2}"/>
+            <s:CheckBox id="cb3"
+                           label="上周" selected="{c3}"/>
+            <s:CheckBox id="cb4"
+                           label="上个月" selected="{c4}"/>
+            <s:CheckBox id="cb5"
+                           label="去年同比" selected="{c5}"/>
+<!--            <s:RadioButton id="rb1"
+                           label="日常值"
+                           value="日常值"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+            <s:RadioButton id="rb2"
+                           label="昨天"
+                           value="昨天"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+            <s:RadioButton id="rb3"
+                           label="上周"
+                           value="上周"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+            <s:RadioButton id="rb4"
+                           label="上个月"
+                           value="上个月"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+            <s:RadioButton id="rb5"
+                           label="去年同比"
+                           value="去年"
+                           click="changeHandler()"
+                           group="{rbg}"/>-->
+        </s:VGroup>
+        <mx:DateField id="dateField"
+                      minWidth="120"
+                      formatString="YYYY-MM-DD"/>
+<!--        <mx:DateField id="dateField"
+                      minWidth="120"
+                      formatString="YYYY-MM-DD"
+                      change="datefield1_changeHandler(event)"/>-->
+		<s:Button right="5" label="确定" click="changeHandler()"/>
+    </s:VGroup>
+
+</ailk_compts:Window>

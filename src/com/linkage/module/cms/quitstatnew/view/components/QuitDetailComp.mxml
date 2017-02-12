@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					title="退服详情"
+					dragable="true"
+					styleName="windowScene"
+					minimizable="false"
+					close="this.visible = false;this.includeInLayout = false;"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-8-29
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.general.monitor.GeneralMonitorModule;
+			import com.linkage.module.cms.quitstatnew.domain.IUser;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+			import com.linkage.module.cms.quitstatnew.view.util.FileUpDownLoad;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.ResizeEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(QuitDetailComp);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			private var hwg:Array = new Array( "地市", "网元名称", "告警标题", "告警产生时间", "告警历时","机房产权");
+			//告警流水号#地市#网元名称#告警标题#告警产生时间#告警历时 type ==1
+			private var dhwg:Array = new Array( "地市", "网元名称", "告警标题", "告警产生时间", "告警历时");
+
+			//告警流水号#基站或小区名称#归属BSC/RNC#蜂窝类型#VIP类型#告警产生时间#告警历时
+			private var fdhwg:Array = new Array( "基站或小区名称", "归属BSC/RNC","蜂窝类型","VIP类型", "告警产生时间", "告警历时");
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var fileType:FileFilter = new FileFilter("Excel", "*.xls");
+				var fileTypes:Array = new Array(fileType);
+				var fileUpDownLoad:FileUpDownLoad = new FileUpDownLoad();
+				var downLoadUrl:URLRequest = new URLRequest("quitServiceAction!excelDetail.action");
+				var downLoadData:URLVariables = new URLVariables();
+				downLoadData.startTime = pm.dm.startTime;
+				downLoadData.endTime = pm.dm.endTime;
+				downLoadData.cityId = encodeURI(pm.dm.cityId);
+				downLoadData.col = pm.dm.col;
+				downLoadData.searchType = user.searchType;
+				log.debug(pm.dm.startTime);
+				log.debug(pm.dm.endTime);
+				log.debug(pm.dm.cityId);
+				log.debug(pm.dm.col);
+				log.debug(user.searchType);
+				downLoadUrl.data = downLoadData;
+				fileUpDownLoad.downLoadURLRequest = downLoadUrl;
+				fileUpDownLoad.fileFilters = fileTypes;
+				fileUpDownLoad.downLoad();
+			}
+			[Inject("quitDetailCompPM")]
+			[Bindable]
+			public var pm:QuitDetailCompPM;
+
+			protected function adg1_resizeHandler(event:ResizeEvent):void
+			{
+				// TODO Auto-generated method stub
+				var width:Number = adg1.width;
+				var eWidth:Number = width / adg1.columns.length;
+				for(var i:int=0;i<adg1.columns.length-1;i++){
+					var col:AdvancedDataGridColumn = adg1.columns[i];
+					col.width = eWidth;
+				}
+			}
+
+			[MessageHandler(selector="LOADQUIT_DETAILDATA_COMPLETE")]
+			public function loadQuitDetailData(e:QuitStatEvent):void
+			{
+				this.visible = this.includeInLayout = true;
+				this.x = (this.parent.width - this.width) / 2;
+				this.y = (this.parent.height - this.height) / 2;
+
+				if (pm.dm.detailList.length > 0)
+				{
+					var cols:Array = adg1.columns;
+					cols.splice(0);
+					log.info("cols:{0}", cols.length);
+					adg1.columns = cols;
+					var col:AdvancedDataGridColumn;
+					var arr:Array = [];
+					if (pm.dm.type == "1")
+					{
+						arr = dhwg;
+					}
+					else if (pm.dm.type == "0")
+					{
+						arr = fdhwg
+					}
+					else 
+					{
+						arr = hwg
+					}
+					if (arr && arr.length > 0){
+						for each (var obj:Object in arr)
+						{
+							col = new AdvancedDataGridColumn();
+							col.dataField = String(obj);
+							col.headerText = String(obj);
+							col.showDataTips=true;
+							cols.push(col);
+						}
+					}
+					log.info("dealed:{0}", adg1.columns.length);
+					adg1.dataProvider = pm.dm.detailList;
+					adg1.validateNow();
+					adg1.dispatchEvent(new ResizeEvent(ResizeEvent.RESIZE));
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  top="5"
+			  right="10"
+			  left="10"
+			  bottom="5">
+		<s:HGroup width="100%">
+			<s:Button label="导出"
+					  click="button1_clickHandler(event)"/>
+		</s:HGroup>
+		<mx:AdvancedDataGrid id="adg1"
+							 styleName="sceneDG"
+							 width="100%"
+							 height="100%"
+							 verticalScrollPolicy="auto"
+							 horizontalScrollPolicy="auto"
+							 resize="adg1_resizeHandler(event)">
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+</ailk_compts:Window>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true"
+								  dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)"
+								  xmlns:parsley="http://www.spicefactory.org/parsley">
+
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+
+			import mx.events.FlexEvent;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			private var log:ILogger = Log.getLoggerByClass(KPIUpCheckRenderer);
+
+			private function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				try
+				{
+					if(data)
+					{
+						if(data.isup == "1")
+							data.isup = user.context + "cms/img/kpi/up.png";
+						else if(data.isup == "0")
+							data.isup = user.context + "cms/img/kpi/ping.png";
+						else if(data.isup == "-1")
+							data.isup = user.context + "cms/img/kpi/down.png";
+						img.source = data.isup;
+					}
+				}
+				catch(e:Error)
+				{
+
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%"
+			  horizontalAlign="center"
+			  verticalAlign="middle">
+		<s:Label text="{data.kpiValue}"
+				 backgroundAlpha="0"/>
+		<mx:Image id="img"/>
+		<s:Label text="{data.rate}"
+				 backgroundAlpha="0"/>
+	</s:HGroup>
+</s:MXAdvancedDataGridItemRenderer>

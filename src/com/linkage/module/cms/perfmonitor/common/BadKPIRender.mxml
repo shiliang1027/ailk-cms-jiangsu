@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+								  xmlns:s="library://ns.adobe.com/flex/spark" 
+								  xmlns:mx="library://ns.adobe.com/flex/mx" 
+								  focusEnabled="true"
+								  creationComplete="mxadvanceddatagriditemrenderer1_creationCompleteHandler(event)"
+								  dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)"
+								  >
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+			import mx.events.FlexEvent;
+			
+			private static var _levelColorMap:Object = {'一级告警': 0XFF0000, '二级告警': 0XEE9800, '三级告警': 0XFED701, '四级告警': 0X4169E1, '0': 0X00CC00, '1': 0XFF0000, '2': 0XEE9800, '3': 0XFED701, '4': 0X4169E1};
+
+			protected function mxadvanceddatagriditemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if(listData && listData['dataField'] && data && lblData)
+				{
+					var field:String=(listData as AdvancedDataGridListData).dataField;
+					var alarmLevel:String = String(data[field + '_as']);
+					lblData.setStyle("backgroundColor", _levelColorMap[alarmLevel]);
+					field = null;
+					alarmLevel = null;
+				}
+			}
+
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				if(listData && listData['dataField'] && data && lblData)
+				{
+					var field:String=(listData as AdvancedDataGridListData).dataField;
+					var alarmLevel:String = String(data[field + '_as']);
+					lblData.setStyle("backgroundColor", _levelColorMap[alarmLevel]);
+					field = null;
+					alarmLevel = null;
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<s:Label id="lblData" top="0" left="0" right="0" bottom="0" text="{listData.label}" buttonMode="true"/>
+</s:MXAdvancedDataGridItemRenderer>

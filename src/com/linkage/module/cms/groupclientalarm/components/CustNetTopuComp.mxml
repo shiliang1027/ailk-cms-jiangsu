@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="集客网络拓扑" xmlns:panel="com.linkage.system.component.panel.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author wuchao (Ailk No.)
+		 @version 1.0
+		 @date 2013-6-3
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.groupclientalarm.components.CustNetTopuComp");
+
+//			[Bindable]
+//			private var anyDataList:ArrayCollection=new ArrayCollection([{"custServType": "集团短信", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "集团GPRS", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "行业应用", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "语音专线/政企固化", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "移动400", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "数据专线（长途）", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "数据专线（本地）", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "互联网专线", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}]);
+		
+			[Bindable]
+			private var anyDataList:ArrayCollection=new ArrayCollection([{"custServType": "集团短信", "servCount": " ", "bandWidth": " ", "ydServCoun":" " , "ydIsSelfUse":" ", "ydBandWidth": " ", "dxServCoun":" ", "dxBandWidth":" " , "ltServCoun":" " , "ltBandWidth":" ", "othServCoun": " ", "othBandWidth":" " }, 
+																		 {"custServType": "集团GPRS", "servCount":" " , "bandWidth": " ", "ydServCoun":" ", "ydIsSelfUse":  " ", "ydBandWidth":" ", "dxServCoun": " ", "dxBandWidth": " ", "ltServCoun": " ", "ltBandWidth":" " , "othServCoun": " ", "othBandWidth": " "}, 
+																		 {"custServType": "行业应用", "servCount": " ", "bandWidth": " ", "ydServCoun": " ", "ydIsSelfUse": " ", "ydBandWidth": " ", "dxServCoun": " ", "dxBandWidth": " ", "ltServCoun": " ", "ltBandWidth": " ", "othServCoun": " ", "othBandWidth": " "}, 
+																		 {"custServType": "语音专线/政企固化", "servCount": " ", "bandWidth":" " , "ydServCoun":" " , "ydIsSelfUse": " ", "ydBandWidth": " ", "dxServCoun": " ", "dxBandWidth":" " , "ltServCoun":" " , "ltBandWidth":" " , "othServCoun": " ", "othBandWidth":" " }, 
+																		 {"custServType": "移动400", "servCount":" " , "bandWidth": " ", "ydServCoun": " ", "ydIsSelfUse":" " , "ydBandWidth":" " , "dxServCoun":" " , "dxBandWidth":" " , "ltServCoun": " ", "ltBandWidth": " ", "othServCoun":" " , "othBandWidth": " "}, 
+																		 {"custServType": "数据专线（长途）", "servCount":" " , "bandWidth": " ", "ydServCoun": " ", "ydIsSelfUse": " ", "ydBandWidth": " ", "dxServCoun": "", "dxBandWidth": "", "ltServCoun": "", "ltBandWidth": "", "othServCoun": "", "othBandWidth": ""},
+																		 {"custServType": "数据专线（本地）", "servCount": " ", "bandWidth": " ", "ydServCoun": " ", "ydIsSelfUse": " ", "ydBandWidth": " ", "dxServCoun": " ", "dxBandWidth": " ", "ltServCoun": " ", "ltBandWidth": " ", "othServCoun": " ", "othBandWidth": " "}, 
+																		 {"custServType": "互联网专线", "servCount": " ", "bandWidth": " ", "ydServCoun": " ", "ydIsSelfUse": " ", "ydBandWidth": " ", "dxServCoun": " ", "dxBandWidth": " ", "ltServCoun": " ", "ltBandWidth": " ", "othServCoun": " ", "othBandWidth": " "}]);
+		
+			[Bindable]
+			private var groupClientHealthList:ArrayCollection=new ArrayCollection([{"type": "资源健康表", "healthRate":" " , "healthGrade":" "}, {"type": "设备健康表", "healthRate":" " , "healthGrade":" "},{"type": "业务健康表", "healthRate":" " , "healthGrade":" "}]);
+		
+		]]>
+	</fx:Script>
+	<s:Scroller>
+		<s:VGroup>
+			<s:VGroup>
+				<panel:Window id="anyDataPanel" 
+						 title="移动业务与其他运营商业务分析"
+						 width="100%"
+						 height="100%"
+						 minHeight="30"
+						 maximizable="false"
+						 closable="false">
+					<mx:AdvancedDataGrid id="anyDataDG"
+										 sortableColumns="false"
+										 width="100%"
+										 height="100%"
+										 dataProvider="{anyDataList}"
+										 headerWordWrap="true">
+						<mx:groupedColumns>
+							<mx:AdvancedDataGridColumn dataField="custServType"
+													   headerText="集团业务类型"/>
+							<mx:AdvancedDataGridColumnGroup headerText="移动业务量占比（自动计算）">
+								<mx:AdvancedDataGridColumn dataField="servCount"
+														   headerText="业务量（%）"/>
+								<mx:AdvancedDataGridColumn dataField="bandWidth"
+														   headerText="带宽（%）"/>
+							</mx:AdvancedDataGridColumnGroup>
+							<mx:AdvancedDataGridColumnGroup headerText="移动">
+								<mx:AdvancedDataGridColumn dataField="ydServCoun"
+														   headerText="业务量（条）"/>
+								<mx:AdvancedDataGridColumn dataField="ydIsSelfUse"
+														   headerText="是否主用"/>
+								<mx:AdvancedDataGridColumn dataField="ydBandWidth"
+														   headerText="总带宽（M）"/>
+							</mx:AdvancedDataGridColumnGroup>
+							<mx:AdvancedDataGridColumnGroup headerText="电信">
+								<mx:AdvancedDataGridColumn dataField="dxServCoun"
+														   headerText="业务量（条）"/>
+								<mx:AdvancedDataGridColumn dataField="dxBandWidth"
+														   headerText="总带宽（M）"/>
+							</mx:AdvancedDataGridColumnGroup>
+							<mx:AdvancedDataGridColumnGroup headerText="联通">
+								<mx:AdvancedDataGridColumn dataField="ltServCoun"
+														   headerText="业务量（条）"/>
+								<mx:AdvancedDataGridColumn dataField="ltBandWidth"
+														   headerText="总带宽（M）"/>
+							</mx:AdvancedDataGridColumnGroup>
+							<mx:AdvancedDataGridColumnGroup headerText="其他运营商">
+								<mx:AdvancedDataGridColumn dataField="othServCoun"
+														   headerText="业务量（条）"/>
+								<mx:AdvancedDataGridColumn dataField="othBandWidth"
+														   headerText="总带宽（M）"/>
+							</mx:AdvancedDataGridColumnGroup>
+						</mx:groupedColumns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup>
+				<panel:Window  id="groupClientHealthPanel" 
+						 title="集团客户健康表"
+						 width="100%"
+						 height="100%"
+						 minHeight="30"
+						 maximizable="false"
+						 closable="false">
+					<mx:AdvancedDataGrid id="groupClientHealthDG"
+										     sortableColumns="false"
+											 width="100%"
+											 height="100%"
+											 dataProvider="{groupClientHealthList}"
+											 headerWordWrap="true" rowCount="4">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="类型"
+													   dataField="type"/>
+							<mx:AdvancedDataGridColumn headerText="健康度占比"
+													   dataField="healthRate"/>
+							<mx:AdvancedDataGridColumn headerText="健康成绩"
+													   dataField="healthGrade"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window >
+			</s:VGroup>
+		</s:VGroup>
+	</s:Scroller>
+	
+</mx:VBox>

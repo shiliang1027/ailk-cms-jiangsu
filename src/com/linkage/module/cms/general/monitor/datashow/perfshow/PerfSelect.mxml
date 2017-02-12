@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" 
+			   close="closeMe()" width="400" height="150" dragable="true"
+			   xmlns:panel="com.linkage.system.component.panel.*" 
+			   maximizable="false" minimizable="false">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Button;
+			import spark.components.CheckBox;
+			import spark.components.ComboBox;
+			import spark.components.HGroup;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.perfshow");
+			
+			//切换列显示
+			private var _switchColumn:Function;
+			
+			//切换表格显示
+			private var _switchTable:Function;
+			
+			protected function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			//初始化回调
+			public function init(switchColumn:Function, switchTable:Function):void
+			{
+				_switchColumn = switchColumn;
+				_switchTable = switchTable;
+			}
+			
+			//初始化选项
+			public function addSelectOption(perfTypeName:String,selected:Boolean,perfList:Object):void
+			{
+				var hg:HGroup = new HGroup();
+				
+				//类型选择
+				var check:CheckBox = new CheckBox();
+				check.label = perfTypeName;
+				check.selected = selected;
+				check.addEventListener(MouseEvent.CLICK,function(event:MouseEvent):void{
+					_switchTable.call(null,perfTypeName,check.selected);
+				});
+				hg.addElement(check);
+				
+				//性能选择
+				var perfBox:ComboBox = new ComboBox();
+				var list:ArrayCollection = new ArrayCollection();
+				for each (var tmp:String in perfList)
+				{
+					list.addItem(tmp);
+				}
+				perfBox.dataProvider = list;
+				hg.addElement(perfBox);
+				
+				//添加按钮
+				var b1:Button = new Button();
+				b1.label = "新增";
+				b1.addEventListener(MouseEvent.CLICK,function(event:MouseEvent):void{
+					_switchColumn.call(null,perfTypeName,perfBox.dataProvider[perfBox.selectedIndex],true);
+				});
+				hg.addElement(b1);
+				
+				//删除按钮
+				var b2:Button = new Button();
+				b2.addEventListener(MouseEvent.CLICK,function(event:MouseEvent):void{
+					_switchColumn.call(null,perfTypeName,perfBox.dataProvider[perfBox.selectedIndex],false);
+				});
+				b2.label = "删除";
+				hg.addElement(b2);
+				
+				this.selectGrop.addElement(hg);
+			}
+			
+			public function removeAll():void
+			{
+				this.selectGrop.removeAllElements();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="selectGrop" width="100%" height="100%">
+	</s:VGroup>
+</panel:Window>

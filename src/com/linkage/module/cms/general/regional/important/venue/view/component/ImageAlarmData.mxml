@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  creationComplete="windowCreationComplete(event)"
+			  title="滚动告警信息"
+			  minHeight="100"
+			  width="299"
+			  height="100%"
+			  dragable="false"
+			  closable="false"
+			  maximizable="false"
+			  minimizable="false">
+	<fx:Declarations>
+		<s:Move id="moveEffect"
+				target="{alarmContainer}"
+				duration="10000"
+				yFrom="50"
+				yTo="-108"
+				repeatCount="0"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.Label;
+			import spark.effects.Move;
+
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.important.venue.view.component.ImageAlarmData");
+			//告警对象
+			private var _data:Object = null;
+			// 是否启用移动的效果
+			private var _moveEffectEnabled:Boolean = false;
+
+			//初始化数据
+			public function initData(data:Object):void
+			{
+				_data = data;
+			}
+
+//			private function getVenueAlarmInfo():Object
+//			{
+//				var result:Array = new Array();
+//				result.push("1、1号场馆发生性能告警");
+//				result.push("2、2号场馆发生性能告警");
+//				result.push("3、3号场馆发生性能告警");
+//				result.push("4、4号场馆发生性能告警");
+//				result.push("5、5号场馆发生性能告警");
+//				result.push("6、6号场馆发生性能告警");
+//				return result;
+//			}
+
+			//窗口创建完毕事件
+			protected function windowCreationComplete(event:FlexEvent):void
+			{
+//				_data = getVenueAlarmInfo();
+				//1.添加数据
+				if (_data != null)
+				{
+					var hasData:Boolean = false;
+					var label:Label = null;
+					for each (var str:String in _data)
+					{
+						label = new Label();
+						label.text = str;
+						alarmContainer.addElement(label);
+						hasData = true;
+					}
+					if (hasData)
+					{
+						//2.滚动
+						moveEffect.duration = 12000 * (2 * height + alarmContainer.height - 100) / 158;
+						log.info("height:{0}  alarmContainer.height:{1}  duration:{2}", height, alarmContainer.height, moveEffect.duration);
+						moveEffect.yFrom = height - 50;
+						moveEffect.yTo = -(height + alarmContainer.height - 50);
+						log.info("yFrom:{0}  yTo:{1}", moveEffect.yFrom, moveEffect.yTo);
+						log.info("开始播放效果...");
+						moveEffect.play();
+						_moveEffectEnabled = true;
+					}
+				}
+			}
+
+			/**
+			 * 播放移动效果
+			 */
+			public function playScollEffect():void
+			{
+				if (_moveEffectEnabled)
+				{
+					moveEffect.resume();
+				}
+			}
+
+			/**
+			 * 停止移动效果
+			 */
+			public function stopScollEffect():void
+			{
+				if (_moveEffectEnabled)
+				{
+					moveEffect.pause();
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:Group width="100%"
+			 height="100%"
+			 buttonMode="true"
+			 mouseOver="stopScollEffect();"
+			 mouseOut="playScollEffect();">
+		<s:layout>
+			<s:BasicLayout clipAndEnableScrolling="true"/>
+		</s:layout>
+		<s:VGroup id="alarmContainer"
+				  width="100%"
+				  height="100%"
+				  verticalAlign="middle"
+				  horizontalAlign="center"/>
+	</s:Group>
+</panel:Window>

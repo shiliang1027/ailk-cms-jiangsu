@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					styleName="sceneBorderContainer"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:layout>
+		<s:HorizontalLayout paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5"/>
+	</s:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.MapVectorCompPM;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.event.MapVectorEvent;
+			
+			
+			private var log:ILogger = Log.getLoggerByClass(MapVectorCollectNew);
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			
+			[Bindable]
+			private var isLTEflag:Boolean = false;
+			
+			[Bindable]
+			private var allEqAlarms:String = "";
+			[Bindable]
+			private var allPerfAlarms:String = "";
+			
+			
+			[Bindable]
+			private var gmsQuits:String = "";
+			[Bindable]
+			private var tdQuits:String = "";
+			[Bindable]
+			private var lteQuits:String = "";
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			[MessageHandler(selector="CMS_SCENE_GENERAL_MAPVECTOR_DYEMAP")]
+			public function dyeMapHandler(e:MapVectorEvent = null):void
+			{
+				if ("2" == user.logicalType)
+				{//LTE
+					isLTEflag = true;
+				}
+				log.info("准备加载数据Tips!");
+				seeMapCollectTips();
+			}
+			public function seeMapCollectTips():void
+			{
+				log.info("[矢量地图]传过来的数据集为map");
+				var gisMap:Object = scenePM.mapVectorDM.dyeMap;
+				log.info(gisMap);
+				if(scenePM.mapVectorDM.loadMapInfoType==GsSceneConts.loadMapInfoType_alarm){
+					this.currentState = "alarmState";
+//					this.height=45;
+					var data:Object = gisMap["total"];
+					log.info("设备性能告警");
+					log.info(data);
+					allEqAlarms = data.eqValue;
+					allPerfAlarms = data.perfValue;
+				}
+				//				else if(pm.dm.loadMapInfoType==GsSceneConts.loadMapInfoType_quit){
+				//					this.currentState = "quitState";
+				//					var data:Object = gisMap["total"];
+				//					gmsQuits = data.gms;
+				//					tdQuits = data.td;
+				//					lteQuits = data.lte;
+				//					if (isLTEflag)
+				//					{//LTE
+				//						this.height=25;
+				//					}else
+				//					{//非LTE
+				//						this.height=65;
+				//					}
+				//				}
+			}
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="alarmState"/>
+		<s:State name="quitState"/>
+	</s:states>
+	<s:VGroup includeIn="alarmState" visible="false">
+		<s:HGroup>
+			<s:Label text="设备告警："  styleName="sceneNewsLable3"/>
+			<s:Label text="{allEqAlarms}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+		<s:HGroup>
+			<s:Label text="性能告警："  styleName="sceneNewsLable3"/>
+			<s:Label text="{allPerfAlarms}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+	</s:VGroup>
+	<s:VGroup includeIn="quitState">
+		<s:HGroup  visible="{!isLTEflag}" includeInLayout="{!isLTEflag}">
+			<s:Label text="GSM退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{gmsQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+		<s:HGroup visible="{!isLTEflag}" includeInLayout="{!isLTEflag}">
+			<s:Label text="TD退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{tdQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+		<s:HGroup>
+			<s:Label text="LTE退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{lteQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+	</s:VGroup>
+</s:BorderContainer>

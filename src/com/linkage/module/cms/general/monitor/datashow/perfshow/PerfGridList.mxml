@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:perfshow="com.linkage.module.cms.general.monitor.datashow.perfshow.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.module.cms.general.monitor.datashow.perfshow.column.ColumnColor;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Text;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			public var matrixDataArr:ArrayCollection = new ArrayCollection([
+				{city:"南京",city_id:"0001",level_1:"2",level_2:"0",level_3:"1",level_4:"2"},
+				{city:"苏州",city_id:"0001",level_1:"1",level_2:"0",level_3:"1",level_4:"0"},
+				{city:"无锡",city_id:"0001",level_1:"3",level_2:"2",level_3:"0",level_4:"0"}
+			]);
+			
+			private var testData:Array = [
+				{"spec":"交换",devList:[{mo_name:"NJGS8",level:"1"},{mo_name:"NJGS16",level:"2"},{mo_name:"NJGS24",level:"3"}]},
+				{"spec":"3G无线",devList:[{mo_name:"NJGS8",level:"1"},{mo_name:"NJGS16",level:"2"},{mo_name:"NJGS24",level:"3"}]},
+				{"spec":"2G无线",devList:[{mo_name:"NJGS8",level:"1"},{mo_name:"NJGS16",level:"2"},{mo_name:"NJGS24",level:"3"}]},
+				{"spec":"数据",devList:[{mo_name:"NJGS8",level:"1"},{mo_name:"NJGS16",level:"2"},{mo_name:"NJGS24",level:"3"}]}
+			];
+			
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+			
+			//专业列表
+			private var _specList:ArrayList = null;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.perfshow");
+			
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function initPerfListData(obj:Object):void
+			{
+				this.matrixTable.dataProvider = obj;
+				
+				//添加查看详情事件
+				this.matrixTable.addEventListener(ListEvent.ITEM_CLICK,loadPerfGrid);
+				
+				//显示
+				this.matrixTable.visible = true;
+				this.matrixTable.includeInLayout = true;
+			}
+			
+			//创建设备
+			public function initPerfGridData(obj:Object):void
+			{
+				this.devGrid.removeAllElements();
+				
+				//先检查最大列数
+				var maxCol:int = 0;
+				var total:int = 0;
+				
+				for each (var specDev1:Object in obj)
+				{
+					//计数
+					var count:int = 0;
+					//计算有多少行
+					for each (var devC1:Object in specDev1.devlist)
+					{
+						count ++;
+					}
+					if (count > 100)
+					{
+						maxCol = 100;
+					}
+					else
+					{
+						if (count > maxCol)
+						{
+							maxCol = count;
+						}
+					}
+					
+					total += count;
+				}
+				
+				if (total > 0)
+				{
+					//添加列
+					var titleRow:GridRow = new GridRow();
+					var specTitleItem:GridItem = new GridItem();
+					specTitleItem.setStyle("borderStyle","solid");
+					specTitleItem.setStyle("borderColor","0xFFFFFF");
+					specTitleItem.setStyle("backgroundColor","0X395F84");
+					specTitleItem.setStyle("horizontalAlign","center");
+					specTitleItem.setStyle("verticalAlign","middle");
+					var specTitleText:Text = new Text();
+					specTitleText.text = "专业";
+					specTitleItem.addElement(specTitleText);
+					titleRow.addElement(specTitleItem);
+					var devTitleItem:GridItem = new GridItem();
+					devTitleItem.setStyle("borderStyle","solid");
+					devTitleItem.setStyle("borderColor","0xFFFFFF");
+					devTitleItem.setStyle("backgroundColor","0X395F84");
+					devTitleItem.setStyle("horizontalAlign","center");
+					devTitleItem.setStyle("verticalAlign","middle");
+					devTitleItem.colSpan = maxCol;
+					var devTitleText:Text = new Text();
+					devTitleText.text = "性能异常统计";
+					devTitleItem.addElement(devTitleText);
+					titleRow.addElement(devTitleItem);
+					this.devGrid.addElementAt(titleRow,0);
+					
+					for each (var specDev:Object in obj)
+					{
+						//计数
+						var index:int = 0;
+						var devCount:int = 0;
+						//计算有多少行
+						for each (var devC:Object in specDev.devlist)
+						{
+							devCount ++;
+						}
+						var rowSpan:int = devCount/maxCol;
+						if ((devCount % maxCol) > 0)
+						{
+							rowSpan += 1;
+						}
+						log.info("专业：" + specDev.spec + " devCount=" + devCount + "  rowSpan=" + rowSpan);
+						
+						var row:GridRow = new GridRow();
+						
+						//先添加专业名称
+						var specItem:GridItem = new GridItem();
+						specItem.setStyle("borderStyle","solid");
+						specItem.setStyle("borderColor","0xFFFFFF");
+						specItem.setStyle("backgroundColor","0X395F84");
+						specItem.setStyle("horizontalAlign","center");
+						specItem.setStyle("verticalAlign","middle");
+						if (rowSpan > 0)
+						{
+							specItem.rowSpan = rowSpan;
+						}
+						var specText:Text = new Text();
+						specText.text = specDev.spec;
+						specItem.addElement(specText);
+						row.addElement(specItem);
+						
+						//再添加列
+						if (specDev.devlist != null)
+						{
+							
+							for each (var dev:Object in specDev.devlist)
+							{
+								if (dev.level == null || dev.level == "" || dev.level == "0")
+								{
+									continue;
+								}
+								
+								if (index >= maxCol)
+								{
+									//添加新行
+									this.devGrid.addElement(row);
+									row = new GridRow();
+									index = 0;
+								}
+								
+								var devItem:GridItem = new GridItem();
+								devItem.setStyle("borderStyle","solid");
+								devItem.setStyle("borderColor","0xFFFFFF");
+								if (dev.level == "1")
+								{
+									devItem.setStyle("backgroundColor","0xFF0000");
+								}
+								else if (dev.level == "2")
+								{
+									devItem.setStyle("backgroundColor","0xFFA500");
+								}
+								else if (dev.level == "3")
+								{
+									devItem.setStyle("backgroundColor","0xFFFF00");
+								}
+								else if (dev.level == "4")
+								{
+									devItem.setStyle("backgroundColor","0x4169e1");
+								}
+								var devText:Text = new Text();
+								devText.setStyle("color",0x000000);
+								devText.text = String(dev.moName);
+								devItem.addElement(devText);
+								row.addElement(devItem);
+								
+								index++;
+							}
+						}
+						
+						if (index < maxCol)
+						{
+							//添加空格
+							for (var i:int=index;i<maxCol;i++)
+							{
+								var blankItem:GridItem = new GridItem();
+								blankItem.setStyle("borderStyle","solid");
+								blankItem.setStyle("borderColor","0xFFFFFF");
+								blankItem.minWidth = 60;
+								row.addElement(blankItem);
+							}
+						}
+						
+						this.devGrid.addElement(row);
+					}
+				}
+				
+				this.devGrid.visible = true;
+				this.devGrid.includeInLayout = true;
+			}
+			
+			//查询性能矩阵详情
+			private function loadPerfGrid(e:ListEvent):void
+			{
+				if (e.columnIndex > 0)
+				{
+					var nextCityId:String = e.target.dataProvider[e.rowIndex].city_id;
+					var level:Number = e.columnIndex;
+					
+					log.info("查询性能告警矩阵详情参数 nextCityId=" + nextCityId + " level=" + level + " _specList=" + _specList);
+					_remoteData.getProvincePerfAlarmNe(nextCityId,String(level),_specList,getPerfGrid,null,getPerfGidErr);
+				}
+			}
+			
+			public function getPerfGrid(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询性能告警矩阵数据成功！");
+					var dataObj:Object = obj;
+					this.perfGridWindow.initPerfGridData(dataObj);
+					this.perfGridWindow.visible = true;
+				}
+				else
+				{
+					log.info("查询性能告警矩阵数据为空！");
+				}
+			}
+			
+			public function getPerfGidErr(obj:Object):void
+			{
+				log.info("查询性能告警矩阵数据失败！");
+				
+//				this.perfGridWindow.initPerfGridData(testData);
+//				this.perfGridWindow.visible = true;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Scroller width="100%" height="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+		<s:Group width="100%" height="100%">
+			<mx:AdvancedDataGrid id="matrixTable" width="100%" height="100%" sortableColumns="false" visible="false" includeInLayout="false">
+				<mx:groupedColumns>
+					<mx:AdvancedDataGridColumn headerText="属地" dataField="city">
+					</mx:AdvancedDataGridColumn>
+					<mx:AdvancedDataGridColumnGroup headerText="性能异常统计">
+						<mx:AdvancedDataGridColumn headerText="一级告警" dataField="level_1" itemRenderer="{new ClassFactory(ColumnColor)}">
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="二级告警" dataField="level_2" itemRenderer="{new ClassFactory(ColumnColor)}">
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="三级告警" dataField="level_3" itemRenderer="{new ClassFactory(ColumnColor)}">
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="四级告警" dataField="level_4" itemRenderer="{new ClassFactory(ColumnColor)}">
+						</mx:AdvancedDataGridColumn>
+					</mx:AdvancedDataGridColumnGroup>
+				</mx:groupedColumns>
+			</mx:AdvancedDataGrid>
+			<mx:Grid id="devGrid" width="100%" height="100%" color="0xFFFFFF" horizontalGap="-1" verticalGap="-1" visible="false" includeInLayout="false">
+			</mx:Grid>
+		</s:Group>
+	</s:Scroller>
+	<perfshow:PerfGridInfo id="perfGridWindow" visible="false">
+	</perfshow:PerfGridInfo>
+</s:Group>

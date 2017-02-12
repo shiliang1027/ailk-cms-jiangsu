@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:supportClasses="com.esri.ags.skins.supportClasses.*"
+			   close="closeMe();" width="300" height="200"
+			   dragable="true" minimizable="false" maximizable="false"
+			   xmlns:panel="com.linkage.system.component.panel.*" >
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			import spark.events.IndexChangeEvent;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.topn");
+			
+			private var tmpList:ArrayCollection = new ArrayCollection();
+			
+			private var _cityId:String = "";
+			
+			private var _cityName:String = "";
+			
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+			
+			//类型选项
+			private var modelArr:ArrayCollection = new ArrayCollection();
+			
+			//属地选项
+			private var cityArr:ArrayCollection = new ArrayCollection();
+			
+			//所有的性能指标
+			private var allPerfList:ArrayCollection = new ArrayCollection();
+			
+			//TOPN
+			private var topnPerfWindow:TopnPerfEx = null;
+			
+			public function get cityName():String
+			{
+				return _cityName;
+			}
+			
+			public function set cityName(value:String):void
+			{
+				_cityName = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+			
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			protected function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			public function initPerfData(list:ArrayCollection):void
+			{
+				if (list.length != tmpList.length)
+				{
+					tmpList.removeAll();
+					tmpList.addAll(list);
+					
+					var arr:ArrayCollection = new ArrayCollection();
+					arr.addItem("TOP 5");
+					arr.addItem("TOP 10");
+					topnType.dataProvider = arr;
+					topnType.selectedIndex = 1;
+					
+					var perfOp:Object = new Object();
+					perfOp.pert_type_name = "无";
+					perfOp.pert_model = "";
+					list.addItemAt(perfOp,0);
+					
+					perfName1.dataProvider = list;
+					perfName1.labelField = "pert_type_name";
+					if (list.length > 1)
+					{
+						perfName1.selectedIndex = 1;
+					}
+					else
+					{
+						perfName1.selectedIndex = 0;
+					}
+					perfName2.dataProvider = list;
+					perfName2.labelField = "pert_type_name";
+					if (list.length > 2)
+					{
+						perfName2.selectedIndex = 2;
+					}
+					else
+					{
+						perfName2.selectedIndex = 0;
+					}
+					perfName3.dataProvider = list;
+					perfName3.labelField = "pert_type_name";
+					if (list.length > 3)
+					{
+						perfName3.selectedIndex = 3;
+					}
+					else
+					{
+						perfName3.selectedIndex = 0;
+					}
+					
+					//备份
+					for each (var d:Object in list)
+					{
+						allPerfList.addItem(d);
+					}
+				}
+			}
+			
+			public function init(topnPerf:TopnPerfEx):void
+			{
+				topnPerfWindow = topnPerf;
+				
+				//查询属地
+				initSelectOption();
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				//TOPN
+				var top:int = 5;
+				if (topnType.selectedIndex == 1)
+				{
+					top = 10;
+				}
+				
+				//性能显示
+				var arr:ArrayCollection = new ArrayCollection();
+				if (!arr.contains(perfName1.selectedItem.pert_type_name) && perfName1.selectedItem.pert_type_name != "无")
+				{
+					arr.addItem(perfName1.selectedItem.pert_type_name);
+				}
+				if (!arr.contains(perfName2.selectedItem.pert_type_name) && perfName2.selectedItem.pert_type_name != "无")
+				{
+					arr.addItem(perfName2.selectedItem.pert_type_name);
+				}
+				if (!arr.contains(perfName3.selectedItem.pert_type_name) && perfName3.selectedItem.pert_type_name != "无")
+				{
+					arr.addItem(perfName3.selectedItem.pert_type_name);
+				}
+				
+				//选择的属地
+				var selectCity:String = cityNameList.selectedItem.city_id;
+				
+				//回调
+				if (topnPerfWindow.cityId == selectCity)
+				{
+					topnPerfWindow.refreshData(arr,top);
+				}
+				else
+				{
+					topnPerfWindow.cityId = selectCity;
+					topnPerfWindow.loadData();
+				}
+				
+				closeMe();
+			}
+			
+			//初始化下拉框
+			private function initSelectOption():void
+			{
+				_remoteData.queryNextCity(_cityId, initCityOption, null, initCityErr);
+			}
+			
+			public function initCityOption(obj:Object):void
+			{
+				//增加当前属地
+				var cityOp:Object = new Object();
+				cityOp.city_name = _cityName;
+				cityOp.city_id = _cityId;
+				cityArr.addItem(cityOp);
+				
+				if (obj != null)
+				{
+					for each (var cityInfo:Object in obj)
+					{
+						cityArr.addItem(cityInfo);
+					}
+				}
+				
+				this.cityNameList.dataProvider = cityArr;
+				this.cityNameList.labelField = "city_name";
+				this.cityNameList.selectedIndex = 0;
+				
+				//初始化完属地再加载网元类型
+				_remoteData.querMoType(initTypeOption, null, initTypeErr);
+			}
+			
+			public function initCityErr(obj:Object):void
+			{
+				//增加当前属地
+				var cityOp:Object = new Object();
+				cityOp.city_name = _cityName;
+				cityOp.city_id = _cityId;
+				cityArr.addItem(cityOp);
+				
+				this.cityNameList.dataProvider = cityArr;
+				this.cityNameList.labelField = "city_name";
+				this.cityNameList.selectedIndex = 0;
+			}
+			
+			public function initTypeOption(obj:Object):void
+			{
+				//添加全部选项
+				var allOp:Object = new Object();
+				allOp.mo_type_name = "全部";
+				allOp.mo_type_id = "-1";
+				modelArr.addItem(allOp);
+				
+				if (obj != null)
+				{
+					for each (var cityInfo:Object in obj)
+					{
+						modelArr.addItem(cityInfo);
+					}
+				}
+				
+				this.deviceModelList.dataProvider = modelArr;
+				this.deviceModelList.labelField = "mo_type_name";
+				this.deviceModelList.selectedIndex = 0;
+			}
+			
+			public function initTypeErr(obj:Object):void
+			{
+				//添加全部选项
+				var allOp:Object = new Object();
+				allOp.mo_type_name = "全部";
+				allOp.mo_type_id = "-1";
+				modelArr.addItem(allOp);
+				
+				this.deviceModelList.dataProvider = modelArr;
+				this.deviceModelList.labelField = "mo_type_name";
+				this.deviceModelList.selectedIndex = 0;
+			}
+
+			protected function deviceModel_changeHandler(event:IndexChangeEvent):void
+			{
+				var perfList:ArrayCollection = new ArrayCollection();
+				
+				if (event.newIndex > 0)
+				{
+					var modelName:String = deviceModelList.dataProvider.getItemAt(event.newIndex).mo_type_name;
+					//过滤性能值
+					for each (var obj:Object in allPerfList)
+					{
+						if (modelName == obj.pert_model || obj.pert_model == "")
+						{
+							perfList.addItem(obj);
+						}
+					}
+				}
+				else
+				{
+					for each (var obj1:Object in allPerfList)
+					{
+						perfList.addItem(obj1);
+					}
+				}
+				
+				perfName1.dataProvider = perfList;
+				if (perfList.length > 1)
+				{
+					setTimeout(selectOption,100,perfName1,1);
+				}
+				else
+				{
+					setTimeout(selectOption,100,perfName1,0);
+				}
+				perfName2.dataProvider = perfList;
+				if (perfList.length > 2)
+				{
+					setTimeout(selectOption,100,perfName2,2);
+				}
+				else
+				{
+					setTimeout(selectOption,100,perfName2,0);
+				}
+				perfName3.dataProvider = perfList;
+				if (perfList.length > 3)
+				{
+					setTimeout(selectOption,100,perfName3,3);
+				}
+				else
+				{
+					setTimeout(selectOption,100,perfName3,0);
+				}
+			}
+			
+			private function selectOption(op:DropDownList,index:int):void
+			{
+				op.selectedIndex = index;
+				op.validateNow();
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="selectGrop" horizontalAlign="center" width="300" height="200">
+		<s:HGroup>
+			<s:Label text="TOP范围">
+			</s:Label>
+			<s:DropDownList id="topnType" color="0x000000">
+			</s:DropDownList>
+		</s:HGroup>
+		<s:HGroup>
+			<s:Label text="统计范围">
+			</s:Label>
+			<s:DropDownList id="cityNameList" color="0x000000">
+			</s:DropDownList>
+			<s:DropDownList id="deviceModelList" color="0x000000" change="deviceModel_changeHandler(event)">
+			</s:DropDownList>
+		</s:HGroup>
+		<s:HGroup>
+			<s:Label text="统计指标">
+			</s:Label>
+			<s:DropDownList id="perfName1" color="0x000000">
+			</s:DropDownList>
+		</s:HGroup>
+		<s:HGroup>
+			<s:Label text="呈现指标1">
+			</s:Label>
+			<s:DropDownList id="perfName2" color="0x000000">
+			</s:DropDownList>
+		</s:HGroup>
+		<s:HGroup>
+			<s:Label text="呈现指标2">
+			</s:Label>
+			<s:DropDownList id="perfName3" color="0x000000">
+			</s:DropDownList>
+		</s:HGroup>
+		<s:HGroup>
+			<s:Button label="确定" click="button1_clickHandler(event)">
+			</s:Button>
+			<s:Button label="取消" click="closeMe();">
+			</s:Button>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

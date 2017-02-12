@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  xmlns:view="com.linkage.module.cms.alarm.framework.view.*"
+			  xmlns:common="com.linkage.module.cms.perfmonitor.monitor.alarm.common.*"
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+			  creationComplete="window1_creationCompleteHandler(event)"
+			  close="showHideWindow()"
+			  mouseEnabled="true"
+			  minimizable="false"
+			  maximizable="false"
+			  dragable="true"
+			  minHeight="30"
+			  width="100%"
+			  height="500">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.AlarmMonitor;
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.data.MonitorData;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			//日志
+			public var log:ILogger=Log.getLogger("com.linkage.module.cms.perfmonitor.monitor.alarm.component.DevLineView");
+			//网元ID
+			private var _moId:String=null;
+			//网元类型ID
+			private var _moTypeName:String=null;
+			//窗口显示
+			private var _winShow:Boolean=false;
+			//监控数据
+			private var _monitorData:MonitorData=null;
+			//告警监控
+			private var _alarmMonitor:AlarmMonitor=null;
+			//指标容器
+			[Bindable]
+			private var kpiDp:ArrayCollection=new ArrayCollection();
+			//时间格式转换
+			public static const dateFormatter:DateFormatter=new DateFormatter();
+			dateFormatter.formatString="YYYY-MM-DD JJ:NN:SS";
+			private var paramsArr:ArrayCollection=new ArrayCollection([{caption: " "}, {showvalues: "0"}, {formatNumberScale: '0'}, {formatNumber: '0'}, {showFCMenuItem: "0"}, {drawAnchors: "1"}, {chartLeftMargin: "3"}, {chartRightMargin: "15"}, {chartTopMargin: "3"}, {chartBottomMargin: "0"}, {canvasBorderAlpha: "0"}, {lineColor: "0x00FF00"}, {lineThickness: "4"}]); //图表背景色
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			//指标类型变化
+			protected function changeKpiType():void
+			{
+				log.info('切换图表类型：' + fcType.selectedItem['value']);
+				kpiFc.FCChartType=fcType.selectedItem['value'];
+				kpiFc.FCParams=kpiFc.FCParams;
+				kpiFc.FCTrendLines=kpiFc.FCTrendLines;
+				kpiFc.FCData=kpiFc.FCData;
+			}
+
+			//应用
+			private function loadKpiData():void
+			{
+				var param:Object={};
+				param['mo_id']=_moId;
+				param['mo_type_name']=_moTypeName;
+				param['st']=startDate.text;
+				param['et']=endDate.text;
+				param['tp']='HH:mm';
+
+				if (kpiSelect.selectedIndex < 0)
+				{
+					kpiSelect.selectedIndex=0;
+					kpiDp.refresh();
+				}
+				param['perf_id']=kpiSelect.selectedItem['perf_id'];
+
+				log.info("加载指标数据_moId=" + _moId);
+				log.info("加载指标数据_moTypeName=" + _moTypeName);
+				log.info("加载指标数据startDate=" + startDate.text);
+				log.info("加载指标数据endDate=" + endDate.text);
+				log.info("加载指标数据perf_id=" + kpiSelect.selectedItem['perf_id']);
+
+				_monitorData.createSTP(param, function(result:Object):void
+					{
+						showKpi(result);
+					}, function(e:FaultEvent):void
+					{
+						Alert.show('查询指标数据失败！');
+					});
+			}
+
+			private function showKpi(result:Object):void
+			{
+				var unit:Object=kpiSelect.selectedItem['unit']; //单位
+				var dailyValue:Object=kpiSelect.selectedItem['experience']; //日常值
+
+				var tempParaArr:ArrayCollection=new ArrayCollection();
+				tempParaArr.addAll(paramsArr);
+				tempParaArr.addItem({'numberSuffix': unit});
+
+				var ac:ArrayCollection=new ArrayCollection();
+				for each (var data:Object in result)
+				{
+					ac.addItem(data);
+				}
+
+				log.info(" 图表数据，数量：" + ac.length);
+
+				if (String(unit) == "%")
+				{
+					log.info(" 图表数据，百分比数据 设置最大值为100！");
+					tempParaArr.addItem({'yAxisMaxValue': "100"});
+				}
+
+				if (ac.length > 20)
+				{
+					log.info(" 图表数据，设置步长：" + String(ac.length / 20));
+					tempParaArr.addItem({'labelStep': String(Number(ac.length / 20).toFixed(0))});
+				}
+
+				kpiFc.FCChartType=fcType.selectedItem['value'];
+				kpiFc.FCParams=tempParaArr;
+				kpiFc.FCTrendLines=new ArrayCollection([{startValue: dailyValue, color: "0xFF0000"}]);
+				kpiFc.FCData=ac;
+				result=null;
+			}
+
+			public function loadKpiList(perfId:Object=null):void
+			{
+				log.info("加载指标列表perfId=" + perfId + ",moTypeName=" + _moTypeName);
+				//加载该网元类型对应的指标列表
+				_monitorData.getPerfsByMoType({mo_type_name: _moTypeName}, function(result:Object):void
+					{
+						if (result != null && result is IList)
+						{
+							kpiDp.removeAll();
+							kpiDp.addAll(result as IList);
+							kpiSelect.selectedIndex=0;
+							kpiDp.refresh();
+
+							if (perfId != null)
+							{
+								for each (var kpi:Object in result)
+								{
+									if (kpi['perf_id'] == perfId)
+									{
+										kpiSelect.selectedItem=kpi;
+										break;
+									}
+								}
+							}
+							loadKpiData();
+						}
+					}, function(e:FaultEvent):void
+					{
+						Alert.show('加载指标列表失败！');
+					});
+			}
+
+			//创建完成
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info('初始化开始结束时间控件 ~~');
+				var date1:Date=new Date();
+				var date2:Date=new Date();
+
+				date1.setHours(0);
+				date1.setMinutes(0);
+				date1.setSeconds(0);
+				date1.setMilliseconds(0);
+				var nowStr1:String=dateFormatter.format(date1);
+				startDate.text=nowStr1;
+
+				var nowStr2:String=dateFormatter.format(date2);
+				endDate.text=nowStr2;
+
+				//初始化图标类型
+				fcType.dataProvider=new ArrayCollection([{label: 'Line', value: 'Spline'}, {label: 'Column', value: 'Column3D'}, {label: 'Area', value: 'SplineArea'}, {label: 'Pie', value: 'Pie3D'}]);
+				fcType.selectedIndex=0;
+			}
+
+			//关闭按钮回调
+			public function showHideWindow(displayObject:DisplayObject=null):void
+			{
+				if (_winShow)
+				{
+					_winShow=false;
+					PopUpManager.removePopUp(this);
+				}
+				else
+				{
+					_winShow=true;
+					PopUpManager.addPopUp(this, displayObject, false);
+					PopUpManager.centerPopUp(this);
+				}
+			}
+
+			public function set alarmMonitor(value:AlarmMonitor):void
+			{
+				_alarmMonitor=value;
+			}
+
+			public function set monitorData(value:MonitorData):void
+			{
+				_monitorData=value;
+			}
+
+			public function set moTypeName(value:String):void
+			{
+				_moTypeName=value;
+			}
+
+			public function set moId(value:String):void
+			{
+				_moId=value;
+			}
+		]]>
+	</fx:Script>
+	<!-- 指标图表-->
+	<s:BorderContainer width="100%"
+					   height="100%"
+					   borderStyle="solid"
+					   borderWeight="2">
+		<s:VGroup width="100%"
+				  height="100%"
+				  gap="2">
+			<s:HGroup width="100%"
+					  height="30"
+					  paddingLeft="10"
+					  paddingRight="2"
+					  paddingTop="10"
+					  paddingBottom="5"
+					  horizontalAlign="left">
+				<s:HGroup height="100%"
+						  gap="0"
+						  verticalAlign="middle">
+					<mx:Text text="开始"/>
+					<common:UXDateField id="startDate"
+										color="0x000000"
+										bottom="5"
+										labelFunction="formatDate"
+										yearNavigationEnabled="true"
+										width="190"
+										editable="false"/>
+				</s:HGroup>
+				<s:HGroup height="100%"
+						  gap="0"
+						  verticalAlign="middle">
+					<mx:Text text=" 结束"/>
+					<common:UXDateField id="endDate"
+										color="0x000000"
+										labelFunction="formatDate"
+										yearNavigationEnabled="true"
+										width="190"
+										editable="false"/>
+				</s:HGroup>
+				<s:HGroup height="100%"
+						  gap="0"
+						  verticalAlign="middle">
+					<mx:Text text=" 图表类型"/>
+					<s:DropDownList id="fcType"
+									change="changeKpiType()"/>
+				</s:HGroup>
+				<s:HGroup height="100%"
+						  gap="0"
+						  verticalAlign="middle">
+					<mx:Text text=" 指标"/>
+					<s:DropDownList id="kpiSelect"
+									width="160"
+									dataProvider="{kpiDp}"/>
+					<s:Group width="15"/>
+					<s:Button label="应用"
+							  click="loadKpiData()"/>
+				</s:HGroup>
+			</s:HGroup>
+			<s:Group height="2"
+					 name="占位"/>
+			<mx:HRule width="100%"
+					  height="2"
+					  strokeColor="0x004080"/>
+
+			<fusioncharts:FusionChartsLK id="kpiFc"
+										 width="100%"
+										 height="100%"
+										 FCChartType="Spline"
+										 FCData="{new ArrayCollection()}"
+										 FCParams="{new ArrayCollection()}"/>
+		</s:VGroup>
+	</s:BorderContainer>
+</panel:Window>

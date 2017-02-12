@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					dragable="true"
+					minimizable="false"
+					maximizable="false"
+					styleName="windowScene"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					close="window1_closeHandler(event)">
+
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-8-12
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+
+			private var log:ILogger = Log.getLoggerByClass(CameraListShowWin);
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			public var isShow:Boolean = false;
+
+//			[MessageHandler(selector="CMS_SCENE_CAMERALISTSHOWWIN_CAMERALISTSHOWHANDLER")]
+			public function cameraListShowHandler(e:SceneEvent):void
+			{
+				log.info("展示数据！！");
+
+				if (e.param && e.param.length > 0)
+				{
+					cameraListGrid.dataProvider = e.param;
+				}
+				else
+				{
+					Alert.show("未查询到数据！", "提示");
+					return;
+				}
+			}
+
+			protected function gisPositionQuery(event:ListEvent):void
+			{
+				log.info("定位摄像头位置！！");
+				var evt:SceneEvent = new SceneEvent(SceneEvent.CMS_SCENE_SCENEVIEW_CAMERAFIXPOSITIONHANDLER);
+				evt.param = new Object();
+				evt.param = event.itemRenderer.data;
+				dispatchMsg(evt);
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				isShow = false;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="cameraListGrid"
+						 width="100%"
+						 height="100%"
+						 styleName="sceneDG"
+						 sortExpertMode="true"
+						 itemClick="gisPositionQuery(event)">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn headerText="网元名称"
+									   dataField="moName"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</ailk_compts:Window>

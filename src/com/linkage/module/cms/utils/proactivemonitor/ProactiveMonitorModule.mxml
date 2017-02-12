@@ -1,0 +1,536 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" 
+		   width="100%" height="100%" creationCompleteEffect="{fadeEffect}"
+		   creationComplete="module_creationCompleteHandler(event)" xmlns:components="com.linkage.module.cms.proactivemonitor.components.*" xmlns:button="com.linkage.module.cms.components.extend.button.*">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:states>
+		<s:State name="wt_community"/>
+		<s:State name="zh_community"/>
+		<s:State name="zc_community"/>
+		<s:State name="zc_community_yx"/>
+		<s:State name="zore_traffic_2G"/>
+		<s:State name="zore_traffic_TD"/>
+		<s:State name="wlan_rate_2G"/>
+		<s:State name="wlan_rate_busy"/>
+	</mx:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.proactivemonitor.components.ZoreTraffic;
+			import com.linkage.module.cms.proactivemonitor.control.ProactiveMonitorControl;
+			import com.linkage.module.cms.proactivemonitor.event.CommunityEvent;
+			import com.linkage.module.cms.proactivemonitor.event.GisMapWorkEvent;
+			import com.linkage.module.cms.proactivemonitor.event.WlanRateEvent;
+			import com.linkage.module.cms.proactivemonitor.event.ZoreTrafficEvent;
+			import com.linkage.system.component.panel.Window;
+			
+			import mx.controls.Alert;
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.proactivemonitor.control.ProactiveMonitorControl");
+			
+			public var parameters:Object;
+			public var loadManager:LoadManager;
+			private var control:ProactiveMonitorControl;
+			
+			[Embed(source="com/linkage/module/cms/general/img/jizhan_2G.png")]
+			private static var jizhan2g:Class;
+			[Embed(source="com/linkage/module/cms/general/img/cell.png")]
+			private static var cell:Class;
+			
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+				styleManager.loadStyleDeclarations2(parameters["styleUrl"]);
+				loadManager = parentApplication.loadManager;
+				loadManager.hideLoading();
+				control = new ProactiveMonitorControl(this);
+			}
+			
+
+			protected function fadeEffect_effectEndHandler(event:EffectEvent):void
+			{
+				var scene:String = String(parameters["scene"]);
+				this.currentState = scene;
+			}
+
+
+			protected function zoreTraffic2GComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				zoreTraffic2GComp.x = (this.width-zoreTraffic2GComp.width)/2;
+				zoreTraffic2GComp.y = (this.height-zoreTraffic2GComp.height)/2;
+			}
+
+
+			protected function zoreTraffic2GComp_citysQueryHandler(event:ZoreTrafficEvent):void
+			{
+				control.zoreTraffic2GCitysQuery();
+			}
+
+
+			protected function zoreTraffic2GComp_dataQueryHandler(event:ZoreTrafficEvent):void
+			{
+				control.zoreTraffic2GDataQuery(event.param);
+			}
+			
+			protected function zoreTraffic2GComp_gisQueryHandler(event:ZoreTrafficEvent):void
+			{
+				control.zoreTraffic2GGisDataQuery(event.param);
+			}
+			
+			
+			protected function zoreTraffic2GComp_moShowHandler(event:ZoreTrafficEvent):void
+			{
+				var moList:Object = event.param;
+				for each(var data:Object in moList){
+					data.icon=cell;
+					data.flag="2G";
+					var menus:Array = new Array;
+					menus.push({name:"资源信息",fun:showMoInfo});
+					menus.push({name:"告警信息",fun:showMoAlarmInfo});
+					menus.push({name:"性能信息",fun:showMoPerfInfo});
+					menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+					data.menus=menus;
+					log.info("小区："+data.mo_name+","+data.longitude+","+data.latitude+","+data.icon);
+				}
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURECHANGE);
+				evt.param = moList;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+			
+			
+			protected function zoreTraffic2GComp_moSiteHandler(event:ZoreTrafficEvent):void
+			{
+				var data:Object = event.param;
+				data.icon = cell;
+				data.flag="2G";
+				var menus:Array = new Array;
+				menus.push({name:"资源信息",fun:showMoInfo});
+				menus.push({name:"告警信息",fun:showMoAlarmInfo});
+				menus.push({name:"性能信息",fun:showMoPerfInfo});
+				menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+				data.menus=menus;
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURESITE);
+				evt.param = data;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+
+			protected function zoreTrafficTDComp_citysQueryHandler(event:ZoreTrafficEvent):void
+			{
+				control.zoreTrafficTDCitysQuery();
+				
+			}
+			
+			protected function zoreTrafficTDComp_dataQueryHandler(event:ZoreTrafficEvent):void
+			{
+				control.zoreTrafficTDDataQuery(event.param);
+			}
+
+			protected function zoreTrafficTDComp_gisQueryHandler(event:ZoreTrafficEvent):void
+			{
+				control.zoreTrafficTDGisDataQuery(event.param);
+			}
+
+
+			protected function zoreTrafficTDComp_moShowHandler(event:ZoreTrafficEvent):void
+			{
+				var moList:Object = event.param;
+				for each(var data:Object in moList){
+					data.icon=cell;
+					data.flag="3G";
+					var menus:Array = new Array;
+					menus.push({name:"资源信息",fun:showMoInfo});
+					menus.push({name:"告警信息",fun:showMoAlarmInfo});
+					menus.push({name:"性能信息",fun:showMoPerfInfo});
+					menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+					data.menus=menus;
+					log.info("小区："+data.mo_name+","+data.longitude+","+data.latitude+","+data.icon);
+				}
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURECHANGE);
+				evt.param = moList;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+
+
+			protected function zoreTrafficTDComp_moSiteHandler(event:ZoreTrafficEvent):void
+			{
+				var data:Object = event.param;
+				data.icon = cell;
+				data.flag="3G";
+				var menus:Array = new Array;
+				menus.push({name:"资源信息",fun:showMoInfo});
+				menus.push({name:"告警信息",fun:showMoAlarmInfo});
+				menus.push({name:"性能信息",fun:showMoPerfInfo});
+				menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+				data.menus=menus;
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURESITE);
+				evt.param = data;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+
+			private var moInfoUrl:String = "/cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action";
+			private var moAlarmInfoUrl:String = "/cms/warn/report/query/ShowAlarmList.jsp";
+			private var moPerfInfoUrl:String = "/cms/performance/report/permsg!initForm.action";
+			private var moTopoInfoUrl:String = "/cms/webtopo/topo/topolocate.action";
+			private function showMoInfo(gisFeature:GisFeature):void{
+				log.info("showMoInfo======>"+gisFeature.attributes.mo_id);
+				var variables:URLVariables = new URLVariables();
+				variables.qryMoId=String(gisFeature.attributes.mo_id);
+				var request:URLRequest = new URLRequest(parameters["urlContext"]+moInfoUrl);
+				request.data=variables;
+				navigateToURL(request);
+			}
+			
+			private function showMoAlarmInfo(gisFeature:GisFeature):void{
+				log.info("showMoAlarmInfo======>"+gisFeature.attributes.mo_id);
+				var variables:URLVariables = new URLVariables();
+				variables.alarmStatus=String(1);
+				variables.neId=String(gisFeature.attributes.mo_id);
+				var request:URLRequest = new URLRequest(parameters["urlContext"]+moAlarmInfoUrl);
+				request.data=variables;
+				navigateToURL(request);
+			}
+			
+			private function showMoPerfInfo(gisFeature:GisFeature):void{
+				log.info("showMoPerfInfo======>"+gisFeature.attributes.mo_id+","+gisFeature.attributes.mo_type_id);
+				var variables:URLVariables = new URLVariables();
+				variables.moId=String(gisFeature.attributes.mo_id);
+				variables.moTypeId=String(gisFeature.attributes.mo_type_id);
+				var request:URLRequest = new URLRequest(parameters["urlContext"]+moPerfInfoUrl);
+				request.data=variables;
+				navigateToURL(request);
+			}
+			private function showMoTopoInfo(gisFeature:GisFeature):void{
+				log.info("showMoTopoInfo======>"+gisFeature.attributes.mo_id+","+gisFeature.attributes.mo_type_id);
+				var variables:URLVariables = new URLVariables();
+				variables.specId=String(1);
+				variables.moId=String(gisFeature.attributes.mo_id);
+				var request:URLRequest = new URLRequest(parameters["urlContext"]+moTopoInfoUrl);
+				request.data=variables;
+				navigateToURL(request);
+			}
+
+			protected function wlanRateBusyComp_citysQueryHandler(event:WlanRateEvent):void
+			{
+				control.wlanRateBusyCitysQuery();
+			}
+
+
+			protected function wlanRateBusyComp_chartDataQueryHandler(event:WlanRateEvent):void
+			{
+				control.wlanRateBusyChartDataQuery(event.param);
+			}
+			
+			protected function wlanRateBusyComp_dataQueryHandler(event:WlanRateEvent):void
+			{
+				control.wlanRateBusyDataQuery(event.param);
+			}
+
+
+			protected function wlanRateBusyComp_gisQueryHandler(event:WlanRateEvent):void
+			{
+				control.wlanRateBusyGisDataQuery(event.param);
+			}
+
+
+			protected function wlanRateBusyComp_moShowHandler(event:WlanRateEvent):void
+			{
+				var moList:Object = event.param;
+				for each(var data:Object in moList){
+					data.icon=cell;
+					data.flag="2G";
+					var menus:Array = new Array;
+					menus.push({name:"资源信息",fun:showMoInfo});
+					menus.push({name:"告警信息",fun:showMoAlarmInfo});
+					menus.push({name:"性能信息",fun:showMoPerfInfo});
+					menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+					data.menus=menus;
+					log.info("小区："+data.mo_name+","+data.longitude+","+data.latitude+","+data.icon);
+				}
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURECHANGE);
+				evt.param = moList;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+
+
+			protected function wlanRateBusyComp_moSiteHandler(event:WlanRateEvent):void
+			{
+				var data:Object = event.param;
+				data.icon = cell;
+				data.flag="2G";
+				var menus:Array = new Array;
+				menus.push({name:"资源信息",fun:showMoInfo});
+				menus.push({name:"告警信息",fun:showMoAlarmInfo});
+				menus.push({name:"性能信息",fun:showMoPerfInfo});
+				menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+				data.menus=menus;
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURESITE);
+				evt.param = data;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+
+
+			protected function wlanRate2GComp_citysQueryHandler(event:WlanRateEvent):void
+			{
+				control.wlanRate2GCitysQuery();
+			}
+
+
+			protected function wlanRate2GComp_dataQueryHandler(event:WlanRateEvent):void
+			{
+				control.wlanRate2GDataQuery(event.param);
+			}
+
+
+			protected function wlanRate2GComp_gisQueryHandler(event:WlanRateEvent):void
+			{
+				control.wlanRate2GGisDataQuery(event.param);
+			}
+
+
+			protected function wlanRate2GComp_moShowHandler(event:WlanRateEvent):void
+			{
+				var moList:Object = event.param;
+				for each(var data:Object in moList){
+					data.icon=cell;
+					data.flag="2G";
+					var menus:Array = new Array;
+					menus.push({name:"资源信息",fun:showMoInfo});
+					menus.push({name:"告警信息",fun:showMoAlarmInfo});
+					menus.push({name:"性能信息",fun:showMoPerfInfo});
+					menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+					data.menus=menus;
+					log.info("小区："+data.mo_name+","+data.longitude+","+data.latitude+","+data.icon);
+				}
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURECHANGE);
+				evt.param = moList;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+
+
+			protected function wlanRate2GComp_moSiteHandler(event:WlanRateEvent):void
+			{
+				var data:Object = event.param;
+				data.icon = cell;
+				data.flag="2G";
+				var menus:Array = new Array;
+				menus.push({name:"资源信息",fun:showMoInfo});
+				menus.push({name:"告警信息",fun:showMoAlarmInfo});
+				menus.push({name:"性能信息",fun:showMoPerfInfo});
+				menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+				data.menus=menus;
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURESITE);
+				evt.param = data;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+
+
+			protected function wlanRate2GComp_chartDataQueryHandler(event:WlanRateEvent):void
+			{
+				control.wlanRate2GChartDataQuery(event.param);
+			}
+
+			private var wlanRate2GExportUrl:String = "/cms/proactivemonitor/proactiveMonitor!expDataForWlan2G.action";
+			protected function wlanRate2GComp_dataExportHandler(event:WlanRateEvent):void
+			{
+				var variables:URLVariables = new URLVariables();
+				for(var key in event.param){
+					variables[key]=String(event.param[key]);
+				}
+				var request:URLRequest = new URLRequest(parameters["urlContext"]+wlanRate2GExportUrl);
+				request.data=variables;
+				navigateToURL(request);
+			}
+
+
+			protected function zhCommunityComp_dataQueryHandler(event:CommunityEvent):void
+			{
+				var param:Object = event.param;
+				param.time_template="yyyy-MM-dd HH";
+				param.type = "2";
+				control.zhCommunityDataQuery(param);
+			}
+
+
+			protected function zhCommunityComp_perfQueryHandler(event:CommunityEvent):void
+			{
+				var param:Object = new Object();
+				param.type="2";
+				control.zhCommunityPerfDataQuery(param);
+			}
+
+
+			protected function zhCommunityComp_gisQueryHandler(event:CommunityEvent):void
+			{
+				var param:Object = event.param;
+				param.type = "2";
+				control.zhCommunityGisQuery(param);
+			}
+
+
+			protected function zcCommunityComp_dataQueryHandler(event:CommunityEvent):void
+			{
+				var param:Object = event.param;
+				param.time_template="yyyy-MM-dd HH";
+				param.type = "1";
+				control.zcCommunityDataQuery(param);
+			}
+
+
+			protected function zcCommunityComp_gisQueryHandler(event:CommunityEvent):void
+			{
+				var param:Object = event.param;
+				param.type = "1";
+				control.zcCommunityGisQuery(param);
+			}
+
+
+			protected function zcCommunityComp_perfQueryHandler(event:CommunityEvent):void
+			{
+				var param:Object = new Object();
+				param.type="1";
+				control.zcCommunityPerfDataQuery(param);
+			}
+
+
+
+
+			protected function zhCommunityComp_moShowHandler(event:CommunityEvent):void
+			{
+				var moList:Object = event.param;
+				for each(var data:Object in moList){
+					data.icon=cell;
+					data.flag="2G";
+					var menus:Array = new Array;
+					menus.push({name:"资源信息",fun:showMoInfo});
+					menus.push({name:"告警信息",fun:showMoAlarmInfo});
+					menus.push({name:"性能信息",fun:showMoPerfInfo});
+					menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+					data.menus=menus;
+					log.info("小区："+data.mo_name+","+data.longitude+","+data.latitude+","+data.icon);
+				}
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURECHANGE);
+				evt.param = moList;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+
+
+			protected function zcCommunityComp_moShowHandler(event:CommunityEvent):void
+			{
+				var moList:Object = event.param;
+				for each(var data:Object in moList){
+					data.icon=cell;
+					data.flag="2G";
+					var menus:Array = new Array;
+					menus.push({name:"资源信息",fun:showMoInfo});
+					menus.push({name:"告警信息",fun:showMoAlarmInfo});
+					menus.push({name:"性能信息",fun:showMoPerfInfo});
+					menus.push({name:"关联拓扑-无线拓扑",fun:showMoTopoInfo});
+					data.menus=menus;
+					log.info("小区："+data.mo_name+","+data.longitude+","+data.latitude+","+data.icon);
+				}
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.FEATURECHANGE);
+				evt.param = moList;
+				gisMapWorkComp.dispatchEvent(evt);
+			}
+			
+			
+			private function stateChange(state:String):void{
+				this.currentState = state;
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Fade id="fadeEffect" alphaFrom="0" alphaTo="1" duration="500" 
+				effectEnd="fadeEffect_effectEndHandler(event)"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Scroller width="100%" height="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+		<s:Group width="100%" height="100%">
+			<!-- GIS地图  -->
+			<components:GisMapWork id="gisMapWorkComp"/>
+			<!-- 2G 0话务量小区 -->
+			<components:ZoreTraffic id="zoreTraffic2GComp" 
+									  width="660" height="400" title="2G 零话务量小区(天)"
+									  includeIn="zore_traffic_2G"
+									  citysQuery="zoreTraffic2GComp_citysQueryHandler(event)" 
+									  dataQuery="zoreTraffic2GComp_dataQueryHandler(event)" 
+									  gisQuery="zoreTraffic2GComp_gisQueryHandler(event)" 
+									  moShow="zoreTraffic2GComp_moShowHandler(event)" 
+									  moSite="zoreTraffic2GComp_moSiteHandler(event)"/>
+			<!-- TD 0话务量小区 -->
+			<components:ZoreTraffic id="zoreTrafficTDComp" 
+									width="660" height="400" title="TD 零话务量小区(天)"
+									includeIn="zore_traffic_TD"
+									citysQuery="zoreTrafficTDComp_citysQueryHandler(event)" 
+									dataQuery="zoreTrafficTDComp_dataQueryHandler(event)" 
+									gisQuery="zoreTrafficTDComp_gisQueryHandler(event)" 
+									moShow="zoreTrafficTDComp_moShowHandler(event)" 
+									moSite="zoreTrafficTDComp_moSiteHandler(event)"/>
+			<!-- 忙时无线利用率 -->
+			<components:WlanRateBusy id="wlanRateBusyComp" width="660" height="400" 
+									 title="忙时无线利用率 > 80" 
+									 includeIn="wlan_rate_busy" 
+									 citysQuery="wlanRateBusyComp_citysQueryHandler(event)" 
+									 chartDataQuery="wlanRateBusyComp_chartDataQueryHandler(event)"
+									 dataQuery="wlanRateBusyComp_dataQueryHandler(event)" 
+									 gisQuery="wlanRateBusyComp_gisQueryHandler(event)" 
+									 moShow="wlanRateBusyComp_moShowHandler(event)" 
+									 moSite="wlanRateBusyComp_moSiteHandler(event)"/>
+			<!-- 2G无线利用率 -->
+			<components:WlanRate2G id="wlanRate2GComp" width="660" height="400" 
+								   title="2G无线利用率" 
+								   includeIn="wlan_rate_2G" 
+								   dataExport="wlanRate2GComp_dataExportHandler(event)"
+								   chartDataQuery="wlanRate2GComp_chartDataQueryHandler(event)"
+								   dataQuery="wlanRate2GComp_dataQueryHandler(event)" 
+								   gisQuery="wlanRate2GComp_gisQueryHandler(event)" 
+								   moShow="wlanRate2GComp_moShowHandler(event)" 
+								   moSite="wlanRate2GComp_moSiteHandler(event)"/>
+			<!-- 最坏小区 -->
+			<components:Community id="zhCommunityComp" width="660" height="400" 
+								  title="最坏小区统计信息" 
+								  includeIn="zh_community" 
+								  dataQuery="zhCommunityComp_dataQueryHandler(event)" 
+								  perfQuery="zhCommunityComp_perfQueryHandler(event)" 
+								  gisQuery="zhCommunityComp_gisQueryHandler(event)"
+								  moShow="zhCommunityComp_moShowHandler(event)"/>
+			
+			<!-- 最差小区 -->
+			<components:Community id="zcCommunityComp" width="660" height="400" 
+								  title="最差小区统计信息" 
+								  includeIn="zc_community" 
+								  dataQuery="zcCommunityComp_dataQueryHandler(event)" 
+								  gisQuery="zcCommunityComp_gisQueryHandler(event)" 
+								  perfQuery="zcCommunityComp_perfQueryHandler(event)"
+								  moShow="zcCommunityComp_moShowHandler(event)"/>
+			
+			
+		</s:Group>
+	</s:Scroller>
+	
+	<s:VGroup right="10" top="30">
+		<button:ExtendButton label="最差小区" width="140" height="26" buttonMode="true" click="stateChange('zc_community')"/>
+		<button:ExtendButton label="最坏小区" width="140" height="26" buttonMode="true" click="stateChange('zh_community')"/>
+		<button:ExtendButton label="2G零话务量小区" width="140" height="26" buttonMode="true" click="stateChange('zore_traffic_2G')"/>
+		<button:ExtendButton label="TD零话务量小区" width="140" height="26" buttonMode="true" click="stateChange('zore_traffic_TD')"/>
+		<button:ExtendButton label="忙时无线利用率" width="140" height="26" buttonMode="true" click="stateChange('wlan_rate_busy')"/>
+		<button:ExtendButton label="2G无线利用率" width="140" height="26" buttonMode="true" click="stateChange('wlan_rate_2G')"/>
+	</s:VGroup>
+</mx:Module>

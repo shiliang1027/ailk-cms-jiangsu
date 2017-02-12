@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="330"
+					styleName="window"
+					minimizable="false"
+					maximizable="false"
+					close="window1_closeHandler()"
+					height="175"
+					xmlns:ns="http://www.ailk.com/2011/cms">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+
+			private var log:ILogger = Log.getLoggerByClass(ModalTipWindow);
+
+			[Bindable]
+			public var tipArray:ArrayCollection = new ArrayCollection(); //需要显示的劣化指标等数据
+
+			protected function window1_closeHandler():void
+			{
+				this.visible = false;
+				this.includeInLayout = false;
+			}
+		]]>
+	</fx:Script>
+	<!--
+		 ***************************************
+		 用于缩略图弹出tip窗口
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-10-17
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Scroller width="100%"
+				height="100%"
+				styleName="sceneScroller">
+		<s:Group width="100%"
+				 height="100%">
+			<mx:AdvancedDataGrid id="tipAdg"
+								 width="100%"
+								 height="100%"
+								 styleName="sceneDG"
+								 wordWrap="true"
+								 dataProvider="{tipArray}"
+								 verticalAlign="middle"
+								 showHeaders="false">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn dataField="key"
+											   headerText="指标"
+											   dataTipField="key"
+											   width="130"/>
+					<mx:AdvancedDataGridColumn dataField="value"
+											   headerText="值"
+											   dataTipField="value"
+											   itemRenderer="com.linkage.module.cms.scene.view.components.renderer.ColumnColorDyeRenderer"
+											   width="60"/>
+					<mx:AdvancedDataGridColumn dataField="gatherTime"
+											   headerText="采集时间"
+											   dataTipField="gatherTime"
+											   width="100"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+
+		</s:Group>
+	</s:Scroller>
+</ailk_compts:Window>

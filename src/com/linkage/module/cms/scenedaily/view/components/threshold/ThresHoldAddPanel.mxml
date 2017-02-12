@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					width="100%"
+					height="136"
+					styleName="window1"
+					maximizable="false"
+					minimizable="false"
+					closable="false"
+					title="阈值{index_id}"
+					creationComplete="add_creationCompleteHandler(event)"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author huawei (Ailk No.)
+		 @version 1.0
+		 @date 2012-9-6
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.event.threshold.ThresHoldEvent;
+
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(ThresHoldAddPanel);
+
+			[Inject("thresHoldAddPanelPM")]
+			[Bindable]
+			public var pm:ThresHoldAddPanelPM;
+
+			public var resType:String = "0";
+
+			public var timeType:String = "0";
+
+			public var relation:Object = {"0": "零", "1": "一", "2": "二", "3": "三", "4": "四", "5": "五", "6": "六", "7": "七", "8": "八", "9": "九", "10": "十", "11": "十一", "12": "十二", "13": "十三", "14": "十四", "15": "十五"};
+
+			[Bindable]
+			private var showFlag:Boolean = false;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			//判断是否是已有数据的配置页面
+			public var isCreatFlag:Boolean = false;
+
+			//文字索引
+			[Bindable]
+			public var index_id:String = "一";
+			//索引
+			[Bindable]
+			public var index:int = 1;
+
+			[Bindable]
+			public var unit:String;
+
+
+			//传入的值
+			public var param:Object = new Object();
+
+			protected function add_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				dispatchMsg(new ThresHoldEvent(ThresHoldEvent.ADD_THRESHOLD_PAG));
+			}
+
+			protected function sendAlarm_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				if ("1" == isalarm.selectedItem.key)
+				{
+					showFlag = true;
+				}
+				else
+				{
+					showFlag = false;
+				}
+
+			}
+
+			//设置数据
+			public function setValues(temp:Object):void
+			{
+				index = int(temp.index_id);
+				index_id = relation[temp.index_id];
+				resType = temp.res_type;
+				timeType = temp.timetype;
+				for each (var upop:Object in pm.characterUpList)
+				{
+					if (upop.key == temp.up_oper)
+					{
+						up_oper.selectedItem = upop;
+					}
+				}
+
+				up_threshold.text = temp.up_threshold;
+				for each (var downop:Object in pm.characterDownList)
+				{
+					if (downop.key == temp.down_oper)
+					{
+						down_oper.selectedItem = downop;
+					}
+				}
+
+				down_threshold.text = temp.down_threshold;
+				for each (var sendalarm:Object in pm.sendAlarmList)
+				{
+					if (sendalarm.key == temp.isalarm)
+					{
+						isalarm.selectedItem = sendalarm;
+					}
+				}
+
+				for each (var alarmLevel:Object in pm.alarmLevelList)
+				{
+					if (alarmLevel.key == temp.warning_level)
+					{
+						warning_level.selectedItem = alarmLevel;
+					}
+				}
+				rendingcolor.selectedColor = uint(temp.rendingcolor);
+
+				if ("1" == temp.isalarm)
+				{
+					showFlag = true;
+				}
+				else
+				{
+					showFlag = false;
+				}
+			}
+
+			protected function add_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (isCreatFlag)
+				{
+					setValues(param);
+				}
+
+			}
+		]]>
+	</fx:Script>
+	<mx:Image source="@Embed('../../../img/treeClose.png')"
+			  y="-20"
+			  x="70"
+			  width="15"
+			  height="15"
+			  click="add_clickHandler(event)"
+			  buttonMode="true"/>
+
+	<s:VGroup horizontalAlign="center"
+			  verticalAlign="middle"
+			  paddingTop="5"
+			  width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  height="31%">
+			<s:Label text="上限阈值操作符"
+					 width="25%"
+					 textAlign="center"/>
+			<s:DropDownList dataProvider="{pm.characterUpList}"
+							labelField="character"
+							width="100"
+							requireSelection="true"
+							selectedIndex="1"
+							id="up_oper"/>
+			<s:Label text="上限阈值({unit})"
+					 width="25%"
+					 textAlign="center"/>
+			<s:TextInput width="100"
+						 restrict="0-9"
+						 id="up_threshold"/>
+		</s:HGroup>
+		<s:HGroup width="100%"
+				  height="31%">
+			<s:Label text="下限阈值操作符"
+					 width="25%"
+					 textAlign="center"/>
+			<s:DropDownList dataProvider="{pm.characterDownList}"
+							labelField="character"
+							width="100"
+							requireSelection="true"
+							selectedIndex="2"
+							id="down_oper"/>
+			<s:Label text="下限阈值({unit})"
+					 width="25%"
+					 textAlign="center"/>
+			<s:TextInput width="100"
+						 restrict="0-9"
+						 id="down_threshold"/>
+		</s:HGroup>
+		<s:HGroup width="100%"
+				  height="31%">
+			<s:Label text="发告警"
+					 width="25%"
+					 textAlign="center"/>
+			<s:DropDownList dataProvider="{pm.sendAlarmList}"
+							labelField="issend"
+							width="100"
+							requireSelection="true"
+							selectedIndex="0"
+							change="sendAlarm_changeHandler(event)"
+							id="isalarm"/>
+			<s:Label text="告警级别"
+					 textAlign="center"
+					 width="25%"
+					 visible="{showFlag}"
+					 includeInLayout="{showFlag}"/>
+			<s:DropDownList dataProvider="{pm.alarmLevelList}"
+							labelField="level"
+							width="100"
+							requireSelection="true"
+							selectedIndex="0"
+							id="warning_level"
+							visible="{showFlag}"
+							includeInLayout="{showFlag}"/>
+			<s:Label text="指标渲染颜色"
+					 width="25%"
+					 textAlign="center"
+					 visible="{!showFlag}"
+					 includeInLayout="{!showFlag}"/>
+			<mx:ColorPicker id="rendingcolor"
+							visible="{!showFlag}"
+							includeInLayout="{!showFlag}"/>
+		</s:HGroup>
+	</s:VGroup>
+</ailk_compts:Window>

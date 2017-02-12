@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					title="重点区域"
+					dragable="true"
+					styleName="windowSceneGisBottom"
+					minimizable="false" width="500"
+					height="360"
+					maximizable="false" xmlns:parsley="http://www.spicefactory.org/parsley" close="window_closeHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			
+			import mx.managers.PopUpManager;
+			
+			import spark.events.IndexChangeEvent;
+			
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			private var log:ILogger = Log.getLoggerByClass(KeyAreasDetailNew);
+			protected function list_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("[list_changeHandler]");
+				var data:* = list.dataProvider.getItemAt(event.newIndex);
+				log.info(data);
+				if (data)
+				{
+					if (user.sceneId == "1004" && data.hasOwnProperty("flag") && data["flag"] == "1")
+					{
+						//						log.info("点击假数据，直接抛出事件，不改任何数据，直接刷新！！！");
+						//						
+						//						if (data["areaId"] == 1)
+						//						{
+						//							dispatchMsg(evt);
+						//						}
+						//						else
+						//						{
+						//							Alert.show("尚未配置……", "提示");
+						//						}
+						//						return;
+					}
+					
+					//				if(user.level == "2"){
+					//					evt = new SceneEvent(SceneEvent.CHANGE_MAPVIEW);
+					//				}
+					//				user.areaId = param.areaId;
+					//                user.level = "2";
+					//                user.currentMapType = "0";
+					//                user.layerurl = param.layerUrl;
+					//                user.layerId = param.layerId;
+					//                evt.param = new Object();
+					//                evt.param = param;
+					//                log.info(user);
+					//                dispatchMsg(evt);
+					
+					log.warn("------------");
+					log.debug(data);
+					var param:Object = new Object();
+					param.areaId = String(data.areaId);
+					param.level = "2";
+					param.cityName = "";
+					param.currentMapType = "0";
+					param.centerlongitude = String(data.centerlongitude);
+					param.centerlatitude = String(data.centerlatitude);
+					param.layerurl = data.layerUrl;
+					param.layerId = data.layerId;
+					if (data.CITY_ID)
+						param.cityId = data.CITY_ID;
+					else
+						param.cityId = data.city_id;
+					
+					user.level = param.level;
+					user.cityId = param.cityId;
+					user.cityName = param.cityName;
+					user.currentMapType = param.currentMapType;
+					user.areaId = param.areaId;
+					
+					
+					
+					var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+					e.param = new Object();
+					if(param.currentMapType=="0"){
+						e.param.currentState="gisMap";
+						e.param.iscounty=true;
+					}else{
+						e.param.currentState="vectorMap";
+						e.param.iscounty=false;
+					}
+					//				e.param.currentState = user.mapType=="0"?"gisMap":"vectorMap";
+					e.param.city_id="";
+					//				e.param.logicalType=user.logicalType;
+					e.param.level=param.level;
+					e.param.city_name=param.cityName;
+					e.param.centerlongitude = param.centerlongitude;
+					e.param.centerlatitude = param.centerlatitude;
+					dispatchMsg(e);
+				}
+			}
+			
+			protected function window_closeHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(this);
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<parsley:Configure/>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<ailk_compts:layout>
+		<s:HorizontalLayout paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5"/>
+	</ailk_compts:layout>
+	<s:List id="list" width="100%" height="100%" labelField="areaName" autoLayout="true" styleName="sceneList" change="list_changeHandler(event)" dataProvider="{scenePM.sceneThumbnailDM.data}" contentBackgroundAlpha="0" borderVisible="false" itemRenderer="com.linkage.module.cms.gsscene.viewnew.KeyAreasDetailItemRenderer" >
+		<s:layout>
+			<s:TileLayout horizontalGap="5" verticalGap="5" requestedColumnCount="3" requestedRowCount="-1" columnWidth="100" rowHeight="120" columnAlign="justifyUsingWidth" rowAlign="top" />
+		</s:layout>
+	</s:List>
+</ailk_compts:Window>

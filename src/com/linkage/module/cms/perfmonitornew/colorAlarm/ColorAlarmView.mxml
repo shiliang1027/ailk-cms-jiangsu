@@ -1,0 +1,1057 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 xmlns:fusioncharts="com.linkage.common.fusioncharts.*" 
+		 xmlns:common="com.linkage.module.cms.perfmonitor.common.*"
+		 width="100%" height="100%"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components" 
+		 xmlns:colorAlarm="com.linkage.module.cms.perfmonitornew.colorAlarm.*">
+<!--	creationComplete="group1_creationCompleteHandler(event)"-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.devperf.DevPerfMonitorDataMgr;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Alert;
+			import mx.controls.Label;
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.FaultEvent;
+			
+			private var data:Object = DemoDatas.alarmDatas;
+			//悬浮框的状态行
+			private var alarmDivLoadingRow:GridRow = null;
+			private var alarmDivLabel:Label = null;
+			public var parameters:Object;	
+			//告警级别颜色(发光颜色)
+			public static var _levelColorMap:Object = {'一级告警': 0XFFADAD, '二级告警': 0XEEC988, '三级告警': 0XFEF1AD, '四级告警': 0XAFBCE1, '0': 0X91F291, '1': 0XFFADAD, '2': 0XEEC988, '3': 0XFEF1AD, '4': 0XAFBCE1};
+//			public static var _levelColorMap:Object = {'一级告警': 0XFF0000, '二级告警': 0XEE9800, '三级告警': 0XFED701, '四级告警': 0X4169E1, '0': 0X00CC00, '1': 0XFF0000, '2': 0XEE9800, '3': 0XFED701, '4': 0X4169E1};
+			//城市/网元类型切换颜色
+		 	public static var _cityMotypeColorMap:Array = [0X1F6AC7,0X1461A9]; 
+			//数据刷新定时器
+			private var _alarmTimer:Timer = new Timer(300000);
+			//列表边框颜色
+			private var borderColor:uint = 0xffffff;			
+			
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.colorAlarm.ColorAlarmView");
+			[Bindable]
+			public var lm:LoadManager = null;
+			
+			[Embed(source="../img/redLight.png")]
+			private  var _redLight:Class;
+			[Embed(source="../img/orangeLight.png")]
+			private  var _orangeLight:Class;
+			[Embed(source="../img/yellowLight.png")]
+			private  var _yellowLight:Class;
+			[Embed(source="../img/blueLight.png")]
+			private  var _blueLight:Class;
+			[Embed(source="../img/greenLight.png")]
+			private  var _greenLight:Class;
+			
+			[Embed(source = "../img/up_gray.png")]
+			private static var _up_gray:Class;
+			[Embed(source = "../img/up_blue.png")]
+			private static var _up_blue:Class;
+			[Embed(source = "../img/down_gray.png")]
+			private static var _down_gray:Class;
+			[Embed(source = "../img/down_blue.png")]
+			private static var _down_blue:Class;
+			
+			//复合网元单元格右键菜单
+			private var complexMoMenu:ContextMenu;
+			private var defaultFilter:String = 'nmsalarmtype=3&locatenetype!="CELL"&locatenetype!="UTRANCELL"&alarmlogicclass="综合监控_设备性能告警"';
+			private var defaultMoFilter:String = '';
+			private var paramsArr:ArrayCollection = new ArrayCollection([
+				{showvalues:"0"},
+				{labelDisplay: 'Stagger'},//这个属性和slantLabels一起设置   横轴标签倾斜45°
+				{staggeLines: '2'},
+				//				{slantLabels:'1'},
+				{formatNumberScale:'0'},//是否将千换成K   百万换成M
+				{formatNumber:'0'},//是否在千位和百万为加分隔符
+				{showFCMenuItem:"0"},
+				{drawAnchors:"1"},
+				{chartLeftMargin:"3"},
+				{chartRightMargin:"15"},
+				{chartTopMargin:"3"},
+				{chartBottomMargin:"0"},
+				{canvasBorderAlpha:"0"},
+				{lineColor:"0x00FF00"},
+				{lineThickness:"4"}
+			]);//图表背景色
+			//初始化
+			public function init():void
+			{
+				parameters = parentApplication.parameters;
+				//初始化定时器
+				log.info('初始化定时器 ~~');
+//				log.info(parameters);
+				_alarmTimer.addEventListener(TimerEvent.TIMER, onAlarmTimer);
+				log.info("初始化加载状态提示组件...");
+				
+				initServerClass();
+				lm = new LoadManager(this);
+				createRightMenu();
+				initAlarms();//告警流水初始化
+				initKpis();//指标初始化
+//				initview(data);//模拟
+				loadColorMatrixInfo();
+				_alarmTimer.start();
+			}
+			//给数据类注入context
+			private function initServerClass():void
+			{
+				DevPerfMonitorDataMgr.setContext(this.parameters['context']);
+				ColorAlarmViewDataMgr.setContext(this.parameters['context']);
+			}
+			//------------------------告警流水-------------------------------------
+			private function initAlarms():void
+			{
+				 log.info('初始化红橙黄蓝告警流水：' + this.parameters['mapInfo']);
+				 log.info(alarmFlow.params);
+				 alarmFlow.stop();
+				 alarmFlow.start();
+				 
+				//初始化告警流水
+				alarmFlow.params = this.parameters;
+				//设置过滤规则
+				alarmFlow.ruleContent = defaultFilter;
+				alarmFlow.initInfo(); 
+				
+			}
+			//------------------------网元指标-------------------------------------
+			private function initKpis():void{
+				//图表查询条件初始化
+				log.info('初始化开始结束时间控件 ~~');
+				dateFormatter.formatString="YYYY-MM-DD JJ:NN:SS";
+				var date1:Date = new Date();
+				var date2:Date = new Date();
+				
+				date1.setHours(0);
+				date1.setMinutes(0);
+				date1.setSeconds(0);
+				date1.setMilliseconds(0);
+				var nowStr1:String = dateFormatter.format(date1);
+				startDate.text = nowStr1;
+				
+				var nowStr2:String = dateFormatter.format(date2);
+				endDate.text = nowStr2;
+				
+				log.info('初始化 图表类型 ~~');
+				this.fcType.dataProvider = new ArrayCollection([
+					{label:'Line', value:'Spline'},
+					{label:'Column', value:'Column3D'},
+					{label:'Area', value:'SplineArea'},
+					{label:'Pie', value:'Pie3D'}
+				]);
+				this.fcType.selectedIndex = 0;
+			}
+			private function onAlarmTimer(event:TimerEvent):void
+			{
+				loadColorMatrixInfo();
+			}
+			
+			//加载红橙黄蓝告警网元矩阵数据
+			private function loadColorMatrixInfo(refreshFlag:Boolean = false):void
+			{
+				log.info('开始加载红橙黄蓝告警网元矩阵数据。。。');
+				lm.showLoading();
+				ColorAlarmViewDataMgr.getColorMatrixInfo({'acc_loginname':this.parameters['acc_loginname'], 'spec_id':this.parameters['spec_id'],'moni_type':this.parameters['moni_type']},
+					function(result:Object):void
+					{
+						if(result.datas){
+							log.info('加载红橙黄蓝告警网元矩阵数据成功，告警地市数为'+result.datas.length);
+						}
+						data = result.datas;
+						initview(data);
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						Alert.show("加载红橙黄蓝告警网元矩阵失败！");
+						lm.hideLoading();
+					}
+				);
+				ColorAlarmViewDataMgr.getGuidingLightsColor({'acc_loginname':this.parameters['acc_loginname'], 'spec_id':this.parameters['spec_id'],'moni_type':this.parameters['moni_type']},
+					function(result:Object):void
+					{
+						initIndicator(result.datas);
+					},function(event:FaultEvent):void{
+						indicator.visible=false;
+						indicator.includeInLayout=false;
+					}
+				);
+			}
+			
+			private function createRightMenu():void
+			{
+				//网元右键菜单初始化
+				log.info('初始化红橙黄蓝网元表格右鍵菜单 ~~');
+				complexMoMenu = new ContextMenu();
+				complexMoMenu.hideBuiltInItems();
+				complexMoMenu.addEventListener(ContextMenuEvent.MENU_SELECT, 
+					function(e:ContextMenuEvent):void
+					{
+						var array:Array = ["资源属性","关键指标","告警查询","拓扑监控","应急预案"];
+						complexMoMenu.customItems = [];
+						for each (var itemName:String in array) 
+						{
+							var contextMenuItem:ContextMenuItem = new ContextMenuItem(itemName);
+							contextMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, complexPopupDeal);
+							complexMoMenu.customItems.push(contextMenuItem);
+						}
+					}
+				);
+			}
+			private var _selectLabel:Label;//右键被选中的
+			//点击选中的网元信息
+			[Bindable]
+			private var nowMo:Object = null;
+			private function complexPopupDeal(e:ContextMenuEvent):void
+			{
+				_selectLabel = Label(e.contextMenuOwner);
+				var moInfos:Array = e.contextMenuOwner['id'].split('_|_');
+				var moId:Object = moInfos[0];
+				var moTypeId:Object = moInfos[1];
+				var moTypeName:Object = moInfos[2];
+				nowMo = {};
+				nowMo['moId'] = moId;
+				nowMo['moTypeId'] = moTypeId;
+				nowMo['moTypeName'] = moTypeName;
+				log.info('右键菜单处理：' +　e.currentTarget.caption + ' moId:' + moId + ',moTypeId:' + moTypeId);
+				switch(e.currentTarget.caption)
+				{
+					case "资源属性":
+						//加载网元属性
+						loadMoInfo();
+						break;
+					
+					case "拓扑监控":
+						var logicTopoURL:String = this.parameters['context'] + "cms/webtopo/topo/topolocate.action?specId=" + this.parameters['spec_id'] + "&moId=" + moId;
+						log.debug("拓扑监控 URL:" + logicTopoURL);
+						navigateToURL(new URLRequest(logicTopoURL));
+						break;
+					
+					case "关键指标":
+						//关键指标
+						//加载趋势图数据  
+						loadKpiList();
+						break;
+					
+					case "告警查询":
+						//告警查询
+						//联动告警流水窗口。 //&(alarmtitle%="a"|alarmtitle%="a")
+						filterAlarm('alarmneid="' + moId + '"');
+						break;
+					
+					case "应急预案":
+						//应急预案
+						loadSolvePlans();
+						break;
+					
+				}
+			}
+			//加载应急预案
+			private function loadSolvePlans():void
+			{
+				lm.showLoading();
+				//加载该网元类型对应的应急预案
+				ColorAlarmViewDataMgr.getSolvePlans({moTypeId:nowMo['moTypeId'],moTypeName:nowMo['moTypeName']},
+					function(result:Object):void
+					{
+						lm.hideLoading();
+						if(result&&result.datas){
+							showSolvePlanWindow();//显示指标弹出框
+							solvePlanWindow.dataProvider = result.datas;
+						}else{
+							solvePlanWindow.dataProvider = null;
+							Alert.show('加载应急预案失败，返回为空！');
+						}
+					},
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+						solvePlanWindow.dataProvider = null;
+						Alert.show('加载应急预案失败！');
+					}
+				);
+			}
+			
+			//保存应急预案
+			private function saveSolvePlans(data:Object,nowMo:Object=null):void
+			{
+				lm.showLoading();
+				if(nowMo==null){
+					nowMo = this.nowMo;
+				}
+				log.info("保存应急预案,参数moTypeId:"+nowMo['moTypeId']+",moTypeName:"+nowMo['moTypeName']);
+				//保存该网元类型对应的应急预案
+				ColorAlarmViewDataMgr.saveSolvePlans({moTypeId:nowMo['moTypeId'],moTypeName:nowMo['moTypeName'],datas:data},
+					function(result:Object):void
+					{
+						lm.hideLoading();
+						if("0"==result){
+							Alert.show('保存应急预案成功！');
+						}else{
+							Alert.show('保存应急预案失败！');
+						}
+					},
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+						Alert.show('保存应急预案失败！');
+					}
+				);
+			}
+			private var kpiDp:ArrayCollection = new ArrayCollection();
+			private function loadKpiList(perfId:Object = null):void
+			{
+				lm.showLoading();
+				//加载该网元类型对应的指标列表
+				DevPerfMonitorDataMgr.getPerfsByMoType({mo_type_id:nowMo['moTypeId'],moni_type:this.parameters['moni_type']},
+					function(result:Object):void
+					{
+						showKpiInfoWindow();//显示指标弹出框
+						if(!result || result.length < 1)
+						{
+							if(log.infoEnabled)
+								log.info("load kpi list is null.");
+							
+							lm.hideLoading();
+							return;
+						}
+						
+						kpiDp.removeAll();
+						kpiDp.addAll(result as IList);
+						kpiSelect.selectedIndex = 0;
+						kpiDp.refresh();
+						
+						if(perfId != null)
+						{
+							for each(var kpi:Object in result)
+							{
+								if(kpi['perf_id'] == perfId)
+								{
+									kpiSelect.selectedItem = kpi;
+									break;
+								}
+							}
+						}
+						else
+						{
+							kpiSelect.selectedIndex = 0;
+						}
+						
+						if(kpiDp.length > 0){
+							loadKpiData();
+						}else{
+							lm.hideLoading();
+						}
+					},
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+						Alert.show('加载指标列表失败！');
+					}
+				);
+			}
+			private function loadKpiData():void
+			{
+				var param:Object = {};
+				param['mo_id'] = nowMo['moId'];
+				param['mo_type_id'] = nowMo['moTypeId'];
+				param['st'] = this.startDate.text;
+				param['et'] = this.endDate.text;
+				param['tp'] = 'yyyy-MM-dd HH:mm';
+				
+				if(kpiSelect.selectedIndex < 0)
+				{
+					kpiSelect.selectedIndex = 0;
+					kpiDp.refresh();
+				}
+				
+				if(!kpiSelect.selectedItem)
+				{
+					if(log.infoEnabled)
+						log.info("kpi selectedItem is null.");
+					return;
+				}
+				
+				param['perf_id'] = this.kpiSelect.selectedItem['perf_id'];
+				param['moni_type'] = this.parameters['moni_type'];
+				lm.showLoading();
+				DevPerfMonitorDataMgr.createSTP(param,
+					function(result:Object):void
+					{
+						lm.hideLoading();
+						showKpi(result);
+					},
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+						Alert.show('查询指标数据失败！');
+					}
+				);
+			}
+			private function showKpi(result:Object):void
+			{
+				var unit:Object = this.kpiSelect.selectedItem['unit'];//单位
+				var dailyValue:Object = this.kpiSelect.selectedItem['experience'];//日常值
+				
+				var tempParaArr:ArrayCollection = new ArrayCollection();
+				tempParaArr.addAll(paramsArr);
+				tempParaArr.addItem({'numberSuffix':unit});
+				tempParaArr.addItem({caption:nowMo['moName']});
+				
+				var ac:ArrayCollection = new ArrayCollection();
+				for each(var data:Object in result)
+				{
+					ac.addItem(data);
+				}
+				
+				log.info(" 图表数据，数量：" +  ac.length);
+				
+				if(String(unit) == "%")
+				{
+					log.info(" 图表数据，百分比数据 设置最大值为100！");
+					tempParaArr.addItem({'yAxisMaxValue':"100"});
+				}
+				
+				if(ac.length > 20)
+				{
+					log.info(" 图表数据，设置步长：" + String(ac.length/20));
+					tempParaArr.addItem({'labelStep':String(Number(ac.length/20).toFixed(0))});
+				}
+				
+				kpiFc.FCChartType = this.fcType.selectedItem['value'];
+				kpiFc.FCParams = tempParaArr;
+				kpiFc.FCTrendLines = new ArrayCollection([{startValue:dailyValue, color:"0xFF0000"}]);
+				kpiFc.FCData = ac;
+				result = null;
+			}
+			//动态刷新告警流水 
+			private function filterAlarm(filter:String):void
+			{
+				log.info("过滤页面reload告警：filter：" + filter);
+				showAlarmInfoWindow();
+//				alarmFlow.reload(filter + '&' + defaultMoFilter);
+				alarmFlow.reload(filter);
+				//demo
+//				var demoFilter:String = "alarmuniqueid='00|2034266440_test1'|alarmuniqueid='00|250979670_test2'|alarmuniqueid='00|271582086_test3'";
+//				alarmFlow.reload(demoFilter);
+			}
+			private function loadMoInfo():void
+			{
+				lm.showLoading();
+				DevPerfMonitorDataMgr.getMoInfoWindowData({'mo_id':nowMo['moId'], 'mo_type_id':nowMo['moTypeId']},
+					function(result:Object):void
+					{
+						lm.hideLoading();
+						showMoInfo(result);
+					},
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+						Alert.show('加载网元资源信息失败！');
+					}
+				);
+			}
+			
+			private function showMoInfo(data:Object):void
+			{
+				log.info('展示网元属性~~');
+				if(_selectLabel){
+					moInfoWindow.x = _mouseX + 10;
+					moInfoWindow.y = _mouseY - 10;
+				}
+				showMoInfoWindow();
+				moInfoDataGrid.dataProvider = data as IList;
+			}
+			protected function changeKpiType():void
+			{
+				log.info('切换图表类型：' + this.fcType.selectedItem['value']);
+				kpiFc.FCChartType = this.fcType.selectedItem['value'];
+				kpiFc.FCParams = kpiFc.FCParams;
+				kpiFc.FCTrendLines = kpiFc.FCTrendLines;
+				kpiFc.FCData = kpiFc.FCData;
+			}
+			//将红橙黄蓝指示灯信息展示出来
+			private function initIndicator(data:Object):void
+			{
+				log.info("initIndicator---->红橙黄蓝指示灯data:" + data);
+				//indicator
+				if("一级告警"==String(data)||"1"==String(data)){
+					indicator.source = _redLight;
+				}else if("二级告警"==String(data)||"2"==String(data)){
+					indicator.source = _orangeLight;
+				}else if("三级告警"==String(data)||"3"==String(data)){
+					indicator.source = _yellowLight;
+				}else if("四级告警"==String(data)||"4"==String(data)){
+					indicator.source = _blueLight;
+				}else{
+					data = "0";
+					indicator.source = _greenLight;
+				}
+				glowImage.color = _levelColorMap[data];
+				glowImage.play([indicator],false);
+				indicator.visible=true;
+				indicator.includeInLayout=true;
+			}
+			//将红橙黄蓝告警网元矩阵数据展示出来
+			//列表网元列数
+			private var consNum:Number = 9;
+			private function initview(data:Object, refreshFlag:Boolean = false):void
+			{
+				
+				log.info("展示红橙黄蓝告警网元矩阵数据视图...");
+				var gridIndex:uint = 0;
+				
+				badMoGrid.removeAllChildren();
+
+				//1.标题
+				createTitle();
+				 
+				var cityIndex:int = 0;//城市index
+				for each(var cityData:* in data)
+				{
+					log.info("开始处理 " + cityData['name'] + "的数据...");
+					var moTypeArr:Object = cityData['datas'];
+					
+					var row:GridRow = new GridRow();
+					row.percentWidth = 100;
+					
+					//属地
+					var cityGridItem:GridItem = new GridItem();
+					cityGridItem.percentWidth = 8;
+					cityGridItem.setStyle("verticalAlign", "middle");
+					cityGridItem.setStyle("borderStyle", "1");
+					cityGridItem.setStyle("borderColor", borderColor);
+					cityGridItem.setStyle("backgroundColor", _cityMotypeColorMap[cityIndex%2]);
+					
+					var cityLabel:Label = new Label();
+					cityLabel.percentWidth = 100;
+					cityLabel.text = cityData['name'];
+					this.setLabelTextStyle(cityLabel,0xffffff);
+					
+					cityGridItem.addElement(cityLabel);
+					
+					var moTypeAndMoItem:GridItem = new GridItem();
+					moTypeAndMoItem.percentWidth = 92;
+					
+					var moTypeAndMoGrid:Grid = new Grid();
+					moTypeAndMoGrid.percentWidth = 100;
+					moTypeAndMoGrid.setStyle("horizontalGap", "0");
+					moTypeAndMoGrid.setStyle("verticalGap", "0");
+					
+					//网元类型
+					var moIndex:int = 0;//网元index
+					for each(var moType:* in moTypeArr)
+					{
+						var row1:GridRow = new GridRow();
+						row1.percentWidth = 100;	
+						var moTypeItem:GridItem = new GridItem();
+						moTypeItem.percentWidth = 10;
+						moTypeItem.setStyle("verticalAlign", "middle");
+						moTypeItem.setStyle("borderStyle", "1");
+						moTypeItem.setStyle("borderColor", borderColor);
+						moTypeItem.setStyle("backgroundColor", _cityMotypeColorMap[moIndex%2]);
+						
+						var moTypeLabel:Label = new Label();
+						moTypeLabel.percentWidth = 100;
+						moTypeLabel.text = moType['mo_type_name'];
+						this.setLabelTextStyle(moTypeLabel,0xffffff);
+						moTypeItem.addElement(moTypeLabel);
+						
+						//劣化网元表格
+						var moItem4moGrid:GridItem = new GridItem();
+						moItem4moGrid.percentWidth = 90;
+						gridIndex ++;
+						var moGrid:Grid = new Grid();
+						moGrid.percentWidth = 100;
+						moGrid.setStyle("horizontalGap", "0");
+						moGrid.setStyle("verticalGap", "0");
+						
+						var colIndex:uint = 0;
+						var rowIndex:uint = 0;
+						
+						var moArr:Object = moType['mos'];
+						var rowWidth:Number = 0;
+						
+						while (colIndex < moArr.length)
+						{
+							var moRow:GridRow = new GridRow();
+							moRow.percentWidth = 100;
+							
+							rowIndex ++;
+							
+							while(true)
+							{
+								var moItem:ColorAlarmGridItem = new ColorAlarmGridItem();
+
+								if(colIndex < moArr.length)
+								{
+									var moLabel:Label = new Label();
+									moLabel.buttonMode = true;
+									moLabel.text = moArr[colIndex]['mo_name'];
+									moLabel.id = moArr[colIndex]['mo_id'] + 
+										"_|_" + moArr[colIndex]['mo_type_id'] + 
+										"_|_" + moType['mo_type_name'] + 
+										"_|_" + moArr[colIndex]['alarmregion'] + 
+										"_|_" + moArr[colIndex]['specialty'];
+									if(moArr[colIndex]['alarmseverity']=="一级告警"||moArr[colIndex]['alarmseverity']=="四级告警"
+										||moArr[colIndex]['alarmseverity']=="1"||moArr[colIndex]['alarmseverity']=="4"){
+										this.setLabelTextStyle(moLabel,0xffffff);
+									}else{
+										this.setLabelTextStyle(moLabel,0x000000);
+									}
+									
+									moLabel.percentWidth = 100;
+									moLabel.toolTip = moLabel.text;
+									moLabel.contextMenu = complexMoMenu;
+//									moLabel.addEventListener(MouseEvent.CLICK, moClicked);
+									
+									//鼠标悬停事件 展示指标信息
+									moLabel.addEventListener(MouseEvent.MOUSE_OVER, LabelmouseOverHandler);
+//									moLabel.addEventListener(MouseEvent.MOUSE_OUT, loadMoKpisCancel);
+									
+									moItem.percentWidth = 100/consNum;
+									moItem.alarmseverity = moArr[colIndex]['alarmseverity'];
+									moItem.labels=moLabel;
+								}
+								else
+								{
+									//空单元格填满一行
+									moItem.alarmseverity = "0";
+									moItem.percentWidth = 100/consNum;
+								}
+								
+								moRow.addElement(moItem);
+								
+								if(++colIndex % consNum ==0)
+									break;
+							}
+							
+							 moGrid.addElement(moRow);
+						}
+						
+						
+						moItem4moGrid.addElement(moGrid);
+						row1.addElement(moTypeItem);
+						row1.addElement(moItem4moGrid);
+						
+						moTypeAndMoGrid.addElement(row1);
+						
+						moIndex++;
+					}
+					
+					moTypeAndMoItem.addElement(moTypeAndMoGrid);
+					
+					row.addElement(cityGridItem);
+					row.addElement(moTypeAndMoItem);
+					
+					badMoGrid.addElement(row);
+					
+					log.info("#                  处理 " + cityData['name'] + "的数据结束");
+					cityIndex++;
+				}
+				
+				if(refreshFlag)
+				{
+					log.info("第一次加载完数据，启动定时器!");
+					_alarmTimer.start();
+				}
+			}
+			//设备列表表头。
+			private function createTitle():void
+			{
+				var row1:GridRow = new GridRow();
+				row1.percentWidth = 100;
+				//1.地市、
+				var item1:TitleGridItem = new TitleGridItem();
+				item1.percentWidth = 10;
+				var titleLabel1:Label = new Label();
+				titleLabel1.text = "地市";
+				this.setLabelTextStyle(titleLabel1,0x000000,14);
+				//设置样式
+				item1.labels = titleLabel1;
+				
+				//2.类型
+				var item2:TitleGridItem = new TitleGridItem();
+				item2.percentWidth = 10;
+				var titleLabel2:Label = new Label();
+				titleLabel2.text = "类型";
+				this.setLabelTextStyle(titleLabel2,0x000000,14);
+				//设置样式
+				item2.labels = titleLabel2;
+				
+				//3.红橙黄蓝故障网元
+				var item3:TitleGridItem = new TitleGridItem();
+				item3.percentWidth = 90;
+				var titleLabel3:Label = new Label();
+				titleLabel3.text = "红橙黄蓝故障网元";
+				this.setLabelTextStyle(titleLabel3,0x000000,14);
+				//设置样式
+				item3.labels = titleLabel3;
+//				row1.addElement(item2);
+//				row1.addElement(item3);
+				
+				
+				var item4:GridItem = new GridItem();
+				item4.percentWidth = 100;
+
+				var titleGrid:Grid = new Grid();
+				titleGrid.percentWidth = 100;
+				titleGrid.setStyle("horizontalGap", "0");
+				titleGrid.setStyle("verticalGap", "0");
+				
+				var rowitem:GridRow = new GridRow();
+				rowitem.percentWidth = 100;
+				rowitem.addElement(item2);
+				rowitem.addElement(item3);
+				titleGrid.addElement(rowitem);
+				
+				item4.addElement(titleGrid);
+				row1.addElement(item1);
+				row1.addElement(item4);
+				badMoGrid.addElement(row1);
+			}
+			private function setLabelTextStyle(label:Label,color:uint,fontsize:Number=12):void
+			{
+				label.setStyle("fontWeight","bold"); 
+				label.setStyle("fontSize",fontsize);  
+				label.setStyle("verticalCenter", "0");
+				label.setStyle("horizontalCenter", "0");
+//				label.setStyle("fontFamily","微软雅黑"); 
+				label.setStyle("color",color);
+			}
+			//-------------------------指标图表-----------------------------
+			/**
+			 * 格式化时间
+			 */
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+			protected function hideMoInfoWindow():void
+			{
+				moInfoWindow.visible = false;
+				moInfoWindow.includeInLayout = false;
+			}
+			protected function showMoInfoWindow():void
+			{
+				moInfoWindow.visible = true;
+				moInfoWindow.includeInLayout = true;
+			}
+			protected function hideAlarmInfoWindow():void
+			{
+				alarmWin.visible = false;
+				alarmWin.includeInLayout = false;
+			}
+			private function showAlarmInfoWindow():void
+			{
+				alarmWin.visible = true;
+				alarmWin.includeInLayout = true;
+			}
+			protected function hideKpiInfoWindow():void
+			{
+				kpiWin.visible = false;
+				kpiWin.includeInLayout = false;
+			}
+			protected function showKpiInfoWindow():void
+			{
+				kpiWin.visible = true;
+				kpiWin.includeInLayout = true;
+			}
+			protected function showSolvePlanWindow():void
+			{
+				solvePlanWindow.visible = true;
+				solvePlanWindow.includeInLayout = true;
+			}
+			private var _mouseX:int = 0;
+			private var _mouseY:int = 0;
+			protected function LabelmouseOverHandler(event:MouseEvent):void
+			{
+				_mouseX = event.stageX;
+				_mouseY = event.stageY;
+			}
+			
+			private function alarmWindow_resizeHandler(event:ResizeEvent):void
+			{
+				if (alarmVgroup.height > 157)
+				{
+					img.source = _down_gray;
+					img.name = "down";
+				}
+				else if (alarmVgroup.height < 35)
+				{
+					img.source = _up_gray;
+					img.name = "up";
+				}
+			}
+			
+			private function resizeWindow():void
+			{
+				if (img.name == "down")
+				{
+					hideAlarm();
+				}
+				else if (img.name == "up")
+				{
+					showAlarm();
+				}
+			}
+			
+			private function changeImg(type:Object):void
+			{
+				img.source = getImg(type);
+			}
+			
+			private function hideAlarm(dura:Number = 400):void
+			{
+				alarmFlow.visible = false;
+				alarmFlow.includeInLayout = false;
+				
+				resize.duration = dura;
+				resize.heightTo = 25;
+				resize.play();
+				
+				img.source = _up_gray;
+				img.name = "up";
+			}
+			
+			private function showAlarm(dura:Number = 400):void
+			{
+				alarmFlow.visible = false;
+				alarmFlow.includeInLayout = false;
+				
+				alarmVgroup.percentWidth = 100;
+				
+				resize.duration = dura;
+				resize.heightTo = 167;
+				resize.play();
+				
+				img.source = _down_gray;
+				img.name = "down";
+			}
+			
+			private function getImg(type:Object):Object
+			{
+				if (img.name == "down")
+				{
+					if (type == 1)
+						return _down_blue;
+					else
+						return _down_gray;
+				}
+				else if (img.name == "up")
+				{
+					if (type == 1)
+						return _up_blue;
+					else
+						return _up_gray;
+				}
+				
+				return _down_gray;
+			}
+			
+			private function resize_effectEndHandler(event:EffectEvent):void
+			{
+				alarmFlow.includeInLayout = alarmVgroup.height > 35;
+				alarmFlow.visible = alarmVgroup.height > 35;
+				alarmVgroup.percentWidth = 100;
+			}
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				initAlarms();
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<mx:Glow id="glowImage" duration="1000"  
+				 alphaFrom="1.0" alphaTo="0.3"  
+				 blurXFrom="0.0" blurXTo="20.0"  
+				 blurYFrom="0.0" blurYTo="20.0"  
+				 strength="10"
+				 repeatCount="0"
+				 color="{_levelColorMap['0']}"/> 
+		<s:Resize heightTo="0"
+				  id="resize"
+				  target="{alarmVgroup}"
+				  effectEnd="resize_effectEndHandler(event)"/>
+	</fx:Declarations>
+<!--	<s:Rect alpha="1" x="0" y="0" width="100%" height="100%">
+		<s:fill>
+			<s:LinearGradient rotation="250">
+				<s:GradientEntry color="0x00424B" ratio="0"/> 
+				<s:GradientEntry color="0x6AAFFF" ratio="0.5"/> 
+				<s:GradientEntry color="0x1173AC" ratio="1"/> 
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>-->
+	<mx:VDividedBox id="mainDivBox"
+					width="100%"
+					height="100%">
+		<ailk_compts:Window id="matrixWin" 
+							width="100%"
+							height="100%"
+							minimizable="false"
+							maximizable="false"
+							closable="false"
+							styleName="window">
+			<s:BorderContainer width="100%"
+							   top="-10"
+							   borderStyle="solid"
+							   height="100%">
+				<s:Scroller width="100%"
+							height="100%"
+							id="mainScroller" 
+							verticalScrollPolicy="auto">
+					<s:Group width="100%"
+							 bottom="5"
+							 height="100%">
+						<mx:Grid id="badMoGrid" 
+								 backgroundAlpha="0.1"
+								 width="100%" 
+								 height="100%" 
+								 horizontalGap="0" 
+								 verticalGap="0"
+								 borderStyle="solid"
+								 textAlign="center"
+								 borderVisible="false"
+								 />			
+						<mx:Image top="11" right="20" source="{_redLight}" id="indicator" visible="false" includeInLayout="false"/>
+					</s:Group>
+				</s:Scroller>
+			</s:BorderContainer>
+		</ailk_compts:Window>
+			<!--资源属性-->
+			<ailk_compts:Window id="moInfoWindow" width="300" minHeight="300"  title="网元信息" 
+						  maximizable="false" minimizable="false" closable="true" dragable="true" resizable="true" 
+						  visible="false" includeInLayout="false" close="hideMoInfoWindow()">
+				<mx:DataGrid id="moInfoDataGrid" bottom="5"
+							 showHeaders="false" width="100%" rowCount="11" draggableColumns="false">
+					<mx:columns>
+						<mx:DataGridColumn dataField="fieldCN" width="70"/>
+						<mx:DataGridColumn dataField="fieldValue"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</ailk_compts:Window>
+			<!--告警流水-->
+			<!--
+			<panel:Window id="alarmWin" 
+						  width="95%"
+						  minimizable="false"
+						  maximizable="true"
+						  closable="true"
+						  dragable="true" resizable="true"
+						  close="hideAlarmInfoWindow()"
+						  horizontalCenter="0"
+						  verticalCenter="0"
+						  visible="false" includeInLayout="false"
+						  title="告警流水窗口">
+				<pubflow:alarm id="alarmFlow" moduleKey="p2pflowalarm" width="100%" height="100%"/>
+			</panel:Window>-->
+			<!--告警流水-->
+			<s:VGroup id="alarmVgroup"
+					  width="100%"
+					  gap="0" 
+					  height="167"
+					  bottom="0"
+					  resize="alarmWindow_resizeHandler(event)">
+				<s:Group width="100%"
+						 height="100%">
+					<ailk_compts:Window id="alarmWin"
+										width="100%"
+										height="100%" 
+										minimizable="false"
+										maximizable="false"
+										closable="false"
+										styleName="window">
+					<pubflow:alarm id="alarmFlow"
+								   top="-15"
+								   moduleKey="p2pflowalarm"
+								   width="100%"
+								   height="100%"/>
+				</ailk_compts:Window>
+					<s:HGroup width="100%"
+							  height="5"
+							  horizontalAlign="center"
+							  gap="0"
+							  y="{alarmWin.y + 1}">
+						<mx:Image id="img"
+								  source="{_down_gray}"
+								  name="down"
+								  click="resizeWindow()"
+								  mouseOver="changeImg(1)"
+								  mouseOut="changeImg(2)"
+								  buttonMode="true"/>
+					</s:HGroup>
+				</s:Group>
+			</s:VGroup>
+	</mx:VDividedBox>
+	<!-- 指标图表-->
+	<ailk_compts:Window id="kpiWin" 
+				  width="100%"
+				  minimizable="false"
+				  maximizable="true"
+				  closable="true"
+				  close="hideKpiInfoWindow()"
+				  horizontalCenter="0"
+				  verticalCenter="0"
+				  dragable="true" resizable="true"
+				  visible="false" includeInLayout="false"
+				  title="红橙黄蓝预警窗口">
+		<s:BorderContainer width="100%" borderStyle="solid" borderWeight="2">
+			<s:VGroup width="100%" height="100%" gap="2">
+				<s:HGroup width="100%" height="30" paddingLeft="10" paddingRight="2" paddingTop="10" paddingBottom="5" horizontalAlign="left">
+					<s:HGroup height="100%" gap="0" verticalAlign="middle">
+						<mx:Text text="开始"/>
+						<common:UXDateField id="startDate" color="0x000000" bottom="5" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="false"/>
+					</s:HGroup>
+					<s:HGroup height="100%" gap="0" verticalAlign="middle">
+						<mx:Text text=" 结束"/>
+						<common:UXDateField id="endDate" color="0x000000" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="false"/>
+					</s:HGroup>
+					<s:HGroup height="100%" gap="0" verticalAlign="middle">
+						<mx:Text text=" 图表类型"/>
+						<s:DropDownList id="fcType" change="changeKpiType()"/>
+					</s:HGroup>
+					<s:HGroup height="100%" gap="0" verticalAlign="middle">
+						<mx:Text text=" 指标"/>
+						<s:DropDownList id="kpiSelect" width="180" dataProvider="{kpiDp}"/>
+						<s:Group width="15"/>
+						<s:Button label="应用" click="loadKpiData()"/>
+					</s:HGroup>
+				</s:HGroup>
+				<s:Group height="2" name="占位"/>
+				<mx:HRule width="100%" height="2" strokeColor="0x004080"/>
+				
+				<fusioncharts:FusionChartsLK id="kpiFc" width="100%" height="170"
+											 FCChartType="Spline"
+											 FCData="{new ArrayCollection()}"
+											 FCParams="{new ArrayCollection()}"
+											 FCFolder="{parentApplication.parameters.context}flex-release/FusionCharts"/>
+			</s:VGroup>
+		</s:BorderContainer>
+	</ailk_compts:Window>
+	
+	<!--应急预案-->
+	<colorAlarm:SolvePlanWindow id="solvePlanWindow" saveSolvePlans="{saveSolvePlans}"
+						   nowMo="{nowMo}" defaultSelectColor="yellow" visible="false" includeInLayout="false"
+						   reLoadSolvePlans="{loadSolvePlans}" lm="{lm}"/>
+
+</s:Group>

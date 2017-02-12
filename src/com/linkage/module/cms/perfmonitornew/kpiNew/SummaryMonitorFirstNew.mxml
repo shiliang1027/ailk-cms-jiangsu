@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TileGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+             xmlns:s="library://ns.adobe.com/flex/spark"
+             xmlns:mx="library://ns.adobe.com/flex/mx"
+             top="6"
+             right="6"
+             bottom="6"
+             left="6"
+             orientation="rows"
+             requestedColumnCount="2"
+             horizontalAlign="center"
+			 xmlns:kpiNew="com.linkage.module.cms.perfmonitornew.kpiNew.*"
+             width="100%"
+             height="100%">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.core.IVisualElement;
+			import mx.events.FlexEvent;
+
+            private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.kpi.MoMonitor");
+
+            private var chartCompCache:Object = {};
+			
+			private var times:ArrayCollection = new ArrayCollection;
+			private var citys:ArrayCollection = new ArrayCollection;
+			private var mos:ArrayCollection = new ArrayCollection;
+			
+			private var param:Object;
+			private var paramTopN:Object;
+			
+			private var kpiId:String;
+			private var kpiName:String;
+			private var moTypeId:String;
+			private var schemeIdF:String;
+			
+			private var cityId:String = "00";
+			private var cityName:String = "全省";
+			private var schemeName:String = "";
+			
+
+            private var dataTimer:Timer = new Timer(600000);
+            private var viewTimer:Timer = new Timer(60000);
+
+			[Bindable]
+			public static var normalKPIflag:Boolean = false;
+			
+            public function startMonitor(schemeId:String, schemeName:String):void
+            {
+				
+				log.info("startMonitor  1");
+//				log.info("summary:"+this.currentState);
+                PerfMonitorDAO.getInstance().getMoAndKpiByScheme(
+                    {"scheme_id": schemeId},
+                    function(result:Object):void
+                    {
+                        chartCompCache = {};
+                        removeAllElements();
+						log.info(result);
+						
+						var flag:Boolean = true;
+                        for each (var obj:Object in result)
+                        {
+							var chartComp:ChartSummaryMonitorComp = new ChartSummaryMonitorComp;
+							
+							kpiId = obj.kpi_id;
+							kpiName =  obj.kpi_name;
+							moTypeId = obj.mo_type_id;
+							makeParam();
+							
+							 if(flag){
+//								if(obj.level_pcm == "1"){
+									SummaryMonitorFirstNew.normalKPIflag = true;
+//								}else{
+//									SummaryMonitorFirst.normalKPIflag = false;
+//								}
+								flag = false;
+							} 
+							
+//							obj.width = width / 2 -10;
+							chartComp.width = width / 2 -10;
+							chartComp.height = 240;
+							
+							obj.width = width / 2 -10;
+							obj.height = 240;
+							
+                            addElement(chartComp);
+							chartComp.tilegroup1_creationCompleteHandler(obj);
+
+                        }
+                    });
+            }
+			
+			private function makeParam():void
+			{
+				param = {};
+				paramTopN = {};
+				
+				param.kpi_id = kpiId;
+				param.kpi_name = kpiName;
+				param.mo_type_id = moTypeId;
+				
+				paramTopN.kpi_id = kpiId;
+				paramTopN.kpi_name = kpiName;
+				paramTopN.mo_type_id = moTypeId;
+				
+				paramTopN.topn = 13;
+				paramTopN.city_id = cityId;
+				
+				
+				times.removeAll();
+				citys.removeAll();
+				mos.removeAll();
+				
+				param.times = times;
+				
+				times.addItem({"name": "今天"});
+				
+				 /* if (timeChartWin.compareTimeDDL.selectedItem != null)
+					times.addItem(timeChartWin.compareTimeDDL.selectedItem);  */
+				
+				if (currentState == "province")
+				{
+					//查全省的指标数据
+					param.res_type = "1";
+					
+					param.citys = citys;
+					citys.addItem({"city_id": "00", "city_name": "全省"});
+					
+					//查地市维度TOPN
+					paramTopN.res_type = "1";
+					
+				}
+				else if (currentState == "city")
+				{
+					param.citys = citys;
+					citys.addItem({"city_id": cityId, "city_name": cityName});
+					
+					/* if (timeChartWin.compareCityDDL.selectedIndex > -1)
+						citys.addItem(timeChartWin.compareCityDDL.selectedItem); */
+					
+					param.res_type = "2";
+					
+					//区县TOPN暂时没统计 
+					paramTopN.res_type = "2";
+				}
+				else if (currentState == "country")
+				{
+					param.citys = citys;
+					citys.addItem({"city_id": cityId, "city_name": cityName});
+					
+					/* if (timeChartWin.compareCityDDL.selectedIndex > -1)
+						citys.addItem(timeChartWin.compareCityDDL.selectedItem); */
+					
+					param.res_type = "9";
+					
+					//查网元TOPN
+					paramTopN.res_type = "2";
+				}
+				else if (currentState == "device")
+				{
+					param.mos = mos;
+					mos.addItem({"id": cityId, "name": cityName});
+					param.res_type = "3";
+					
+					/* if (timeChartWin.compareMoDDL.selectedItems.length > 0)
+						mos.addAll(timeChartWin.compareMoDDL.selectedItems); */
+				}
+				
+			}
+
+            private function refreshView(e:TimerEvent):void
+            {
+                var ele0:IVisualElement = this.getElementAt(0);
+                var ele1:IVisualElement = this.getElementAt(1); 
+
+                this.removeElementAt(0);
+                this.removeElementAt(0);
+
+                this.addElement(ele0);
+                this.addElement(ele1);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+	
+	<s:states>
+		<s:State name="province"/>
+		<s:State name="city"/>
+		<s:State name="country"/>
+		<s:State name="device"/>
+	</s:states>
+	
+</s:TileGroup>

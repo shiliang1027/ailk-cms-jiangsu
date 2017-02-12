@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_chart:PrettyChart xmlns:fx="http://ns.adobe.com/mxml/2009" 
+						xmlns:s="library://ns.adobe.com/flex/spark" 
+						xmlns:mx="library://ns.adobe.com/flex/mx" 
+						xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart" 
+						clipAndEnableScrolling="true" 
+						width="100%"
+						height="100%"
+						creationComplete="prettychart1_creationCompleteHandler(event)">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.esri.ags.esri_internal;
+			import com.linkage.module.cms.baseline.dynamic.staticData.BaseLineBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			
+			protected function prettychart1_creationCompleteHandler(event:FlexEvent):void
+			{
+				buildChart(null);
+			}
+			/**
+			 * 
+			 * 创建图形。
+			 **/ 
+			public function buildChart(dateTime:Object):void
+			{
+				 var fr1:DateFormatter=new DateFormatter();
+				 var today:Date = new Date();
+					fr1.formatString="YYYY-MM-DD"; 
+				 var todayTime:String = fr1.format(today);
+				this.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				var sp1:SerialParam = new SerialParam("upBaseline", '上基线');
+				sp1.lineStrokeColor = 0x006400;
+				sp1.showDataDot = false;
+				sp1.lineStrokeWeight=2;
+				var sp2:SerialParam = new SerialParam("downBaseline", '下基线');
+				sp2.lineStrokeColor = 0x0000EE;
+				sp2.showDataDot = false;
+				sp2.lineStrokeWeight=2;
+				var sp3:SerialParam = new SerialParam("upTolerance", '上容忍线');
+				sp3.lineStrokeColor = 0xff0000;
+				sp3.showDataDot = false;
+				sp3.lineStrokeWeight=2;
+				var sp4:SerialParam = new SerialParam("downTolerance", '下容忍线');
+				sp4.lineStrokeColor = 0xFF00FF;
+				sp4.lineStrokeWeight=2;
+				sp4.showDataDot = false;
+				var sp5:SerialParam = new SerialParam("todayvalue", '今天值');
+				sp5.lineStrokeColor = 0xFFFF00;
+				sp5.lineStrokeWeight=2;
+				sp5.showDataDot = false;
+				series.addItem(sp1);
+				series.addItem(sp2);
+				series.addItem(sp3);
+				series.addItem(sp4);
+				series.addItem(sp5);
+				if(dateTime!=todayTime){
+				var sp6:SerialParam = new SerialParam("value", dateTime+'值');
+				sp6.lineStrokeColor = 0x97FFFF;
+				sp6.showDataDot = false;
+				sp6.lineStrokeWeight=2;
+				series.addItem(sp6);
+				}
+				this.series = series;
+				this.chartParam.xAxisProperty = 'pointTime';
+				this.canDropLabels = true;
+				this.xAxisFontSize = 12;
+				chartParam.labelStep = 1;
+				if(null!=BaseLineBean.unit&&""!=BaseLineBean.unit){
+					chartParam.leftYaxisSuffix = BaseLineBean.unit;
+				}
+				//this.chartData(_datas, false);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+</ailk_chart:PrettyChart>

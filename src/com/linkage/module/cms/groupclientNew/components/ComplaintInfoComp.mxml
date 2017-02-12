@@ -1,0 +1,596 @@
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" 
+		 height="100%"
+		 label="投诉信息" 
+		 creationComplete="ComplaintInfoComp_creationCompleteHandler(event)" 
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*" 
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		 xmlns:components="com.linkage.module.cms.groupclientNew.components.*">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="dataQuery", type="com.linkage.module.cms.groupclientNew.event.ComplaintInfoEvent")]
+		[Event(name="complaintDetailQuery", type="com.linkage.module.cms.groupclientNew.event.ComplaintInfoEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclientNew.event.ComplaintInfoEvent;
+			
+			import flash.sampler.NewObjectSample;
+			
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientNew.components.SheetInfoComp");
+			
+			[Bindable]
+			private var complaintDetailData:Object=new Object();
+			
+			protected function ComplaintInfoComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(ComplaintInfoEvent.SHOWCOMPLAINTINFO,onDataChange);
+				this.addEventListener(ComplaintInfoEvent.SHOWCOMPLAINTDETAIL,onDetailDataChange);
+			}
+			
+			private function onDataChange(event:ComplaintInfoEvent):void{
+				var result:Object = event.param;
+				log.info("ComplaintInfoComp 1");
+				for each(var o:* in result)
+				{
+					log.info(o);
+				}
+				
+//				log.info("result.datas  result.totalCount:"+result.totalCount);
+				log.info(result.datas);
+				
+//				var columns:Array = buildColumns(result);
+//				complaintInfoDG.columns = columns;
+				complaintInfoDG.dataProvider = result.datas;
+				DataPager.totalRowCount = result.totalCount;
+				
+			}
+			
+			private function buildColumns(result:Object):Array{
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+					//					log.info("[buildColumns]name:"+name+",column:"+result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.width=100;
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					columns.push(dataGridColumn);
+					log.info("name="+name+"      result.colum[i]="+result.colum[i]);
+					i++;
+				}
+				return columns;
+			}
+			
+			protected function complaintInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object=complaintInfoDG.dataProvider[event.rowIndex];
+				var columDataField:String=String((complaintInfoDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+				
+				if(columDataField == "EMOS工单编号")
+				{
+					var evt:ComplaintInfoEvent = new ComplaintInfoEvent(ComplaintInfoEvent.COMPLAINTDETAILQUERY);
+					var param:Object = new Object();
+					evt.param.sheetNo = data["sheetNo"]; 
+					this.dispatchEvent(evt);
+				}
+			}
+			
+			private function onDetailDataChange(event:ComplaintInfoEvent):void
+			{
+				var result:Object=event.param;
+				
+				log.info("onDetailDataChange");
+				log.info(result);
+				
+				for (var key:String in result)
+				{
+					//					log.info("[客户信息查询]key:" + key);
+					for each (var complaintDetail:Object in result[key].dataList)
+					{
+						complaintDetailData=complaintDetail;
+					}
+				}
+				complaintDetailPanel.visible = true;
+				complaintDetailPanel.includeInLayout = true;
+			}
+			
+			
+			protected function DataPager_pageChangeHandler(event:PagerEvent):void
+			{
+				var param:Object = new Object();
+				param.pageSize = DataPager.pageSize;
+				param.currentPage = DataPager.currentPage;
+				log.info("DataPager_pageChangeHandler");
+				log.info(param);
+				
+				var evt:ComplaintInfoEvent = new ComplaintInfoEvent(ComplaintInfoEvent.DATAQUERY);
+				evt.param = param;
+				this.dispatchEvent(evt);
+				
+			}
+
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup  width="100%"
+			   height="100%">
+		<mx:AdvancedDataGrid id="complaintInfoDG"
+							 width="100%"
+							 height="100%"
+							 horizontalScrollPolicy="auto"
+							 verticalScrollPolicy="off"
+							 rowCount="15"
+							 rowHeight="{(complaintInfoDG.height-complaintInfoDG.headerHeight)/complaintInfoDG.rowCount}"
+							 itemClick="complaintInfoDG_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn  headerText="工单编号"
+											dataField="orderid"
+											textAlign="center"/>
+				<!--<mx:AdvancedDataGridColumn  headerText="订单类型"
+											dataField="ordertype"
+											textAlign="center"/>-->
+				<mx:AdvancedDataGridColumn  headerText="发起时间"
+											dataField="starttime"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="超时时长"
+											dataField="overtime"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="集团客户编号"
+											dataField="custno"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="集团客户名称"
+											dataField="custname"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="客户服务等级"
+											dataField="servlvl"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="投诉业务类型"
+											dataField="servtype"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="投诉所在地市 "
+											dataField="cityname"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="当前历史环节 "
+											dataField="step"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="当前操作部分 "
+											dataField="dept"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="当前操作人 "
+											dataField="manager"
+											textAlign="center"/>
+				<mx:AdvancedDataGridColumn  headerText="联系电话 "
+											dataField="phone"
+											textAlign="center"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:HGroup width="100%"
+				  horizontalAlign="right">
+			<pager:Pager id="DataPager"
+						 pageSize="15"
+						 currentPage="1"
+						 pageChange="DataPager_pageChangeHandler(event)"/>
+		</s:HGroup>	
+	</s:VGroup>
+	<panel:Window id="complaintDetailPanel"
+				  title="投诉详情信息"
+				  closable="true"
+				  visible="false"
+				  includeInLayout="false">
+		<s:Scroller width="100%"
+					horizontalScrollPolicy="auto">
+			<s:VGroup width="100%">
+				<mx:Grid width="100%"
+						 verticalGap="0"
+						 horizontalGap="0">
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowOdd">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="主题"/>
+							</mx:GridItem>
+							<mx:GridItem width="80%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.theme}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowEven">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="工单编号"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.sheetNo}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="发起时间"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.time}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowOdd">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="集团编号"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.groupNum}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="集团名称"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.groupName}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowEven">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="产品实例名称"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.prodNo}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="电路名称"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.circuitName}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowOdd">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="客户级别"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.customerLevel}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="集团客户联系人"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.group_link_name}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowEven">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="集团客户联系人"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.group_link_phone}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="客户经理"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.custManager}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowOdd">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="客户经理联系电话"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.managerPhone}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="投诉流水号"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.complaintNum}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowEven">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="客户服务等级"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.custServlLevel}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="业务保障等级"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.Businessassurancelevels}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowOdd">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="故障处理时限"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.faultprocessingtime}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="紧急程度"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.Emergencydegree}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowEven">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="客服受理时间"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.Customeracceptancetime}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="客服受理部门"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.acceptingdepartmentcustomerservice}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowOdd">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="客服受理人"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.Customeacceptancename}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="客服受理电话"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.Customeacceptancephone}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowEven">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="是否大面积投诉"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.iscomplaints}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="重复投诉次数"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.complaintsnum}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowOdd">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="投诉业务类型"/>
+							</mx:GridItem>
+							<mx:GridItem width="80%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.complainttype}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowEven">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="投诉所在地市"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.complaintcity}"/>
+							</mx:GridItem>
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="投诉所在区县"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.complaintarea}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%"
+									minHeight="24"
+									styleName="gridRowOdd">
+							<mx:GridItem width="20%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="投诉描述"/>
+							</mx:GridItem>
+							<mx:GridItem width="30%"
+										 minHeight="24"
+										 verticalAlign="middle"
+										 horizontalAlign="center">
+								<s:Label text="{complaintDetailData.Complaintsdescription}"/>
+							</mx:GridItem>
+						</mx:GridRow>
+				</mx:Grid>
+			</s:VGroup>
+		</s:Scroller>
+	</panel:Window>
+</mx:VBox>

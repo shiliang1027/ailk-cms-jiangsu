@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         width="100%"
+         height="100%"
+         initialize="group1_initializeHandler(event)"
+         creationComplete="group1_creationCompleteHandler(event)">
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.utils.ExcelUtil;
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.module.cms.gsscenecfg.common.LEvent;
+            import com.linkage.module.cms.gsscenecfg.dao.AreaDAO;
+            import com.linkage.module.cms.gsscenecfg.dao.SceneDAO;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.controls.Alert;
+            import mx.events.CloseEvent;
+            import mx.events.FlexEvent;
+            import mx.managers.PopUpManager;
+
+            private var areaDao:AreaDAO;
+
+            public var context:String;
+			[Bindable]
+            private var sceneTypeList:ArrayCollection = new ArrayCollection;
+			[Bindable]
+			private var areastatusList:ArrayCollection = new ArrayCollection([{label: '请选择激活状态', value: ''},{label: '激活', value: '1'},{label: '关闭', value: '0'}]);
+
+            private var areaList:ArrayCollection = new ArrayCollection;
+
+            private var adv:AreaDetailView;
+
+            private var log:ILogger = Log.getLoggerByClass(AreaList);
+
+            private var lm:LoadManager;
+
+            protected function group1_initializeHandler(event:FlexEvent):void
+            {
+                lm = new LoadManager(this);
+
+                areaDao = AreaDAO.getInstance();
+
+                context = this.parentApplication.parameters.context;
+                AreaDAO.context = context;
+                SceneDAO.context = context;
+
+                adv = new AreaDetailView;
+            }
+
+            protected function group1_creationCompleteHandler(event:FlexEvent):void
+            {
+				adv.addEventListener(LEvent.QUERYLIST, loadAreaList);
+				
+                areadg.addEventListener(LEvent.EDITCLICKED, editArea);
+                areadg.addEventListener(LEvent.DELETECLICKED, deleteArea);
+
+                loadSceneTypeList();
+                loadAreaList();
+				
+				areastatusDDP.selectedIndex = 0;
+            }
+			
+            private function editArea(e:LEvent):void
+            {
+                adv.editData = e.dt;
+                showAddAreaViewWin(false);
+            }
+
+            private function deleteArea(e:LEvent):void
+            {
+                if (this.parentApplication.parameters.account != "admin" && e.dt.creator != this.parentApplication.parameters.account)
+                {
+                    Alert.show("您没有权限删除该区域.", "提示");
+                    return;
+                }
+
+                Alert.show("确定要删除该区域吗？",
+                           "删除确认",
+                           Alert.YES | Alert.NO, null,
+                           function(event:CloseEvent):void
+                           {
+                               if (Alert.YES == event.detail)
+                                   areaDao.deleteArea(
+                                       {"areaid": e.dt.areaid},
+                                       function(result:Object):void
+                                       {
+                                           Alert.show(result.toString());
+                                           areaList.removeItemAt(areaList.getItemIndex(e.dt));
+                                       });
+                           });
+            }
+
+            protected function loadSceneTypeList():void
+            {
+                areaDao.getSceneType(
+                    function(data:Object):void
+                    {
+                        sceneTypeList.removeAll();
+                        sceneTypeList.addAll(data as IList);
+
+                        sceneTypeDDP.selectedIndex = 0;
+                    });
+            }
+
+            protected function loadAreaList(e:LEvent=null):void
+            {
+				log.info("loadAreaList");
+                lm.showLoading();
+
+                areaDao.getAreaInfo(
+                    function(data:Object):void
+                    {
+                        areaList.removeAll();
+                        areaList.addAll(data as IList);
+
+                        lm.hideLoading();
+                    });
+            }
+
+            protected function resetPrompt():void
+            {
+                if (areaNameTextInput.text == "")
+                    areaNameTextInput.text = "请输入区域名称";
+            }
+
+            private function filterViews():void
+            {
+                areaList.filterFunction = filterAreas;
+                areaList.refresh();
+                areadg.validateNow();
+            }
+
+            private function filterAreas(item:Object):Boolean
+            {
+                var flag:Boolean = 
+					(item.scenetypeid == sceneTypeDDP.selectedItem.scenetypeid || sceneTypeDDP.selectedIndex == 0)
+					&& (item.status == areastatusDDP.selectedItem.value || areastatusDDP.selectedIndex == 0)
+					&& (areaNameTextInput.text == "" || areaNameTextInput.text == "请输入区域名称" || String(item.areaname).indexOf(areaNameTextInput.text) >= 0);
+                return flag;
+            }
+
+            protected function showAddAreaViewWin(addFlag:Boolean = true):void
+            {
+                if (addFlag)
+                    adv.editData = null;
+
+                adv.context = context;
+
+                adv.width = this.width;
+                adv.height = this.height;
+
+                if (adv.ready)
+                    adv.init();
+
+                PopUpManager.addPopUp(adv, this, true);
+                PopUpManager.centerPopUp(adv);
+
+            }
+
+            private function numLabelFunction(item:Object, col:Object):String
+            {
+                return (areaList.getItemIndex(item) + 1).toString();
+            }
+
+            protected function exportList2Excel():void
+            {
+                var headArray:Array = new Array;
+                headArray.push({"id": "areaname", "name": "区域名称"});
+                headArray.push({"id": "scenename", "name": "归属场景"});
+                headArray.push({"id": "areaoutline", "name": "区域描述"});
+                headArray.push({"id": "starttime", "name": "创建时间"});
+                headArray.push({"id": "creator", "name": "创建人"});
+
+                ExcelUtil.exportSimpleExcel("区域列表", headArray, areaList);
+            }
+
+            protected function areaNameTextInput_keyUpHandler(event:KeyboardEvent):void
+            {
+                if (event.keyCode == 13)
+                    filterViews();
+
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:HGroup left="10"
+              top="10">
+        <s:DropDownList id="sceneTypeDDP"
+                        width="160"
+                        labelField="scenetypename"
+                        change="filterViews()"
+                        dataProvider="{sceneTypeList}"/>
+		<s:DropDownList id="areastatusDDP"
+						width="140"
+						change="filterViews()"
+						dataProvider="{areastatusList}"/>
+        <s:HGroup gap="0">
+            <s:TextInput id="areaNameTextInput"
+                         fontWeight="bold"
+                         text="请输入区域名称"
+                         keyUp="areaNameTextInput_keyUpHandler(event)"
+                         focusIn="{areaNameTextInput.selectAll();}"
+                         focusOut="resetPrompt()"/>
+            <mx:Button icon="@Embed('../img/search.png')"
+                       width="25"
+                       click="filterViews()"/>
+        </s:HGroup>
+    </s:HGroup>
+
+    <s:HGroup right="10"
+              top="10">
+        <mx:Button icon="@Embed('../img/new.png')"
+                   click="showAddAreaViewWin()"
+                   label="新建"/>
+        <mx:Button icon="@Embed('../img/export.png')"
+                   label="导出"
+                   click="exportList2Excel()"/>
+    </s:HGroup>
+
+    <mx:AdvancedDataGrid id="areadg"
+                         left="10"
+                         top="50"
+                         right="10"
+                         height="100%"
+                         bottom="10"
+                         textAlign="left"
+                         styleName="adg"
+                         dataProvider="{areaList}">
+        <mx:columns>
+            <mx:AdvancedDataGridColumn headerText="序号"
+                                       labelFunction="numLabelFunction"/>
+            <mx:AdvancedDataGridColumn headerText="区域名称"
+                                       width="307"
+                                       dataField="areaname"/>
+            <mx:AdvancedDataGridColumn headerText="归属场景"
+                                       width="205"
+                                       dataField="scenename"/>
+            <mx:AdvancedDataGridColumn headerText="区域描述"
+                                       width="270"
+                                       dataField="areaoutline"/>
+            <mx:AdvancedDataGridColumn headerText="创建人"
+                                       width="90"
+                                       dataField="creator"/>
+            <mx:AdvancedDataGridColumn headerText="创建时间"
+                                       width="150"
+                                       dataField="creattime"/>
+            <mx:AdvancedDataGridColumn headerText="操作"
+                                       itemRenderer="com.linkage.module.cms.gsscenecfg.common.EditDeleteDGIR"/>
+        </mx:columns>
+    </mx:AdvancedDataGrid>
+</s:Group>

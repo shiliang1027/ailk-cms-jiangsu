@@ -1,0 +1,682 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" width="100%" height="100%" 
+		 xmlns:resourcestat="com.linkage.module.cms.general.monitor.datashow.resourcestat.*" 
+		 xmlns:alarmstat="com.linkage.module.cms.general.monitor.datashow.alarmstat.*"
+		 preinitialize="group1_preinitializeHandler(event)" xmlns:outservice="com.linkage.module.cms.general.monitor.datashow.outservice.*" 
+		 xmlns:kpishow="com.linkage.module.cms.general.monitor.datashow.kpishow.*" 
+		 xmlns:perfshow="com.linkage.module.cms.general.monitor.datashow.perfshow.*" 
+		 xmlns:topn="com.linkage.module.cms.general.monitor.datashow.topn.*" 
+		 xmlns:workstate="com.linkage.module.cms.general.monitor.datashow.workstate.*" 
+		 xmlns:worksheet="com.linkage.module.cms.general.monitor.datashow.worksheet.*" 
+		 xmlns:complaint="com.linkage.module.cms.general.monitor.datashow.complaint.*" 
+		 xmlns:badcell="com.linkage.module.cms.general.monitor.datashow.badcell.*" 
+		 xmlns:bussniss="com.linkage.module.cms.general.monitor.datashow.bussniss.*" 
+		 xmlns:chartview="com.linkage.module.cms.general.monitor.datashow.chartview.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			
+			//数据接口
+			[Bindable]
+			private var _remoteData:RemoteDataManager = null;
+			
+			//属地名称
+			private var _cityName:String = null;
+			
+			//属地编号
+			private var _cityId:String = null;
+			
+			//专业列表
+			private var specList:ArrayList = new ArrayList();
+			
+			//参数
+			private var _param:Object;
+			
+			//内部容器映射
+			private var cvsMap:Dictionary = new Dictionary();
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow");
+			
+			//主视图
+			private var _general:Object = null;
+			
+			//容器列表
+			private var windowList:Dictionary = new Dictionary();
+			
+			//是否显示趋势图
+			public var isShowChart:Boolean = false;
+			
+			public function get general():Object
+			{
+				return _general;
+			}
+			
+			public function set general(value:Object):void
+			{
+				_general = value;
+			}
+			
+			public function get param():Object
+			{
+				return _param;
+			}
+			
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+			
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+			
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+			
+			public function get cityName():String
+			{
+				return _cityName;
+			}
+			
+			public function set cityName(value:String):void
+			{
+				_cityName = value;
+			}
+			
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+			
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+			
+			//初始化
+			public function init():void
+			{
+				//如果是重大节假日监控，则显示趋势监控
+				if (param.viewConfigTypeId == "2")
+				{
+					this.dataShowTab.visible = true;
+					this.dataShowTab.includeInLayout = true;
+					this.viewStack1.visible = true;
+					this.viewStack1.includeInLayout = true;
+					this.dataStatNav.addElement(this.showGroupList);
+					
+					this.chartViewNav.remoteData = _remoteData;
+					this.chartViewNav.cityId = _cityId;
+					this.chartViewNav.initData();
+					
+					isShowChart = true;
+				}
+				
+				for (var index:int=0;index<this.showGroupList.numElements;index++)
+				{
+					var win:DataWindow = this.showGroupList.getElementAt(index) as DataWindow;
+					windowList[index] = win;
+				}
+				
+				//根据配置确定显示的内容
+				log.info("param.config==" + param.config);
+				if (param.config != null)
+				{
+					var configXml:XML = (param.config as XML);
+					
+					var dataShowConfigs:XMLList = configXml.child("data_show");
+					if (dataShowConfigs != null && dataShowConfigs.length() > 0)
+					{
+						var tableConfigs:XMLList = dataShowConfigs.child("tables")[0].child("table");
+						for each (var tableConfig:XML in tableConfigs)
+						{
+							var tableId:String = tableConfig.@index;
+							if (windowList[tableId] != null && tableConfig.@display == "none")
+							{
+								log.info("隐藏表格：" + tableConfig.@name);
+								var tmp:DataWindow = windowList[tableId] as DataWindow;
+								this.showGroupList.removeElement(tmp);
+							}
+						}
+					}
+					
+					//读取显示的专业
+					var filterConfigs:XMLList = configXml.child("filter");
+					if (filterConfigs != null && filterConfigs.length() > 0)
+					{
+						var specs:XMLList = filterConfigs.child("spec");
+						for each (var spec:XML in specs)
+						{
+							var id:String = spec.@id;
+							specList.addItem(id);
+						}
+					}
+				}
+				
+				//默认初始化资源统计
+				if (this.resourceStat != null)
+				{
+					this.resourceStat.remoteData = _remoteData;
+					this.resourceStat.cityId = _cityId;
+					this.resourceStat.specList = specList;
+					this.resourceStat.general = _general;
+					this.resourceStat.title = _cityName + "资源统计";
+					this.resourceStat.initHeight();
+					if (param.viewConfigTypeId != "4")
+					{
+						this.resourceStat.showThisWindow(395);
+					}
+				}
+				
+				if (this.resourceStat1 != null)
+				{
+					this.resourceStat1.remoteData = _remoteData;
+					this.resourceStat1.cityId = _cityId;
+					this.resourceStat1.specList = specList;
+					this.resourceStat1.general = _general;
+					this.resourceStat1.title = _cityName + "资源统计";
+					this.resourceStat1.initHeight();
+					if (param.viewConfigTypeId == "4")
+					{
+						this.resourceStat1.showThisWindow(395);
+					}
+				}
+				
+				if (this.alarmStat != null)
+				{
+					this.alarmStat.remoteData = _remoteData;
+					this.alarmStat.general = _general;
+					this.alarmStat.cityId = _cityId;
+					this.alarmStat.specList = specList;
+					this.alarmStat.title = _cityName + "告警统计";
+					this.alarmStat.initHeight();
+					//this.alarmStat.hideThisWindow();
+				}
+				
+				if (this.alarmStat1 != null)
+				{
+					this.alarmStat1.remoteData = _remoteData;
+					this.alarmStat1.general = _general;
+					this.alarmStat1.cityId = _cityId;
+					this.alarmStat1.specList = specList;
+					this.alarmStat1.title = _cityName + "告警统计";
+					this.alarmStat1.initHeight();
+					//this.alarmStat1.hideThisWindow();
+				}
+				
+				if (this.outService != null)
+				{
+					this.outService.remoteData = _remoteData;
+					this.outService.general = _general;
+					this.outService.cityId = _cityId;
+					this.outService.specList = specList;
+					this.outService.title = _cityName + "退服统计";
+					this.outService.initHeight();
+					//this.outService.hideThisWindow();
+				}
+				
+				if (this.kpiShow != null)
+				{
+					this.kpiShow.remoteData = _remoteData;
+					this.kpiShow.general = _general;
+					this.kpiShow.cityId = _cityId;
+					this.kpiShow.specList = specList;
+					this.kpiShow.title = _cityName + "KPI指标";
+					this.kpiShow.initHeight();
+					//this.kpiShow.hideThisWindow();
+				}
+				
+				if (this.perfShow != null)
+				{
+					this.perfShow.remoteData = _remoteData;
+					this.perfShow.general = _general;
+					this.perfShow.cityId = _cityId;
+					this.perfShow.specList = specList;
+					this.perfShow.title = _cityName + "性能图表";
+					this.perfShow.initHeight();
+					//this.perfShow.hideThisWindow();
+				}
+				
+				if (this.topnPerf != null)
+				{
+					this.topnPerf.remoteData = _remoteData;
+					this.topnPerf.general = _general;
+					this.topnPerf.cityId = _cityId;
+					this.topnPerf.cityName = _cityName;
+					this.topnPerf.specList = specList;
+					this.topnPerf.title = _cityName + "性能TOPN";
+					this.topnPerf.initHeight();
+					//this.topnPerf.hideThisWindow();
+				}
+				
+				if (this.workStat != null)
+				{
+					this.workStat.remoteData = _remoteData;
+					this.workStat.general = _general;
+					this.workStat.cityId = _cityId;
+					this.workStat.specList = specList;
+					this.workStat.title = _cityName + "工程统计";
+					this.workStat.initHeight();
+					//this.workStat.hideThisWindow();
+				}
+				
+				if (this.workSheetStat != null)
+				{
+					this.workSheetStat.remoteData = _remoteData;
+					this.workSheetStat.general = _general;
+					this.workSheetStat.cityId = _cityId;
+					this.workSheetStat.specList = specList;
+					this.workSheetStat.title = _cityName + "工单统计";
+					this.workSheetStat.initHeight();
+					//this.workSheetStat.hideThisWindow();
+				}
+				
+				if (this.complaintStat != null)
+				{
+					this.complaintStat.remoteData = _remoteData;
+					this.complaintStat.general = _general;
+					this.complaintStat.cityId = _cityId;
+					this.complaintStat.cityName = _cityName;
+					this.complaintStat.specList = specList;
+					this.complaintStat.title = _cityName + "集中投诉预警";
+					this.complaintStat.initHeight();
+					//this.complaintStat.hideThisWindow();
+				}
+				
+				if (this.badCellStat != null)
+				{
+					this.badCellStat.remoteData = _remoteData;
+					this.badCellStat.general = _general;
+					this.badCellStat.cityId = _cityId;
+					this.badCellStat.specList = specList;
+					this.badCellStat.cityName = _cityName;
+					this.badCellStat.title = _cityName + "劣化小区";
+					this.badCellStat.initHeight();
+					//this.badCellStat.hideThisWindow();
+				}
+				
+				if (this.bussnissInfo != null)
+				{
+					this.bussnissInfo.remoteData = _remoteData;
+					this.bussnissInfo.general = _general;
+					this.bussnissInfo.cityId = _cityId;
+					this.bussnissInfo.specList = specList;
+					this.bussnissInfo.title = _cityName + "业务质量监控";
+					this.bussnissInfo.initHeight();
+					//this.bussnissInfo.hideThisWindow();
+				}
+			}
+			
+			//重载数据
+			public function reloadData():void
+			{
+				log.info("重载数据，属地：" + _cityId);
+				
+				if (this.resourceStat != null)
+				{
+					this.resourceStat.cityId = _cityId;
+					this.resourceStat.title = _cityName + "资源统计";
+					
+					log.info("资源统计 defaultShow=" + this.resourceStat.defaultShow);
+					if (this.resourceStat.defaultShow)
+					{
+						this.resourceStat.isInit = true;
+						this.resourceStat.loadData();
+					}
+					else
+					{
+						this.resourceStat.isInit = false;
+					}
+				}
+				
+				if (this.resourceStat1 != null)
+				{
+					this.resourceStat1.cityId = _cityId;
+					this.resourceStat1.title = _cityName + "资源统计";
+					if (this.resourceStat1.defaultShow)
+					{
+						this.resourceStat.isInit = true;
+						this.resourceStat1.loadData();
+					}
+					else
+					{
+						this.resourceStat.isInit = false;
+					}
+				}
+				
+				if (this.alarmStat != null)
+				{
+					this.alarmStat.cityId = _cityId;
+					this.alarmStat.title = _cityName + "告警统计";
+					if (this.alarmStat.defaultShow)
+					{
+						this.alarmStat.isInit = true;
+						this.alarmStat.loadData();
+					}
+					else
+					{
+						this.alarmStat.isInit = false;
+					}
+				}
+				
+				if (this.alarmStat1 != null)
+				{
+					this.alarmStat1.cityId = _cityId;
+					this.alarmStat1.title = _cityName + "告警统计";
+					if (this.alarmStat1.defaultShow)
+					{
+						this.alarmStat1.isInit = true;
+						this.alarmStat1.loadData();
+					}
+					else
+					{
+						this.alarmStat1.isInit = false;
+					}
+				}
+				
+				if (this.outService != null)
+				{
+					this.outService.cityId = _cityId;
+					this.outService.title = _cityName + "退服统计";
+					if (this.outService.defaultShow)
+					{
+						this.outService.isInit = true;
+						this.outService.loadData();
+					}
+					else
+					{
+						this.outService.isInit = false;
+					}
+				}
+				
+				if (this.kpiShow != null)
+				{
+					this.kpiShow.cityId = _cityId;
+					this.kpiShow.title = _cityName + "KPI指标";
+					if (this.kpiShow.defaultShow)
+					{
+						this.kpiShow.isInit = true;
+						this.kpiShow.loadData();
+					}
+					else
+					{
+						this.kpiShow.isInit = false;
+					}
+				}
+				
+				if (this.perfShow != null)
+				{
+					this.perfShow.cityId = _cityId;
+					this.perfShow.title = _cityName + "性能图表";
+					if (this.perfShow.defaultShow)
+					{
+						this.perfShow.isInit = true;
+						this.perfShow.loadData();
+					}
+					else
+					{
+						this.perfShow.isInit = false;
+					}
+				}
+				
+				if (this.topnPerf != null)
+				{
+					this.topnPerf.cityId = _cityId;
+					this.topnPerf.cityName = _cityName;
+					this.topnPerf.title = _cityName + "性能TOPN";
+					if (this.topnPerf.defaultShow)
+					{
+						this.topnPerf.isInit = true;
+						this.topnPerf.loadData();
+					}
+					else
+					{
+						this.topnPerf.isInit = false;
+					}
+				}
+				
+				if (this.workStat != null)
+				{
+					this.workStat.cityId = _cityId;
+					this.workStat.title = _cityName + "工程统计";
+					if (this.workStat.defaultShow)
+					{
+						this.workStat.isInit = true;
+						this.workStat.loadData();
+					}
+					else
+					{
+						this.workStat.isInit = false;
+					}
+				}
+				
+				if (this.workSheetStat != null)
+				{
+					this.workSheetStat.cityId = _cityId;
+					this.workSheetStat.title = _cityName + "工单统计";
+					if (this.workSheetStat.defaultShow)
+					{
+						this.workSheetStat.isInit = true;
+						this.workSheetStat.loadData();
+					}
+					else
+					{
+						this.workSheetStat.isInit = false;
+					}
+				}
+				
+				if (this.complaintStat != null)
+				{
+					this.complaintStat.cityId = _cityId;
+					this.complaintStat.cityName = _cityName;
+					this.complaintStat.title = _cityName + "集中投诉预警";
+					if (this.complaintStat.defaultShow)
+					{
+						this.complaintStat.isInit = true;
+						this.complaintStat.loadData();
+					}
+					else
+					{
+						this.complaintStat.isInit = false;
+					}
+				}
+				
+				if (this.badCellStat != null)
+				{
+					this.badCellStat.cityId = _cityId;
+					this.badCellStat.cityName = _cityName;
+					this.badCellStat.title = _cityName + "劣化小区";
+					if (this.badCellStat.defaultShow)
+					{
+						this.badCellStat.isInit = true;
+						this.badCellStat.loadData();
+					}
+					else
+					{
+						this.badCellStat.isInit = false;
+					}
+				}
+				
+				if (this.bussnissInfo != null)
+				{
+					this.bussnissInfo.cityId = _cityId;
+					this.bussnissInfo.title = _cityName + "业务质量监控";
+					if (this.bussnissInfo.defaultShow)
+					{
+						this.bussnissInfo.isInit = true;
+						this.bussnissInfo.loadData();
+					}
+					else
+					{
+						this.bussnissInfo.isInit = false;
+					}
+				}
+			}
+			
+			//显示数据表格
+			public function showView():void
+			{
+				for (var index:int=0;index<this.showGroupList.numElements;index++)
+				{
+					var win:DataWindow = this.showGroupList.getElementAt(index) as DataWindow;
+					if (win.defaultShow)
+					{
+						win.showView();
+					}
+				}
+			}
+			
+			//隐藏数据表格
+			public function hideView():void
+			{
+				for (var index:int=0;index<this.showGroupList.numElements;index++)
+				{
+					var win:DataWindow = this.showGroupList.getElementAt(index) as DataWindow;
+					if (win.defaultShow)
+					{
+						win.hideView();
+					}
+				}
+			}
+
+			protected function group1_preinitializeHandler(event:FlexEvent):void
+			{
+				
+			}
+
+			//关闭已打开的窗口
+			public function hideOpenedWindow():void
+			{
+				for (var index:int=0;index<this.showGroupList.numElements;index++)
+				{
+					var win:DataWindow = this.showGroupList.getElementAt(index) as DataWindow;
+					if (win.defaultShow)
+					{
+						win.hideThisWindow();
+					}
+				}
+			}
+			
+			public function resizeThisGroup(h:int):void
+			{
+				for (var index:int=0;index<this.showGroupList.numElements;index++)
+				{
+					var win:DataWindow = this.showGroupList.getElementAt(index) as DataWindow;
+					if (win.defaultShow)
+					{
+						win.resizeWindow(h);
+					}
+				}
+			}
+			
+			public function validateAll():void
+			{
+				this.resourceStat.percentWidth = 100;
+				this.resourceStat1.percentWidth = 100;
+				this.alarmStat.percentWidth = 100;
+				this.alarmStat1.percentWidth = 100;
+				this.outService.percentWidth = 100;
+				this.kpiShow.percentWidth = 100;
+				this.perfShow.percentWidth = 100;
+				this.topnPerf.percentWidth = 100;
+				this.workStat.percentWidth = 100;
+				this.workSheetStat.percentWidth = 100;
+				this.complaintStat.percentWidth = 100;
+				this.badCellStat.percentWidth = 100;
+				this.bussnissInfo.percentWidth = 100;
+				
+				this.resourceStat.validateNow();
+				this.resourceStat1.validateNow();
+				this.alarmStat.validateNow();
+				this.alarmStat1.validateNow();
+				this.outService.validateNow();
+				this.kpiShow.validateNow();
+				this.perfShow.validateNow();
+				this.topnPerf.validateNow();
+				this.workStat.validateNow();
+				this.workSheetStat.validateNow();
+				this.complaintStat.validateNow();
+				this.badCellStat.validateNow();
+				this.bussnissInfo.validateNow();
+			}
+
+			public function get popParent():DisplayObject
+			{
+				return _popParent;
+			}
+
+			public function set popParent(value:DisplayObject):void
+			{
+				_popParent = value;
+			}
+
+			[Bindable]
+			private var _popParent:DisplayObject = null;
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="showGroupList" width="100%" height="100%" gap="0">
+		<resourcestat:ResourceStatEx id="resourceStat" width="100%" defaultShow="true" dataShowList="{this}" isToggle="true" 
+									 popParent="{_popParent}">
+		</resourcestat:ResourceStatEx>
+		<resourcestat:ResourceStatEx1 id="resourceStat1" width="100%" defaultShow="true" dataShowList="{this}" isToggle="true">
+		</resourcestat:ResourceStatEx1>
+		<alarmstat:AlarmStatEx id="alarmStat" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</alarmstat:AlarmStatEx>
+		<alarmstat:AlarmStatEx1 id="alarmStat1" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</alarmstat:AlarmStatEx1>
+		<outservice:OutServiceEx id="outService" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</outservice:OutServiceEx>
+		<kpishow:KpiShowEx id="kpiShow" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</kpishow:KpiShowEx>
+		<perfshow:PerfShowEx id="perfShow" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</perfshow:PerfShowEx>
+		<topn:TopnPerfEx id="topnPerf" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</topn:TopnPerfEx>
+		<workstate:WorkStatEx id="workStat" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</workstate:WorkStatEx>
+		<worksheet:WorkSheetStatEx id="workSheetStat" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</worksheet:WorkSheetStatEx>
+		<complaint:ComplaintStatEx id="complaintStat" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</complaint:ComplaintStatEx>
+		<badcell:BadCellStatEx id="badCellStat" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</badcell:BadCellStatEx>
+		<bussniss:BussnissInfoEx id="bussnissInfo" width="100%" defaultShow="false" dataShowList="{this}" isToggle="false">
+		</bussniss:BussnissInfoEx>
+	</s:VGroup>
+	<mx:ViewStack id="viewStack1"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2" visible="false" includeInLayout="false" color="0x000000">
+		<s:NavigatorContent label="趋势监控">
+			<chartview:ChartView id="chartViewNav" width="100%" height="100%">
+			</chartview:ChartView>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="统计监控" id="dataStatNav">
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar id="dataShowTab" dataProvider="{viewStack1}"
+			  styleName="commonTabBar" visible="false" includeInLayout="false"> 
+	</s:TabBar>
+</s:Group>

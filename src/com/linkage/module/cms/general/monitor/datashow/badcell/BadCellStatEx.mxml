@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					 xmlns:s="library://ns.adobe.com/flex/spark"
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					 width="100%"
+					 height="100%">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.Canvas;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.Group;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.badCell");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//属地名称
+			private var _cityName:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//参数
+			private var _params:Object = null;
+
+			//定时调度
+			private var t:Timer = new Timer(7200000);
+
+			public var workStateList:ArrayCollection = new ArrayCollection([
+				{title: "劣化小区统计"
+					, name: ["区域", "一级高掉话小区", "二级高掉话小区", "三级高掉话小区", "高TCH拥塞小区", "高SDTCH拥塞小区", "高语音负荷小区"]
+					, column: ["city", "drop_level1", "drop_level2", "drop_level3", "tch_cell", "sdtch_cell", "voice_cell"]
+					, datalist: [{city: "全省", drop_level1: "10", drop_level2: "2", drop_level3: "2", tch_cell: "2", sdtch_cell: "2", voice_cell: "2"}
+						, {city: "南京", drop_level1: "10", drop_level2: "2", drop_level3: "2", tch_cell: "2", sdtch_cell: "2", voice_cell: "2"}
+						, {city: "苏州", drop_level1: "10", drop_level2: "2", drop_level3: "2", tch_cell: "2", sdtch_cell: "2", voice_cell: "2"}]}
+				]);
+
+			public function get cityName():String
+			{
+				return _cityName;
+			}
+
+			public function set cityName(value:String):void
+			{
+				_cityName = value;
+			}
+
+			public function get params():Object
+			{
+				return _params;
+			}
+
+			public function set params(value:Object):void
+			{
+				_params = value;
+			}
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			override public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityBadCellData(_cityId, getResInfo, null, getResInfoErr);
+				}
+				else
+				{
+					_remoteData.getAllBadCellData(getResInfo, null, getResInfoErr);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("查询劣化小区统计数据结果：" + obj);
+				if(obj != null && obj[0] != null)
+				{
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+				else
+				{
+					log.info("劣化小区统计：查询无数据");
+					Alert.show("查询劣化小区统计数据为空！");
+						//createTable(workStateList);
+				}
+
+				this.grid.visible = true;
+				//loadInfo.hideLoading();
+			}
+
+			private function createTable(obj:Object):void
+			{
+				var workList:Object = obj[0];
+
+				//生成列
+				if(workList.column == null || workList.column.length != this.grid.columns.length)
+				{
+					var columnArr:Array = new Array();
+					for(var i:String in workList.name)
+					{
+						var scol:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						scol.dataField = workList.column[i];
+						scol.headerText = workList.name[i];
+						if(workList.name[i] == "区域")
+						{
+							scol.width = 100;
+						}
+						else
+						{
+							scol.width = 150;
+						}
+
+						columnArr = columnArr.concat(scol);
+					}
+					this.grid.columns = columnArr;
+				}
+
+				//数据
+				this.grid.dataProvider = workList.datalist;
+
+				obj = null;
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("劣化小区统计：查询数据异常");
+				Alert.show("查询劣化小区统计数据异常！");
+				this.grid.visible = true;
+				//createTable(workStateList);
+				//loadInfo.hideLoading();
+			}
+
+			override public function hideDataGroup():void
+			{
+				this.showGroup.visible = false;
+				this.showGroup.includeInLayout = false;
+			}
+
+			override public function showDataGroup():void
+			{
+				this.showGroup.visible = true;
+				this.showGroup.includeInLayout = true;
+			}
+
+			override public function showGroupInfo():Group
+			{
+				return this.showGroup;
+			}
+
+			protected function grid_itemClickHandler(e:ListEvent):void
+			{
+				if(e.rowIndex > 0)
+				{
+					//取当前的属地
+					var cityName:String = e.target.dataProvider[e.rowIndex].city;
+
+					if(_cityId != "")
+					{
+						general.showBadCellMap(cityName, "3", _cityId);
+					}
+					else
+					{
+						general.showBadCellMap(cityName, "2", "");
+					}
+				}
+				else
+				{
+					if(_cityId != "")
+					{
+						general.showBadCellMap(_cityName, "2", _cityId);
+					}
+					else
+					{
+						general.showBadCellMap("", "1", "00");
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group id="showGroup"
+			 width="100%"
+			 height="100%"
+			 visible="false"
+			 includeInLayout="false">
+		<s:Scroller width="100%"
+					height="100%"
+					horizontalScrollPolicy="auto"
+					verticalScrollPolicy="auto">
+			<s:Group>
+				<mx:AdvancedDataGrid sortableColumns="false"
+									 id="grid"
+									 visible="false"
+									 height="100%"
+									 horizontalScrollPolicy="off"
+									 verticalScrollPolicy="auto"
+									 itemClick="grid_itemClickHandler(event)">
+				</mx:AdvancedDataGrid>
+			</s:Group>
+		</s:Scroller>
+	</s:Group>
+</datashow:DataWindow>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TileGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+             xmlns:s="library://ns.adobe.com/flex/spark"
+             xmlns:mx="library://ns.adobe.com/flex/mx"
+             orientation="rows"
+			 columnAlign="justifyUsingWidth" rowAlign="top" rowHeight="240"
+             requestedColumnCount="2"
+             horizontalAlign="center"
+             creationComplete="tilegroup1_creationCompleteHandler(event)"
+			 xmlns:topnKpi="com.linkage.module.cms.perfmonitornew.topnKpi.*"
+             width="100%"
+             height="100%">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.core.IVisualElement;
+			import mx.events.FlexEvent;
+
+            private var log:ILogger = Log.getLoggerByClass(SummaryMonitorFirst);
+
+            private var chartCompCache:Object = {};
+			
+			private var times:ArrayCollection = new ArrayCollection;
+			private var citys:ArrayCollection = new ArrayCollection;
+			private var mos:ArrayCollection = new ArrayCollection;
+			
+			private var param:Object;
+			private var paramTopN:Object;
+			
+			private var kpiId:String;
+			private var kpiName:String;
+			private var moTypeId:String;
+			private var schemeIdF:String;
+			private var sceneid:String;
+			private var areaid:String;
+			private var parameters:Object;
+			
+			private var cityId:String = "00";
+			private var cityName:String = "全省";
+			private var schemeName:String = "";
+			
+
+            private var dataTimer:Timer = new Timer(600000);
+            private var viewTimer:Timer = new Timer(60000);
+
+			private var lm:LoadManager = new LoadManager(this, "blue");
+			
+            protected function tilegroup1_creationCompleteHandler(event:FlexEvent):void
+            {
+            }
+
+            public function startMonitor(param:Object):void
+            {
+				parameters = this.parentApplication.parameters;
+				lm.showLoading();
+//				log.info("startMonitor");
+//				log.info(param);
+				PerfMonitorDAO.context = "/cms/";
+			
+				PerfMonitorDAO.getInstance().getMoAndKpiByScheme(
+					param,
+                    function(result:Object):void
+                    {
+//						log.info(result);
+						 lm.hideLoading();
+                        chartCompCache = {};
+                        removeAllElements();
+                        for each (var obj:Object in result)
+                        {
+							var chartComp:ChartSummaryMonitorComp = new ChartSummaryMonitorComp;
+							
+//							log.info(obj);
+							kpiId = obj.kpi_id;
+							kpiName =  obj.kpi_name;
+							moTypeId = obj.mo_type_id;
+							sceneid = param.scene_id;
+							areaid = param.area_id;
+							
+							obj.schemeName = param.scheme_Name;
+							obj.scene_id = param.scene_id;
+							obj.area_id = param.area_id;
+							if(obj.level_pcm == "1")
+							{
+								obj.res_type = "1";
+							}else{
+								obj.res_type = "2";
+							}
+							
+							obj.topn = 10; 
+							obj.username = parameters["account"]; 
+							obj.logicalType = parameters["logicalType"]; 
+
+//							obj.width = width / 2 -10;
+//							chartComp.width = width / 2 -10;
+//							chartComp.height = 240;
+//							
+//							obj.width = width / 2 -10;
+//							obj.height = 240;
+							
+                            addElement(chartComp);
+							chartComp.tilegroup1_creationCompleteHandler(obj);
+
+                        }
+                    });
+            }
+			
+            private function refreshView(e:TimerEvent):void
+            {
+                var ele0:IVisualElement = this.getElementAt(0);
+                var ele1:IVisualElement = this.getElementAt(1); 
+
+                this.removeElementAt(0);
+                this.removeElementAt(0);
+
+                this.addElement(ele0);
+                this.addElement(ele1);
+            }
+			
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+</s:TileGroup>

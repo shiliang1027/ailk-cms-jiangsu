@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   xmlns:containers="com.linkage.module.cms.alarm.customrule.component.mdi.containers.*"
+		   xmlns:mdi="com.linkage.module.cms.alarm.customrule.component.mdi.*"
+		   creationComplete="application_creationCompleteHandler(event)" 
+		   xmlns:component="com.linkage.module.cms.perfmonitor.indexview.component.*" 
+		   xmlns:panel="com.linkage.system.component.panel.*" 
+		   xmlns:eventwindow="com.linkage.module.cms.alarm.eventwindow.*" xmlns:view="com.linkage.module.cms.alarm.eventwindow.view.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace containers "com.linkage.module.cms.alarm.customrule.component.mdi.containers.*";
+		@namespace mdi "com.linkage.module.cms.alarm.customrule.component.mdi.*";
+		.titleStyle{
+			font-weight: bold;
+		}
+	</fx:Style>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.alarm.customrule.core.AlarmViewManager;
+			import com.linkage.module.cms.alarm.eventwindow.EventWindowContext;
+			import com.linkage.module.cms.alarm.eventwindow.event.EventwindowEvent;
+			import com.linkage.module.cms.alarm.framework.AlarmContainer;
+			import com.linkage.module.cms.alarm.framework.common.event.SystemEvent;
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.controller.fo.AlarmParamFo;
+			import com.linkage.module.cms.alarm.framework.module.server.source.DefaultCollection;
+			import com.linkage.module.cms.alarm.framework.view.resource.imagesclass.IconParam;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			/**
+			 * 加载管理器
+			 */
+			private var _loadManager:LoadManager = null;
+			/**
+			 *告警数据控制类
+			 */
+			private var _alarmAction:AlarmAction = null;
+			/**
+			 *告警视图管理类
+			 */
+			private var _alarmViewManager:AlarmViewManager = null;
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			[Bindable]
+			private var _title:String = "自定义窗口";
+
+			private var _running:Boolean = true;
+
+			public var parameters:Object;
+			private var log:ILogger = Log.getLoggerByClass(CustomRuleAlarmModule);
+				
+			//初始化告警信息
+			protected function application_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				
+				user.account = String(AlarmUtil.jsonDecode(this.parameters['mapInfo'].toString()).account);
+				user.areaId = String(AlarmUtil.jsonDecode(this.parameters['mapInfo'].toString()).areaId);
+				user.context = String(AlarmUtil.jsonDecode(this.parameters['mapInfo'].toString()).context);
+				//1.初始化logger
+//				var target:ILoggingTarget = new MonsterTarget2();
+//				target.level = this.parameters.logLevel;
+//				target.filters = [this.parameters.filters];
+//				Log.addTarget(target);
+				//2.初始化样式信息
+				if (this.parameters.local == "true")
+				{
+					styleManager.loadStyleDeclarations2("./css/common/show/ui.swf");
+				}
+				else
+				{
+					styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				}
+
+				System.useCodePage = true;
+				//1.初始化加载管理器
+				_loadManager = new LoadManager(this);
+
+				//2.设置窗口管理类
+				_alarmViewManager = new AlarmViewManager(this.parameters, mdiCanvas);
+
+				//3.初始化告警信息
+				if (this.parameters.local == "true")
+				{
+					localTest();
+				}
+				else
+				{
+					if (this.parameters.isScan == "true")
+					{
+						scanView();
+					}
+					else
+					{
+						serversRun();
+					}
+				}
+				parentApplication.add(this);
+			}
+
+			// 开始
+			public function start():void
+			{
+				_running = true;
+				if (_alarmAction != null)
+				{
+					_alarmAction.reload(null, false);
+				}
+			}
+
+			// 结束
+			public function stop():void
+			{
+				_running = false;
+				if (_alarmAction != null)
+				{
+					_alarmAction.stopLoad();
+				}
+			}
+
+			//浏览视图
+			protected function scanView():void
+			{
+				_loadManager.showLoading();
+				//1.初始化告警控制类
+				var ruleList:ArrayList = new ArrayList();
+				var ruleObject:Object = new Object();
+				//设置过滤器为查询不到告警
+				ruleObject[AlarmContainer.PARAMKEY_RULECONTENT] = "";
+				ruleList.addItem(ruleObject);
+				_alarmAction = new AlarmAction(this.parameters, DefaultCollection);
+				_alarmAction.addEventListener("alarmStatNumALLChange",alarmStatNumALLChange);
+				_alarmAction.regListener(ruleList, function():void
+					{
+						_alarmViewManager.initView(_alarmAction, function():void
+							{
+								_loadManager.hideLoading();
+							});
+					}, 0);
+				//2.设置窗口标题
+				var alarmParamFo:AlarmParamFo = _alarmAction.alarmParamFo;
+				_title = (alarmParamFo.moduleKey == 'dutyalarm') ? "各专业告警流水预览" : "自定义窗口预览";
+			}
+
+			//服务器上运行
+			protected function serversRun():void
+			{
+				_loadManager.showLoading();
+				//1.初始化告警控制类
+				var ruleList:ArrayList = new ArrayList();
+				_alarmAction = new AlarmAction(this.parameters, DefaultCollection);
+				_alarmAction.addEventListener("alarmStatNumALLChange",alarmStatNumALLChange);
+				_alarmAction.regListener(ruleList, function():void
+					{
+						_alarmViewManager.initView(_alarmAction, function():void
+							{
+								_loadManager.hideLoading();
+							});
+					});
+				//2.设置窗口标题
+				var alarmParamFo:AlarmParamFo = _alarmAction.alarmParamFo;
+				_title = (alarmParamFo.moduleKey == 'dutyalarm') ? "各专业告警流水" : "预处理窗口";
+			}
+			private var windowNumMap:Dictionary = new Dictionary();
+			
+			private var _t:String;
+			private function alarmStatNumALLChange(event:SystemEvent):void
+			{
+				//				_alarmAction = new SpecialAction(this.parameters, DefaultCollection);
+				//				var num:Number=0;
+				//				for each(var win:Array in _alarmAction.alarmParamMo.winJsons)
+				//				{
+				//					var viewKeyArray:Array=win.childViewKey.split(",");
+				//					var viewNameArray:Array=win.childViewName.split(",");
+				//					var keyLen:int=viewKeyArray.length;
+				//					if (keyLen == viewNameArray.length)
+				//					{
+				//						for (var index:int; index  < keyLen; index++)
+				//						{
+				//							var _alarmsAC:ICollection = _alarmAction.alarmSource(win.windowId, viewKeyArray[index]);
+				//							num+=_alarmsAC.level1Num+_alarmsAC.level2Num+_alarmsAC.level3Num+_alarmsAC.level4Num;
+				//						}
+				//					}
+				//				}
+				if(!_t){
+					_t=_title;
+				}
+				var num:Number=0;
+				var msg:Array = String(event.message).split("_");
+				windowNumMap[msg[0]]=Number(msg[1]);
+				for(var k:String in windowNumMap){
+					var n:Number = windowNumMap[k];
+					num+=n;
+				}
+				_title = _t + " " +num;
+			}
+			//本地测试
+			protected function localTest():void
+			{
+				_loadManager.showLoading();
+				//初始化告警控制类并把数据注入视图
+				_alarmAction = new AlarmAction(this.parameters, DefaultCollection);
+				_alarmAction.regCustomDefaultTest();
+				_alarmViewManager.initView(_alarmAction, function():void
+					{
+						_loadManager.hideLoading();
+					});
+				//_alarmAction.sendAlarmTest();
+			}
+
+			//规则配置
+			private function ruleConfig():void
+			{
+				var alarmParams:AlarmParamFo = _alarmAction.alarmParamFo;
+				var baseUrl:String = alarmParams.baseURL;
+				var moduleKey:String = alarmParams.moduleKey;
+				//var url:String = baseUrl + "/warn/view/config/warnViewConfAction!initWarnView.action?hangToolBar=yes&viewKind=" + moduleKey + "&permitPublic=true";
+				var url:String = baseUrl + "/warn/view/set/alarmSetAction!initWarnView.action?tab=" + moduleKey;
+				ExternalInterface.call("function(){window.open('" + url + "','','resizable=yes,toolbar=no')}");
+			}
+
+			//垂直布局
+			private function verticalTile():void
+			{
+				mdiCanvas.vertical();
+			}
+
+			//水平布局
+			private function horizontalTile():void
+			{
+				mdiCanvas.horizontal();
+			}
+
+			//平铺布局
+			private function layoutTile():void
+			{
+				mdiCanvas.tile();
+			}
+
+			//保存窗口
+			private function saveWindow():void
+			{
+				_alarmViewManager.saveWindow();
+			}
+
+			//全频
+			private function fullWindow():void
+			{
+				if (this.stage.displayState == StageDisplayState.FULL_SCREEN)
+				{
+					fullScreen.toolTip = "全屏";
+					this.stage.displayState = StageDisplayState.NORMAL;
+				}
+				else
+				{
+					fullScreen.toolTip = "退出全屏";
+					this.stage.displayState = StageDisplayState.FULL_SCREEN;
+				}
+			}
+
+			public function get running():Boolean
+			{
+				return _running;
+			}
+			
+			[MessageHandler(selector = "EVENTS_VIEW_SHOW")]
+			public function viewShowHandler(e:EventwindowEvent):void
+			{
+				filterView.visible = true;
+				
+			}
+			[MessageHandler(selector = "REMARK_VIEW_SHOW")]
+			public function remarkViewShowHandler(e:EventwindowEvent):void
+			{
+				remarkView.visible = true;
+				
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{EventWindowContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:VBox width="100%"
+			 height="100%"
+			 verticalGap="0">
+		<mx:HBox width="100%"
+				 height="25"
+				 verticalAlign="middle"
+				 borderStyle="solid">
+			<mx:HBox textAlign="left"
+					 width="50%"
+					 horizontalAlign="left">
+				<mx:Label text="{_title}"
+						  styleName="titleStyle"/>
+			</mx:HBox>
+			<mx:HBox textAlign="right"
+					 width="50%"
+					 horizontalAlign="right">
+				<mx:Image source="{IconParam.ruleConfigIcon}"
+						  toolTip="视图配置"
+						  click="ruleConfig()"
+						  buttonMode="true"/>
+				<mx:Image source="{IconParam.verticalTileIcon}"
+						  toolTip="垂直布局"
+						  click="verticalTile()"
+						  buttonMode="true"/>
+				<mx:Image source="{IconParam.horizontalTileIcon}"
+						  toolTip="水平布局"
+						  click="horizontalTile()"
+						  buttonMode="true"/>
+				<mx:Image source="{IconParam.layoutTileIcon}"
+						  toolTip="平铺布局"
+						  click="layoutTile()"
+						  buttonMode="true"/>
+				<mx:Image source="{IconParam.saveIcon}"
+						  buttonMode="true"
+						  toolTip="保存位置"
+						  click="saveWindow()"/>
+				<mx:Image id="fullScreen"
+						  source="{IconParam.fullScreenIcon}"
+						  buttonMode="true"
+						  toolTip="全屏"
+						  click="fullWindow()"/>
+			</mx:HBox>
+		</mx:HBox>
+		<s:Scroller width="100%"
+					height="100%"
+					verticalScrollPolicy="off"
+					horizontalScrollPolicy="off">
+			<mdi:WindowManager id="mdiCanvas"
+							   width="100%"
+							   height="100%"/>
+		</s:Scroller>
+	</mx:VBox>
+
+	<!--<component1:EventDetail id="eventView"
+							x="{this.width-eventView.width}" 
+							y="30"
+							/>-->
+	
+	
+	<eventwindow:EventWindow id="eventView" x="{this.width-eventView.width}" 
+							 y="30"/>
+	<view:EventFilterWindow id="filterView" horizontalCenter="0" verticalCenter="0"/>
+	<view:RemarkConfigView id="remarkView" horizontalCenter="0" verticalCenter="0"/>
+</mx:Module>

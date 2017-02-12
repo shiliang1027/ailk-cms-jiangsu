@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:panel="com.linkage.system.component.panel.*" 
+				   xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+				   width="100%"
+				   height="100%" 
+				   creationComplete="init()"
+				   >
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.servperf.data.ServPerfMonitorDataMgr;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.charts.ChartItem;
+			import mx.charts.LinearAxis;
+			import mx.charts.chartClasses.IAxis;
+			import mx.charts.renderers.CircleItemRenderer;
+			import mx.charts.series.items.LineSeriesItem;
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.graphics.IFill;
+			import mx.graphics.SolidColor;
+			import mx.graphics.Stroke;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var _perfId:Object;
+			[Bindable]
+			private var _perfName:Object;
+			private var _unit:Object;
+			private var _intervals:Object;
+			private var _selectedInterval:Object;
+			public var _context:Object;
+			private var _allPerfList:ArrayCollection;
+			
+			private var _removeCallback:Function = null;
+			
+			private var _intervalChangedCallback:Function = null;
+			
+			private var _dataLoadedCallback:Function = null;
+			
+			private var _topContainer:DisplayObject = null;
+			
+			private var _app:ServiceStatisticKpiModule = null;
+			
+			//数据刷新定时器
+			private var _alarmTimer:Timer = new Timer(300000);
+            
+            [Bindable]
+            private var lcdp:ArrayCollection = new ArrayCollection();
+			
+			private var lm:LoadManager;
+			
+			//X轴标签步长。
+			private var _labelStep:uint = 0;
+			//X轴标签索引数。
+			private var xaxsiLabelIndex:uint = 0;
+			
+			private var _userCityId:String = "00";//当前用户登录CityId
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.servperf.servstatistic.PerfChartWindow");
+			
+			private var paramsArr:ArrayCollection = new ArrayCollection([
+				{caption:" "},
+				{showvalues:"0"},
+				{labelDisplay: 'Rotate'},//这个属性和slantLabels一起设置   横轴标签倾斜45°
+				{slantLabels:'1'},
+				{formatNumberScale:'0'},//是否将千换成K   百万换成M
+				{formatNumber:'0'},//是否在千位和百万为加分隔符
+				{showFCMenuItem:"0"},
+				{drawAnchors:"1"},
+				{chartLeftMargin:"3"},
+				{chartRightMargin:"8"},
+				{chartTopMargin:"3"},
+				{canvasBorderAlpha:"0"},
+				{lineColor:"0x00FF00"},
+				{chartBottomMargin:"0"},
+				{lineThickness:"4"}
+			]);//图表背景色
+
+			//移除窗口回调
+			protected function closeWindow():void
+			{
+				_alarmTimer.stop();
+                //-------------------------------------历史回退修改------------------------------------
+                this.parentApplication.remove(_alarmTimer);
+                //-------------------------------------历史回退修改------------------------------------
+
+				_removeCallback.call(null,_perfId);
+			}
+			
+			//指标变更回调
+			protected function intervalSelector_changeHandler(event:IndexChangeEvent):void
+			{
+				_selectedInterval = intervalSelector.selectedItem.value;
+				
+				_intervalChangedCallback.call(null, _perfId, _selectedInterval);
+				
+				loadChartData();
+			}
+			
+			private function init():void
+			{
+				log.info('------ _perfId:' + _perfId);
+				log.info('------ _perfName:' + _perfName);
+				log.info('------ _unit:' + _unit);
+				log.info('------ _intervals:' + _intervals);
+				log.info('------ _selectedInterval:' + _selectedInterval);
+				
+				if(_dataLoadedCallback != null)
+				{
+					setTimeout(function():void
+					{
+						_dataLoadedCallback.call();
+					}, 150);
+				}
+				
+				lm = new LoadManager(mainWindow);
+				
+				//初始化定时器
+				log.info('初始化定时器 ~~');
+				_alarmTimer.addEventListener(TimerEvent.TIMER, onAlarmTimer);
+				_alarmTimer.start();
+				
+                //-------------------------------------历史回退修改------------------------------------
+                this.parentApplication.add(_alarmTimer);
+                //-------------------------------------历史回退修改------------------------------------
+
+                
+				//初始化颗粒度
+				initIntervals();
+				
+				//加载图表数据
+				loadChartData();
+			}
+			
+			private function onAlarmTimer(event:TimerEvent):void
+			{
+				log.info('业务性能监控-图表定时刷新-- ' +　_perfName + ' --');
+				//定时刷新图表数据
+				loadChartData();
+			}
+
+			//初始化颗粒度
+			private function initIntervals():void
+			{
+				var arr:Array = _intervals.toString().split(',');
+				var ac:ArrayCollection = new ArrayCollection();
+				
+				for each(var itv:Object in arr)
+				{
+					if(itv == '60')
+						ac.addItem({'label':'小时', 'value':itv});
+					else if(itv == '1440')
+						ac.addItem({'label':'日', 'value':itv});
+					else
+						ac.addItem({'label':itv + '分钟', 'value':itv});
+					
+				}
+				
+				intervalSelector.dataProvider = ac;
+				
+				for each(var interval:Object in ac)
+				{
+					if(interval['value'] == _selectedInterval)
+					{
+						intervalSelector.selectedItem = interval;
+						break;
+					}
+				}
+			}
+			
+			private function showCityDetailChart():void
+			{
+				//地市详情 图表窗口 
+				var cdWindow:CityDetailPerfChartWindow = new CityDetailPerfChartWindow();
+				cdWindow.perfId = _perfId;
+				cdWindow.perfName = _perfName;
+				cdWindow.context = _context;
+				cdWindow.interval = _selectedInterval;
+				cdWindow.unit = _unit;
+				cdWindow.allPerfList = _allPerfList;
+				cdWindow.topContainer = _topContainer;
+				
+				cdWindow.x = 340;
+				cdWindow.y = 30;
+				cdWindow.width = 600;
+				cdWindow.height = 400;
+				cdWindow.init();
+				
+				PopUpManager.addPopUp(cdWindow, _topContainer, true);
+				
+				_app.setCityDetailWindow(cdWindow);
+			}
+			
+			private function loadChartData():void
+			{
+				var param:Object = {};
+				param['perfId'] = _perfId;
+				param['interval'] = _selectedInterval;
+				param['cityId'] = "-2";
+				param['startTime'] = "";
+				param['endTime'] = "";
+				
+				lm.showLoading();
+				
+				ServPerfMonitorDataMgr.getHistoryPerfInfoAndAlarmInfo(param,
+					function(result:Object):void
+					{
+						showData2Chart(result['data']);
+						
+                        setTimeout(function()
+                        {
+    						if(result['alarm'] != '0')
+    						{
+    							linechart.toolTip  = result['alarm'];
+    							
+    							setStyle('borderColor', '0xFF0000');
+    							setStyle('borderWeight', '5');
+    						}
+    						else
+    						{
+                                linechart.toolTip = null;
+    							setStyle('borderWeight', '1');
+    							clearStyle('borderColor');
+    						}
+                        },1010);
+						
+						lm.hideLoading();
+					},
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+						log.info('加载指标数据失败.');
+					}
+				);
+						
+			}
+			
+			private function showData2Chart(result:Object):void
+			{
+				xaxis.padding = getPadding(10, result.length);
+				
+                lcdp.removeAll();
+                lcdp.addAll(result as IList);
+				
+				log.info(" 图表数据，数量：" +  lcdp.length);
+				_labelStep = Number(lcdp.length) / 5 + .5;
+				result = null;
+			}
+			
+			//这是一个神奇的方法	 返回了一个魔鬼数字
+			private function getPadding(wanted:uint, dataCount:uint):Number
+			{
+				return wanted/(this.width/dataCount);
+			}
+			
+			protected function showBiggerChartWindow():void
+			{
+				//历史数据 图表窗口 
+				var hpWindow:HisPerfChartWindow = new HisPerfChartWindow();
+				hpWindow.perfId = _perfId;
+				hpWindow.perfName = _perfName;
+				hpWindow.context = _context;
+				hpWindow.interval = _selectedInterval;
+				hpWindow.unit = _unit;
+//				hpWindow.cityId = "00";
+				hpWindow.cityId = this.userCityId;
+				hpWindow.allPerfList = _allPerfList;
+				hpWindow.x = 200;
+				hpWindow.y = 30;
+				
+				PopUpManager.addPopUp(hpWindow, _topContainer, true);
+			}
+			
+			//------------------------- setter ---------------------------------
+			public function set intervalChangedCallback(value:Function):void
+			{
+				_intervalChangedCallback = value;
+			}
+
+			public function set removeCallback(value:Function):void
+			{
+				_removeCallback = value;
+			}
+
+			public function set selectedInterval(value:Object):void
+			{
+				_selectedInterval = value;
+			}
+
+			public function set intervals(value:Object):void
+			{
+				_intervals = value;
+			}
+
+			public function set perfName(value:Object):void
+			{
+				_perfName = value;
+			}
+
+			public function set perfId(value:Object):void
+			{
+				_perfId = value;
+			}
+
+			public function set unit(value:Object):void
+			{
+				_unit = value;
+			}
+
+			public function set topContainer(value:DisplayObject):void
+			{
+				_topContainer = value;
+			}
+
+			public function set context(value:String):void
+			{
+				_context = value;
+			}
+
+			public function set allPerfList(value:ArrayCollection):void
+			{
+				_allPerfList = value;
+				for each(var kpi:Object in _allPerfList)
+				{
+					if(kpi['perf_id'] == _perfId)
+					{
+						_intervals = kpi['interval'];
+						log.info('所有颗粒度赋值：' + _intervals);
+						break;
+					}
+				}
+			}
+
+			public function set dataLoadedCallback(value:Function):void
+			{
+				_dataLoadedCallback = value;
+			}
+
+			public function set app(value:ServiceStatisticKpiModule):void
+			{
+				_app = value;
+			}
+
+			
+			private var _levelColorMap:Object = {'0': 0X00FF00, '1': 0XFF0000, '2': 0XFFA500, '3': 0XFFF000, '4': 0X4169E1};
+			
+			public function myFillFunction(ci:ChartItem, index:Number):IFill 
+			{
+				return(new SolidColor(_levelColorMap[ci.item['level']], .8));
+			}
+			
+			private function yaxisLabelFunction(labelValue:Object, previousValue:Object, axis:IAxis):String
+			{
+				var temp:String = String(labelValue);
+				
+				if(_unit)
+					return temp += _unit.toString();
+				else
+					return temp;
+			}
+			
+			private function xAxisLabelFun(categoryValue:Object, previousCategoryValue:Object, 
+										   axis:CategoryAxis, categoryItem:Object):String
+			{
+				if(_labelStep == 0 || xaxsiLabelIndex++ % _labelStep == 0)
+					return String(categoryValue);
+				else
+					return null;
+			}
+
+			public function get userCityId():String
+			{
+				return _userCityId;
+			}
+
+			public function set userCityId(value:String):void
+			{
+				_userCityId = value;
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<mx:Stroke id = "s1" color="0x00FF00" weight="2"/>
+		<mx:Stroke id = "s2" color="0x00FF00" weight="1"/>
+        <mx:SeriesInterpolate id="interpolateIn" duration="1000"/>
+	</fx:Declarations>
+	
+	 <panel:Window id="mainWindow" width="100%" height="100%" maximizable="false" minimizable="false" title="{_perfName}"
+				   close="closeWindow()">
+		 <mx:ColumnChart id="linechart" height="100%" width="100%"
+					   paddingLeft="5" right="5"  
+					   buttonMode="true" dataProvider="{lcdp}"
+					   click="showCityDetailChart()" 
+					   showDataTips="true">
+			 <mx:verticalAxis>
+				 <mx:LinearAxis id="yAxis" labelFunction="yaxisLabelFunction"/>
+			 </mx:verticalAxis>
+			 
+			 <mx:horizontalAxis>
+				 <mx:CategoryAxis id="xaxis" padding="0.22" categoryField="label" labelFunction="xAxisLabelFun"/>
+			 </mx:horizontalAxis>
+			 
+			 <mx:series>
+				 <mx:LineSeries yField="value" 
+								form="curve" 
+								displayName="{_perfName}"
+								lineStroke="{s1}" 
+								radius="6" 
+								stroke="{s2}" 
+								adjustedRadius="0"
+                                showDataEffect="{interpolateIn}"
+								fillFunction="{myFillFunction}"
+								itemRenderer="{new ClassFactory(mx.charts.renderers.CircleItemRenderer)}" 
+                                />
+			 </mx:series>
+		 </mx:ColumnChart>
+		 
+	 </panel:Window>
+	 <s:DropDownList id="intervalSelector" change="intervalSelector_changeHandler(event)" width="110" top="5" right="90"/>
+	 <mx:Image id="magnifierImg" 
+			   buttonMode="true"
+			   toolTip="历史详情查询"
+			   source="@Embed('../../img/magnifier.gif')" 
+			   click="showBiggerChartWindow()" 
+			   top="8" right="43"/>
+</s:BorderContainer>

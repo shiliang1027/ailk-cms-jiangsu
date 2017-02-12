@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:alarmSearch="com.linkage.module.cms.groupmonitor.custscene.alarmSearch.*"
+		   preinitialize="alarmSearchModule_creationCompleteHandler(event)"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Style>
+        @namespace s "library://ns.adobe.com/flex/spark";
+        @namespace mx "library://ns.adobe.com/flex/mx";
+        @namespace alarmSearch "com.linkage.module.cms.groupmonitor.custscene.alarmSearch.*";
+        
+        mx|ProgressBar {
+            verticalGap: 0;
+            barSkin:ClassReference("com.linkage.module.cms.groupmonitor.custscene.alarmSearch.common.ProgressBarSkin");
+            trackSkin:ClassReference("com.linkage.module.cms.groupmonitor.custscene.alarmSearch.common.ProgressBarTrackSkin");
+        }
+    </fx:Style>
+
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.groupmonitor.custscene.alarmSearch.event.AlarmSignEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			import com.linkage.system.rpc.remoting.BlazeDSUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+
+			//日志
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.groupmonitor.custscene.alarmSearch");
+
+			private var loadFlag:Boolean = false;
+
+			public static var destination:String = "flexdestination_cms_warn_report_search_AlarmSearchServImp";
+			public static var src:String = "com.linkage.module.cms.warn.report.search.serv.AlarmSearchServImp";
+			public static var endpoint_suffix:String = "messagebroker/amf";
+			public static var endpoint:String = "";
+			public static var _context:String = "";
+
+			public var loadManger:LoadManager = null;
+
+			public var parameters:Object;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			protected function alarmSearchModule_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+
+				System.useCodePage = true;
+
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.DEBUG;
+				target.filters = ["com.linkage.module.cms.groupmonitor.custscene.*", "com.linkage.system.*"];
+				Log.addTarget(target);
+
+				logger.info(">>> 初始化日志组建完成 ......");
+
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+
+				logger.info(">>> 初始化JS回调函数 confCallBack......");
+				ExternalInterface.addCallback("confCallBack", confCallBack);
+				logger.info(">>> 初始化JS回调函数 confCallBack 成功！");
+
+				_context = this.parameters['context'];
+				endpoint = this.parameters['context'] + endpoint_suffix;
+				logger.info(this.parameters);
+				
+			}
+
+			private function confCallBack():void
+			{
+				initResultPanel();
+			}
+
+			//加载查询条件相关初始化数据
+			private function loadSearchConditions(event:FlexEvent):void
+			{
+				if (loadFlag)
+					return;
+
+				loadFlag = true;
+
+				loadManger = new LoadManager(searchConditonDiv);
+				loadManger.showLoading();
+
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint, function(result:Object):void
+					{
+						logger.info(">>> 加载查询条件初始化数据成功。");
+						searchConditonDiv.setParams(result);
+						loadManger.hideLoading();
+					}, function(event:FaultEvent):void
+					{
+						loadManger.hideLoading();
+						logger.error(">>> 加载查询条件数据失败！{0} ", event.fault.faultString);
+					});
+
+				logger.info(">>> 加载查询条件初始化数据。");
+				remoteService.getSelectResources(this.parameters['login_name'] as String);
+
+				loadAllCmi();
+			}
+
+			private function loadAllCmi():void
+			{
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint, function(result:Object):void
+					{
+						logger.info(">>> 加载当前用户权限内菜单数据成功。" + result.length);
+						resultPanel.allCmis = result;
+					}, function(event:FaultEvent):void
+					{
+						logger.error(">>> 加载当前用户权限内菜单数据失败！{0} ", event.fault.faultString);
+					});
+
+				logger.info(">>> 加载当前用户权限内菜单数据。");
+				remoteService.getItems(this.parameters['login_name'] as String, 'queryalarm');
+			}
+
+			//初始化查询结果表格  根据配置设置展示列、加载数据
+			private function initResultPanel():void
+			{
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint, function(result:Object):void
+					{
+						logger.info(">>> 加载告警列表配置列数据成功。");
+						logger.info(">>> 初始化查询结果列表 开始 ......");
+						resultPanel.initColumn(result as ArrayCollection);
+						resultPanel.context = _context;
+						logger.info(">>> 初始化查询结果列表 结束 ......");
+					}, function(event:FaultEvent):void
+					{
+						logger.error(">>> 加载告警列表配置列数据失败！{0}", event.fault.faultString);
+					});
+
+				remoteService.getDisplayColumns('groupbuss_queryalarm', this.parameters.login_name as String);
+//				remoteService.getDisplayColumns('queryalarm', this.parameters.login_name as String);
+			}
+
+			private function resizeCallback(type:String):void
+			{
+				if (type == '1')
+				{
+					searchConditonDiv.visible = false;
+					searchConditonDiv.includeInLayout = false;
+					resultPanel.x = 0;
+				}
+				else
+				{
+					resultPanel.x = 320;
+					searchConditonDiv.visible = true;
+					searchConditonDiv.includeInLayout = true;
+				}
+			}
+
+			public function setAllAlarmSelected(flag:Boolean):void
+			{
+				logger.info("告警查询全选按钮事件处理！");
+				resultPanel.setAllAlarmSelected(flag);
+			}
+
+			public function setAlarmSelected(data:Object):void
+			{
+				resultPanel.setAlarmSelected(data);
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{AlarmSearchModuleContext}"/>
+		</parsley:ContextBuilder>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Elastic id="elasticEasing"/>
+		<s:Bounce id="bounceEasing"/>
+		<s:Move id="moveRight"
+				target="{searchConditonDiv}"
+				xFrom="{-searchConditonDiv.width}"
+				xTo="{searchConditonDiv.x}"
+				duration="1500"
+				easer="{bounceEasing}"/>
+
+		<s:Move id="moveLeft"
+				target="{resultPanel}"
+				xFrom="{this.width}"
+				xTo="{resultPanel.x}"
+				duration="1500"
+				easer="{bounceEasing}"
+				effectEnd="initResultPanel()"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<alarmSearch:SearchConditionDiv id="searchConditonDiv"
+									width="320"
+									height="100%"
+									userName="{parentApplication.parameters.login_name}"
+									creationComplete="loadSearchConditions(event)"
+									dataPanel="{resultPanel}"/>
+
+	<alarmSearch:AlarmSearchResultPanel x="320"
+										id="resultPanel"
+										sc="{searchConditonDiv}"
+										resizeCallback="resizeCallback"
+										width="100%"
+										height="100%"
+										userName="{parentApplication.parameters.login_name}"
+										creationComplete="initResultPanel()"/>
+</mx:Module>

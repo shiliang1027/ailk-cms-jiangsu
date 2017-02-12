@@ -1,0 +1,1092 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009"
+           xmlns:s="library://ns.adobe.com/flex/spark"
+           xmlns:mx="library://ns.adobe.com/flex/mx"
+           xmlns:parsley="http://www.spicefactory.org/parsley">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.EmgyAddWin;
+			import com.linkage.module.cms.gsscene.view.components.common.dao.ScenePanelDao;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.User;
+			import com.linkage.module.cms.gsscene.view.components.complaintsheet.ComplaintSheetStatDM;
+			import com.linkage.module.cms.gsscene.view.components.complaintsheet.ComplaintSheetStatPM;
+			import com.linkage.module.cms.gsscene.view.components.complaintsheet.dao.ComplaintSheetStatDao;
+			import com.linkage.module.cms.gsscene.view.components.complaintsheet.serv.ComplaintSheetStatAlarmsCmd;
+			import com.linkage.module.cms.gsscene.view.components.complaintsheet.serv.ComplaintSheetStatCmd;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.DegradationTOPNPM;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.MoreDegraTopNCompPM;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.MoreDegraTopNDM;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.components.MoreDegraTopNComp;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.components.MoreDegraTopNConfigComp;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.serv.MoreDegraTopNChartsGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.serv.MoreDegraTopNConfigGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.serv.MoreDegraTopNConfigSaveCmd;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.EmgyResourceDM;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.serv.EmpyDetailCmd;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.serv.EmpyDetailToGISCmd;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.serv.EmpyGetByMoTypeAndWarnCmd;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.serv.EmpySaveCmd;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.serv.EmpySituationCmd;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.serv.EnpyQueryNumCmdTest;
+			import com.linkage.module.cms.gsscene.view.components.importantKPI.ImportantKPIDM;
+			import com.linkage.module.cms.gsscene.view.components.importantKPI.serv.ImportantKPICmd;
+			import com.linkage.module.cms.gsscene.view.components.kpiandthreshold.KpiAndThresholdDM;
+			import com.linkage.module.cms.gsscene.view.components.kpiandthreshold.dao.KpiAndThresholdDao;
+			import com.linkage.module.cms.gsscene.view.components.kpiandthreshold.serv.KpiAndThresholdCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.KPISituationDM;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.KPISituationPM;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.BadTopNMatrixCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.DegradationTopNumGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.DegradationTopnNupdateCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KPIChartCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KPIChartCompareCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KPIHistoryChartCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KPIHistoryTopNChartCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KPISituJWeiCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KPISituationCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KPITopNChartCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KpiConfigIsSelectQueryCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.KpiConfigNoSelectQueryCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.QueryThresholdCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.SaveKpiConfigCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.ShareSceneListCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.ShareSceneQueryCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.ShareSceneSaveCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.ThresholdConfigCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.TopnDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.serv.TopnSelectCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.MapVectorDM;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.components.MapShowCfgWin;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.dao.MapVectorDAO;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.serv.MapVectorDyeCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.MapViewDM;
+			import com.linkage.module.cms.gsscene.view.components.mapview.components.CameraListShowWin;
+			import com.linkage.module.cms.gsscene.view.components.mapview.components.VideoPlayPanel;
+			import com.linkage.module.cms.gsscene.view.components.mapview.dao.LineGisInfoDao;
+			import com.linkage.module.cms.gsscene.view.components.mapview.dao.LineInfoDao;
+			import com.linkage.module.cms.gsscene.view.components.mapview.dao.MapViewDao;
+			import com.linkage.module.cms.gsscene.view.components.mapview.dao.SiteAlarmDao;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.CameraInfoGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.CameraListGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.LoadImpKpiCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.LoadLineGisInfoCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.LoadLineInfoCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.LoadOpticInfoCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.LoadSiteAlarmCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.LoadSourceByMoCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.LoadSourceByPointsCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.MapGisCollectInfoGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.MapViewLoadRoadPerfMsgCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.MoGisGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.MosGisGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.PolygonCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.QuitTypeCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.SceneCityLayerCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.SceneSnapshotCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.SceneSourceTudoChangCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.SceneUserNumCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.SceneViewSourceByDrawCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.SnapshotCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.TyphoonCoverCityLoadCmd;
+			import com.linkage.module.cms.gsscene.view.components.mapview.serv.TyphoonMsgLoadCmd;
+			import com.linkage.module.cms.gsscene.view.components.neroom.NeRoomDM;
+			import com.linkage.module.cms.gsscene.view.components.neroom.dao.NeRoomDao;
+			import com.linkage.module.cms.gsscene.view.components.neroom.serv.LoadNeRoomDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.performanceindex.PerformanceIndexDM;
+			import com.linkage.module.cms.gsscene.view.components.performanceindex.dao.PerformanceIndexDao;
+			import com.linkage.module.cms.gsscene.view.components.performanceindex.serv.PerformanceIndexLoadDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.projectcutover.ProjectCutoverStatDM;
+			import com.linkage.module.cms.gsscene.view.components.projectcutover.ProjectCutoverStatPM;
+			import com.linkage.module.cms.gsscene.view.components.projectcutover.dao.ProjectCutoverStatDao;
+			import com.linkage.module.cms.gsscene.view.components.projectcutover.serv.ProjectCutoverStatCmd;
+			import com.linkage.module.cms.gsscene.view.components.projectcutover.serv.ProjectCutoverStatDetailsCmd;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.QuitServiceDM;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.QuitServicePM;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.components.QuitServiceSearchDetailComp;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.dao.QuitServiceDao;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.serv.QuitServiceCityDataDetailGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.serv.QuitServiceGKTJCmd;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.serv.QuitServiceLoadDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.RaceInfoDM;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.components.RaceInfoGridEditWin;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.dao.RaceInfoDAO;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.serv.RaceInfoDeleteCmd;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.serv.RaceInfoModifyCmd;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.serv.RaceInfoSaveCmd;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.ResMatrixDM;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.dao.ResMatrixDAO;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.serv.LoadAreaIdsCmd;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.serv.ResMatrixBadNeGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.serv.ResMatrixCMD;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.serv.ResMatrixGetByMoTypeCmd;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.serv.ResMatrixMoInfoGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.roam.RoamDM;
+			import com.linkage.module.cms.gsscene.view.components.roam.serv.RoamCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.SceneIntroDM;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.dao.SceneIntroDao;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.dao.SceneToolTipDao;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.KpiAreaOrMoGetBadTrendCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneInfoEditCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneInfoEditNextCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneIntroLoadAlarmStatsDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneIntroLoadDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneIntroLoadPersonsDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneIntroLoadQuitDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneIntroLoadQuitDetailDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneIntroLoadTrafficDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SceneIntroUnitKPICmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.serv.SportMeetTodayCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneresume.SceneResumeDM;
+			import com.linkage.module.cms.gsscene.view.components.sceneresume.dao.SceneResumeDAO;
+			import com.linkage.module.cms.gsscene.view.components.sceneresume.serv.SceneResumeCMD;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.SceneThumbnailDM;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.dao.SceneThumbnailDAO;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.event.SceneThumbnailEvent;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.serv.SceneThumbGetBadImpCmd;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.serv.SceneThumbnailCMD;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.serv.SceneThumbnailCityTreeGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.serv.SceneThumbnailImgDeleteCmd;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.serv.SceneThumbnailStartImgGetCmd;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.serv.SceneThumbnailStartImgSaveCmd;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.SceneTreeDM;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.dao.SceneTreeDAO;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.event.SceneTreeEvent;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.serv.GSSceneTreeCMD;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.serv.SceneTreeCMD;
+			import com.linkage.module.cms.gsscene.view.components.sceneview.SceneConfigDM;
+			import com.linkage.module.cms.gsscene.view.components.sceneview.dao.SceneViewDao;
+			import com.linkage.module.cms.gsscene.view.components.sceneview.serv.SceneViewCfgCmd;
+			import com.linkage.module.cms.gsscene.view.components.sceneview.serv.SceneViewPanelSaveCmd;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.SheetStatDM;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.SheetStatPM;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.dao.SheetStatDao;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.serv.SheetStatAlarmsCmd;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.serv.SheetStatCmd;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.serv.SheetStatMotypeCmd;
+			import com.linkage.module.cms.gsscene.view.components.sporthistoryscene.SportHistorySceneDM;
+			import com.linkage.module.cms.gsscene.view.components.sporthistoryscene.dao.SportHistorySceneDAO;
+			import com.linkage.module.cms.gsscene.view.components.sporthistoryscene.serv.SportHistorySceneCMD;
+			import com.linkage.module.cms.gsscene.view.components.sporthistoryscene.serv.SportHistorySceneServ;
+			import com.linkage.module.cms.gsscene.view.components.traintime.TrainTimeDM;
+			import com.linkage.module.cms.gsscene.view.components.traintime.TrainTimePM;
+			import com.linkage.module.cms.gsscene.view.components.traintime.dao.TrainTimeDao;
+			import com.linkage.module.cms.gsscene.view.components.traintime.serv.TrainTimeLoadDataCmd;
+			import com.linkage.module.cms.gsscene.view.components.weathersituation.WeatherDM;
+			import com.linkage.module.cms.gsscene.view.components.weathersituation.WeatherSituationPM;
+			import com.linkage.module.cms.gsscene.view.components.weathersituation.serv.WeatherDetailCmd;
+			import com.linkage.module.cms.gsscene.view.components.weathersituation.serv.WeatherSituationCmd;
+			import com.linkage.module.cms.gsscene.view.components.worstcellpanel.WorstCellPanelDM;
+			import com.linkage.module.cms.gsscene.view.components.worstcellpanel.dao.WorstCellPanelDao;
+			import com.linkage.module.cms.gsscene.view.components.worstcellpanel.serv.WorstCellPanelCmd;
+			import com.linkage.module.cms.gsscene.viewnew.DetailSource;
+			import com.linkage.module.cms.gsscene.viewnew.History;
+			import com.linkage.module.cms.gsscene.viewnew.KeyAreasDetailNew;
+			import com.linkage.module.cms.gsscene.viewnew.NeRoomWindowNew;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			import com.linkage.module.cms.gsscene.viewnew.emgyresourcenew.EmgyDetailDowWin;
+			import com.linkage.module.cms.gsscene.viewnew.emgyresourcenew.EquipmentDetailDgWin;
+			import com.linkage.module.cms.gsscene.viewnew.kpisituationnew.ThresholdConfigWin;
+			import com.linkage.module.cms.gsscene.viewnew.mapcomp.GisSearchWin;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.KpiAreaOrMoBadTrendCompNew;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroAlarmStatsNew;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroAreaWin;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroInfoWin;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroKPIDetailNew;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroMoWin;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroQuitDetailNew;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroQuitNew;
+			import com.linkage.module.cms.gsscene.viewnew.sheetstat.CitySheetStatNew;
+
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 场景 -->
+        <parsley:Object id="user"
+                        type="{User}"
+                        lazy="true"/>
+        <!-- 场景 -->
+
+        <!-- 场景配置 -->
+        <!--<parsley:Object id="sceneViewPM"
+                        type="{SceneViewPM}"
+                        lazy="true"/>-->
+
+        <parsley:Object id="sceneConfigDM"
+                        type="{SceneConfigDM}"
+                        lazy="true"/>
+
+        <parsley:Object id="sceneViewDao"
+                        type="{SceneViewDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_locServ"/>
+			<parsley:Property name="newdestination"
+							  value="flexdestination_cms_gsscene_panels"/>
+			
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+
+        <parsley:MapCommand selector="LOAD_SCENE_CFG">
+            <parsley:Command type="{SceneViewCfgCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="CMS_SCENE_SCENEVIEW_CONFIGSAVE">
+            <parsley:Command type="{SceneViewPanelSaveCmd}"/>
+        </parsley:MapCommand>
+        <!-- 场景配置 -->
+
+        <!-- Gis 相关-->
+        <!--<parsley:Object id="mapViewPM"
+                        type="{MapViewPM}"
+                        lazy="true"/>-->
+        <parsley:Object id="mapViewDM"
+                        type="{MapViewDM}"
+                        lazy="true"/>
+       <!-- <parsley:Object id="viewLayerCfgPM"
+                        type="{ViewLayerCfgPM}"
+                        lazy="true"/>-->
+
+        <parsley:Object id="mapViewDao"
+                        type="{MapViewDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_locServ"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+
+     <!--   <parsley:Object id="mapViewServ"
+                        type="{MapViewServ}"
+                        lazy="true"/>-->
+        <parsley:Object id="cameraListShowWin"
+                        type="{CameraListShowWin}"
+                        lazy="true"/>
+        <parsley:Object id="videoPlayPanel"
+                        type="{VideoPlayPanel}"
+                        lazy="true"/>
+
+        <parsley:MapCommand selector="CMS_SCENE_SCENEVIEW_SOURCEBYPOINTS">
+            <parsley:Command type="{LoadSourceByPointsCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="CMS_SCENE_SCENEVIEW_SOURCEBYDRAW">
+            <parsley:Command type="{SceneViewSourceByDrawCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="CMS_SCENE_SCENEVIEW_SOURCEBYMO">
+            <parsley:Command type="{LoadSourceByMoCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="CMS_SCENE_SCENEVIEW_SOURCETUDOCHANGE">
+            <parsley:Command type="{SceneSourceTudoChangCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_SCENE_SNAPSHOTS">
+            <parsley:Command type="{SnapshotCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_SCENE_SNAPSHOTS_ALL">
+            <parsley:Command type="{SceneSnapshotCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_SCENE_USERNUM">
+            <parsley:Command type="{SceneUserNumCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="LOAD_QUIT_TYPE">
+            <parsley:Command type="{QuitTypeCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="LOAD_IMP_KPI">
+            <parsley:Command type="{LoadImpKpiCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="LOAD_SCENE_POLYGON">
+            <parsley:Command type="{PolygonCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="LOAD_CITY_LAYER">
+            <parsley:Command type="{SceneCityLayerCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="LOAD_TYPHOON_DATA">
+            <parsley:Command type="{TyphoonMsgLoadCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="LOAD_TYPHOON_COVER_CITY">
+            <parsley:Command type="{TyphoonCoverCityLoadCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="LOAD_ROAD_PERF_MSG">
+            <parsley:Command type="{MapViewLoadRoadPerfMsgCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="SHOWMO2GIS">
+            <parsley:Command type="{MoGisGetCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="MOIDS_COORDINATE_SEARCH">
+            <parsley:Command type="{MosGisGetCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:Object id="lineInfoDao"
+                        type="{LineInfoDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_general_level3_level3service"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="LOAD_LINE_INFO">
+            <parsley:Command type="{LoadLineInfoCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_OPTIC_INFO">
+            <parsley:Command type="{LoadOpticInfoCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:Object id="lineGisInfoDao"
+                        type="{LineGisInfoDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gis_location_devLocateservice"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="LOAD_LINE_GIS_INFO">
+            <parsley:Command type="{LoadLineGisInfoCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:Object id="siteAlarmDao"
+                        type="{SiteAlarmDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_scenedaily_listed_listserv"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="LOAD_SITE_ALARM">
+            <parsley:Command type="{LoadSiteAlarmCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="CMS_SCENE_MAPVIEW_CAMERALISTGETHANDLER">
+            <parsley:Command type="{CameraListGetCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="CMS_SCENE_MAPVIEW_CAMERAINFOGETHANDLER">
+            <parsley:Command type="{CameraInfoGetCmd}"/>
+        </parsley:MapCommand>
+		
+		<parsley:MapCommand selector="LOAD_GIS_QUIT_NUM">
+			<parsley:Command type="{MapGisCollectInfoGetCmd}"/>
+		</parsley:MapCommand>
+		
+        <!-- Gis 相关-->
+
+
+        <!-- 工单统计-->
+        <parsley:Object id="sheetStatPM"
+                        type="{SheetStatPM}"
+                        lazy="true"/>
+        <parsley:Object id="sheetStatDM"
+                        type="{SheetStatDM}"
+                        lazy="true"/>
+        <parsley:Object id="sheetStatDao"
+                        type="{SheetStatDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="LOAD_SHEET_DATA">
+            <parsley:Command type="{SheetStatCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_SHEET_DATA_MOTYPE">
+            <parsley:Command type="{SheetStatMotypeCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_SHEET_ALARMS">
+            <parsley:Command type="{SheetStatAlarmsCmd}"/>
+        </parsley:MapCommand>
+        <!-- 工单统计-->
+
+		
+		<!-- 投诉工单统计-->
+		<parsley:Object id="complaintSheetStatPM"
+						type="{ComplaintSheetStatPM}"
+						lazy="true"/>
+		<parsley:Object id="complaintSheetStatDM"
+						type="{ComplaintSheetStatDM}"
+						lazy="true"/>
+		<parsley:Object id="complaintSheetStatDao"
+						type="{ComplaintSheetStatDao}"
+						lazy="true">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_gsscene_panels"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		<parsley:MapCommand selector="LOAD_COMPLAINTSHEET_DATA">
+			<parsley:Command type="{ComplaintSheetStatCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="LOAD_COMPLAINTSHEET_ALARMS">
+			<parsley:Command type="{ComplaintSheetStatAlarmsCmd}"/>
+		</parsley:MapCommand>
+		<!-- 投诉工单统计-->
+
+		<!-- 工程割接统计-->
+		<parsley:Object id="projectCutoverStatPM"
+						type="{ProjectCutoverStatPM}"
+						lazy="true"/>
+		<parsley:Object id="projectCutoverStatDM"
+						type="{ProjectCutoverStatDM}"
+						lazy="true"/>
+		<parsley:Object id="projectCutoverStatDao"
+						type="{ProjectCutoverStatDao}"
+						lazy="true">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_gsscene_panels"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		<parsley:MapCommand selector="LOAD_PROJECTCUTOVER_DATA">
+			<parsley:Command type="{ProjectCutoverStatCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="LOAD_PROJECTCUTOVER_DETAILS_DATA">
+			<parsley:Command type="{ProjectCutoverStatDetailsCmd}"/>
+		</parsley:MapCommand>
+		<!-- 工程割接统计-->
+
+		
+        <!-- 最差小区-->
+        <!--<parsley:Object id="worstCellPanelPM"
+                        type="{WorstCellPanelPM}"
+                        lazy="true"/>-->
+        <parsley:Object id="worstCellPanelDM"
+                        type="{WorstCellPanelDM}"
+                        lazy="true"/>
+        <parsley:Object id="worstCellPanelDao"
+                        type="{WorstCellPanelDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="LOAD_WORSTCELL_DATA">
+            <parsley:Command type="{WorstCellPanelCmd}"/>
+        </parsley:MapCommand>
+        <!-- 最差小区-->
+
+
+        <!-- 退服统计-->
+        <parsley:Object id="quitServiceSearchDetailComp"
+                        type="{QuitServiceSearchDetailComp}"
+                        lazy="true"/>
+        <parsley:Object id="quitServicePM"
+                        type="{QuitServicePM}"
+                        lazy="true"/>
+        <parsley:Object id="quitServiceDM"
+                        type="{QuitServiceDM}"
+                        lazy="true"/>
+        <parsley:Object id="quitServiceDao"
+                        type="{QuitServiceDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="CMS_SCENE_QUITSERVICE_CITYQUITGETDATA">
+            <parsley:Command type="{QuitServiceCityDataDetailGetCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_QUIT_DATA">
+            <parsley:Command type="{QuitServiceLoadDataCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_GKTJ_DATA">
+            <parsley:Command type="{QuitServiceGKTJCmd}"/>
+        </parsley:MapCommand>
+        <!-- 退服统计-->
+
+        <!-- 列车信息表-->
+        <parsley:Object id="trainTimePM"
+                        type="{TrainTimePM}"
+                        lazy="true"/>
+        <parsley:MapCommand selector="LOAD_TRAINTIME_DATA">
+            <parsley:Command type="{TrainTimeLoadDataCmd}"/>
+        </parsley:MapCommand>
+        <parsley:Object id="trainTimeDao"
+                        type="{TrainTimeDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:Object id="trainTimeDM"
+                        type="{TrainTimeDM}"
+                        lazy="true"/>
+        <!-- 列车信息表-->
+
+        <!-- 性能指标-->
+        <!--<parsley:Object id="performanceIndexPM"
+                        type="{PerformanceIndexPM}"
+                        lazy="true"/>-->
+        <parsley:MapCommand selector="LOAD_PERFORMANCAINDEX_DATA">
+            <parsley:Command type="{PerformanceIndexLoadDataCmd}"/>
+        </parsley:MapCommand>
+        <parsley:Object id="performanceIndexDao"
+                        type="{PerformanceIndexDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_locServ"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:Object id="performanceIndexDM"
+                        type="{PerformanceIndexDM}"
+                        lazy="true"/>
+        <!-- 性能指标-->
+        <!-- 场景介绍-->
+       <!-- <parsley:Object id="sceneIntroPM"
+                        type="{SceneIntroPM}"
+                        lazy="true"/>-->
+        <parsley:MapCommand selector="LOAD_SCENEINFO_DATA">
+            <parsley:Command type="{SceneIntroLoadDataCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="SHOW_UNIT_KPI_INFO">
+            <parsley:Command type="{SceneIntroUnitKPICmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="SHOW_SCENE_GAME_TODAY_DETAIL">
+            <parsley:Command type="{SportMeetTodayCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="CMS_SCENE_SCENEINTRO_AREAGETBADTREND">
+            <parsley:Command type="{KpiAreaOrMoGetBadTrendCmd}"/>
+        </parsley:MapCommand>
+		<parsley:MapCommand selector="{SceneIntroEvent.LOAD_SCENE_PERSONS_DATA}">
+			<parsley:Command type="{SceneIntroLoadPersonsDataCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="{SceneIntroEvent.LOAD_SCENE_TRAFFIC_DATA}">
+			<parsley:Command type="{SceneIntroLoadTrafficDataCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="{SceneIntroEvent.LOAD_SCENE_QUIT_DATA}">
+			<parsley:Command type="{SceneIntroLoadQuitDataCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="{SceneIntroEvent.LOAD_SCENE_QUIT_DETAIL_DATA}">
+			<parsley:Command type="{SceneIntroLoadQuitDetailDataCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="{SceneIntroEvent.LOAD_SCENE_ALARMSTATS_DATA}">
+			<parsley:Command type="{SceneIntroLoadAlarmStatsDataCmd}"/>
+		</parsley:MapCommand>
+		
+        <parsley:Object id="sceneIntroDao"
+                        type="{SceneIntroDao}"
+                        lazy="true">
+           <!--<parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_locServ"/>-->
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_gsscene_panels"/>
+			
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:Object id="sceneIntroDM"
+                        type="{SceneIntroDM}"
+                        lazy="true"/>
+        <!-- 场景介绍-->
+
+        <!-- 场景可编辑-->
+       <!-- <parsley:Object id="sceneIntro1PM"
+                        type="{SceneIntroPM}"
+                        lazy="true"/>-->
+        <parsley:MapCommand selector="SAVE_SCENEINFO">
+            <parsley:Command type="{SceneInfoEditCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_SCENEINTROINFO_DATA">
+            <parsley:Command type="{SceneInfoEditNextCmd}"/>
+        </parsley:MapCommand>
+        <parsley:Object id="sceneToolTipDao"
+                        type="{SceneToolTipDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <!-- 场景可编辑 -->
+
+        <!--重点指标图表-->
+        <parsley:Object id="scenePanelDao"
+                        type="{ScenePanelDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+
+        <!--<parsley:Object id="importantKPIPM"
+                        type="{ImportantKPIPM}"
+                        lazy="true"/>-->
+        <parsley:Object id="importantKPIDM"
+                        type="{ImportantKPIDM}"
+                        lazy="true"/>
+
+        <parsley:MapCommand selector="LOAD_KPI_DATA">
+            <parsley:Command type="{ImportantKPICmd}"/>
+        </parsley:MapCommand>
+
+        <!--重点指标图表-->
+
+        <!--漫游图表-->
+        <!--<parsley:Object id="roamPM"
+                        type="{RoamPM}"
+                        lazy="true"/>-->
+        <parsley:Object id="roamDM"
+                        type="{RoamDM}"
+                        lazy="true"/>
+        <!--加载漫游数据-->
+        <parsley:MapCommand selector="LOAD_ROAM_DATA">
+            <parsley:Command type="{RoamCmd}"/>
+        </parsley:MapCommand>
+        <!--漫游图表-->
+        <!--指标概况-->
+
+        <parsley:Object id="kPISituationPM"
+                        type="{KPISituationPM}"
+                        lazy="true"/>
+        <parsley:Object id="kPISituationDM"
+                        type="{KPISituationDM}"
+                        lazy="true"/>
+        <parsley:Object id="moreDegraTopNComp"
+                        type="{MoreDegraTopNComp}"
+                        lazy="true"/>
+        <parsley:Object id="moreDegraTopNConfigComp"
+                        type="{MoreDegraTopNConfigComp}"
+                        lazy="true"/>
+        <parsley:Object id="moreDegraTopNCompPM"
+                        type="{MoreDegraTopNCompPM}"
+                        lazy="true"/>
+        <parsley:Object id="moreDegraTopNDM"
+                        type="{MoreDegraTopNDM}"
+                        lazy="true"/>
+        <parsley:Object id="degradationTOPNPM"
+                        type="{DegradationTOPNPM}"
+                        lazy="true"/>
+        <!--获取多个topn指标数据-->
+        <parsley:MapCommand selector="CMS_SCENE_MOREDEGRATOPN_CHARTSGETHANDLER">
+            <parsley:Command type="{MoreDegraTopNChartsGetCmd}"/>
+        </parsley:MapCommand>
+        <!--获取多个topn指标配置数据-->
+        <parsley:MapCommand selector="CMS_SCENE_MOREDEGRATOPN_GETTOPNCONFIG">
+            <parsley:Command type="{MoreDegraTopNConfigGetCmd}"/>
+        </parsley:MapCommand>
+        <!--保存多个topn指标配置数据-->
+        <parsley:MapCommand selector="CMS_SCENE_MOREDEGRATOPN_SAVETOPNCONFIG">
+            <parsley:Command type="{MoreDegraTopNConfigSaveCmd}"/>
+        </parsley:MapCommand>
+        <!--展示指标概况数据-->
+        <parsley:MapCommand selector="SHOW_KPI_DATA">
+            <parsley:Command type="{KPISituationCmd}"/>
+        </parsley:MapCommand>
+        <!--查询阈值配置已选择指标-->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_IS_SELECT">
+            <parsley:Command type="{KpiConfigIsSelectQueryCmd}"/>
+        </parsley:MapCommand>
+        <!--查询阈值配置未选择指标-->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_NO_SELECT">
+            <parsley:Command type="{KpiConfigNoSelectQueryCmd}"/>
+        </parsley:MapCommand>
+        <!--保存配置指标-->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_SAVE_KPICONFIG">
+            <parsley:Command type="{SaveKpiConfigCmd}"/>
+        </parsley:MapCommand>
+        <!--查询指标阈值-->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_QUERY_THRESHOLD">
+            <parsley:Command type="{QueryThresholdCmd}"/>
+        </parsley:MapCommand>
+        <!--保存阈值配置-->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_CONFIG_SAVE">
+            <parsley:Command type="{ThresholdConfigCmd}"/>
+        </parsley:MapCommand>
+        <!--完成配置，场景查询-->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_SHOW_SHARE_SCENE_LIST">
+            <parsley:Command type="{ShareSceneQueryCmd}"/>
+        </parsley:MapCommand>
+        <!--共享场景查询-->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_SHOW_SHARE_SCENE_LIST1">
+            <parsley:Command type="{ShareSceneListCmd}"/>
+        </parsley:MapCommand>
+        <!--保存共享场景-->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_SHOW_SHARE_SCENE_SAVE">
+            <parsley:Command type="{ShareSceneSaveCmd}"/>
+        </parsley:MapCommand>
+        <!--加载指标概况图表信息-->
+        <parsley:MapCommand selector="LOAD_LINE_DATA">
+            <parsley:Command type="{KPIChartCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_LINE_DATA3">
+            <parsley:Command type="{KPIChartCompareCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_KPI_AREA_DATA">
+            <parsley:Command type="{KPITopNChartCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_HISTORY_LINE_DATA">
+            <parsley:Command type="{KPIHistoryChartCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_HISTORY_TOPN_LINE_DATA">
+            <parsley:Command type="{KPIHistoryTopNChartCmd}"/>
+        </parsley:MapCommand>
+        <!--展示TOPN下拉选择框数据信息-->
+        <parsley:MapCommand selector="SHOW_TOPN_LIST">
+            <parsley:Command type="{TopnSelectCmd}"/>
+        </parsley:MapCommand>
+        <!--加载TOPN图表数据信息-->
+        <parsley:MapCommand selector="LOAD_TOPN_DATA">
+            <parsley:Command type="{TopnDataCmd}"/>
+        </parsley:MapCommand>
+
+        <parsley:MapCommand selector="LOAD_BADTOPN_MATRIXDATA">
+            <parsley:Command type="{BadTopNMatrixCmd}"/>
+        </parsley:MapCommand>
+
+        <!-- topnNum 更新 -->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_TOPNUMUPDATE">
+            <parsley:Command type="{DegradationTopnNupdateCmd}"/>
+        </parsley:MapCommand>
+        <!-- topnNum 获取 -->
+        <parsley:MapCommand selector="CMS_SCENE_KPISITUATION_TOPNUMGET">
+            <parsley:Command type="{DegradationTopNumGetCmd}"/>
+        </parsley:MapCommand>
+        <!--指标概况-->
+        <!-- 天气概况-->
+        <parsley:Object id="weatherDM"
+                        type="{WeatherDM}"
+                        lazy="true"/>
+        <parsley:Object id="weatherSituationPM"
+                        type="{WeatherSituationPM}"
+                        lazy="true"/>
+        <!--展示天气概况信息-->
+        <parsley:MapCommand selector="SHOW_WEATHER_INFO">
+            <parsley:Command type="{WeatherSituationCmd}"/>
+        </parsley:MapCommand>
+        <!--加载天气详情图表信息-->
+        <parsley:MapCommand selector="LOAD_WEATHER_DETAIL">
+            <parsley:Command type="{WeatherDetailCmd}"/>
+        </parsley:MapCommand>
+        <!-- 天气概况-->
+
+        <!-- 应急资源-->
+        <parsley:Object id="emgyResourceDM"
+                        type="{EmgyResourceDM}"
+                        lazy="true"/>
+        <!--<parsley:Object id="emgyResourcePM"
+                        type="{EmgyResourcePM}"
+                        lazy="true"/>-->
+        <!--展示应急概况信息-->
+        <parsley:MapCommand selector="SHOW_EMPY_SITUATION">
+            <parsley:Command type="{EmpySituationCmd}"/>
+        </parsley:MapCommand>
+        <!--展示应急详细信息-->
+        <parsley:MapCommand selector="SHOW_EMPY_DETAIL">
+            <parsley:Command type="{EmpyDetailCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="SAVE_EMGY_DETAIL">
+            <parsley:Command type="{EmpySaveCmd}"/>
+        </parsley:MapCommand>
+		<parsley:MapCommand selector="LOAD_EMPY_TO_GIS">
+			<parsley:Command type="{EmpyDetailToGISCmd}"/>
+		</parsley:MapCommand>
+        <!--加载应急调度经纬度信息-->
+        <parsley:MapCommand selector="LOAD_KPI_PLAN">
+            <parsley:Command type="{KPISituJWeiCmd}"/>
+        </parsley:MapCommand>
+        <!--重点关注网元-->
+        <parsley:MapCommand selector="LOAD_BADMATRIX_DATA">
+            <parsley:Command type="{ResMatrixBadNeGetCmd}"/>
+        </parsley:MapCommand>
+        <!-- 重点关注网元-->
+        <!--资源矩阵告警网元-->
+        <parsley:MapCommand selector="CMS_SCENE_EMGYRESOURCE_SEARCHDETAILBYMOTYPENAME">
+            <parsley:Command type="{ResMatrixGetByMoTypeCmd}"/>
+        </parsley:MapCommand>
+        <!-- 资源矩阵告警网元-->
+		<!--资源矩阵告警网元,可根据一级告警，二级告警等告警级别来查询-->
+		<parsley:MapCommand selector="CMS_SCENE_EMGYRESOURCE_ALARMWARNNUMS">
+			<parsley:Command type="{EmpyGetByMoTypeAndWarnCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="QUERY_COUNT_NUM">
+			<parsley:Command type="{EnpyQueryNumCmdTest}"/>
+		</parsley:MapCommand>
+		<!-- 资源矩阵告警网元-->
+        <!--资源矩阵-->
+        <parsley:Object id="resMatrixDM"
+                        type="{ResMatrixDM}"
+                        lazy="true"/>
+        <!--<parsley:Object id="resMatrixCompPM"
+                        type="{ResMatrixCompPM}"
+                        lazy="true"/>-->
+        <parsley:Object id="resMatrixDAO"
+                        type="{ResMatrixDAO}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="LOAD_RESMATRIX_DATA">
+            <parsley:Command type="{ResMatrixCMD}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="CMS_SCENE_EMGYRESOURCE_GETMOINFOLIST">
+            <parsley:Command type="{ResMatrixMoInfoGetCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="LOAD_AREA_ID">
+            <parsley:Command type="{LoadAreaIdsCmd}"/>
+        </parsley:MapCommand>
+
+        <!--资源矩阵-->
+
+        <!--场景概要-->
+        <parsley:Object id="sceneResumeDM"
+                        type="{SceneResumeDM}"
+                        lazy="true"/>
+        <!--<parsley:Object id="sceneResumeCompPM"
+                        type="{SceneResumeCompPM}"
+                        lazy="true"/>-->
+        <parsley:Object id="sceneResumeDAO"
+                        type="{SceneResumeDAO}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_locServ"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+
+        <parsley:MapCommand selector="LOAD_SCENERESUME_DATA">
+            <parsley:Command type="{SceneResumeCMD}"/>
+        </parsley:MapCommand>
+        <!--场景概要-->
+
+        <!--运动历史场景-->
+        <parsley:Object id="sportHistorySceneDM"
+                        type="{SportHistorySceneDM}"
+                        lazy="true"/>
+        <!--<parsley:Object id="sportHistorySceneCompPM"
+                        type="{SportHistorySceneCompPM}"
+                        lazy="true"/>-->
+        <parsley:Object id="sportHistorySceneDAO"
+                        type="{SportHistorySceneDAO}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_locServ"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:Object id="sportHistorySceneServ"
+                        type="{SportHistorySceneServ}"
+                        lazy="true"/>
+
+        <parsley:MapCommand selector="LOAD_MINIMAPWORK_DATA">
+            <parsley:Command type="{SportHistorySceneCMD}"/>
+        </parsley:MapCommand>
+        <!--运动历史场景-->
+
+        <!--场景缩略图-->
+        <parsley:Object id="sceneThumbnailDM"
+                        type="{SceneThumbnailDM}"
+                        lazy="true"/>
+        <!--<parsley:Object id="sceneThumbnailCompPM"
+                        type="{SceneThumbnailCompPM}"
+                        lazy="true"/>-->
+
+        <parsley:MapCommand selector="{SceneThumbnailEvent.SCENE_AREA_LIST}">
+            <parsley:Command type="{SceneThumbnailCMD}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="{SceneThumbnailEvent.SCENE_AREABAD_IMPPERF_GET}">
+            <parsley:Command type="{SceneThumbGetBadImpCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="{SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_DELETEIMGDATA}">
+            <parsley:Command type="{SceneThumbnailImgDeleteCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="{SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_STARTIMGGETDATA}">
+            <parsley:Command type="{SceneThumbnailStartImgGetCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="{SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_STARTIMGSAVEDATA}">
+            <parsley:Command type="{SceneThumbnailStartImgSaveCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="{SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_CITYTREEGETDATA}">
+            <parsley:Command type="{SceneThumbnailCityTreeGetCmd}"/>
+        </parsley:MapCommand>
+        <!--场景缩略图-->
+
+        <!--场景tree-->
+        <parsley:Object id="sceneTreeDM"
+                        type="{SceneTreeDM}"
+                        lazy="true"/>
+        <!--<parsley:Object id="sceneTreeCompPM"
+                        type="{SceneTreeCompPM}"
+                        lazy="true"/>-->
+
+		<parsley:Object id="sceneTreeDAO"
+                        type="{SceneTreeDAO}"
+                        lazy="true">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+
+		<parsley:Object id="sceneThumbnailDAO"
+						type="{SceneThumbnailDAO}"
+						lazy="true">           
+			<parsley:Property name="destination"
+				value="flexdestination_cms_gsscene_locServ"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		
+		<parsley:MapCommand selector="{SceneTreeEvent.SCENE_AREA_XML}">
+			<parsley:Command type="{SceneTreeCMD}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="{SceneTreeEvent.SCENE_TREE_XML}">
+			<parsley:Command type="{GSSceneTreeCMD}"/>
+		</parsley:MapCommand>
+		<!--<parsley:Object id="sceneTreeWin"
+						type="{SceneTreeWin}"
+						lazy="true"/>-->
+        <!--场景tree-->
+
+        <!--矢量地图-->
+		<parsley:Object id="mapShowCfgWin"
+						type="{MapShowCfgWin}"
+						lazy="true"/>
+        <parsley:Object id="mapVectorDM"
+                        type="{MapVectorDM}"
+                        lazy="true"/>
+        <parsley:Object id="mapVectorDAO"
+                        type="{MapVectorDAO}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="CMS_SCENE_GENERAL_MAPVECTOR_LOADMAP">
+            <parsley:Command type="{MapVectorDyeCmd}"/>
+        </parsley:MapCommand>
+        <!--矢量地图-->
+        <!--NeRoom begin-->
+        <parsley:Object id="neRoomDao"
+                        type="{NeRoomDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_scene_room_RoomServImp"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:Object id="neRoomDM"
+                        type="{NeRoomDM}"
+                        lazy="true"/>
+        <!--<parsley:Object id="neRoomWindowPM"
+                        type="{NeRoomWindowPM}"
+                        lazy="true"/>-->
+        <parsley:MapCommand selector="LOAD_NEROOM_DATA">
+            <parsley:Command type="{LoadNeRoomDataCmd}"/>
+        </parsley:MapCommand>
+		<parsley:Object id="neRoomWindow"
+						type="{NeRoomWindowNew}"
+						lazy="true"/>
+        <!--NeRoom end-->
+        <!-- 指标与阈值显示-->
+        <!--<parsley:Object id="kpiAndThresholdPM"
+                        type="{KpiAndThresholdPM}"
+                        lazy="true"/>-->
+        <parsley:MapCommand selector="LOAD_KPIANDTHRESHOLD_DATA">
+            <parsley:Command type="{KpiAndThresholdCmd}"/>
+        </parsley:MapCommand>
+        <parsley:Object id="kpiAndThresholdDao"
+                        type="{KpiAndThresholdDao}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:Object id="kpiAndThresholdDM"
+                        type="{KpiAndThresholdDM}"
+                        lazy="true"/>
+        <!--指标与阈值显示-->
+
+        <!-- 赛事详细信息-->
+        <parsley:Object id="raceInfoDM"
+                        type="{RaceInfoDM}"
+                        lazy="true"/>
+        <parsley:Object id="raceInfoGridEditWin"
+                        type="{RaceInfoGridEditWin}"
+                        lazy="true"/>
+        <parsley:Object id="raceInfoDAO"
+                        type="{RaceInfoDAO}"
+                        lazy="true">
+            <parsley:Property name="destination"
+                              value="flexdestination_cms_gsscene_panels"/>
+            <parsley:Property name="endpoint"
+                              value="/cms/messagebroker/amf"/>
+        </parsley:Object>
+        <parsley:MapCommand selector="CMS_SCENE_RACEINFO_SAVERACEINFO">
+            <parsley:Command type="{RaceInfoSaveCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="CMS_SCENE_RACEINFO_MODIFYRACEINFO">
+            <parsley:Command type="{RaceInfoModifyCmd}"/>
+        </parsley:MapCommand>
+        <parsley:MapCommand selector="CMS_SCENE_RACEINFO_DELETERACEINFO">
+            <parsley:Command type="{RaceInfoDeleteCmd}"/>
+        </parsley:MapCommand>
+        <!-- 赛事详细信息-->
+		
+		<parsley:Object id="requestServerUtil"
+						type="{RequestServerUtil}">
+			<parsley:Property name="parallelMax" value="10"/>
+			<parsley:Property name="sortArray"
+							  value="{['CMS_SCENE_GENERAL_MAPVECTOR_LOADMAP','LOAD_IMP_KPI','LOAD_SCENE_POLYGON','LOAD_SCENEINFO_DATA','LOAD_SCENEINTROINFO_DATA','SCENE_AREA_XML','SCENE_AREA_LIST','LOAD_SCENE_SNAPSHOTS','SHOW_UNIT_KPI_INFO','SHOW_EMPY_SITUATION','LOAD_TOPN_DATA','LOAD_RESMATRIX_DATA','SHOW_KPI_DATA','SHOW_TOPN_LIST','CMS_SCENE_KPISITUATION_TOPNUMGET','LOAD_BADMATRIX_DATA','LOAD_QUIT_DATA','LOAD_GKTJ_DATA','LOAD_DATA','LOAD_BADTOPN_MATRIXDATA','LOAD_PROJECTCUTOVER_DETAILS_DATA','LOAD_COMPLAINTSHEET_ALARMS','LOAD_WORSTCELL_DATA','SCENE_TREE_XML','LOAD_PROJECTCUTOVER_DETAILS_DATA']}"/>
+		</parsley:Object>
+		
+		<parsley:Object id="history"
+						type="{History}"/>
+		<parsley:Object id="scenePM"
+						type="{ScenePM}"/>
+		
+		<parsley:Object id="keyAreasDetail"
+						type="{KeyAreasDetailNew}"/>
+		
+		<parsley:Object id="sceneIntroKPIDetailNew"
+						type="{SceneIntroKPIDetailNew}"/>
+		<parsley:Object id="sceneIntroQuitNew"
+						type="{SceneIntroQuitNew}"/>
+		<parsley:Object id="sceneIntroQuitDetailNew"
+						type="{SceneIntroQuitDetailNew}"/>
+		<parsley:Object id="sceneIntroAlarmStatsNew"
+						type="{SceneIntroAlarmStatsNew}"/>
+		<parsley:Object id="sceneIntroInfoWin"
+						type="{SceneIntroInfoWin}"/>
+		<parsley:Object id="sceneIntroAreaWin"
+						type="{SceneIntroAreaWin}"/>
+		<parsley:Object id="sceneIntroMoWin"
+						type="{SceneIntroMoWin}"/>
+		<parsley:Object id="kpiAreaOrMoBadTrendCompNew"
+						type="{KpiAreaOrMoBadTrendCompNew}"/>
+		<parsley:Object id="thresholdConfigWin"
+						type="{ThresholdConfigWin}"/>
+		
+		<parsley:Object id="equipmentDetailDgWin"
+						type="{EquipmentDetailDgWin}"/>
+		<parsley:Object id="emgyDetailDowWin"
+						type="{EmgyDetailDowWin}"/>
+		
+		<parsley:Object type="{EmgyAddWin}"/>
+		
+		<parsley:Object id="gisSearchWin"
+						type="{GisSearchWin}"/>
+		
+		<parsley:Object id="citySheetStatNew"
+						type="{CitySheetStatNew}"/>
+		
+		<parsley:Object type="{DetailSource}"/>
+
+    </fx:Declarations>
+</fx:Object>

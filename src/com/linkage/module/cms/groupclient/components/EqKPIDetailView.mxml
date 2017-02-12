@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+		 creationComplete="filterForm_creationCompleteHandler(event)"
+		 gap="20">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+			import com.linkage.module.cms.groupclient.event.FilterFormEvent;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Label;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private var _dataProvider:Object;
+			[Bindable]
+			private var _showName:String;
+			[Bindable]
+			private var _datas:ArrayCollection;
+			private var horizontalLines:ArrayCollection;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.components.EqKPIDetailView");
+			protected function filterForm_creationCompleteHandler(event:FlexEvent):void
+			{
+//				this.dispatchEvent(new FilterFormEvent(FilterFormEvent.INIT));
+			}
+			public function set dataProvider(value:Object):void{
+				_dataProvider = value;
+				initKpiDetail();
+			}
+			private function initKpiDetail():void{
+				if(null!=_dataProvider){
+					//列表数据
+					_showName = String(_dataProvider["showName"]);
+					_datas = ArrayCollection(_dataProvider["datas"]);
+					//图形数据
+					buildChart();
+				}
+			}
+			/**
+			 * 
+			 * 创建图形。
+			 **/ 
+			private function buildChart():void
+			{
+				pc.chartParam.title = _showName;
+				pc.xAxisFontSize = 13;
+				pc.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				
+/* 				for each(var item:*in _dataProvider.moOrAreas)
+				{
+					var sp:SerialParam = new SerialParam(item.id, item.name);
+					series.addItem(sp);
+					idNameMap[item.id] = item.name;
+				} */
+				var sp:SerialParam = new SerialParam("kpiValue", _showName+'(%)');
+				series.addItem(sp);
+				pc.series = series;
+				var chartParam:ChartParam = new ChartParam();
+//				chartParam.title = _showName;
+				chartParam.xAxisProperty = 'time';
+//				chartParam.labelStep = uint(_datas.length / 4);
+				
+				horizontalLines = new ArrayCollection();
+				var lineColor:uint = 0xff0000;
+				var hdata:ArrayCollection = _dataProvider["threshold"];//目前只需一条线。
+				if(null!=hdata){
+					for each (var item:Object in hdata) 
+					{ 
+						var hl:HorizontalLine = new HorizontalLine();
+						hl.yValue = Number(item.lineValue);
+  //					lineColor = uint(hdata.color);//目前写死为red
+						hl.lineColor = lineColor;
+  //					hl.displayName = uint(hdata.displayName);
+						hl.lineThickness = 2;
+						hl.dashedLine = false;
+						horizontalLines.addItem(hl);
+					}
+					chartParam.horizontalLines = horizontalLines;
+				}
+				/* 				for each(var hdata:Object in _dataProvider["threshold"])
+				{
+				var hl:HorizontalLine = new HorizontalLine();
+				hl.yValue = Number(hdata.lineValue);
+				//					lineColor = uint(hdata.color);//目前写死为red
+				hl.lineColor = lineColor;
+				//					hl.displayName = uint(hdata.displayName);
+				hl.lineThickness = 1;
+				hl.dashedLine = false;
+				horizontalLines.addItem(hl);
+				} */
+				pc.chartParam = chartParam;
+				pc.chartData(_datas, false);
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Group width="660" height="100%">
+		<s:Rect alpha="1" width="100%" height="100%" radiusX="5" radiusY="5" >
+			<s:fill>
+				<s:LinearGradient>
+					<s:GradientEntry color="0xDAF9FB"/> 
+				</s:LinearGradient>
+			</s:fill>
+			<s:stroke>
+				<s:LinearGradientStroke weight="1">
+					<s:GradientEntry color="0x888888" alpha="0.5"/>
+				</s:LinearGradientStroke>
+			</s:stroke>
+		</s:Rect>
+		<s:Label fontSize="18" top="10" horizontalCenter="0" fontWeight="bold" text="{_showName+'(%)'}" />
+		<ailk_chart:PrettyChart clipAndEnableScrolling="true"
+								top="30"
+								id="pc"
+								width="600"
+								height="400"/>
+	</s:Group>
+	<s:Scroller width="300" height="98%" id="dataScroller" verticalScrollPolicy="auto">
+		<s:Group width="100%" height="100%">
+			<mx:AdvancedDataGrid height="100%" width="100%"
+								 horizontalScrollPolicy="auto"
+								 verticalScrollPolicy="auto"
+								 dataProvider="{_datas}"
+								 verticalAlign="middle"
+								 id="kpiDataGrid">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn dataField="time" dataTipField="time" showDataTips="true"
+											   headerText="时间(h)" textAlign="center"
+											   width="90" itemRenderer="mx.controls.Label"/>
+					<mx:AdvancedDataGridColumn dataField="kpiValue" dataTipField="data" showDataTips="true"
+											   headerText="{_showName+'(%)'}"  textAlign="center"
+											   width="160"
+											   itemRenderer="mx.controls.Label"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+		</s:Group>
+	</s:Scroller>
+	
+</s:HGroup>

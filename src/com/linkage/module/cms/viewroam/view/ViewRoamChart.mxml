@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 width="100%" height="100%">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.linkage.module.cms.viewroam.event.ViewRoamEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			import spark.components.CheckBox;
+			
+			private var log:ILogger=Log.getLoggerByClass(ViewRoamChart);
+			
+			[Inject("viewRoamPM")]
+			[Bindable]
+			public var pm:ViewRoamPM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			[MessageHandler(selector="VIEWROAM_REFRESH_CHART")]
+			public function showKpiChart(event:ViewRoamEvent):void
+			{
+				//调用方法船舰左侧的目录
+				initLeftMenuData();
+				var series:ArrayCollection = new ArrayCollection();
+				var obj:Object = pm.dm.leftMenuData[pm.dm.selectIndex];
+				var p2:SerialParam = new SerialParam(obj.perf_type_id, obj.show_name+obj.unit);
+				p2.chartType = PrettyChartType.CHART_TYPE_LINE;//折线图
+				p2.yAxis = "left";
+				series.addItem(p2);//添加一条线行货面积图线
+				charDataSeries.xAxisFontSize = 13;
+				charDataSeries.justifyMaxValue = true;
+				charDataSeries.series=series;
+				
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "time";
+				charDataSeries.chartParam = charParam;
+				var viewChart:ArrayCollection = new ArrayCollection();
+				for each(var data:Object in pm.dm.viewRoamCharData){
+					var object:Object = new Object();
+					if(data.hasOwnProperty(obj.perf_type_id)){
+						if(-1==String(data.time).indexOf(":00 ~")){
+							continue;
+						}
+						object.time = String(data.time).substr(11,2);
+						object[obj.perf_type_id] = Number(String(data[obj.perf_type_id]).replace(obj.unit,""));
+						viewChart.addItem(object);
+					}
+				}
+				charDataSeries.chartData(viewChart,true);
+				dispatchMsg(new ViewRoamEvent("VIEWROAM_HIDE"));
+			}
+			
+			
+			//单击左侧刷新右侧图表等
+			public function leftDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				//获取单选的行数 0表示第一行
+				pm.dm.selectIndex = event.rowIndex;
+				dispatchMsg(new ViewRoamEvent("VIEWROAM_REFRESH_CHART"));
+			}
+			
+			[MessageHandler(selector="VIEWROAM_REFRESH_DEFAULT")]
+			public function leftDataGrid_itemClickDefaultHandler():void
+			{
+				//获取单选的行数 0表示第一行
+				pm.dm.selectIndex = 0;
+				dispatchMsg(new ViewRoamEvent("VIEWROAM_REFRESH_CHART"));
+			}
+			
+			//初始化左侧的各速率列表
+			public function initLeftMenuData():void
+			{
+				leftDataGrid.columns = [];
+				var columns:Array = new Array();
+				var dataGridColumn:DataGridColumn = new DataGridColumn();
+				dataGridColumn.dataField = "show_name";
+				dataGridColumn.showDataTips = true;
+				columns.push(dataGridColumn);
+				leftDataGrid.columns = columns;
+				leftDataGrid.showHeaders = false;
+				leftDataGrid.width = 150;
+				leftDataGrid.dataProvider = pm.dm.leftMenuData;
+				if(pm.dm.leftMenuData.length == 0)
+				{
+					leftDataGrid.visible = false;
+					return;
+				}
+				leftDataGrid.visible = true;
+				leftDataGrid.rowCount = pm.dm.leftMenuData.length;
+			}
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				leftDataGrid_itemClickDefaultHandler();
+			}
+			
+		]]>
+	</fx:Script>
+	<s:HGroup  width="100%" height="100%">
+		<s:Group>
+			<mx:DataGrid id="leftDataGrid" itemClick="leftDataGrid_itemClickHandler(event)" styleName="sceneDG">
+				<mx:columns>
+				</mx:columns>
+			</mx:DataGrid>
+		</s:Group>
+		<s:Group width="85%">
+			<ailk_chart:PrettyChart id="charDataSeries" 
+									steadyYAxis="false"
+									xAxisFontSize="12"
+									pageNum="20"
+									width="100%"
+									height="100%"
+									minWidth="500"
+									minHeight="400"
+									horizontalCenter="0"
+									verticalCenter="0"/>
+		</s:Group>
+	</s:HGroup>
+</s:Group>

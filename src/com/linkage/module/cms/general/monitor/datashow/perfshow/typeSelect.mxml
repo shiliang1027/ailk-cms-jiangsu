@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   close="closeMe()" dragable="true"
+			   xmlns:panel="com.linkage.system.component.panel.*"
+			   maximizable="false" minimizable="false">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			private var f:Function = null;
+
+			protected function closeMe():void
+			{
+				this.visible = false;
+			}
+
+			private function changeType(type:int):void
+			{
+				f.call(this,type);
+			}
+			
+			public function init(callback:Function):void{
+				f = callback;
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="selectGrop" horizontalCenter="0" verticalCenter="0" width="80" height="120" horizontalAlign="center">
+		<s:RadioButton label="列表" value="1" click="changeType(1);"/>
+		<s:RadioButton label="矩阵" value="2" click="changeType(2);"/>
+		<s:RadioButton label="图表" value="3" selected="true" click="changeType(3);"/>
+		<s:Button label="确定" click="closeMe();">
+		</s:Button>
+	</s:VGroup>
+</panel:Window>

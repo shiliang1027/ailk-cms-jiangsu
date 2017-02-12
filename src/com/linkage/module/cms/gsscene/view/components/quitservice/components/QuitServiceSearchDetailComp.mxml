@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="470"
+					height="260"
+					minimizable="false"
+					dragable="true"
+					resizable="true"
+					title="退服统计详情"
+					styleName="windowScene"
+					maximizable="false"
+					creationComplete="window1_creationCompleteHandler()"
+					titleIcon="@Embed(source='../../../../img/title_ico03.png')"
+					close="window1_closeHandler(event)"
+					maximize="quitServiceDetail_maximizeHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneResource;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.QuitServicePM;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.event.QuitServiceEvent;
+			
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			
+			private var log:ILogger = Log.getLoggerByClass(QuitServiceSearchDetailComp);
+			
+			[Inject("quitServicePM")]
+			[Bindable]
+			public var pm:QuitServicePM;
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			public var isShow:Boolean = false;
+			
+			[Bindable]
+			private var cm:ContextMenu;
+			/**
+			 * 退服详情右键抛出经纬度
+			 */
+			private var lastRollOverIndex:int;
+			
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				isShow = false;
+				pm.quitServiceDM.qssDetail.removeAll();
+				pm.quitServiceDM.qssDetail.refresh();
+			}
+			/**
+			 * 退服详情窗口最大化
+			 */
+			protected function quitServiceDetail_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+			}
+
+			protected function window1_creationCompleteHandler():void
+			{
+				log.info("退服统计详情begin初始化");
+				var cmi:ContextMenuItem = new ContextMenuItem("GIS定位", true);
+				cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+				{
+					log.debug("抛出右键gis定位事件...");
+					var param:Object = (evt.mouseTarget as IListItemRenderer).data;
+					log.info(param);
+					
+					var e:SceneEvent = new SceneEvent(SceneEvent.SHOWMO2GIS);
+					e.param = new Object();
+					e.param.moId = param.moId;
+					e.param.moTypeId = param.moTypeId;
+					e.param.alarmLevel = param["alarmLevel"];
+//					msgDispatcher(e);
+					requestServerUtil.addRequest(e);
+				});
+				
+				var cmi1:ContextMenuItem = new ContextMenuItem("告警查询");
+				cmi1.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+				{
+					log.debug("抛出右键告警查询事件...");
+					var param:Object = (evt.mouseTarget as IListItemRenderer).data;
+					log.info(param);
+					var id:String = "neId=" + param.moId;
+					var alarmseverity:String;
+					if(user.logicalType=="1"){
+						alarmseverity =  param["alarmLevel"];
+					}else{
+						alarmseverity =  param["alarmseverity"];
+					}
+					if(user.sceneId=="1002"){
+					var openUrl:String = user.context + "/cms/warn/report/query/ShowAlarmList.jsp?alarmStatus=1&" + id ;
+					}else{
+					var openUrl:String = user.context + "/cms/warn/report/query/ShowAlarmList.jsp?alarmStatus=1&" + id +"&alarmseverity="+alarmseverity ;
+					}
+					//							ExternalInterface.call("openUrl(\"" + openUrl + "\")");
+					log.info(openUrl);
+					navigateToURL(new URLRequest(openUrl), "_blank");
+				});
+				
+				cm = new ContextMenu();
+				cm.hideBuiltInItems();
+				cm.customItems = [cmi1,cmi];
+				cm.addEventListener(ContextMenuEvent.MENU_SELECT, contextMenu_menuSelect);
+			}
+			private function contextMenu_menuSelect(evt:ContextMenuEvent):void
+			{
+				qssDetail.selectedIndex = lastRollOverIndex;
+			}
+			
+			protected function image_clickHandler(event:MouseEvent):void
+			{
+				var e:QuitServiceEvent = new QuitServiceEvent(QuitServiceEvent.EXPORT_CMS_SCENE_QUITSERVICE_DATA);
+				e.param = pm.quitServiceDM.qssDetail;
+				msgDispatcher(e);
+//				msgDispatcher(new QuitServiceEvent(QuitServiceEvent.EXPORT_CMS_SCENE_QUITSERVICE_DATA));
+				log.info("导出");
+			}
+			
+		]]>
+	</fx:Script>
+
+	<mx:AdvancedDataGrid id="qssDetail"
+						 width="100%"
+						 height="100%"
+						 contextMenu="{cm}"
+						 styleName="sceneDG"
+						 dataProvider="{pm.quitServiceDM.qssDetail}"
+						 verticalAlign="middle"
+						 verticalScrollPolicy="auto">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="moName"
+									   headerText="网元名称"
+									   width="200"/>
+			<mx:AdvancedDataGridColumn dataField="moTypeName"
+									   headerText="网元类型"
+									   width="100"/>
+			<mx:AdvancedDataGridColumn dataField="quitCause"
+									   headerText="退服原因"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	
+	<mx:Image source="{GsSceneResource.export}"
+			  buttonMode="true"
+			  toolTip="导出"
+			  right="30"
+			  top="-24"
+			  click="image_clickHandler(event)"/>
+</ailk_compts:Window>

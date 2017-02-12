@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+								  xmlns:s="library://ns.adobe.com/flex/spark" 
+								  xmlns:mx="library://ns.adobe.com/flex/mx" 
+								  focusEnabled="true"
+								  creationComplete="rendererCreationComplete(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+			import mx.events.FlexEvent;
+			
+			[Embed(source="/com/linkage/module/cms/general/monitor/img/down.png")]
+			[Bindable]
+			public static var down:Class;
+			
+			[Embed(source="/com/linkage/module/cms/general/monitor/img/up.png")]
+			[Bindable]
+			public static var up:Class;
+			
+			[Embed(source="/com/linkage/module/cms/general/monitor/img/ping.png")]
+			[Bindable]
+			public static var ping:Class;
+			
+			[Embed(source="/com/linkage/module/cms/general/monitor/img/error.png")]
+			[Bindable]
+			public static var error:Class;
+			
+			[Embed(source="/com/linkage/module/cms/general/monitor/img/normal.png")]
+			[Bindable]
+			public static var normal:Class;
+			
+			protected function rendererCreationComplete(event:FlexEvent):void
+			{
+				var field:String=(listData as AdvancedDataGridListData).dataField;
+				var filedOver:String = field + "_is_over";
+				var fieldChange:String=field + "_change";
+				if (data.hasOwnProperty(fieldChange))
+				{
+					var changeVal:Number = Number(data[fieldChange]);
+					var overVal:Number = Number(data[filedOver]);
+					
+					if (changeVal > 0)
+					{
+						this.img2.source = up;
+					}
+					else if (changeVal < 0)
+					{
+						this.img2.source = down;
+					}
+					else
+					{
+						this.img2.source = ping;
+					}
+					
+					if (overVal > 0)
+					{
+						this.img1.source = error;
+					}
+					else
+					{
+						this.img1.source = normal;
+					}
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%" height="100%">
+		<s:HGroup width="50%" height="100%" horizontalAlign="center">
+			<mx:Image id="img1" width="12" height="100%" source="">
+			</mx:Image>
+			<mx:Image id="img2" width="12" height="100%" source="">
+			</mx:Image>
+		</s:HGroup>
+		<s:Group width="50%" height="100%">
+			<s:Label id="lblData" top="0" left="0" right="0" bottom="0" text="{listData.label}" />
+		</s:Group>
+	</s:HGroup>
+	
+</s:MXAdvancedDataGridItemRenderer>

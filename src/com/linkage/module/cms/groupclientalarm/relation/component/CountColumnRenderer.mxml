@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  dataChange="initCountInfo()"
+								  buttonMode="true"
+								  focusEnabled="false">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclientalarm.relation.util.RelationUtil;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.alarm.relation.component.CountColumnRenderer");
+
+			protected function initCountInfo():void
+			{
+				if (listData != null && int(listData.label) > 0)
+				{
+					var level:String=data[(listData as AdvancedDataGridListData).dataField + "_level"];
+					var color:String=RelationUtil.getMatrixColorBgLevel(level);
+					if (!RelationUtil.checkValueNull(color))
+					{
+						countBox.setStyle("backgroundColor", color);
+						return;
+					}
+				}
+				countBox.clearStyle("backgroundColor");
+			}
+		]]>
+	</fx:Script>
+	<mx:HBox id="countBox"
+			 width="100%"
+			 height="100%"
+			 horizontalAlign="center"
+			 verticalAlign="middle">
+		<s:Label lineBreak="explicit"
+				 text="{listData.label}"/>
+	</mx:HBox>
+</s:MXAdvancedDataGridItemRenderer>

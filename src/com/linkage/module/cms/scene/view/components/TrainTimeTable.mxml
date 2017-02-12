@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					title="列车信息"
+					minimizable="false"
+					styleName="windowScene"
+					titleIcon="@Embed(source='../../img/title_ico03.png')"
+					close="closeWindow(1)"
+					maximize="window2_resize(true)"
+					restore="window2_resize(false)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 * @author xudx (69291)
+		 @version 1.0
+		 @date 2012-7-26
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Group;
+
+			public var location:String;
+			public var index:String;
+			private var maxFlag:Boolean = false;
+
+			private var log:ILogger = Log.getLoggerByClass(TrainTimeTable);
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("trainTimePM")]
+			[Bindable]
+			public var trainTimePM:TrainTimePM;
+
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				trainTimePM.loadData();
+//				setTimeout(trainTimePM.loadData,100);
+			}
+
+			public function closeWindow(type:int = 0):void
+			{
+				if(type == 1)
+				{
+					if(this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+					{
+						this.visible = false;
+						this.includeInLayout = false;
+					}
+				}
+				else
+					(this.parent as Group).removeElement(this);
+
+				if(type == 1)
+				{
+					var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+					e.panelName = this.name;
+					e.param.index = this.index;
+					e.param.pid = this.parent['id'];
+					msgDispatcher(e);
+				}
+			}
+
+			protected function window2_resize(flag:Boolean):void
+			{
+				log.info("##_## 最大化、恢复窗口：" + flag + "_" + maxFlag);
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+				e.panelName = this.name;
+				e.panelIndex = this.index;
+				e.panellocation = this.location;
+				e.panelMaxFlag = this.maxFlag;
+				msgDispatcher(e);
+				log.info("##_## 最大化、恢复窗口：派发事件！");
+
+				this.maxFlag = flag;
+
+				this.closeButton.visible = !flag;
+				this.closeButton.includeInLayout = !flag;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid width="100%"
+						 height="100%"
+						 styleName="sceneDG"
+						 rowHeight="20"
+						 verticalAlign="middle"
+						 horizontalScrollPolicy="auto"
+						 dataProvider="{trainTimePM.trainTimeDM.TTdataList}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="startTimeEndTime"
+									   width="155"
+									   headerText="出发时间/到达时间"/>
+			<mx:AdvancedDataGridColumn dataField="num"
+									   width="106"
+									   headerText="车次/车型"/>
+			<mx:AdvancedDataGridColumn dataField="startStationEndStation"
+									   width="165"
+									   headerText="出发站/到达站"/>
+			<mx:AdvancedDataGridColumn dataField="time-miles"
+									   width="190"
+									   headerText="旅行耗时/旅行里程"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</ailk_compts:Window>

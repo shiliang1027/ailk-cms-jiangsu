@@ -1,0 +1,529 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		  width="100%"
+		  height="100%"
+		  gap="0"
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-9-4
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.event.worstmo.WorstMoSetEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.TextInput;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(WorstMoSet);
+			[Inject("worstMoSetPM")]
+			[Bindable]
+			public var worstMoSetPM:WorstMoSetPM;
+			//指标关系
+			[Bindable]
+			private var kpiRelationShipData:ArrayCollection = new ArrayCollection([{"relationShipId": "1", "relationshipname": "并且"}, {"relationShipId": "2", "relationshipname": "或者"}]);
+
+			private var textInuptTempSource:String = null;
+
+
+			public function init():void
+			{
+				worstMoSetPM.getWorstMoListByType("最差端局");
+			}
+
+			[MessageHandler(selector="SHOW_WORST_KPI_SHIP_INFO")]
+			public function showKpiShipAndPerMo(e:WorstMoSetEvent):void
+			{
+				log.debug(".>>>>>>>>>>>>>>>>" + e.typeName);
+				if(e.typeName == "最差端局")
+				{
+					var kpiShipIndex:int = getSelectedIndexByResult(kpiRelationShipData, 'relationShipId', worstMoSetPM.worstMoSetDM.relationShip);
+					var permoTypeIndex:int = getSelectedIndexByResult(worstMoSetPM.worstMoSetDM.worstPerMoList, 'perfmo_type_id', worstMoSetPM.worstMoSetDM.perMoType);
+					jd_relationShipDropDownList.selectedIndex = kpiShipIndex;
+					jd_perfMoDropDownList.selectedIndex = permoTypeIndex;
+					if(worstMoSetPM.worstMoSetDM.worstMoList.length == 0)
+					{
+						zc_group.visible = false;
+						Alert.show("最差端局无数据信息！", "提示");
+					}
+				}
+				if(e.typeName == "最差BSC")
+				{
+					kpiShipIndex = getSelectedIndexByResult(kpiRelationShipData, 'relationShipId', worstMoSetPM.worstMoSetDM.relationShip);
+					permoTypeIndex = getSelectedIndexByResult(worstMoSetPM.worstMoSetDM.worstPerMoList, 'perfmo_type_id', worstMoSetPM.worstMoSetDM.perMoType);
+					bsc_relationShipDropDownList.selectedIndex = kpiShipIndex;
+					bsc_perfMoDropDownList.selectedIndex = permoTypeIndex;
+					if(worstMoSetPM.worstMoSetDM.worstMoList.length == 0)
+					{
+						bsc_group.visible = false;
+						Alert.show("最差BSC无数据信息！", "提示");
+					}
+				}
+				if(e.typeName == "最差HLR")
+				{
+					kpiShipIndex = getSelectedIndexByResult(kpiRelationShipData, 'relationShipId', worstMoSetPM.worstMoSetDM.relationShip);
+					permoTypeIndex = getSelectedIndexByResult(worstMoSetPM.worstMoSetDM.worstPerMoList, 'perfmo_type_id', worstMoSetPM.worstMoSetDM.perMoType);
+					hlr_relationShipDropDownList.selectedIndex = kpiShipIndex;
+					hlr_perfMoDropDownList.selectedIndex = permoTypeIndex;
+					if(worstMoSetPM.worstMoSetDM.worstMoList.length == 0)
+					{
+						hlr_group.visible = false;
+						Alert.show("最差HLR无数据信息！", "提示");
+					}
+				}
+				if(e.typeName == "最差MGW")
+				{
+					kpiShipIndex = getSelectedIndexByResult(kpiRelationShipData, 'relationShipId', worstMoSetPM.worstMoSetDM.relationShip);
+					permoTypeIndex = getSelectedIndexByResult(worstMoSetPM.worstMoSetDM.worstPerMoList, 'perfmo_type_id', worstMoSetPM.worstMoSetDM.perMoType);
+					mgw_relationShipDropDownList.selectedIndex = kpiShipIndex;
+					mgw_perfMoDropDownList.selectedIndex = permoTypeIndex;
+					if(worstMoSetPM.worstMoSetDM.worstMoList.length == 0)
+					{
+						mgw_group.visible = false;
+						Alert.show("最差MGW无数据信息！", "提示");
+					}
+				}
+
+			}
+
+			//获取DropDownList选中元素的索引
+			public function getSelectedIndexByResult(list:ArrayCollection, key:String, result:Object):int
+			{
+				var selectedIndex:int = 0;
+				try
+				{
+					for(var i:int = 0; i < list.length; i++)
+					{
+						if(list[i][key] == result)
+						{
+							selectedIndex = i;
+							break;
+						}
+					}
+				}
+				catch(e:Error)
+				{
+					Alert.show(e.message);
+				}
+				return selectedIndex;
+			}
+
+			//最差网元tabBur 切换时间
+			protected function worstMoViewStack_changeHandler(event:IndexChangedEvent):void
+			{
+				if(event.newIndex == 0)
+				{
+					worstMoSetPM.getWorstMoListByType("最差端局");
+				}
+				if(event.newIndex == 1)
+				{
+					worstMoSetPM.getWorstMoListByType("最差BSC");
+				}
+				if(event.newIndex == 2)
+				{
+					worstMoSetPM.getWorstMoListByType("最差HLR");
+				}
+				if(event.newIndex == 3)
+				{
+					worstMoSetPM.getWorstMoListByType("最差MGW");
+				}
+
+			}
+
+			/**
+			 * 校验保存结果集
+			 */
+			private function vorifySaveInfo(arr:ArrayCollection):Boolean
+			{
+				log.debug("-----------------------------------");
+				var flag:Boolean = true;
+				for each(var obj:Object in arr)
+				{
+					log.debug(">>>>>>>>>>>>>>>>>begin=" + obj['beginhour'] + ",end=" + obj['endhour']);
+					if(int(obj['beginhour']) > int(obj['endhour']))
+					{
+						flag = false;
+						break;
+					}
+				}
+				log.debug("return flag="+flag);
+				return flag;
+			}
+
+			//最差端局结果保存
+			protected function jd_save_clickHandler(event:MouseEvent):void
+			{
+				var saveObj:Object = new Object;
+				var relationshipid:String = this.jd_relationShipDropDownList.selectedItem['relationShipId'];
+				var perfmo_type_id:String = this.jd_perfMoDropDownList.selectedItem['perfmo_type_id'];
+				saveObj.worsttypename = "最差端局";
+				saveObj.relationship = relationshipid;
+				saveObj.perfmo_type_id = perfmo_type_id;
+				saveObj.datas = jd_AdvancedDataGrid.dataProvider;
+				if(vorifySaveInfo(saveObj.datas as ArrayCollection))
+				{
+					worstMoSetPM.saveWorstMo(saveObj);
+				}
+				else
+				{
+					Alert.show("算法设置开始时间不能大于结束时间！", "提示");
+				}
+			}
+
+			//最差BSC结果保存
+			protected function bsc_save_clickHandler(event:MouseEvent):void
+			{
+				var saveObj:Object = new Object;
+				var relationshipid:String = this.bsc_relationShipDropDownList.selectedItem['relationShipId'];
+				var perfmo_type_id:String = this.bsc_perfMoDropDownList.selectedItem['perfmo_type_id'];
+				saveObj.worsttypename = "最差BSC";
+				saveObj.relationship = relationshipid;
+				saveObj.perfmo_type_id = perfmo_type_id;
+				saveObj.datas = jd_AdvancedDataGrid.dataProvider;
+				if(vorifySaveInfo(saveObj.datas as ArrayCollection))
+				{
+					worstMoSetPM.saveWorstMo(saveObj);
+				}
+				else
+				{
+					Alert.show("算法设置开始时间不能大于结束时间！", "提示");
+				}
+			}
+
+			//最差HLR结果保存
+			protected function hlr_save_clickHandler(event:MouseEvent):void
+			{
+				var saveObj:Object = new Object;
+				var relationshipid:String = this.hlr_relationShipDropDownList.selectedItem['relationShipId'];
+				var perfmo_type_id:String = this.hlr_perfMoDropDownList.selectedItem['perfmo_type_id'];
+				saveObj.worsttypename = "最差HLR";
+				saveObj.relationship = relationshipid;
+				saveObj.perfmo_type_id = perfmo_type_id;
+				saveObj.datas = jd_AdvancedDataGrid.dataProvider;
+				if(vorifySaveInfo(saveObj.datas as ArrayCollection))
+				{
+					worstMoSetPM.saveWorstMo(saveObj);
+				}
+				else
+				{
+					Alert.show("算法设置开始时间不能大于结束时间！", "提示");
+				}
+			}
+
+			//最差MGW结果保存
+			protected function mgw_save_clickHandler(event:MouseEvent):void
+			{
+				var saveObj:Object = new Object;
+				var relationshipid:String = this.mgw_relationShipDropDownList.selectedItem['relationShipId'];
+				var perfmo_type_id:String = this.mgw_perfMoDropDownList.selectedItem['perfmo_type_id'];
+				saveObj.worsttypename = "最差MGW";
+				saveObj.relationship = relationshipid;
+				saveObj.perfmo_type_id = perfmo_type_id;
+				saveObj.datas = jd_AdvancedDataGrid.dataProvider;
+				if(vorifySaveInfo(saveObj.datas as ArrayCollection))
+				{
+					worstMoSetPM.saveWorstMo(saveObj);
+				}
+				else
+				{
+					Alert.show("算法设置开始时间不能大于结束时间！", "提示");
+				}
+			}
+
+			/**
+			 * 保存结果返回保存状态
+			 */
+			[MessageHandler(selector="RETURN_WORST_MO_STR")]
+			public function getReturnInfo(e:WorstMoSetEvent):void
+			{
+				var resultInfo:String = "";
+				if(worstMoSetPM.worstMoSetDM.worstMoResultStr == "true")
+				{
+					resultInfo = "保存成功！";
+				}
+				if(worstMoSetPM.worstMoSetDM.worstMoResultStr == "false")
+				{
+					resultInfo = "保存失败！";
+				}
+				Alert.show(resultInfo, "提示");
+			}
+		]]>
+	</fx:Script>
+
+	<s:TabBar id="worstMoTabBar"
+			  styleName="sceneTabBar1"
+			  dataProvider="{worstMoViewStack}"/>
+	<mx:ViewStack id="worstMoViewStack"
+				  creationPolicy="all"
+				  height="100%"
+				  width="100%"
+				  backgroundAlpha="0"
+				  change="worstMoViewStack_changeHandler(event)">
+		<s:NavigatorContent label="最差端局"
+							width="100%"
+							height="100%">
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="zc_group">
+				<mx:AdvancedDataGrid id="jd_AdvancedDataGrid"
+									 width="100%"
+									 styleName="sceneDG"
+									 dataProvider="{worstMoSetPM.worstMoSetDM.worstMoList}"
+									 rowCount="{worstMoSetPM.worstMoSetDM.worstMoList.length+1}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="指标名称"
+												   width="200"
+												   dataField="isenable"
+												   editable="false">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:CheckBox change="checkbox1_changeHandler(event)"
+												 selected="{data.isenable==0?true:false}"
+												 label="{data.kpiname}"
+												 width="300">
+										<fx:Script>
+											<![CDATA[
+												protected function checkbox1_changeHandler(event:Event):void
+												{
+													data.isenable = CheckBox(event.target).selected ? 0 : 1;
+												}
+											]]>
+										</fx:Script>
+									</mx:CheckBox>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="最差算法"
+												   itemRenderer="com.linkage.module.cms.scenedaily.view.components.worstmo.WorstMoInputTextRenderer"/>
+
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:HGroup width="100%"
+						  verticalAlign="middle">
+					<s:Label text="指标关系"/>
+					<s:DropDownList id="jd_relationShipDropDownList"
+									dataProvider="{kpiRelationShipData}"
+									labelField="relationshipname"
+									requireSelection="true">
+					</s:DropDownList>
+					<s:Label text="适用网元类型"/>
+					<s:DropDownList id="jd_perfMoDropDownList"
+									dataProvider="{worstMoSetPM.worstMoSetDM.worstPerMoList}"
+									width="150"
+									labelField="perfmo_type_name"
+									requireSelection="true">
+					</s:DropDownList>
+					<s:HGroup width="100%"
+							  horizontalAlign="right">
+						<s:Button id="jd_save"
+								  label="保存"
+								  click="jd_save_clickHandler(event)"/>
+					</s:HGroup>
+				</s:HGroup>
+			</s:VGroup>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="最差BSC"
+							width="100%"
+							height="100%">
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="bsc_group">
+				<mx:AdvancedDataGrid width="100%"
+									 styleName="sceneDG"
+									 dataProvider="{worstMoSetPM.worstMoSetDM.worstMoList}"
+									 rowCount="{worstMoSetPM.worstMoSetDM.worstMoList.length+1}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="指标名称"
+												   width="200"
+												   dataField="isenable"
+												   editable="false">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:CheckBox change="checkbox1_changeHandler(event)"
+												 selected="{data.isenable==0?true:false}"
+												 label="{data.kpiname}"
+												 width="300">
+										<fx:Script>
+											<![CDATA[
+												protected function checkbox1_changeHandler(event:Event):void
+												{
+													data.isenable = CheckBox(event.target).selected ? 0 : 1;
+												}
+											]]>
+										</fx:Script>
+									</mx:CheckBox>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="最差算法"
+												   itemRenderer="com.linkage.module.cms.scenedaily.view.components.worstmo.WorstMoInputTextRenderer"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:HGroup width="100%"
+						  verticalAlign="middle">
+					<s:Label text="指标关系"/>
+					<s:DropDownList id="bsc_relationShipDropDownList"
+									dataProvider="{kpiRelationShipData}"
+									labelField="relationshipname"
+									requireSelection="true">
+					</s:DropDownList>
+					<s:Label text="适用网元类型"/>
+					<s:DropDownList id="bsc_perfMoDropDownList"
+									dataProvider="{worstMoSetPM.worstMoSetDM.worstPerMoList}"
+									width="150"
+									labelField="perfmo_type_name"
+									requireSelection="true">
+					</s:DropDownList>
+					<s:HGroup width="100%"
+							  horizontalAlign="right">
+						<s:Button label="保存"
+								  click="bsc_save_clickHandler(event)"/>
+					</s:HGroup>
+				</s:HGroup>
+
+
+			</s:VGroup>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="最差HLR"
+							width="100%"
+							height="100%">
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="hlr_group">
+				<mx:AdvancedDataGrid width="100%"
+									 styleName="sceneDG"
+									 dataProvider="{worstMoSetPM.worstMoSetDM.worstMoList}"
+									 rowCount="{worstMoSetPM.worstMoSetDM.worstMoList.length+1}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="指标名称"
+												   width="200"
+												   dataField="isenable"
+												   editable="false">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:CheckBox change="checkbox1_changeHandler(event)"
+												 selected="{data.isenable==0?true:false}"
+												 label="{data.kpiname}"
+												 width="300">
+										<fx:Script>
+											<![CDATA[
+												protected function checkbox1_changeHandler(event:Event):void
+												{
+													data.isenable = CheckBox(event.target).selected ? 0 : 1;
+												}
+											]]>
+										</fx:Script>
+									</mx:CheckBox>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="最差算法"
+												   itemRenderer="com.linkage.module.cms.scenedaily.view.components.worstmo.WorstMoInputTextRenderer"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:HGroup width="100%"
+						  verticalAlign="middle">
+					<s:Label text="指标关系"/>
+					<s:DropDownList id="hlr_relationShipDropDownList"
+									dataProvider="{kpiRelationShipData}"
+									labelField="relationshipname"
+									requireSelection="true">
+					</s:DropDownList>
+					<s:Label text="适用网元类型"/>
+					<s:DropDownList id="hlr_perfMoDropDownList"
+									dataProvider="{worstMoSetPM.worstMoSetDM.worstPerMoList}"
+									width="150"
+									labelField="perfmo_type_name"
+									requireSelection="true">
+					</s:DropDownList>
+					<s:HGroup width="100%"
+							  horizontalAlign="right">
+						<s:Button label="保存"
+								  click="hlr_save_clickHandler(event)"/>
+					</s:HGroup>
+				</s:HGroup>
+
+			</s:VGroup>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="最差MGW"
+							width="100%"
+							height="100%">
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="mgw_group">
+				<mx:AdvancedDataGrid width="100%"
+									 styleName="sceneDG"
+									 dataProvider="{worstMoSetPM.worstMoSetDM.worstMoList}"
+									 rowCount="{worstMoSetPM.worstMoSetDM.worstMoList.length+1}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="指标名称"
+												   width="200"
+												   dataField="isenable"
+												   editable="false">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:CheckBox change="checkbox1_changeHandler(event)"
+												 selected="{data.isenable==0?true:false}"
+												 label="{data.kpiname}"
+												 width="300">
+										<fx:Script>
+											<![CDATA[
+												protected function checkbox1_changeHandler(event:Event):void
+												{
+													data.isenable = CheckBox(event.target).selected ? 0 : 1;
+												}
+											]]>
+										</fx:Script>
+									</mx:CheckBox>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn headerText="最差算法"
+												   itemRenderer="com.linkage.module.cms.scenedaily.view.components.worstmo.WorstMoInputTextRenderer"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:HGroup width="100%"
+						  verticalAlign="middle">
+					<s:Label text="指标关系"/>
+					<s:DropDownList id="mgw_relationShipDropDownList"
+									dataProvider="{kpiRelationShipData}"
+									labelField="relationshipname"
+									requireSelection="true">
+					</s:DropDownList>
+					<s:Label text="适用网元类型"/>
+					<s:DropDownList id="mgw_perfMoDropDownList"
+									dataProvider="{worstMoSetPM.worstMoSetDM.worstPerMoList}"
+									width="150"
+									labelField="perfmo_type_name"
+									requireSelection="true">
+					</s:DropDownList>
+					<s:HGroup width="100%"
+							  horizontalAlign="right">
+						<s:Button label="保存"
+								  click="mgw_save_clickHandler(event)"/>
+					</s:HGroup>
+				</s:HGroup>
+
+			</s:VGroup>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+</s:VGroup>

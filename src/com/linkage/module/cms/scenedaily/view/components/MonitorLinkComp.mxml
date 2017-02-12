@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100"
+		 height="100">
+	<!--
+		 ***************************************
+		 监控视图连接页面
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-12-11
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Fade id="fade"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/scenedaily/img/监控图标.png")]
+			public var monitorImg:Class;
+
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/scenedaily/img/GIS热图.png")]
+			public var GisImg:Class;
+
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/scenedaily/img/无线专题.png")]
+			public var wirelessImg:Class;
+
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/scenedaily/img/监控视图.png")]
+			public var monitorViewImg:Class;
+
+			private function showOrHiddenLinkHandler(event:MouseEvent):void
+			{
+				fade.stop();
+				if (linkGroup.alpha > 0)
+				{
+					//淡出效果 旋转效果
+					fade.target = linkGroup;
+					fade.duration = 1000;
+					fade.alphaFrom = 1;
+					fade.alphaTo = 0;
+					fade.repeatCount = 1;
+					fade.play();
+				}
+				else
+				{
+					//淡入效果
+					fade.target = linkGroup;
+					fade.duration = 1000;
+					fade.alphaFrom = 0;
+					fade.alphaTo = 1;
+					fade.repeatCount = 1;
+					fade.play();
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<s:Group id="linkGroup"
+			 alpha="0"
+			 width="100%"
+			 height="100%">
+		<mx:Image source="{GisImg}"
+				  buttonMode="true"
+				  width="32"
+				  height="32"
+				  x="16"
+				  y="0"
+				  toolTip="GIS热图"/>
+		<mx:Image source="{wirelessImg}"
+				  buttonMode="true"
+				  width="32"
+				  height="32"
+				  x="52.77"
+				  y="15.23"
+				  toolTip="无线视图"/>
+		<mx:Image source="{monitorViewImg}"
+				  buttonMode="true"
+				  width="32"
+				  height="32"
+				  x="68"
+				  y="52"
+				  toolTip="监控视图"/>
+	</s:Group>
+	<mx:Image source="{monitorImg}"
+			  buttonMode="true"
+			  width="64"
+			  height="64"
+			  x="0"
+			  y="36"
+			  click="showOrHiddenLinkHandler(event)"/>
+</s:Group>

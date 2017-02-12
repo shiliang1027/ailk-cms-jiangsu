@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 minimizable="true" maximizable="true" dragable="true"
+		 closable="false" width="450" height="150">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.DataGrid;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.ListEvent;
+			
+			[Embed(source="img/down.png")]
+			[Bindable]
+			public static var downImg:Class;
+			
+			[Embed(source="img/up.png")]
+			[Bindable]
+			public static var upImg:Class;
+			
+			[Embed(source="img/tableTitleBg.png")]
+			[Bindable]
+			public static var tableTitleBg:Class;
+			
+			[bindable]
+			private var dataArr:ArrayCollection;
+			
+			private var dataGrid:AdvancedDataGrid;
+			
+			private var isOpen:Boolean = true;
+			
+			public function setTitle(title:String):void
+			{
+				this.title = title;
+			}
+			
+			public function initTable(data:ArrayCollection, columns:Array):void
+			{
+				this.dataArr = data;
+				
+				dataGrid = new AdvancedDataGrid();
+				dataGrid.percentWidth = 100;
+				dataGrid.percentHeight = 100;
+				dataGrid.sortableColumns = false;
+				var colArr:Array = new Array();
+				
+				for each(var col:String in columns)
+				{
+					var dgCol:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dgCol.dataField = col.split(",")[1];
+					dgCol.headerText = col.split(",")[0];
+					dgCol.headerWordWrap = true;
+					colArr.push(dgCol);
+				}
+				
+				dataGrid.columns = colArr;
+				
+				dataGrid.id = "dataGrid";
+				dataGrid.width = this.width - 20;
+				dataGrid.percentHeight = 100;
+				dataGrid.setStyle("verticalScrollPolicy","auto");
+				dataGrid.visible = true;
+				dataGrid.dataProvider = dataArr;
+				
+				this.addElement(dataGrid);
+			}
+			
+			public function addClickEvent(selectCell:Function):void
+			{
+				dataGrid.addEventListener(ListEvent.ITEM_CLICK,selectCell);
+			}
+			
+			public function selectRow(cellId:String):void
+			{
+				//查找序号
+				var index:int = 0;
+				for each (var obj:Object in dataArr)
+				{
+					if (obj.mo_id == cellId)
+					{
+						dataGrid.selectedIndex = index;
+					}
+					index ++;
+				}
+			}
+		]]>
+	</fx:Script>
+</panel:Window>

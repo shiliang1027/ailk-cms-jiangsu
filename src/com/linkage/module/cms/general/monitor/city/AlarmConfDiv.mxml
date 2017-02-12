@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:navbar="com.linkage.module.cms.components.navbar.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			private var _callBack:Function = null;
+			
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.monitorView");
+			
+			public function setTitle(title:String):void
+			{
+				confBar.title = title;
+			}
+
+
+			protected function checkBoxClick(name:String, event:Event):void
+			{
+				enableCheckBox(false);
+				_callBack.call(null, name, (event.target as CheckBox).selected);
+			}
+
+			public function get callBack():Function
+			{
+				return _callBack;
+			}
+
+			public function set callBack(value:Function):void
+			{
+				_callBack = value;
+			}
+
+			public function enableCheckBox(flag:Boolean):void
+			{
+				logger.info("### 设置 CheckBox 为 " + flag);
+				alarm1CheckBox.enabled = flag;
+				alarm2CheckBox.enabled = flag;
+			}
+
+		]]>
+	</fx:Script>
+	<navbar:NavBar id="confBar" location="right" title="配置" top="215">
+			<s:VGroup>
+				<s:Label id="titleLabel" text="告警"/>
+				<mx:HRule width="100%" height="2"/>
+				<s:HGroup> 
+					<s:Group width="10"/>
+					<s:CheckBox id="alarm1CheckBox" change="checkBoxClick('alarm1', event)" selected="true"/>	
+					<s:Label id="alarm1Label" text="一级告警"/>				
+				</s:HGroup>
+				<s:HGroup> 
+					<s:Group width="10"/>
+					<s:CheckBox id="alarm2CheckBox" change="checkBoxClick('alarm2', event)" selected="true"/>	
+					<s:Label id="alarm2wangLabel" text="二级告警"/>		
+				</s:HGroup>
+			</s:VGroup>
+	</navbar:NavBar>
+</s:Group>

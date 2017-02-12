@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  creationComplete="prodTopoNavComp_creationCompleteHandler(event)" 
+		  visible="false"
+		  close="this.visible=false" 
+		  title="产品编号列表"
+		  xmlns:panel="com.linkage.system.component.panel.*" 
+		  maximizable="false" closable="false"
+		  minHeight="30"
+		  minimizableLeft="0" 
+		  minimizableBottom="0" 
+		  minWidth="150"
+		  maxHeight="250" 
+		  bottom="0"
+		  maxWidth="400"
+		  dragable="true"
+		  resizable="true">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="query",type="com.linkage.module.cms.groupclientNew.event.ProdTopoNavEvent")]
+		[Event(name="prodChange",type="com.linkage.module.cms.groupclientNew.event.ProdTopoNavEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclientNew.event.ProdTopoNavEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientNew.components.ProdTopoNavComp");
+			
+			private var servTypeName:String="";
+			protected function prodTopoNavComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(ProdTopoNavEvent.REFRESH,onRefresh);
+				this.addEventListener(ProdTopoNavEvent.DATACHANGE,onDataChange);
+			}
+			
+			private function onRefresh(event:ProdTopoNavEvent):void{
+				var evt:ProdTopoNavEvent = new ProdTopoNavEvent(ProdTopoNavEvent.QUERY);
+				evt.param = event.param;
+				servTypeName = event.param.servTypeName;
+				this.dispatchEvent(evt);
+			}
+			
+			private function onDataChange(event:ProdTopoNavEvent):void{
+				var result:Object = event.param;
+//				this.removeAllElements();
+//				var prodTopoNavItem:ProdTopoNavItem;
+//				for each(var prodInfo:Object in result){
+//					prodTopoNavItem = new ProdTopoNavItem();
+//					prodInfo.prodName = prodInfo.prod_no;
+//					prodTopoNavItem.prodInfo = prodInfo;
+//					prodTopoNavItem.addEventListener(MouseEvent.CLICK,onProdTopoNavItemClick);
+//					this.addElement(prodTopoNavItem);
+//				}
+				
+				if(datagrid.columns && datagrid.columns.length>0){
+					
+				}else{
+					var i:Number=0;
+					var columns:Array = new Array();
+					var dataGridColumn:CustAlarmAdvancedDGColumn;
+					for each(var name:String in result.name){
+//						log.info("[buildColumns]name:"+name+",column:"+result.colum[i]);
+						dataGridColumn = new CustAlarmAdvancedDGColumn();
+						if(i<result.name.length){
+							dataGridColumn.width=150;
+						}else{
+							dataGridColumn.width=220;
+						}
+						
+						dataGridColumn.headerText = name;
+						dataGridColumn.dataField = result.colum[i];
+						columns.push(dataGridColumn);
+						i++;
+					}
+					datagrid.columns = columns;
+				}
+				this.minimizeButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				if(result && result.dataList.length>1){
+					datagrid.dataProvider = result.dataList;
+					var currentProd:String = result.currentProdNo;
+					for each(var item:Object in datagrid.dataProvider){
+						if(item.prod_no == currentProd){
+							datagrid.selectedItem = item;
+							break;
+						}
+					}
+					
+					this.visible=true;
+				}else{
+					this.visible=false;
+				}
+				
+			}
+			
+			private function onProdTopoNavItemClick(event:MouseEvent):void{
+				var prodInfo:Object = ProdTopoNavItem(event.currentTarget).prodInfo;
+				var evt:ProdTopoNavEvent = new ProdTopoNavEvent(ProdTopoNavEvent.PRODCHANGE);
+				evt.param = prodInfo;
+				this.dispatchEvent(evt);
+			}
+			
+
+			protected function datagrid_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object = AdvancedDataGrid(event.target).dataProvider[event.rowIndex];
+				var evt:ProdTopoNavEvent = new ProdTopoNavEvent(ProdTopoNavEvent.PRODCHANGE);
+				evt.param = data;
+				this.dispatchEvent(evt);
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:AdvancedDataGrid id="datagrid" height="100%" verticalScrollPolicy="auto" itemClick="datagrid_itemClickHandler(event)">
+		
+	</mx:AdvancedDataGrid> 
+	
+</panel:Window>

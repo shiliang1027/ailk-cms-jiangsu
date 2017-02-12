@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+           xmlns:s="library://ns.adobe.com/flex/spark"
+           xmlns:mx="library://ns.adobe.com/flex/mx"
+           creationComplete="module1_creationCompleteHandler(event)"
+           layout="absolute"
+           width="100%"
+           height="100%"
+           xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		   xmlns:colorAlarm="com.linkage.module.cms.perfmonitornew.colorAlarm.*"
+           xmlns:common="com.linkage.module.cms.perfmonitornew.common.*"
+		   xmlns:realAlarm="com.linkage.module.cms.perfmonitornew.realAlarm.*">
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitornew.common.CommonUtil;
+			import com.linkage.module.cms.perfmonitornew.dao.AlarmMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.dao.RealAlarmMonitorDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.realAlarm.RealAlarmMonitor");
+
+            private var parameters:Object;
+
+            private var initFlag:Boolean = true;
+			
+			private var lm:LoadManager = new LoadManager(this, "blue");
+			
+			public var schemeTitle:String = "";
+
+			[Bindable]
+			public var schemeTreeXml:XML;
+			
+			private var GSMKpiList:ArrayCollection = new ArrayCollection();
+			private var TDKpiList:ArrayCollection = new ArrayCollection();
+			private var LTEKpiList:ArrayCollection = new ArrayCollection();
+			
+            protected function module1_creationCompleteHandler(event:FlexEvent):void
+            {
+                parameters = this.parentApplication.parameters;
+
+				RealAlarmMonitorDAO.context = parameters['context'];
+
+				loadKpiByUser();
+                loadSchemeByUser();
+                
+            }
+
+            private function loadSchemeByUser(schemeName:String = null, monitorFlag:Boolean = false):void
+            {
+                //加载当前用户的监控方案
+                PerfMonitorDAO.getInstance().getSchemeByUser(
+                    {"acc_oid": parameters['acc_oid'], "type": "REALALARM"},
+                    function(result:Object):void
+                    {
+						log.info("resul");
+						log.info(result);
+						
+						schemeTreeXml = new XML(result);
+						
+						monitorSchemeTree.callLater(function():void
+						{
+							monitorSchemeTree.expandChildrenOf(schemeTreeXml, true);
+							
+							setTimeout(function():void
+							{
+								//保存修改后 选择
+								if (schemeName != null)
+								{
+									CommonUtil.forEachTreeDown(schemeTreeXml, function(node:XML):void
+									{
+										if (String(node.@label) == schemeName)
+										{
+											monitorSchemeTree.selectedItem = node;
+											
+											if (monitorFlag)
+											{
+												loadData();
+											}
+										}
+									});
+								}
+								
+								//初始化之后 默认选中第一个方案 进行监控
+								if (initFlag)
+								{
+									initFlag = false;
+									
+									var flag:Boolean = true;
+									CommonUtil.forEachTreeDown(schemeTreeXml, function(node:XML):void
+									{
+										if (String(node.@scheme_id) != "" && flag)
+										{
+											flag = false;
+											monitorSchemeTree.selectedItem = node;
+											loadData();
+										}
+									});
+								}
+							}, 500);
+						});
+					});
+            }
+
+			protected function loadKpiByUser():void
+			{
+				log.info(parameters);
+				RealAlarmMonitorDAO.getInstance().lm = lm;
+				RealAlarmMonitorDAO.getInstance().loadKpiByUser(
+					parameters,
+					function(data:ArrayCollection):void
+					{
+						log.info(data);
+						kpiInit(data);
+					});
+			}
+            protected function loadData():void 
+            {
+				var schemeId:String = String(monitorSchemeTree.selectedItem.@scheme_id);
+				
+				monitorWindow.title = "实时监控";
+				
+				var param:Object = new Object();
+				param.schemeId = schemeId;
+				param.selectedIndex = realMonitorViewStack.selectedIndex;
+				
+				log.info(param);
+				
+				RealAlarmMonitorDAO.getInstance().lm = lm;
+				RealAlarmMonitorDAO.getInstance().getData(
+					param,
+					function(data:Object):void
+					{
+						log.info(data);
+						dataTabShow(data);
+					});
+            }
+			
+			protected function dataTabShow(data:Object):void
+			{
+				var schemeId:String = String(monitorSchemeTree.selectedItem.@scheme_id);
+				var schemeName:String = String(monitorSchemeTree.selectedItem.@label);
+				
+				log.info("monitorLabel.text:"+monitorLabel.text);
+				monitorLabel.text = schemeTitle ;
+				
+				if(schemeId == "GSM")
+				{
+					rightGSMMonitor.ColumnsKpiList = GSMKpiList;
+					rightGSMMonitor.dealData(data);
+				}else if(schemeId == "TD")
+				{
+					rightTDMonitor.ColumnsKpiList = TDKpiList;
+					rightTDMonitor.dealData(data);
+				}else if(schemeId == "LTE")
+				{
+					rightLTEMonitor.ColumnsKpiList = LTEKpiList;
+					rightLTEMonitor.dealData(data);
+				}
+			}
+			
+            protected function hideSideBar():void
+            {
+                cfgWindow.visible = false;
+                monitorWindow.left = 29;
+            }
+
+            protected function showSideBar():void
+            {
+                cfgWindow.visible = true;
+                monitorWindow.left = 200;
+            }
+
+            protected function fullScreen():void
+            {
+                if (this.stage.displayState == StageDisplayState.NORMAL)
+                    this.stage.displayState = StageDisplayState.FULL_SCREEN;
+                else
+                    this.stage.displayState = StageDisplayState.NORMAL;
+            }
+			
+			protected function dataShowTab_changeHandler(event:IndexChangeEvent):void
+			{
+				var schemeId:String = String(monitorSchemeTree.selectedItem.@scheme_id);
+				var schemeName:String = String(monitorSchemeTree.selectedItem.@label);
+				
+				if(realMonitorViewStack.selectedIndex == 0)
+				{
+					rightGSMMonitor.dealData(data)
+				}else if(realMonitorViewStack.selectedIndex == 1)
+				{
+					rightTDMonitor.dealData(data)
+				}else if(realMonitorViewStack.selectedIndex == 2)
+				{
+					rightLTEMonitor.dealData(data)
+				}else
+				{
+					rightGSMMonitor.dealData(data)
+				}
+				
+			}
+			
+			public function kpiInit(data:ArrayCollection):void
+			{
+				log.info(data);
+				for each (var obj:Object in data)
+				{
+					var cb:CheckBoxComp = new CheckBoxComp();
+					cb.param = obj;
+					cb.label = obj['kpi_name'];
+					cb.id = obj['kpi_id'];
+					
+					if (obj["isShow"] == "1")
+						cb.selected = true;
+					else
+						cb.selected = false;
+					
+					kpiCfgGroup.addElement(cb);
+					
+					GSMKpiList.addItem(cb.param);
+					TDKpiList.addItem(cb.param);
+					LTEKpiList.addItem(cb.param);
+				}
+				
+				log.info("各自缓存~~~");
+				log.info(GSMKpiList);
+				log.info(TDKpiList);
+				log.info(LTEKpiList);
+				
+			}
+			
+			protected function config_clickHandler():void
+			{
+				
+				log.info("指标选择保存配置信息！！！");
+				var selectedKpiList:ArrayCollection = new ArrayCollection();
+				var ckbx:CheckBoxComp;
+				
+				for (var i:int = 0; i < kpiCfgGroup.numElements; i++)
+				{
+					ckbx = kpiCfgGroup.getElementAt(i) as CheckBoxComp;
+					
+					if(ckbx.selected == true)
+					{
+						ckbx.param.isShow == "1";
+					}else{
+						ckbx.param.isShow == "0";
+					}
+					selectedKpiList.addItem(ckbx.param);
+				}
+				
+				log.info(selectedKpiList);
+				
+				if(realMonitorViewStack.selectedIndex == 0)
+				{
+					GSMKpiList.addAll(selectedKpiList);
+				}
+				else if(realMonitorViewStack.selectedIndex == 1)
+				{
+					TDKpiList.addAll(selectedKpiList);
+				}
+				else if(realMonitorViewStack.selectedIndex == 2)
+				{
+					LTEKpiList.addAll(selectedKpiList);
+				}else
+				{
+					GSMKpiList.addAll(selectedKpiList);
+				}
+				
+				log.info(GSMKpiList);
+				log.info(TDKpiList);
+				log.info(LTEKpiList);
+				
+			}
+			
+			protected function kpiChange_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			protected function kpiMonitorWindow_closeHandler(event:WindowEvent):void
+			{
+				kpiMonitorWindow.visible = true;
+				kpiMonitorWindow.includeInLayout = true;
+			}
+			
+		]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <ailk_compts:Window title="监控方案"
+                        id="cfgWindow"
+                        height="100%"
+                        width="190"
+                        left="6"
+                        top="6"
+                        bottom="6"
+                        closable="false"
+                        maximizable="false"
+                        minimizable="false"
+                        styleName="windowPerf">
+        <mx:Image source="@Embed('../img/pin.png')"
+                  right="10"
+                  toolTip="隐藏侧边栏"
+                  buttonMode="true"
+                  click="hideSideBar()"
+                  top="-20"/>
+        <s:VGroup width="100%"
+                  height="100%"
+                  paddingBottom="6"
+                  paddingLeft="6"
+                  paddingRight="6"
+                  horizontalAlign="center"
+                  paddingTop="8">
+          <!--  <common:RadioList id="schemeList"
+                              labelField="scheme_name"
+                              click="changeMonitor()"
+                              width="100%"
+                              height="100%"/>-->
+			<mx:Tree id="monitorSchemeTree"
+					 dataProvider="{schemeTreeXml}"
+					 width="100%"
+					 height="100%"
+					 borderAlpha="0"
+					 doubleClickEnabled="false"
+					 verticalAlign="middle"
+					 contentBackgroundAlpha="0"
+					 showRoot="false"
+					 showScrollTips="true"
+					 wordWrap="false"
+					 variableRowHeight="true"
+					 labelField="@label"
+					 editorHeightOffset="0"
+					 indentation="12"
+					 itemClick="loadData()"
+					 horizontalScrollPolicy="auto"
+					 folderClosedIcon="{null}"
+					 folderOpenIcon="{null}"
+					 itemRenderer="com.linkage.module.cms.perfmonitornew.common.PointTreeItemRenderer"
+					 defaultLeafIcon="@Embed('../img/point.png')"
+					 disclosureClosedIcon="@Embed('../img/arrowRight.png')"
+					 disclosureOpenIcon="@Embed('../img/arrowDown.png')"/>
+        </s:VGroup>
+    </ailk_compts:Window>
+
+    <common:VButton id="cfgMiniBtn"
+                    label="监控方案"
+                    left="0"
+                    top="10"
+                    visible="{!cfgWindow.visible}"
+                    click="showSideBar()"
+                    width="25"
+                    height="100"/>
+
+    <ailk_compts:Window id="monitorWindow"
+                        left="200"
+                        right="6"
+                        top="6"
+                        bottom="6"
+                        styleName="windowPerf"
+                        closable="false"
+                        minimizable="false"
+                        width="100%"
+                        height="100%">
+		<s:VGroup width="100%"
+				  height="100%">
+			
+			<s:HGroup width="100%"
+					  height="100%">
+				<s:Label id="monitorLabel"/>
+				<s:Button id="kpiChange"
+						  label="指标选择"
+						  click="kpiChange_clickHandler(event)"/>
+			</s:HGroup>
+			<s:TabBar id="dataShowTab" dataProvider="{realMonitorViewStack}"
+					  styleName="commonTabBar"
+					  change="dataShowTab_changeHandler(event)"> 
+			</s:TabBar>
+			<mx:ViewStack id="realMonitorViewStack"
+						  width="100%"
+						  height="100%"
+						  top="23"
+						  styleName="commonViewStack">
+				<realAlarm:RightGSMMonitor id="rightGSMMonitor"
+											 width="100%"
+											 height="100%"/>
+				<realAlarm:RightTDMonitor id="rightTDMonitor"
+											 width="100%"
+											 height="100%"/>
+				<realAlarm:RightLTEMonitor id="rightLTEMonitor"
+											 width="100%"
+											 height="100%"/>
+			</mx:ViewStack>
+		</s:VGroup>
+        <mx:Image top="-22"
+                  right="35"
+                  buttonMode="true"
+                  click="fullScreen()"
+                  source="@Embed('../img/full_screen.png')"/>
+    </ailk_compts:Window>
+	<ailk_compts:Window id="kpiMonitorWindow"
+						styleName="windowPerf"
+						minimizable="false"
+						title="指标选择"
+						close="kpiMonitorWindow_closeHandler(event)"
+						visible="false"
+						includeInLayout="false"
+						width="100%"
+						height="100%">
+		<s:VGroup width="140"
+				  horizontalAlign="right">
+			<s:VGroup id="kpiCfgGroup"
+					  width="140"
+					  gap="5">
+				<s:CheckBox label="加载失败"/>
+			</s:VGroup>
+			<s:Button label="保存"
+					  click="config_clickHandler()"/>
+		</s:VGroup>
+		<!--<realAlarm:KpiConfigComp id="kpiConfigComp"
+								 width="100%"
+								 height="100%"/>-->
+	</ailk_compts:Window>
+</mx:Module>

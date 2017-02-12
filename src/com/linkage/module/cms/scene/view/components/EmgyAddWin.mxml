@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    width="400"
+                    height="350"
+                    title="新增应急资源"
+                    maximizable="false"
+                    minimizable="false"
+                    dragable="true"
+                    closable="true"
+                    styleName="window"
+                    close="{PopUpManager.removePopUp(this)}"
+                    creationComplete="init()"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.EmpyEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			
+			import spark.components.RadioButtonGroup;
+
+            private var rbg:RadioButtonGroup = new RadioButtonGroup;
+
+            public var resTypeId:String;
+            public var areaId:String;
+
+            [Bindable]
+            public var pm:ResMatrixCompPM;
+
+            public var msgDispatcher:Function;
+
+            public var context:String;
+            public var cityId:String;
+
+            private var log:ILogger = Log.getLoggerByClass(EmgyAddWin);
+
+            private var saveData:Object = {};
+
+            public var editData:Object;
+
+            public var addCallBack:Function;
+
+            [Bindable]
+            public var cityList:ArrayCollection = new ArrayCollection();
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+            private var resTypeList:ArrayCollection = new ArrayCollection(
+                [
+                {'id': '1', 'name': '应急通信车'},
+                {'id': '2', 'name': '应急油机车'},
+                {'id': '3', 'name': '便携式油机'},
+                {'id': '4', 'name': '应急人'},
+                {'id': '5', 'name': '卫星电话'}
+                ]);
+
+            public function init():void
+            {
+                if (editData != null)
+                {
+                    log.debug("应急资源编辑：");
+                    log.debug(editData);
+
+                    isUsedRb1.selected = editData.isused == "1";
+                    isUsedRb0.selected = editData.isused == "0";
+					
+					if(editData.areaid != null &&　editData.areaid != "")
+                    areaId = editData.areaid;
+					
+                    resTypeId = editData.emergrestype;
+                    longitude_input.text = editData.longitude;
+                    latitude_input.text = editData.latitude;
+                    cityId = editData.cityid;
+                    emergresname_input.text = editData.emergresname;
+                    emergresdesc_input.text = editData.emergresdesc;
+                }
+
+                if (resTypeId != null)
+                {
+                    resTypeDDP.selectedIndex = int(resTypeId) - 1;
+                    resTypeId = null;
+                }
+
+                if (pm.dm.areaList.length < 1)
+//                    msgDispatcher(new EmpyEvent(EmpyEvent.LOAD_AREA_ID));
+					requestServerUtil.addRequest(new EmpyEvent(EmpyEvent.LOAD_AREA_ID));
+
+                areaDDP.selectedIndex = -1;
+
+                if (cityList.length < 1)
+                    loadCityList();
+
+                if (areaId != null)
+                {
+                    setTimeout(function():void
+                    {
+                        for each (var area:Object in pm.dm.areaList)
+                        {
+                            if (area.AREAID == areaId)
+                            {
+                                areaDDP.selectedItem = area;
+                                break;
+                            }
+                        }
+                        areaId = null;
+                    }, 1500);
+                }
+
+                if (cityId != null)
+                {
+                    setTimeout(function():void
+                    {
+                        for each (var city:Object in cityList)
+                        {
+                            if (city.cityId == cityId)
+                            {
+                                cityDDP.selectedItem = city;
+                                break;
+                            }
+                        }
+
+                        cityId = null;
+                    }, 1500);
+                }
+            }
+
+            private function loadCityList():void
+            {
+                var rmtobj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_panels", "com.linkage.module.cms.scene.panels.serv.ScenePanelsServImpl", context + "messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        cityList.removeAll();
+                        cityList.addAll(data as IList);
+                    }
+                    ,
+                    function(e:FaultEvent):void
+                    {
+                        log.error("加载地市列表失败：" + e.fault.faultDetail);
+                    });
+
+                log.info("加载地市列表：");
+
+                rmtobj.queryAllCity();
+            }
+
+            protected function button1_clickHandler(event:MouseEvent):void
+            {
+                if (invalide())
+                    return;
+
+                prepareData();
+
+                var rmtobj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_panels", "com.linkage.module.cms.scene.panels.serv.ScenePanelsServImpl", context + "messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        if (data.toString().indexOf("成功") > 0)
+						{
+							saveData.emergresid = data.toString().split('_')[1] +"";
+							
+							if(addCallBack !=null)
+                            addCallBack.call(null, saveData);
+							
+							Alert.show(data.toString().split('_')[0] + "");
+						}
+						else
+							Alert.show(data.toString());
+
+                    }
+                    ,
+                    function(e:FaultEvent):void
+                    {
+                        Alert.show("保存失败！");
+                        log.error("保存应急资源失败：" + e.fault.faultDetail);
+                    });
+
+                log.info("保存应急资源到区域：");
+                log.debug(saveData);
+
+                rmtobj.addEmgy2Area(saveData);
+            }
+
+
+            private function invalide():Boolean
+            {
+                if (emergresname_input.text == null || emergresname_input.text == "")
+                    return false;
+
+                if (emergresname_input.text.length > 100)
+                {
+                    Alert.show("资源名称最大长度100");
+                    return true;
+                }
+
+                if (isNaN(Number(longitude_input.text)))
+                    return true;
+
+                if (longitude_input.text.length > 20)
+                {
+                    Alert.show("经度最大长度20");
+                    return true;
+                }
+
+                if (isNaN(Number(latitude_input.text)))
+                    return true;
+
+                if (latitude_input.text.length > 20)
+                {
+                    Alert.show("纬度最大长度20");
+                    return true;
+                }
+
+                if (emergresdesc_input.text != null && emergresdesc_input.text.length > 1000)
+                {
+                    Alert.show("描述最大长度1000");
+                    return true;
+                }
+
+                return false;
+            }
+
+            private function prepareData():void
+            {
+                if (areaDDP.selectedItem != null)
+                    saveData.areaid = areaDDP.selectedItem.AREAID;
+
+                saveData.emergrestype = resTypeDDP.selectedItem.id;
+                saveData.emergresname = emergresname_input.text;
+                saveData.emergresdesc = emergresdesc_input.text;
+                saveData.isused = rbg.selectedValue;
+                saveData.longitude = longitude_input.text;
+                saveData.latitude = latitude_input.text;
+
+
+                if (cityDDP.selectedItem != null)
+                    saveData.city_id = cityDDP.selectedItem.cityId;
+                else
+                    saveData.city_id = "";
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <parsley:Configure/>
+    </fx:Declarations>
+    <s:VGroup width="100%"
+              height="100%"
+              horizontalAlign="center"
+              verticalAlign="middle">
+        <mx:Form>
+            <mx:FormItem label="资源类型：">
+                <s:DropDownList id="resTypeDDP"
+                                labelField="name"
+                                requireSelection="true"
+                                dataProvider="{resTypeList}"/>
+            </mx:FormItem>
+
+            <mx:FormItem label="是否使用：">
+                <s:HGroup>
+                    <s:RadioButton id="isUsedRb1"
+                                   group="{rbg}"
+                                   label="是"
+                                   value="1"/>
+                    <s:RadioButton id="isUsedRb0"
+                                   group="{rbg}"
+                                   label="否"
+                                   selected="true"
+                                   value="0"/>
+                </s:HGroup>
+            </mx:FormItem>
+
+            <mx:FormItem label="所属区域：">
+                <s:DropDownList id="areaDDP"
+                                dataProvider="{pm.dm.areaList}"
+                                labelField="AREANAME"
+                                width="160"/>
+            </mx:FormItem>
+
+            <mx:FormItem label="所属地市：">
+                <s:DropDownList id="cityDDP"
+                                dataProvider="{cityList}"
+                                labelField="cityName"
+                                width="160"/>
+            </mx:FormItem>
+
+            <mx:FormItem label="经度：">
+                <s:HGroup>
+                    <s:TextInput id="longitude_input"
+                                 text="0"/>
+                    <s:Label text="*"
+                             color="red"/>
+                </s:HGroup>
+            </mx:FormItem>
+
+            <mx:FormItem label="纬度：">
+                <s:HGroup>
+                    <s:TextInput id="latitude_input"
+                                 text="0"/>
+                    <s:Label text="*"
+                             color="red"/>
+                </s:HGroup>
+            </mx:FormItem>
+
+            <mx:FormItem label="资源名称：">
+                <s:HGroup>
+                    <s:TextInput id="emergresname_input"/>
+                    <s:Label text="*"
+                             color="red"/>
+                </s:HGroup>
+            </mx:FormItem>
+
+            <mx:FormItem label="描述：">
+                <s:TextArea id="emergresdesc_input"
+                            height="50"/>
+            </mx:FormItem>
+        </mx:Form>
+
+        <s:Button label="保存"
+                  click="button1_clickHandler(event)"/>
+
+    </s:VGroup>
+</ailk_compts:Window>
+

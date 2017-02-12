@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute"
+		   xmlns:panel="com.linkage.system.component.panel.*"  
+		   xmlns:local="com.linkage.module.cms.groupclient.components.*"
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   backgroundColor="0xD7E0E7"
+		   width="100%" height="100%" creationComplete="module_creationCompleteHandler()">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.components.BusinessReportView;
+			import com.linkage.module.cms.groupclient.data.DemoDatas;
+			import com.linkage.module.cms.groupclient.data.GroupBusinessReportDataManager;
+			import com.linkage.module.cms.groupclient.data.GroupBusinessReportDataManagerBS;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManagerBS;
+			import com.linkage.module.cms.groupclient.event.CustWindowEvent;
+			import com.linkage.module.cms.groupclient.event.FilterFormEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.GroupBusinessReportModule");
+			public var parameters:Object;	
+
+			
+			private var defaultFilter:String = '';
+			public var lm:LoadManager = null;
+			//数据刷新定时器
+			private var _alarmTimer:Timer = new Timer(300000);
+			protected function module_creationCompleteHandler():void
+			{
+				parameters = parentApplication.parameters;
+				lm = new LoadManager(this);
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//初始化manager
+				initServerClass();
+				//初始化告警流水
+				initAlarms();
+				log.info("初始化完成！");
+				//初始化定时器
+				//log.info('初始化定时器 ~~');
+				_alarmTimer.addEventListener(TimerEvent.TIMER, onReportTimer);
+				refreshDatas();
+				
+			}
+			private var groupBusinessReportDataManager:GroupBusinessReportDataManager= null;
+			//初始化groupEqPerfDataManager，并给数据类注入context
+			private function initServerClass():void
+			{
+				if(null==groupBusinessReportDataManager)
+					groupBusinessReportDataManager = new GroupBusinessReportDataManagerBS(this.parameters['context']);
+			}
+			private function initAlarms():void
+			{
+				log.info('初始化告警流水：' + this.parameters['mapInfo']);
+				//初始化告警流水
+				//				alarmFlow.params = this.parameters;
+				//				//设置过滤规则
+				//				alarmFlow.ruleContent = defaultFilter;
+				//				alarmFlow.initInfo();
+			}
+			private function onReportTimer(event:TimerEvent):void
+			{
+				refreshDatas();
+			}
+			private var datas:Object = [];
+			private function refreshDatas():void
+			{
+				datas = DemoDatas.businessReportDatas;
+				//模拟数据
+				dosetDatas();
+				//刷新报表数据
+				lm.showLoading();
+				groupBusinessReportDataManager.loadEqBusProvinceAndCityReports({"servTypeId":this.parameters["servTypeId"]},
+					function(result:Object):void
+					{
+						if(result.datas){
+							log.info('加载报表数据成功！');
+						}
+						datas = result;
+						dosetDatas();
+//						initTree(data);
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('加载报表数据失败！');
+						lm.hideLoading();
+					});
+				
+			}
+			private function dosetDatas():void
+			{
+				for each (var item:Object in datas) 
+				{
+					var businessReportView:BusinessReportView = new BusinessReportView();
+					businessReportView.dataProvider = item;
+					moduleGroup.addElement(businessReportView);
+				}
+				
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Scroller width="100%" height="100%">
+			<s:VGroup id="moduleGroup" width="100%" height="100%" verticalAlign="middle" horizontalAlign="center" gap="10" 
+					  paddingRight="10" paddingLeft="10" paddingTop="10" paddingBottom="10" >
+			</s:VGroup>
+	</s:Scroller>
+</mx:Module>

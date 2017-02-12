@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="150"
+		 height="75"
+		 fontSize="16"
+		 fontFamily="微软雅黑"
+		 minWidth="10"
+		 creationComplete="group1_creationCompleteHandler(event)">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import mx.utils.ColorUtil;
+
+			[Bindable]
+			public var text:String = "";
+
+			public var shapeType:String = "rhombus";//菱形
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var c:uint = 0x808080;
+
+				if(currentState == "through")//直线
+					c = 0xFF8000;
+
+				if(shapeType == "eclipse")//椭圆
+				{
+					sp.visible = true;
+					sp.includeInLayout = true;
+
+					graphics.lineStyle(2, c, 1);
+					graphics.beginFill(c, .2);
+
+					graphics.drawRoundRect(0, 37.5, 150, 75, 75);
+					graphics.endFill();
+				}
+				else if(shapeType == "hexagon")//六边形
+				{
+					graphics.lineStyle(2, c, 1);
+					graphics.beginFill(c, .2);
+
+					graphics.moveTo(-5, 37.5);
+					graphics.lineTo(30.5, 0);
+					graphics.lineTo(119.5, 0);
+					graphics.lineTo(155, 37.5);
+					graphics.lineTo(119.5, 75);
+					graphics.lineTo(30.5, 75);
+					graphics.lineTo(-5, 37.5);
+					graphics.endFill();
+				}
+				else
+				{
+					graphics.lineStyle(2, c, 1);
+					graphics.beginFill(c, .2);
+					graphics.moveTo(0, 37.5);
+					graphics.lineTo(75, 0);
+					graphics.lineTo(150, 37.5);
+					graphics.lineTo(75, 75);
+					graphics.lineTo(0, 37.5);
+					graphics.endFill();
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<s:states>
+		<s:State name="raw"/>
+		<s:State name="through"/>
+	</s:states>
+
+	<s:layout>
+		<s:VerticalLayout horizontalAlign="center"
+						  verticalAlign="middle"
+						  gap="0"/>
+	</s:layout>
+
+	<mx:Spacer id="sp"
+			   height="75"
+			   visible="false"
+			   includeInLayout="false"/>
+	<s:Label id="label"
+			 width="100%"
+			 textAlign="center"
+			 text="{text}"/>
+</s:Group>

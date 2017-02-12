@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					styleName="windowScene"
+					visible="false"
+					minimizable="false"
+					maximizable="false"
+					closable="false"
+					resizable="true"
+					dragable="true"
+					xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					close="this.visible=false;"
+					xmlns:wireless="com.linkage.module.cms.oneline.view.components.wireless.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-5
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.oneline.GisHotContext;
+			import com.linkage.module.cms.oneline.domain.wireless.IUser;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.controls.Alert;
+			
+			import spark.components.NavigatorContent;
+			private var log:ILogger=Log.getLoggerByClass(GisHotView);
+			[Bindable]
+			[Inject("gisHotViewPM")]
+			public var pm:GisHotViewPM;
+			[Inject("user")]
+			public var user:IUser;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+
+			[Init]
+			public function wirelessInit():void
+			{
+				user.context=this.parentApplication.parameters['context'];
+				user.account=this.parentApplication.parameters['account'];
+				user.areaId=this.parentApplication.parameters['areaId'];
+			}
+
+			[MessageHandler(selector="GISHOTVIEWSHOW")]
+			public function viewShowHandler(e:GisHotEvent):void
+			{
+				this.visible=true;
+//				var s:Rectangle=systemManager.screen;
+//				var appWidth:Number;
+//				var appHeight:Number;
+//				var parentWidth:Number;
+//				var parentHeight:Number;
+//
+//				appWidth=s.width;
+//				appHeight=s.height;
+//				parentWidth=this.parent.width;
+//				parentHeight=this.parent.height;
+//				x=Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+//				y=Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+//				this.maximizeButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+			}
+
+			private var currentParam:Object={btsType: "0"};
+			
+			[Bindable]
+			private var cityIds:Object = "00";//默认00，全省。
+
+			[MessageHandler(selector="DOLOADHOTSPOTCELLDATA")]
+			public function doLoadHotSpotCellDataHandler(e:GisHotEvent):void
+			{
+				log.info("加载热点小区数据开始-------------");
+				log.debug(currentParam);
+				if (e.param.cityIds)
+				{
+					log.info("左侧列表选中的地点编号" + e.param.cityIds);
+					//给历史数据增加cityIds属性。
+					cityIds = e.param.cityIds;
+					currentParam.cityIds=e.param.cityIds;
+					delete currentParam.points;
+				}
+				if (e.param.btsType)
+				{
+					currentParam.btsType=e.param.btsType;
+				}
+				if (e.param.points)
+				{
+					currentParam.points=e.param.points;
+					delete currentParam.cityIds;
+				}
+				dispatcher(new GisHotEvent(GisHotEvent.REFRESHHOTSPOTCELLDATA));
+//				pm.timer.stop();
+				
+				//刷新历史数据
+				var nav:NavigatorContent = gisHistoryView.viewStack.selectedChild as NavigatorContent;
+				if(null!=nav){
+					var param:Object=new Object();
+					param["day"]=nav.id;
+					param["cityIds"]=cityIds;
+					log.info("loadHotHistoryInfo:-->"+nav.id + "," + cityIds);
+					loadHotHistoryInfo(param);
+				}
+				////刷新最新top10数据
+				dispatcher(new GisHotEvent(GisHotEvent.REFRESHSPECIALPHONEDATA));
+			}
+			[MessageHandler(selector="REFRESHSPECIALPHONEDATA")]
+			public function refreshSpecialPhoneDataCompleteHandler(e:GisHotEvent):void
+			{
+				//刷新最新top10数据
+				doRefreshTop10();
+			}
+			private function doRefreshTop10():void{
+				//phone2G
+				loadSecicalPhoneTop10Info(phone2G);
+				//phone3G
+				loadSecicalPhoneTop10Info(phone3G);
+			}
+			
+			private function loadSecicalPhoneTop10Info(phoneTop10View:GisSpecialPhoneView):void{
+				var nav:NavigatorContent = phoneTop10View.viewStack.selectedChild as NavigatorContent;
+				var phoneNav:NavigatorContent = phoneTop10View.viewPhoneStack.selectedChild as NavigatorContent;
+				if(null!=nav&&undefined!=nav&&null!=phoneNav&&undefined!=phoneNav){
+					var param:Object=new Object();
+					param["dayType"]=nav.id;
+					param["cityIds"]=cityIds;
+					param["specialPhoneType"]=String(phoneTop10View.specialPhoneType+phoneNav.id).replace("phone","");
+					log.info("getSpecialPhoneInfo参数:-->");
+					log.info(param);
+					var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADSPECIALPHONEDATA);
+					evt.param=param;
+					dispatcher(evt);
+				}
+			}
+			private function loadHotHistoryInfo(param:Object):void{
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADHOTHISTORYDATA);
+				evt.param=param;
+				dispatcher(evt);
+			}
+			
+			[MessageHandler(selector="REFRESHHOTSPOTCELLDATA")]
+			public function refreshHotSpotCellDataCompleteHandler(e:GisHotEvent):void
+			{
+				pm.dm.hotspots.removeAll();
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADHOTSPOTCELLDATA);
+				evt.param=currentParam;
+				evt.param.def="1";
+				dispatcher(evt);
+
+//				evt=new GisHotEvent(GisHotEvent.LOADHOTSPOTCELLDATA);
+//				evt.param=currentParam;
+//				evt.param.def="0";
+//				dispatcher(evt);
+			}
+
+
+			[MessageHandler(selector="LOADHOTSPOTCELLDATACOMPLETE")]
+			public function loadHotSpotCellDataCompleteHandler(e:GisHotEvent):void
+			{
+//				if(pm.dm.hotspots.length<=0){
+//					Alert.show("查询结果为空","提示");
+//				}
+//				pm.timer.start();
+//				历史热点数据模块，重置tab标签为“今天”。汪炜，2013-8-13。
+//				gisHistoryView.viewStack.selectedIndex=0;
+			}
+
+			protected function fastCustomBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				dispatcher(new GisHotEvent(GisHotEvent.SHOWFASTCUSTOMVIEW));
+			}
+			
+			[MessageHandler(selector="LOADGISINFODATA")]
+			public function loadGisInfoDataHandler(e:GisHotEvent):void
+			{
+				if(e.param && e.param.mo_id){
+					currentParam.mo_id=e.param.mo_id;
+				}
+			}
+			
+			[MessageHandler(selector="DOSAVEFASTCUSTOMDATA")]
+			public function doSaveFastCustomHandler(e:GisHotEvent):void
+			{
+				var evt:GisHotEvent = new GisHotEvent(GisHotEvent.SAVEFASTCUSTOMDATA);
+				var param:Object = new Object();
+				if(currentParam.mo_id){
+					delete currentParam.points;
+					param = currentParam;
+					param.areaname=String(e.param);
+					evt.param = param;
+					dispatcher(evt);
+					delete currentParam.mo_id;
+				}else if(currentParam.points){
+					param = currentParam;
+					param.areaname=String(e.param);
+					evt.param = param;
+					dispatcher(evt);
+				}else{
+					Alert.show("请框选地图完成场景区域定制","提示");
+				}
+				
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{GisHotContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+	
+		<s:Label text="突发事件保障" top="-20" fontSize="16"
+				 horizontalCenter="0" />
+	
+	<wireless:GisHotGisWorkView/>
+
+	<wireless:GisHotCitysViewNew top="2"/>
+	<wireless:GisSpecialPhoneView id="phone2G" title="2G" top="230" specialPhoneType="2G" datas="{pm.dm.phone2Gdata}"/>
+	<wireless:GisSpecialPhoneView id="phone3G" title="3G" top="580" specialPhoneType="3G" datas="{pm.dm.phone3Gdata}"/>
+
+	<!--<s:DataGroup height="z30"
+		 dataProvider="{pm.dm.hotspots}"
+		 right="5"
+		 top="10"
+		 itemRenderer="com.linkage.module.cms.oneline.view.components.wireless.renderer.GisHotKpiTypeItemRenderer">
+		 <s:layout>
+		 <s:TileLayout columnWidth="340"
+		 rowHeight="30"/>
+		 </s:layout>
+		 </s:DataGroup>-->
+
+	<wireless:GisHotDGViewNew title="动态发现热点区域"
+						   top="215"
+						   datas="{pm.dm.hotspots2}"/>
+
+	<!--<wireless:GisHotDGView title="自定义热点区域"
+						   top="180"
+						   datas="{pm.dm.hotspots1}"/>-->
+	<wireless:GisHotHistoryViewNew id="gisHistoryView" title="历史热点区域" top="415"
+								datas="{pm.dm.hotspots3}" cityIds="{cityIds}"/>
+
+	<wireless:GisHotCellRadiusView top="5"
+								   right="10"/>
+
+	<wireless:GisHotKpiListView/>
+
+	<wireless:GisHotMoInfoView/>
+
+	<wireless:GisHotRemarkView/>
+
+	<wireless:GisHotKpiChartView/>
+
+	<wireless:GisHotFastCustomView/>
+	
+	<s:Button label="一键快速定制"
+			  buttonMode="true"
+			  click="fastCustomBtn_clickHandler(event)"
+			  right="10"
+			  bottom="10"/>
+</ailk_compts:Window>

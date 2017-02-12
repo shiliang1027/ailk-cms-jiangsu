@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true"
+								  creationComplete="initColumn(event)"
+								  dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)"
+								  mouseChildren="false">
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+			import mx.events.FlexEvent;
+
+			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, 20);
+			}
+
+			public function initColumn(event:FlexEvent):void
+			{
+				if(listData != null)
+				{
+					var field:String = (listData as AdvancedDataGridListData).dataField;
+					if(data[field] == "一级告警")
+					{
+						this.lblGroup.setStyle("backgroundColor", 0xFF0000);
+					}
+					else if(data[field] == "二级告警")
+					{
+						this.lblGroup.setStyle("backgroundColor", 0xFFA500);
+					}
+					else if(data[field] == "三级告警")
+					{
+						this.lblGroup.setStyle("backgroundColor", 0xFFFF00);
+					}
+					else if(data[field] == "四级告警")
+					{
+						this.lblGroup.setStyle("backgroundColor", 0x4169e1);
+					}
+					else
+					{
+						this.lblGroup.clearStyle("backgroundColor");
+					}
+				}
+			}
+
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				if(listData != null)
+				{
+					var field:String = (listData as AdvancedDataGridListData).dataField;
+					if(data[field] == "一级告警")
+					{
+						this.lblGroup.setStyle("backgroundColor", 0xFF0000);
+					}
+					else if(data[field] == "二级告警")
+					{
+						this.lblGroup.setStyle("backgroundColor", 0xFFA500);
+					}
+					else if(data[field] == "三级告警")
+					{
+						this.lblGroup.setStyle("backgroundColor", 0xFFFF00);
+					}
+					else if(data[field] == "四级告警")
+					{
+						this.lblGroup.setStyle("backgroundColor", 0x4169e1);
+					}
+					else
+					{
+						this.lblGroup.clearStyle("backgroundColor");
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:Box id="lblGroup"
+			width="100%"
+			height="100%"
+			horizontalAlign="center">
+		<s:Label id="lblData"
+				 top="0"
+				 left="0"
+				 right="0"
+				 bottom="0"
+				 text="{listData.label}"/>
+	</mx:Box>
+</s:MXAdvancedDataGridItemRenderer>

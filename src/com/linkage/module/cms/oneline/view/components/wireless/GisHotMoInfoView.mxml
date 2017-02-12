@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="300"
+					height="300"
+					visible="false"
+					minimizable="false"
+					maximizable="false"
+					dragable="true"
+					styleName="windowScene"
+					title="网元信息"
+					close="this.visible=false;"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="gisHotMoInfoView_creationCompleteHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-10
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.events.FlexEvent;
+			[Bindable]
+			[Inject("gisHotViewPM")]
+			public var pm:GisHotViewPM;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+
+			private var openTimer:Timer=new Timer(500);
+			private var closeTimer:Timer=new Timer(500);
+			private var currentParam:*;
+			
+			protected function gisHotMoInfoView_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				openTimer.addEventListener(TimerEvent.TIMER,onOpenTimerHandler);
+				closeTimer.addEventListener(TimerEvent.TIMER,onCloseTimerHandler);
+				this.addEventListener(MouseEvent.MOUSE_OVER,onThisOverHanlder);
+				this.addEventListener(MouseEvent.MOUSE_OUT,onThisOutHandler);
+			}
+			
+			private function onThisOverHanlder(event:MouseEvent):void{
+				if(closeTimer.running){
+					closeTimer.stop();
+				}
+			}
+			
+			private function onThisOutHandler(event:MouseEvent):void{
+				if(!closeTimer.running){
+					closeTimer.start();
+				}
+			}
+			
+			private function onOpenTimerHandler(event:TimerEvent):void{
+				this.visible=true;
+				loadMoInfoData();
+				if(closeTimer.running){
+					closeTimer.stop();
+				}
+				if(openTimer.running){
+					openTimer.stop();
+				}
+			}
+			
+			private function onCloseTimerHandler(event:TimerEvent):void{
+				if(closeTimer.running){
+					closeTimer.stop();
+				}
+				this.visible=false;
+				if(openTimer.running){
+					openTimer.stop();
+				}
+			}
+			
+			private function loadMoInfoData():void{
+				var evt:GisHotEvent = new GisHotEvent(GisHotEvent.LOADMOINFODATA);
+				var param:Object = new Object();
+				param.moTypeId = currentParam.moTypeId;
+				param.mo_id = currentParam.mo_id;
+				param.mo_name = currentParam.mo_name;
+				evt.param = param;
+				dispatcher(evt);
+			}
+
+			[MessageHandler(selector="SHOWMOINFOVIEW")]
+			public function viewShowHandler(e:GisHotEvent):void
+			{
+				if(closeTimer.running){
+					closeTimer.stop();
+				}
+				currentParam = e.param;
+				this.x=currentParam.point.x + 15;
+				this.y=currentParam.point.y - this.height - 15;
+				var s:Rectangle=systemManager.screen;
+				if (x + this.width > s.width)
+				{
+					x-=this.width;
+				}
+				if (y < 0)
+				{
+					y+=this.height;
+				}
+				if(this.visible){
+					loadMoInfoData();
+				}else if(!openTimer.running){
+					openTimer.start();
+				}
+			}
+
+			[MessageHandler(selector="HIDEMOINFOVIEW")]
+			public function viewHideHandler(e:GisHotEvent):void
+			{
+				if(!closeTimer.running && this.visible){
+					closeTimer.start();
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="-1"
+			  paddingBottom="5">
+		<s:TabBar dataProvider="{pm.dm.infoTabs}"
+				  labelField="name"
+				  width="100%"
+				  styleName="sceneTabBar"
+				  buttonMode="true"/>
+		<mx:AdvancedDataGrid width="100%"
+							 verticalScrollPolicy="auto"
+							 styleName="sceneDG"
+							 height="100%"
+							 verticalAlign="middle"
+							 wordWrap="false"
+							 dataProvider="{pm.dm.moInfos}">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="kpiName"
+										   headerText="指标名称"
+										   width="120"/>
+				<mx:AdvancedDataGridColumn dataField="value"
+										   width="100"
+										   headerText="值"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+</ailk_compts:Window>

@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					styleName="window"
+					minimizable="false"
+					dragable="true"
+					title="挂牌网元详情"
+					maximize="window1_maximizeHandler(event)"
+					restore="this.closeButton.visible = true;"
+					close="PopUpManager.removePopUp(this)"
+					creationComplete="window1_creationCompleteHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-8-30
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.net.URI;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.hangandpick.HangPlateEvent;
+			import com.linkage.module.cms.scenedaily.view.DelistingMoView;
+
+			import flash.net.navigateToURL;
+			import flash.utils.setTimeout;
+
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridItemRenderer;
+			import mx.controls.advancedDataGridClasses.MXAdvancedDataGridItemRenderer;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			private var log:ILogger = Log.getLoggerByClass(HangMedalDetail);
+			[Inject("hangMedalDetailPM")]
+			[Bindable]
+			public var hangMedalDetailPM:HangMedalDetailPM;
+			[Inject("delistingMoView")]
+			public var delistingMoView:DelistingMoView;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			private var tempId:String;
+
+			[Bindable]
+			private var detailFinish:Boolean = false;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var sheetDetailURL:String = "warn/sheet/sheetAction!tosheetInfo.action?";
+
+			/**
+			 * 初始化入口方法
+			 */
+			public function loadData(param:Object):void
+			{
+				log.debug("[重点指标性能]:begin...");
+				if(detailFinish)
+				{
+					this.tempId = param.id;
+					hangMedalDetailPM.getHangMedalnfo(param.id);
+				}
+				else
+				{
+					setTimeout(function():void
+						{
+							loadData(param);
+						}, 100);
+				}
+			}
+
+			protected function baseDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				if(event.columnIndex == 4)
+				{
+					historyGroup.includeInLayout = true;
+					historyGroup.visible = true;
+				}
+			}
+
+			protected function historyDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				if(event.columnIndex == 0)
+				{
+					var id:String = historyDataGrid.selectedItem['id'];
+					log.debug("history to 摘牌详情 id=" + id);
+					delistingMoView.pm.param.cityId = id;
+					delistingMoView.init();
+					PopUpManager.addPopUp(delistingMoView, this.parent as DisplayObject);
+					delistingMoView.width = 700;
+					delistingMoView.height = 400;
+					delistingMoView.x = (this.stage.width - delistingMoView.width) / 2 - 150;
+					delistingMoView.y = (this.stage.height - delistingMoView.height) / 2 - 50;
+				}
+			}
+
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				log.debug("挂牌下载id=" + tempId + ",type=" + 1);
+				hangMedalDetailPM.export(tempId, 1);
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				this.closeButton.visible = false;
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				detailFinish = true;
+
+				log.info("为baseDataGrid加载右键菜单！！");
+
+				baseDataGrid.contextMenu = new ContextMenu();
+				baseDataGrid.contextMenu.hideBuiltInItems();
+				var item:ContextMenuItem = new ContextMenuItem("资源信息");
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+					{
+						var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+						if(obj == null)
+							obj = evt.mouseTarget as IListItemRenderer;
+
+						log.info(obj["data"]);
+						if(obj && obj["data"])
+						{
+							navigateToURL(new URLRequest(user.context + "/cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=" + obj["data"]["mo_id"]), "_blank");
+						}
+					});
+				baseDataGrid.contextMenu.customItems.push(item);
+
+				item = new ContextMenuItem("告警信息");
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+					{
+						var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+						if(obj == null)
+							obj = evt.mouseTarget as IListItemRenderer;
+						log.info(obj["data"]);
+						if(obj && obj["data"])
+						{
+							var e:HangPlateEvent = new HangPlateEvent(HangPlateEvent.CMS_SCENEDAILY_HANGMEDALDETAIL_BASEDATAGRID_ITEMCLICKHANDLER);
+							e.param = new Object();
+							e.param = obj["data"];
+							msgDispatcher(e);
+						}
+					});
+				baseDataGrid.contextMenu.customItems.push(item);
+
+				//工单加入右键菜单
+				sheetGrid.contextMenu = new ContextMenu();
+				sheetGrid.contextMenu.hideBuiltInItems();
+				item = new ContextMenuItem("工单EMOS信息");
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(e:ContextMenuEvent):void
+					{
+						var url:String = "";
+						if(e.mouseTarget is AdvancedDataGridItemRenderer)
+						{
+							var render:AdvancedDataGridItemRenderer = e.mouseTarget as AdvancedDataGridItemRenderer;
+							if(render.data != null && render.data["sheetno"] != null)
+							{
+								log.info("查看工单详情：" + render.data["sheetno"]);
+								url = user.context + sheetDetailURL.replace(/\$/g, "&") + 'sheetno=' + render.data["sheetno"] + '&isgroupsheet=0';
+								log.info('url：' + url);
+								navigateToURL(new URLRequest(url));
+							}
+							else
+							{
+								Alert.show("工单号为空！");
+							}
+						}
+						else if(e.mouseTarget is MXAdvancedDataGridItemRenderer)
+						{
+							var mxrender:MXAdvancedDataGridItemRenderer = e.mouseTarget as MXAdvancedDataGridItemRenderer;
+							if(mxrender.data != null && mxrender.data["sheetno"] != null)
+							{
+								log.info("查看工单详情：" + mxrender.data["sheetno"]);
+								url = user.context + sheetDetailURL.replace(/\$/g, "&") + 'sheetno=' + mxrender.data["sheetno"] + '&isgroupsheet=' + '&isgroupsheet=0';
+								log.info('url：' + url);
+								navigateToURL(new URLRequest(url));
+							}
+							else
+							{
+								Alert.show("工单号为空！");
+							}
+						}
+						else
+						{
+							Alert.show("工单号为空！");
+						}
+
+					});
+
+				sheetGrid.contextMenu.customItems.push(item);
+
+				item = new ContextMenuItem("告警信息");
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(e:ContextMenuEvent):void
+					{
+						if(e.mouseTarget is AdvancedDataGridItemRenderer)
+						{
+							var render:AdvancedDataGridItemRenderer = e.mouseTarget as AdvancedDataGridItemRenderer;
+							log.info("查看告警详情：" + render.data["alarmuniqueid"]);
+							var url:String = "/cms/warn/rule/report/nonprofess/NonprofessWarnAction!queryWarnInfo.action?alarmNo=" +
+								render.data["alarmuniqueid"] + "&dalTime=" + render.data["daltime"];
+							navigateToURL(new URLRequest(url));
+						}
+						else if(e.mouseTarget is MXAdvancedDataGridItemRenderer)
+						{
+							var mxrender:MXAdvancedDataGridItemRenderer = e.mouseTarget as MXAdvancedDataGridItemRenderer;
+							log.info("查看告警详情：" + mxrender.data["alarmuniqueid"]);
+							var url1:String = "/cms/warn/rule/report/nonprofess/NonprofessWarnAction!queryWarnInfo.action?alarmNo=" +
+								mxrender.data["alarmuniqueid"] + "&dalTime=" + mxrender.data["daltime"];
+							navigateToURL(new URLRequest(url1));
+						}
+					});
+
+				sheetGrid.contextMenu.customItems.push(item);
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:Label text="基本信息"/>
+		<mx:AdvancedDataGrid dataProvider="{hangMedalDetailPM.hangMedalDetailDM.baseInfoData}"
+							 id="baseDataGrid"
+							 textAlign="center"
+							 width="100%"
+							 height="20%"
+							 verticalScrollPolicy="auto"
+							 itemClick="baseDataGrid_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="地市"
+										   dataField="cityname"/>
+				<mx:AdvancedDataGridColumn headerText="网元名称"
+										   dataField="mo_name"/>
+				<mx:AdvancedDataGridColumn headerText="网元类型"
+										   dataField="mo_type_name"/>
+				<mx:AdvancedDataGridColumn headerText="挂牌时间"
+										   dataField="happentime"/>
+				<mx:AdvancedDataGridColumn headerText="累计挂牌次数"
+										   dataField="num"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:VGroup id="historyGroup"
+				  width="100%"
+				  height="30%"
+				  visible="false"
+				  includeInLayout="false">
+			<s:Label text="历史记录详情"/>
+			<mx:AdvancedDataGrid dataProvider="{hangMedalDetailPM.hangMedalDetailDM.historyInfoData}"
+								 id="historyDataGrid"
+								 textAlign="center"
+								 width="100%"
+								 height="100%"
+								 verticalScrollPolicy="auto"
+								 itemClick="historyDataGrid_itemClickHandler(event)">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn headerText="网元名称"
+											   dataField="mo_name"/>
+					<mx:AdvancedDataGridColumn headerText="挂牌时间"
+											   dataField="happentime"/>
+					<mx:AdvancedDataGridColumn headerText="摘牌时间"
+											   dataField="delisttime"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+		</s:VGroup>
+		<s:Label text="性能信息"/>
+		<mx:AdvancedDataGrid dataProvider="{hangMedalDetailPM.hangMedalDetailDM.propertyInfoData}"
+							 id="propertyDataGrid"
+							 textAlign="center"
+							 width="100%"
+							 height="40%"
+							 verticalScrollPolicy="auto">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="指标名称"
+										   dataField="name"/>
+				<mx:AdvancedDataGridColumn headerText="越线指标值"
+										   dataField="value"/>
+				<mx:AdvancedDataGridColumn headerText="健康值"
+										   dataField="normalthreshold"/>
+				<mx:AdvancedDataGridColumn headerText="越线指标发生时间"
+										   dataField="casetime"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:Label text="工单信息"/>
+		<mx:AdvancedDataGrid id="sheetGrid"
+							 dataProvider="{hangMedalDetailPM.hangMedalDetailDM.workOrderInfoData}"
+							 width="100%"
+							 textAlign="center"
+							 height="20%"
+							 verticalScrollPolicy="auto">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="工单号"
+										   dataField="sheetno"/>
+				<mx:AdvancedDataGridColumn headerText="工单状态"
+										   dataField="sheetstatus"/>
+				<mx:AdvancedDataGridColumn headerText="派单时间"
+										   dataField="sendtime"/>
+				<mx:AdvancedDataGridColumn headerText="工单时限"
+										   dataField="sheettime"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+	<mx:Image source="@Embed('../../../img/icon_export.png')"
+			  right="39"
+			  toolTip="导出"
+			  top="-19"
+			  buttonMode="true"
+			  click="export_clickHandler(event)"/>
+</ailk_compts:Window>

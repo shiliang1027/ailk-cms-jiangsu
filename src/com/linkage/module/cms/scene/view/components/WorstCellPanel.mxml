@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    width="100%"
+                    title="最差小区"
+                    minimizable="false"
+                    styleName="windowScene"
+                    close="closeWindow(1)"
+                    maximize="window2_resize(true)"
+                    restore="window2_resize(false)"
+                    height="100%"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    xmlns:ailk="http://www.ailk.com/2011/ailk">
+
+    <fx:Declarations>
+        <parsley:Configure/>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.domain.WorstCellPanelDM;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.events.IndexChangedEvent;
+			
+			import spark.components.Group;
+
+            private var log:ILogger = Log.getLoggerByClass(SheetStat);
+
+            public var location:String;
+            public var index:String;
+            private var maxFlag:Boolean = false;
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            [Inject("worstCellPanelPM")]
+            [Bindable]
+            public var worstCellPanelPM:WorstCellPanelPM;
+
+            [Inject("user")]
+            public var user:IUser;
+
+            [Inject("worstCellPanelDM")]
+            [Bindable]
+            public var worstCellPanelDM:WorstCellPanelDM;
+
+            [MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+            public function loadData(e:SceneEvent = null):void
+            {
+                log.info("开始加载最差小区数据。");
+                worstCellPanelPM.loadData();
+//				setTimeout(worstCellPanelPM.loadData,100);
+            }
+
+			protected function viewStack_changeHandler(event:IndexChangedEvent):void
+			{
+				var nav:NavigatorContent = event.relatedObject as NavigatorContent;
+				if(null!=nav&&undefined!=nav){
+					worstCellPanelDM.currectSelectFlag = nav.id.replace("view","");
+					loadData();
+				}
+			}
+            //当前最差小区统计 点击的地市、
+            private var cityName:Object;
+
+            public function closeWindow(type:int = 0):void
+            {
+                if (type == 1)
+                {
+                    if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+                    {
+                        this.visible = false;
+                        this.includeInLayout = false;
+                    }
+                }
+                else
+                    (this.parent as Group).removeElement(this);
+
+                if (type == 1)
+                {
+                    var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+                    e.panelName = this.name;
+                    e.param.index = this.index;
+                    e.param.pid = this.parent['id'];
+                    msgDispatcher(e);
+                }
+            }
+
+            protected function window2_resize(flag:Boolean):void
+            {
+                log.info("最差小区统计最大化、恢复窗口：" + flag + "_" + maxFlag);
+                var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+                e.panelName = this.name;
+                e.panelIndex = this.index;
+                e.panellocation = this.location;
+                e.panelMaxFlag = this.maxFlag;
+                msgDispatcher(e);
+                log.info("最差小区统计 最大化、恢复窗口：派发事件！");
+
+                this.maxFlag = flag;
+
+                this.closeButton.visible = !flag;
+                this.closeButton.includeInLayout = !flag;
+            }
+			private function exportKPI():void
+			{
+				log.info("导出 最差小区信息!");
+				var param:String = "level="+user.level + "&sceneId="+user.initSceneId + "&flag="+ worstCellPanelDM.currectSelectFlag;
+				if (user.level == "2")
+					param += "&areaId="+user.areaId;
+				else if (user.level == "3")
+					param += "&cityId="+user.cityId;
+				var url:String = user.context + "/scene/loc/locAction!exportWorstCells.action?" + param;
+				log.info(url);
+				navigateToURL(new URLRequest(url));
+			}
+        ]]>
+
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+	<s:VGroup id="worstGroup" width="100%" height="100%" gap="0" visible="false" includeInLayout="false">
+		<s:TabBar id="tabBar" dataProvider="{viewStack}" styleName="commonTabBar"
+				  useHandCursor="true" buttonMode="true" />
+		<mx:ViewStack id="viewStack" change="viewStack_changeHandler(event)" selectedIndex="0" creationPolicy="all" width="100%" height="100%" backgroundAlpha="0">
+			<s:NavigatorContent id="view2g" label="2G" width="100%" height="100%" creationPolicy="all">
+			</s:NavigatorContent>
+			<s:NavigatorContent id="view3g" label="3G" width="100%" height="100%" creationPolicy="all">
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:VGroup>
+	<s:VGroup id="worstExportGroup" gap="0" top="-24" right="55">
+		<mx:Image source="@Embed('../../img/icon_export.png')"
+				  buttonMode="true"
+				  toolTip="导出"
+				  click="exportKPI()"/>
+	</s:VGroup>
+    <mx:AdvancedDataGrid width="100%"
+                         height="100%"
+                         styleName="sceneDG"
+                         id="sheetStatCityDG"
+                         verticalAlign="middle"
+                         doubleClickEnabled="true"
+						 horizontalScrollPolicy="auto"
+						 verticalScrollPolicy="auto"
+                         dataProvider="{worstCellPanelDM.cellList}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="网元名称" dataTipField="网元名称" showDataTips="true"
+									   headerText="网元名称" itemRenderer="mx.controls.Label"/>
+			<mx:AdvancedDataGridColumn dataField="拥塞率(%)" dataTipField="拥塞率(%)" showDataTips="true"
+									   headerText="拥塞率(%)" itemRenderer="mx.controls.Label"/>
+			<mx:AdvancedDataGridColumn dataField="掉话率(%)" dataTipField="掉话率(%)" showDataTips="true"
+									   headerText="掉话率(%)" itemRenderer="mx.controls.Label"/>
+			<mx:AdvancedDataGridColumn dataField="无线接入性(%)" dataTipField="无线接入性(%)" showDataTips="true"
+									   headerText="无线接入性(%)"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</ailk_compts:Window>

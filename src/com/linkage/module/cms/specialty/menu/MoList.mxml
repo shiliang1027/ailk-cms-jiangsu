@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:supportClasses="com.esri.ags.skins.supportClasses.*"
+		 xmlns:wmenu="com.linkage.module.cms.specialty.menu.*"
+		 width="100%" 
+		 height="100%"
+		 >
+	<s:layout>
+		<s:BasicLayout>
+		</s:BasicLayout>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.common.LoadManager;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			import com.linkage.system.rpc.remoting.BlazeDSUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			
+			// 日志
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.specialty.menu");
+			// 告警列表对象
+			private var _warnList:WarnList = null;
+			// 过渡效果
+			public var loadManger:LoadManager = null;
+			
+			public function get warnList():WarnList
+			{
+				return _warnList;
+			}
+
+			public function set warnList(value:WarnList):void
+			{
+				_warnList = value;
+				loadManger = new LoadManager(_warnList);
+			}
+
+			// 加载网元列表
+			public function initMoList(login_name:String,isPage:String,moId:String,destination:String,src:String,endpoint:String):void
+			{
+				setParams(destination,src,endpoint,login_name,isPage);
+				var remoteService:RemoteObject = BlazeDSUtil.newService(
+					destination,
+					src,
+					endpoint,
+					function(result:Object):void
+					{
+						var moName:String = result['moName'];
+						var moList:ArrayCollection = result['mos'] as ArrayCollection;
+						logger.info(">>> 获取的网元列表 >>> [moName=" + moName + ",mos.size=" + moList.length + "]");
+						
+						lbmo1.moName = moList[0]['mo_name'];
+						lbmo1.moId = moList[0]['mo_id'];
+						lbmo2.moName = moList[1]['mo_name'];
+						lbmo2.moId = moList[1]['mo_id'];
+						lbmo3.moName = moList[2]['mo_name'];
+						lbmo3.moId = moList[2]['mo_id'];
+						
+						mo1.label = lbmo1.moName;
+						mo2.label = lbmo2.moName;
+						mo3.label = lbmo3.moName;
+						
+						chkMo(lbmo2);
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error(">>> 获取网元列表失败 >>>",event.fault.faultString);
+					}
+				);
+				remoteService.getMos(moId as String);
+			}
+			
+			// 设置参数
+			private function setParams(destination:String,src:String,endpoint:String,login_name:String,isPage:String):void
+			{
+				lb_destination.text = destination;
+				lb_src.text = src;
+				lb_endpoint.text = endpoint;
+				lb_login_name.text = login_name;
+				lb_isPage.text = isPage;
+			}
+
+			// 选择网元
+			private function chkMo(mo:MyLabel):void
+			{
+				logger.info(">>> 查询网元[" + mo.moId + "]下的告警 >>>");
+				var remoteService:RemoteObject = BlazeDSUtil.newService(
+					lb_destination.text,
+					lb_src.text,
+					lb_endpoint.text,
+					function(result:Object):void
+					{
+						var ac:ArrayCollection = result as ArrayCollection;
+						logger.info(">>> 获取到的告警数量:" + ac.length + " >>>");
+						_warnList.setData(ac);
+						_warnList.setTitle(mo.moName);
+						loadManger.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error(">>> 查询网元[" + mo.moId + "]下的告警失败 >>>",event.fault.faultString);
+					}
+				);
+				remoteService.getWarns(mo.moId as String,lb_login_name.text as String,lb_isPage.text as String);
+				loadManger.showLoading(" 正在加载数据，请稍等 ");
+				_warnList.setData(new ArrayCollection());
+			}
+
+		]]>
+	</fx:Script>
+	<mx:VBox horizontalAlign="center">
+		<mx:LinkButton id="mo1" label="" click="chkMo(lbmo1)" color="0xFFFFFF"/>
+		<s:Label text="↓" color="0xFFFFFF"/>
+		<mx:LinkButton id="mo2" label="" click="chkMo(lbmo2)" color="0xFFFFFF"/>
+		<s:Label text="↓" color="0xFFFFFF"/>
+		<mx:LinkButton id="mo3" label="" click="chkMo(lbmo3)" color="0xFFFFFF"/>
+		
+		<wmenu:MyLabel id="lbmo1" visible="false" includeInLayout="false"/>
+		<wmenu:MyLabel id="lbmo2" visible="false" includeInLayout="false"/>
+		<wmenu:MyLabel id="lbmo3" visible="false" includeInLayout="false"/>
+		<s:Label id="lb_destination" text="" visible="false" includeInLayout="false"/>
+		<s:Label id="lb_src" text="" visible="false" includeInLayout="false"/>
+		<s:Label id="lb_endpoint" text="" visible="false" includeInLayout="false"/>
+		<s:Label id="lb_login_name" text="" visible="false" includeInLayout="false"/>
+		<s:Label id="lb_isPage" text="" visible="false" includeInLayout="false"/>
+	</mx:VBox>
+</s:Group>

@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:CompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					title="资源与告警统计"
+					titleIcon="@Embed(source='../img/title_ico03.png')">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneResource;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.components.EmgyHeaderCheckRenderer;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.event.EmpyEvent;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.event.ResMatrixEvent;
+			import com.linkage.module.cms.gsscene.viewnew.emgyresourcenew.EmgyDetailDowWin;
+			import com.linkage.module.cms.gsscene.viewnew.emgyresourcenew.EquipmentDetailDgWin;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var log:ILogger = Log.getLoggerByClass(EmgyResourceNew);
+			
+			[Bindable]
+			private var exportFlag:Boolean =true;
+			
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			[Bindable]
+			public var yuanArr:ArrayCollection = new ArrayCollection([
+				{"emgyname": "重点通信目标瘫痪通信保障专项预案", "modifyuser": "", "modifytime": "", "loadUrl": "cms/scene/emergency/重点通信目标瘫痪通信保障专项预案.doc "},
+				{"emgyname": "重大体育赛事通信保障专项预案", "modifyuser": "", "modifytime": "", "loadUrl": "cms/scene/emergency/重大体育赛事通信保障专项预案.doc "},
+				{"emgyname": "中国移动江苏公司防汛抗台通信保障专项预案", "modifyuser": "", "modifytime": "", "loadUrl": "cms/scene/emergency/中国移动江苏公司防汛抗台通信保障专项预案.doc "},
+				{"emgyname": "省-江苏-自然灾害类-防汛抗台-V1.5.1（2015.3）", "modifyuser": "", "modifytime": "", "loadUrl": "cms/scene/emergency/省_江苏_自然灾害类_防汛抗台_V1.5.1.doc"},
+				{"emgyname": "省-江苏-事故灾害-机房停电-V1.5.1（2015.3）", "modifyuser": "", "modifytime": "", "loadUrl": "cms/scene/emergency/省_江苏_事故灾害_机房停电_V1.5.1.doc"}]);
+
+			[Inject("emgyDetailDowWin")]
+			public var emgyDetailDowWin:EmgyDetailDowWin;
+			
+			protected function emgyDetailTabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				log.info("导航:{0},", emgyDetailTabBar.selectedIndex);
+				if (emgyDetailTabBar.selectedIndex == 0)
+				{
+					exportFlag = true;
+				}
+				else
+				{
+					exportFlag = false;
+				}
+			}
+			
+			
+			[Inject("equipmentDetailDgWin")]
+			public var equipmentDetailDgWin:EquipmentDetailDgWin;
+			//点击资源矩阵，显示对应资源详细信息
+			protected function resourceDetailHandler(evt:ListEvent):void
+			{
+				log.info("显示资源详情信息:{0},", evt);
+				
+				var data:Object = evt.itemRenderer.data;
+				var colIndex:int = evt.columnIndex;
+				var rme:ResMatrixEvent;
+				var alarmLevel:String="";
+				
+				if(colIndex == 0 || colIndex == 1)
+				{
+					return;
+				}
+
+				PopUpManager.addPopUp(equipmentDetailDgWin, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(equipmentDetailDgWin);
+				
+				equipmentDetailDgWin.equipmentDetailDg.dataProvider = null;
+				
+				//equipmentDetailDg
+				//如果点的是一级或者二级告警 那么直接显示数据集中的结果
+				log.info(data);
+				rme = new ResMatrixEvent(ResMatrixEvent.CMS_SCENE_EMGYRESOURCE_ALARMWARNNUMS);
+				rme.data = new Object;
+				rme.data.moTypeName = data["moTypeName"];
+				rme.data.moTypeId = data["moTypeId"];
+				rme.data.isImpMo = "0";
+				
+				if (colIndex == 3)
+				{
+					//数据集 moId  moName  moTypeName alarmLevel
+					log.info("一级告警");
+					alarmLevel = "1";
+					rme.data.alarmLevel = alarmLevel;
+					requestServerUtil.addRequest(rme);
+				}
+				else if (colIndex == 4)
+				{
+					log.info("二级告警");
+					alarmLevel = "2";
+					rme.data.alarmLevel = alarmLevel;
+					requestServerUtil.addRequest(rme);
+					
+				}
+				else if (colIndex == 2)
+				{
+					log.info("一二三级告警");
+					//如果是第一第二列，那么显示全部
+					var arr:ArrayCollection = new ArrayCollection();
+					equipmentDetailDgWin.equipmentDetailDg.dataProvider = arr;
+					alarmLevel = "";//全部告警级别。
+					rme.data.alarmLevel = alarmLevel;
+					requestServerUtil.addRequest(rme);
+				}
+				else
+				{
+					return;
+				}
+				equipmentDetailDgWin.equipmentDetailDg.contextMenu = new ContextMenu();
+				equipmentDetailDgWin.equipmentDetailDg.contextMenu.hideBuiltInItems();
+				var item:ContextMenuItem;
+				
+				if (colIndex == 3 || colIndex == 4)
+				{
+					//TODO  rrr告警查询
+					item = new ContextMenuItem("告警查询");
+					item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+					{
+						//挂牌网元详情 传递参数 网元id
+						var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+						if (obj == null)
+							obj = evt.mouseTarget as IListItemRenderer;
+						
+						log.info(obj["data"]);
+						var id:String = "neId=" + obj["data"]["moId"];
+						if (data["moTypeName"] == "机房")
+							id = "neroom=" + obj["data"]["moId"];
+						var openUrl:String = user.context + "/cms/warn/report/query/ShowAlarmList.jsp?alarmStatus=1&" + id + "&alarmseverity=" + obj["data"]["alarmLevel"];
+						log.info(openUrl);
+						navigateToURL(new URLRequest(openUrl), "_blank");
+					});
+					equipmentDetailDgWin.equipmentDetailDg.contextMenu.customItems.push(item);
+					
+				}
+				
+				if (data["moTypeName"] != "电路")
+				{
+					item = new ContextMenuItem("GIS定位");
+					item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+					{
+						//挂牌网元详情 传递参数 网元id
+						var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+						if (obj == null)
+							obj = evt.mouseTarget as IListItemRenderer;
+						
+						log.info(obj["data"]);
+						//						log.info("ceshi:{0};", getQualifiedClassName(evt.mouseTarget));
+						
+						var e:SceneEvent = new SceneEvent(SceneEvent.SHOWMO2GIS);
+						e.param = new Object();
+						e.param.moId = obj["data"]["moId"];
+						e.param.moTypeId = obj["data"]["moTypeId"];
+						if (obj["data"].hasOwnProperty("alarmLevel"))
+							e.param.alarmLevel = obj["data"]["alarmLevel"];
+						//							msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+					});
+					equipmentDetailDgWin.equipmentDetailDg.contextMenu.customItems.push(item);
+					
+				}
+				log.info(equipmentDetailDgWin.equipmentDetailDg.dataProvider);
+				log.info("弹出窗口……");
+				
+				
+				log.info("显示资源详情 end!");
+				
+			}
+			
+			protected function resMatrixGrid_itemRollOverHandler(event:ListEvent):void
+			{
+//				if (user.isNew == "1")
+//				{
+//					mx = event.rowIndex;
+//					
+//					my = event.columnIndex;
+//					
+//					objLabelId = "201";
+//					setTimeout(function():void
+//					{
+//						var objLabelIdStr:String = pm.dm.resData.getItemAt(event.rowIndex)['moTypeName'].toString();
+//						log.info("mx+" + mx + "  my+" + my + " event.rowIndex+" + event.rowIndex + "  event.columnIndex+ " + event.columnIndex);
+//						showSignInfo(event.rowIndex, event.columnIndex, objLabelId, objLabelIdStr);
+//					}, 3000);
+//				}
+			}
+			
+			protected function emgyDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				log.debug("当前列：" + event.columnIndex);
+				var isUsed:String;
+				if (event.columnIndex == 1)
+				{
+					isUsed = "0";
+				}
+				else if (event.columnIndex == 2)
+				{
+					isUsed = "1";
+				}
+				var emergrestype:String = this.emgyDataGrid.selectedItem['emergrestype'];
+				log.debug("-------------->emergrestype=" + emergrestype);
+				
+				var param:Object = new Object;
+				param.empergResType = emergrestype;
+				param.isUsed = isUsed;
+				getSceneEmgyDetail(param);
+				
+				emgyDetailDowWin.emgyDataGrid = this.emgyDataGrid;
+				PopUpManager.addPopUp(emgyDetailDowWin, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(emgyDetailDowWin);
+				
+				log.debug("加载全选");
+//				emgyDetailDowWin.isUsedColumn.headerRenderer = new ClassFactory(EmgyHeaderCheckRenderer);
+				log.debug("加载全选完成");
+			}
+			
+			/**
+			 * 应急资源详情事件派发
+			 */
+			protected function getSceneEmgyDetail(param:Object):void
+			{
+				log.debug("[应急资源]:应急详情事件" + EmpyEvent.SHOW_EMPY_DETAIL);
+				var empyDetailEvent:EmpyEvent = new EmpyEvent(EmpyEvent.SHOW_EMPY_DETAIL);
+				empyDetailEvent.param = param;
+				//			msgDispatcher(empyDetailEvent);
+				requestServerUtil.addRequest(empyDetailEvent);
+			}
+			
+			protected function emgyYuanNavi_mouseOverHandler(event:MouseEvent):void
+			{
+				
+			}
+			
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(event:SceneEvent = null):void
+			{
+				this.loadA();
+			}
+			
+			private function loadA():void
+			{
+				log.info("应急资源 加载数据！");
+				log.debug("[应急资源]:派发应急概况事件" + EmpyEvent.SHOW_EMPY_SITUATION);
+				//			msgDispatcher(empyEvent);
+				requestServerUtil.addRequest(new EmpyEvent(EmpyEvent.SHOW_EMPY_SITUATION));
+				//			msgDispatcher(new ResMatrixEvent(ResMatrixEvent.LOAD_RESMATRIX_DATA));
+				requestServerUtil.addRequest(new ResMatrixEvent(ResMatrixEvent.LOAD_RESMATRIX_DATA));
+			}
+			
+			public function loadFile(url:String):void
+			{
+				log.debug("下载连接地址：" + user.context + url);
+				navigateToURL(new URLRequest(user.context + url));
+			}
+			private function exportKPI():void
+			{
+				msgDispatcher(new EmpyEvent(EmpyEvent.QUERY_COUNT_NUM));
+//				log.info(user);
+//				var url:String = user.context + "/gsscene/panels/panelsAction!exportNeInfo.action?logicalType=" + user.logicalType + "&cityId=" + user.cityId + "&level=" + user.level + "&areaId=" user.areaId;
+//				navigateToURL(new URLRequest(url));
+			}
+
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:VGroup gap="0"
+			  width="100%"
+			  height="100%">
+		<s:TabBar id="emgyDetailTabBar"
+				  styleName="sceneTabBar"
+				  width="100%"
+				  change="emgyDetailTabBar_changeHandler(event)"
+				  dataProvider="{emgyDetailViewStack}"/>
+		<mx:ViewStack id="emgyDetailViewStack"
+					  creationPolicy="all"
+					  styleName="sceneViewStack"
+					  height="100%"
+					  width="100%"
+					  backgroundAlpha="0">
+			<s:NavigatorContent id="resMatrixNavi"
+								label="设备资源"
+								height="100%"
+								width="100%"
+								creationPolicy="all">
+				<mx:AdvancedDataGrid id="resMatrixGrid"
+									 styleName="sceneDG"
+									 verticalAlign="middle"
+									 horizontalScrollPolicy="auto"
+									 dataProvider="{scenePM.resMatrixDM.resData}"
+									 itemClick="resourceDetailHandler(event)"
+									 itemRollOver="resMatrixGrid_itemRollOverHandler(event)"
+									 width="100%"
+									 height="100%">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="类型"
+												   width="56"
+												   dataField="moTypeName"/>
+						<mx:AdvancedDataGridColumn headerText="网元数"
+												   width="71"
+												   dataField="moNum"/>
+						<mx:AdvancedDataGridColumn headerText="告警网元数"
+												   width="100"
+												   dataField="alarmMoNum"/>
+						<mx:AdvancedDataGridColumn headerText="一级"
+												   width="56"
+												   dataField="oneLevelAlarm"/>
+						<mx:AdvancedDataGridColumn headerText="二级"
+												   width="56"
+												   dataField="twoLevelAlarm"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+			<s:NavigatorContent id="emgySourceNavi"
+								label="应急资源"
+								height="100%"
+								width="100%"
+								creationPolicy="all">
+				<mx:AdvancedDataGrid id="emgyDataGrid"
+									 width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 verticalAlign="middle"
+									 dataProvider="{scenePM.emgyResourceDM.emgyResourceTotal}"
+									 itemClick="emgyDataGrid_itemClickHandler(event)">
+					<mx:columns>
+						
+						<mx:AdvancedDataGridColumn dataField="emergrestypename"
+												   headerText="资源类型"/>
+						<mx:AdvancedDataGridColumn dataField="count"
+												   headerText="总数量"/>
+						<mx:AdvancedDataGridColumn dataField="isUsedCount"
+												   headerText="正在使用"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+			<s:NavigatorContent id="emgyYuanNavi"
+								label="应急预案"
+								height="100%"
+								width="100%"
+								creationPolicy="all"
+								mouseOver="emgyYuanNavi_mouseOverHandler(event)">
+				<mx:AdvancedDataGrid id="emgyYuanDataGrid"
+									 width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 horizontalScrollPolicy="auto"
+									 
+									 dataProvider="{yuanArr}"
+									 verticalAlign="middle">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="emgyname"
+												   width="297"
+												   headerText="应急预案名称"/>
+						<mx:AdvancedDataGridColumn headerText="操作"
+												   width="60">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:Label text="下载"
+											  buttonMode="true"
+											  click="label1_clickHandler(event)"
+											  width="100%">
+										<fx:Script>
+											<![CDATA[
+												import flash.net.navigateToURL;
+												
+												import org.spicefactory.parsley.view.ParentContext;
+												
+												protected function label1_clickHandler(event:MouseEvent):void
+												{
+													parentDocument.loadFile(data.loadUrl);
+												}
+											]]>
+										</fx:Script>
+									</mx:Label>
+									
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:AdvancedDataGridColumn>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:VGroup>
+	<s:HGroup verticalAlign="middle"
+			  horizontalAlign="center"
+			  right="60"
+			  top="-24"
+			  visible="{exportFlag}">
+		<mx:Image source="{GsSceneResource.export}"
+				  buttonMode="true"
+				  toolTip="导出"
+				  click="exportKPI()"/>
+	</s:HGroup>
+</viewnew:CompWindow>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   creationComplete="module1_creationCompleteHandler(event)"
+		   horizontalScrollPolicy="off"
+		   verticalScrollPolicy="off"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   xmlns:components="com.linkage.module.cms.scenedaily.view.components.*"
+		   xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		   xmlns:hangandpick="com.linkage.module.cms.scenedaily.view.components.hangandpick.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-9-10
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{HangPlateModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+
+			import mx.events.FlexEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(HangPlateModule);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			public var parameters:Object;
+
+			[Init]
+			public function moduleInit():void
+			{
+				if (log.infoEnabled)
+					log.info("--开始初始化用户信息！");
+
+				this.parameters = this.parentApplication.parameters;
+
+				user.context = this.parameters['context'];
+				user.account = this.parameters['account'];
+				user.areaId = this.parameters['areaId'];
+
+				if (log.infoEnabled)
+				{
+					log.debug(user);
+					log.info("--初始化用户信息完成！");
+				}
+			}
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("--开始加载样式！" + this.parameters["styleUrl"]);
+				//读取样式
+				//				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				styleManager.loadStyleDeclarations2("css/common/show/ui.swf");
+				log.info("--加载样式完成！");
+			}
+		]]>
+	</fx:Script>
+
+	<ailk_compts:Window width="100%"
+						height="100%"
+						styleName="window"
+						closable="false"
+						minimizable="false"
+						maximizable="false">
+		<hangandpick:HangPlateComp/>
+	</ailk_compts:Window>
+</mx:Module>

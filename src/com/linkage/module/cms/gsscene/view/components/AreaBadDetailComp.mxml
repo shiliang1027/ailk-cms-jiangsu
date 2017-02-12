@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					close="areaWindow_closeHandler(event)"
+					minimizable="false"
+					dragable="true"
+					styleName="windowScene"
+					titleIcon="@Embed(source='../../img/title_ico03.png')"
+					title="区域级劣化详情"
+					width="470"
+					height="260"
+					maximize="area_maximizeHandler()"
+					restore="areaWindow_restoreHandler(event)"
+					resizable="true"
+					minWidth="200"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-12-27
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.SceneIntroPM;
+			
+			import mx.managers.PopUpManager;
+
+			[Inject]
+			[Bindable]
+			public var siPm:SceneIntroPM;
+
+			protected function areaWindow_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function areaWindow_restoreHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.width = 470;
+				this.height = 260;
+				this.closeButton.visible = true;
+				this.closeButton.includeInLayout = true;
+			}
+
+			protected function area_maximizeHandler():void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				this.closeButton.visible = false;
+				this.closeButton.includeInLayout = false;
+			}
+
+			public function AreaBadDetailDetailShowHandler():void
+			{
+				if (siPm.sceneIntroDM.areaBadList.length > 0)
+				{
+
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="areaDataGrid"
+						 width="100%"
+						 height="100%"
+						 horizontalScrollPolicy="auto"
+						 styleName="sceneDG"
+						 verticalAlign="middle">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="moTypeName"
+									   headerText="网元类型"
+									   width="100"/>
+			<mx:AdvancedDataGridColumn dataField="areaName"
+									   headerText="区域"
+									   width="250"/>
+			<mx:AdvancedDataGridColumn dataField="gatherTime"
+									   headerText="时间"
+									   width="200"/>
+			<mx:AdvancedDataGridColumn dataField="kpiValue"
+									   headerText="指标值"
+									   width="80"/>
+			<mx:AdvancedDataGridColumn dataField="threshold"
+									   headerText="阈值"
+									   width="150"/>
+			<mx:AdvancedDataGridColumn dataField="warnLevel"
+									   headerText="劣化级别"
+									   width="100"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	<mx:Image source="@Embed('../../img/icon_export.png')"
+			  width="30"
+			  height="20"
+			  right="40"
+			  toolTip="导出"
+			  top="-23"
+			  buttonMode="true"
+			  click="image1_clickHandler(event)"/>
+</ailk_compts:Window>

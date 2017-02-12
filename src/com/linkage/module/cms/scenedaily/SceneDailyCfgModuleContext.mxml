@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.scenedaily.dao.healthreport.HealthReportSetDao;
+			import com.linkage.module.cms.scenedaily.dao.setface.SetFaceDao;
+			import com.linkage.module.cms.scenedaily.dao.threshold.ThresHoldDao;
+			import com.linkage.module.cms.scenedaily.dao.worstmo.WorstMoDao;
+			import com.linkage.module.cms.scenedaily.domain.common.User;
+			import com.linkage.module.cms.scenedaily.domain.healthreport.HealthReportSetDM;
+			import com.linkage.module.cms.scenedaily.domain.setface.SetFaceDM;
+			import com.linkage.module.cms.scenedaily.domain.threshold.ThresHoldDM;
+			import com.linkage.module.cms.scenedaily.domain.worstmo.WorstMoSetDM;
+			import com.linkage.module.cms.scenedaily.serv.healthreport.GetHealthReportListCmd;
+			import com.linkage.module.cms.scenedaily.serv.healthreport.GetHealthTreeCmd;
+			import com.linkage.module.cms.scenedaily.serv.healthreport.SaveHealthReportCmd;
+			import com.linkage.module.cms.scenedaily.serv.setface.LoadBaseSetDataCmd;
+			import com.linkage.module.cms.scenedaily.serv.setface.LoadHealthSetCmd;
+			import com.linkage.module.cms.scenedaily.serv.setface.SaveBaseSetDataCmd;
+			import com.linkage.module.cms.scenedaily.serv.setface.SaveHealthSetDataCmd;
+			import com.linkage.module.cms.scenedaily.serv.threshold.LoadThresHoldCityCmd;
+			import com.linkage.module.cms.scenedaily.serv.threshold.LoadThresHoldKpiNameCmd;
+			import com.linkage.module.cms.scenedaily.serv.threshold.LoadThresHoldMoTypeCmd;
+			import com.linkage.module.cms.scenedaily.serv.threshold.LoadThresHoldValuesCmd;
+			import com.linkage.module.cms.scenedaily.serv.threshold.SaveThresHoldDataCmd;
+			import com.linkage.module.cms.scenedaily.serv.threshold.ThresHoldServ;
+			import com.linkage.module.cms.scenedaily.serv.worstmo.GetWorstMoListCmd;
+			import com.linkage.module.cms.scenedaily.serv.worstmo.SaveWorstMoCmd;
+			import com.linkage.module.cms.scenedaily.view.ThresHoldViewPM;
+			import com.linkage.module.cms.scenedaily.view.components.healthreport.HealthReportSetPM;
+			import com.linkage.module.cms.scenedaily.view.components.setface.BaseSetViewPM;
+			import com.linkage.module.cms.scenedaily.view.components.setface.HealthSetViewPM;
+			import com.linkage.module.cms.scenedaily.view.components.threshold.ThresHoldAddPanelPM;
+			import com.linkage.module.cms.scenedaily.view.components.threshold.ThresHoldDelPanelPM;
+			import com.linkage.module.cms.scenedaily.view.components.util.ValidateUtil;
+			import com.linkage.module.cms.scenedaily.view.components.worstmo.WorstMoSetPM;
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 通用 -->
+		<parsley:Object id="user"
+						type="{User}"
+						lazy="true"/>
+		<!-- 通用 -->
+
+
+		<!-- 基本设置  begin -->
+		<parsley:Object id="setFaceDao"
+						type="{SetFaceDao}"
+						lazy="true">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_scenedaily_config_colorset_service"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+
+		<parsley:Object id="validateUtil"
+						type="{ValidateUtil}"
+						lazy="true"/>
+
+		<parsley:Object id="setFaceDM"
+						type="{SetFaceDM}"
+						lazy="true"/>
+
+		<parsley:Object id="baseSetViewPM"
+						type="{BaseSetViewPM}"
+						lazy="true"/>
+
+		<parsley:MapCommand selector="saveBaseSetData">
+			<parsley:Command type="{SaveBaseSetDataCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadBaseSetData">
+			<parsley:Command type="{LoadBaseSetDataCmd}"/>
+		</parsley:MapCommand>
+
+		<!-- 基本设置 end -->
+
+		<!-- 阈值设置 begin -->
+		<parsley:Object id="thresHoldDao"
+						type="{ThresHoldDao}"
+						lazy="true">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_scenedaily_mainServ"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+
+		<parsley:Object id="thresHoldDM"
+						type="{ThresHoldDM}"
+						lazy="true"/>
+
+		<parsley:Object id="thresHoldViewPM"
+						type="{ThresHoldViewPM}"
+						lazy="true"/>
+
+		<parsley:Object id="thresHoldAddPanelPM"
+						type="{ThresHoldAddPanelPM}"
+						lazy="true"/>
+
+		<parsley:Object id="thresHoldDelPanelPM"
+						type="{ThresHoldDelPanelPM}"
+						lazy="true"/>
+
+		<parsley:Object id="thresHoldServ"
+						type="{ThresHoldServ}"
+						lazy="true"/>
+
+		<parsley:MapCommand selector="loadThresHoldKpiNameTT">
+			<parsley:Command type="{LoadThresHoldKpiNameCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadThresHoldValues">
+			<parsley:Command type="{LoadThresHoldValuesCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="saveThresHoldValues">
+			<parsley:Command type="{SaveThresHoldDataCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadThresHoldCity">
+			<parsley:Command type="{LoadThresHoldCityCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadThresHoldMoType">
+			<parsley:Command type="{LoadThresHoldMoTypeCmd}"/>
+		</parsley:MapCommand>
+		<!-- 阈值设置 end -->
+
+
+		<!-- 健康度算法配置 begin -->
+		<parsley:Object id="healthSetViewPM"
+						type="{HealthSetViewPM}"
+						lazy="true"/>
+
+		<parsley:MapCommand selector="loadHealthSetData">
+			<parsley:Command type="{LoadHealthSetCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="saveHealthSetData">
+			<parsley:Command type="{SaveHealthSetDataCmd}"/>
+		</parsley:MapCommand>
+		<!-- 健康度算法配置 end -->
+
+
+		<!-- 最差网元设置 begin -->
+		<parsley:Object id="worstMoSetPM"
+						type="{WorstMoSetPM}"
+						lazy="true"/>
+		<parsley:Object id="worstMoSetDM"
+						type="{WorstMoSetDM}"
+						lazy="true"/>
+		<parsley:Object id="worstMoDao"
+						type="{WorstMoDao}"
+						lazy="true">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_scenedaily_config_worstdev_service"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		<parsley:MapCommand selector="GET_WORST_MO_LIST">
+			<parsley:Command type="{GetWorstMoListCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="SAVE_WORST_MO_INFO">
+			<parsley:Command type="{SaveWorstMoCmd}"/>
+		</parsley:MapCommand>
+		<!-- 最差网元设置 end -->
+
+		<!-- 健康报告分类设置 begin-->
+		<parsley:Object id="healthReportSetPM"
+						type="{HealthReportSetPM}"
+						lazy="true"/>
+		<parsley:Object id="healthReportSetDM"
+						type="{HealthReportSetDM}"
+						lazy="true"/>
+		<parsley:Object id="healthReportSetDao"
+						type="{HealthReportSetDao}"
+						lazy="true">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_scenedaily_config_pefclass_service"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		<parsley:MapCommand selector="GET_HEALTH_REPORT_TREE">
+			<parsley:Command type="{GetHealthTreeCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="GET_HEALTH_REPORT_KPI_INFO">
+			<parsley:Command type="{GetHealthReportListCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="SAVE_HEALTH_REPORT_KPI_INFO">
+			<parsley:Command type="{SaveHealthReportCmd}"/>
+		</parsley:MapCommand>
+		<!-- 健康报告分类设置 end-->
+
+	</fx:Declarations>
+</fx:Object>

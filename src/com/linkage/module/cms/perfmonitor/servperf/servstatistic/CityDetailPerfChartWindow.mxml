@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		      xmlns:s="library://ns.adobe.com/flex/spark" 
+		 	  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+			  width="100%"
+			  height="100%"
+			  maximizable="false" 
+			  minimizable="false" 
+			  dragable="true"
+			  title="{_perfName}"
+              initialize="window1_initializeHandler(event)"
+			  close="detailWindow_closeHandler()"
+		 	  >
+	<fx:Script>
+		<![CDATA[
+			import com.events.FCEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.servperf.data.ServPerfMonitorDataMgr;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+
+			private var _context:Object;
+			private var _perfId:Object;
+			[Bindable]
+			private var _perfName:Object;
+			private var _interval:Object;
+			private var _unit:Object;
+			private var _allPerfList:ArrayCollection;
+			private var _topContainer:DisplayObject = null;
+			
+			private var _clickFlag:Boolean = true;
+			
+            private var lm:LoadManager;
+            
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.servperf.servstatistic.CityDetailPerfChartWindow");
+			
+			private var paramsArr:ArrayCollection = new ArrayCollection([
+				{caption:" "},
+				{showvalues:"0"},
+				{labelDisplay: 'Rotate'},//这个属性和slantLabels一起设置   横轴标签倾斜45°
+				{slantLabels:'1'},
+				{formatNumberScale:'0'},//是否将千换成K   百万换成M
+				{formatNumber:'0'},//是否在千位和百万为加分隔符
+				{showFCMenuItem:"0"},
+				{drawAnchors:"1"},
+				{chartLeftMargin:"3"},
+				{chartRightMargin:"8"},
+				{chartTopMargin:"3"},
+				{chartBottomMargin:"0"},
+				{canvasBorderAlpha:"0"},
+				{lineColor:"0x00FF00"},
+				{lineThickness:"4"}
+			]);//图表背景色
+			
+			
+			protected function detailWindow_closeHandler():void
+			{
+                lm.hideLoading();
+				PopUpManager.removePopUp(this);
+			}
+
+			public function init():void
+			{
+				if(lm == null)
+					lm = new LoadManager(this, 'blue');
+				
+				var param:Object = {};
+				param['perfId'] = _perfId;
+				param['interval'] = _interval;
+				
+                lm.showLoading();
+                
+				ServPerfMonitorDataMgr.getCityPerfInfoByPerfIdAndInterval(param,
+					function(result:Object):void
+					{
+						showData2Chart(result);
+					},
+					function(e:FaultEvent):void
+					{
+						log.info('加载地市指标信息失败！');
+					}
+				);
+			}
+			
+			private function showData2Chart(result:Object):void
+			{
+				log.info('展示地市详情数据到图表~~');
+				var tempParaArr:ArrayCollection = new ArrayCollection();
+				tempParaArr.addAll(paramsArr);
+				if(_unit)
+					tempParaArr.addItem({'numberSuffix':_unit});
+				
+				var ac:ArrayCollection = new ArrayCollection();
+				for each(var data:Object in result)
+				{
+					//添加点击 弹出历史指标窗口
+					if(_clickFlag)
+						data['link'] = 'S-' + data['city_id'];
+					ac.addItem(data);
+				}
+				
+				log.info(" 图表数据，数量：" +  ac.length);
+				
+				if(String(_unit).indexOf("%") >= 0)
+				{
+					log.info(" 图表数据，百分比数据 设置最大值为100！");
+					tempParaArr.addItem({'yAxisMaxValue':"100"});
+				}
+				
+				if(ac.length > 20)
+				{
+					log.info(" 图表数据，设置步长：" + String(ac.length/20));
+					tempParaArr.addItem({'labelStep':String(Number(ac.length/20).toFixed(0))});
+				}
+				
+				tempParaArr.addItem({'subcaption':_perfName});
+				
+				fc.FCParams = tempParaArr;
+				fc.FCData = ac;
+				fc.validateNow();
+				result = null;
+                
+                lm.hideLoading();
+			}
+			
+			//图表点击事件处理 
+			public function showHisPerfChartWindow(e:Object):void
+			{
+                log.info('chart点击事件：' + e.param);
+                var cityId:Object = e.param;
+				detailWindow_closeHandler();
+				
+				//历史数据 图表窗口 
+				var hpWindow:HisPerfChartWindow = new HisPerfChartWindow();
+				hpWindow.perfId = _perfId;
+				hpWindow.perfName = _perfName;
+				hpWindow.context = _context;
+				hpWindow.interval = _interval;
+				hpWindow.unit = _unit;
+				hpWindow.cityId = cityId;
+				hpWindow.allPerfList = _allPerfList;
+				hpWindow.x = 200;
+				hpWindow.y = 30;
+				
+				PopUpManager.addPopUp(hpWindow, this, true);
+			}
+			
+			public function set context(value:Object):void
+			{
+				_context = value;
+			}
+
+			public function set perfId(value:Object):void
+			{
+				_perfId = value;
+			}
+
+			public function set interval(value:Object):void
+			{
+				_interval = value;
+			}
+
+			public function set perfName(value:Object):void
+			{
+				_perfName = value;
+			}
+
+			public function set unit(value:Object):void
+			{
+				_unit = value;
+			}
+
+			public function set allPerfList(value:ArrayCollection):void
+			{
+				_allPerfList = value;
+			}
+
+			public function set topContainer(value:DisplayObject):void
+			{
+				_topContainer = value;
+			}
+
+			public function set clickFlag(value:Boolean):void
+			{
+				_clickFlag = value;
+			}
+
+
+
+            protected function window1_initializeHandler(event:FlexEvent):void
+            {
+                fc.addEventListener(FCEvent.FCClickEvent, showHisPerfChartWindow);
+            }
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+    <s:BorderContainer width="100%"
+                       height="100%"
+                       borderStyle="solid"
+                       borderWeight="2">
+    	<fusioncharts:FusionChartsLK id="fc"
+    								 width="100%" height="350"
+    								 FCChartType="Column3D"
+    								 FCData="{new ArrayCollection()}"
+    								 FCParams="{new ArrayCollection()}"
+    								 FCFolder="{_context}flex-release/FusionCharts"/>
+    </s:BorderContainer>
+</panel:Window>

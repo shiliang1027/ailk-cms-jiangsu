@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="300" height="100" dragable="true" closable="true" close="window1_closeHandler(event)" minimizable="false" maximizable="false"
+			  title="网元过滤">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			private var _callBack:Function = null;
+			
+			public function get callBack():Function
+			{
+				return _callBack;
+			}
+
+			public function set callBack(value:Function):void
+			{
+				_callBack = value;
+			}
+
+			public function filterObject(obj:Object):Boolean
+			{
+				var flag:Boolean = false;
+				var worstType:String = obj.wrst_type;
+				var vipType:String = obj.vip_type;
+				
+				if (worstType == "1")
+				{
+					if (this.cell_drop.selected)
+					{
+						flag = true;
+					}
+				}
+				else if (worstType == "2")
+				{
+					if (this.cell_stack.selected)
+					{
+						flag = true;
+					}
+				}
+				else
+				{
+					if (this.cell_all.selected)
+					{
+						flag = true;
+					}
+				}
+				
+				if (flag)
+				{
+					if (vipType == "VIP")
+					{
+						if (this.cell_vip.selected)
+						{
+							flag = true;
+						}
+						else
+						{
+							flag = false;
+						}
+					}
+					if (vipType == "VVIP")
+					{
+						if (this.cell_vvip.selected)
+						{
+							flag = true;
+						}
+						else
+						{
+							flag = false;
+						}
+					}
+					if (vipType == "非VIP")
+					{
+						if (this.cell_nvip.selected)
+						{
+							flag = true;
+						}
+						else
+						{
+							flag = false;
+						}
+					}
+				}
+				
+				return flag;
+			}
+			
+			private function refreshView(type:String,subType:String):void
+			{
+				//回调
+				if (_callBack != null)
+				{
+					_callBack.call(null);
+				}
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				this.visible = false;
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%">
+		<s:HGroup verticalAlign="middle" horizontalAlign="left">
+			<s:CheckBox id="cell_drop" width="75" selected="true" click="refreshView('cell','1')" label="高掉话"/>
+			<s:CheckBox id="cell_stack" width="75" selected="true" click="refreshView('cell','2')" label="高拥塞"/>
+			<s:CheckBox id="cell_all" width="75" selected="true" click="refreshView('cell','all')" label="所有小区"/>
+		</s:HGroup>
+		<mx:HRule width="100%" height="2"/>
+		<s:HGroup verticalAlign="middle" horizontalAlign="left">
+			<s:CheckBox id="cell_vip" width="75" selected="true" click="refreshView('vip','1')" label="VIP"/>
+			<s:CheckBox id="cell_vvip" width="75" selected="true" click="refreshView('vip','2')" label="VVIP"/>
+			<s:CheckBox id="cell_nvip" width="75" selected="true" click="refreshView('vip','3')" label="非VIP"/>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

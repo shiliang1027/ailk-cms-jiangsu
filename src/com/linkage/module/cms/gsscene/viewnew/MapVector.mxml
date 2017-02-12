@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:linkage_compts="http://www.ailk.com/2011/ailk/components"
+		  xmlns:local="*"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  width="100%" height="100%" creationComplete="group_creationCompleteHandler(event)"
+		  xmlns:components="com.linkage.module.cms.gsscene.view.components.*" 
+		  xmlns:mapcomp="com.linkage.module.cms.gsscene.viewnew.mapcomp.*" 
+		  xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*" xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.dummymap.MapNode;
+			import com.ailk.common.ui.components.dummymap.MapNodeEvent;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneResource;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.event.MapVectorEvent;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.util.MapVectorUtil;
+			import com.linkage.module.cms.utils.vectormap.MapBean;
+			import com.linkage.module.cms.utils.vectormap.VectorMapFactory;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import spark.components.BorderContainer; 
+			private var log:ILogger = Log.getLoggerByClass(MapVector);
+			
+//			[Inject("history")]
+//			public var history:History;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			
+			
+			
+			private var mapArray:Array=new Array;
+			private var httpService:HTTPService = new HTTPService();
+			private var mapBean:MapBean;
+			private var _level:int;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Inject("user")]
+			public var user:IUser;
+			private var city_id:String;
+			private var isFinished:Boolean=false;
+			protected function group_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				httpService.method = "get";
+				httpService.resultFormat = "e4x";
+			}
+			
+			//加载xml文件地图生成
+			private function httpService_resultHandler(event:ResultEvent):void
+			{
+				log.debug(event.result);
+				mapWork.xmlData=event.result as XML;
+				mapWork.mapObjArray=mapBean.VcetorArr;
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOVER, onMapNodeOverHandler);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOUT, onMapNodeOutHandler);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onMapNodeClickHandler);
+				
+				mapWork.showMap();
+				
+//				log.info("---------------------");
+				isFinished=true;
+				
+
+			}
+			
+			[MessageHandler(selector="MAPVECTOR_KPI_CHANGE")]
+			[MessageHandler(selector="AREAORMO_MAPVECTOR_DATACHANGE")]
+			[MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+			public function COMPONENT_REFRESH_DATA(e:SceneEvent = null):void
+			{
+				if(!this.visible){
+					return;
+				}
+				doLoad();
+			}
+			
+			private function doLoad():void{
+				if(isFinished){
+					newLayer.removeAllElements();
+					requestServerUtil.addRequest(new MapVectorEvent(MapVectorEvent.CMS_SCENE_GENERAL_MAPVECTOR_LOADMAP));
+				}else{
+					setTimeout(doLoad,500);
+				}
+				
+			}
+			
+			[MessageHandler(selector = "VECTOR_CHANGE")]
+			public function VECTOR_CHANGE(e:SceneEvent):void
+			{
+				if(!e.param.city_id){
+					return;
+				}
+				if(e.param.level){
+					_level=int(e.param.level);
+				}
+				log.debug("[VECTOR_CHANGE]oldCity:{0},newCity:{1}",city_id,e.param.city_id);
+				if(city_id && city_id==e.param.city_id){
+					return;
+				}
+				city_id = e.param.city_id;
+//				log.debug("[VECTOR_CHANGE]mapBean.XML_URL:{0}",MapDictionary.getMapVector(city_id));
+				isFinished=false;
+//				mapBean = MapDictionary.getMapVector(city_id);
+//				log.debug("[VECTOR_CHANGE]mapWork.vectorMapID:{0},mapWork.configBaseUrl:{1}",mapWork.vectorMapID,mapWork.configBaseUrl);
+				mapBean = VectorMapFactory.getMapDictionary(mapWork.vectorMapID,mapWork.configBaseUrl).getMapVector(city_id);
+//				log.debug(mapBean);
+				httpService.url = mapBean.XML_URL;
+				httpService.send();
+			}
+			
+			//地图偏移立体效果
+			private function onMapNodeOverHandler(event:MapNodeEvent):void
+			{
+				var mapNode:MapNode = event.mapNode;
+				mapNode.x = mapNode.x - 2;
+				mapNode.y = mapNode.y - 2;
+				
+			}
+			
+			//地图位置恢复
+			private function onMapNodeOutHandler(event:MapNodeEvent):void
+			{
+				var mapNode:MapNode = event.mapNode;
+				mapNode.x = mapNode.x + 2;
+				mapNode.y = mapNode.y + 2;
+			}
+			
+			//点击区县，抛出事件以进入地市视图
+			private function onMapNodeClickHandler(event:MapNodeEvent):void
+			{
+				var cityId:String = event.mapNode.id.split("_")[0];
+				log.debug("[onMapNodeClickHandler]{0}",cityId);
+				var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+				e.param = new Object();
+				e.param.city_id = cityId;
+				user.currentMapType = "1";
+				
+				switch(user.logicalType){
+					case "1":
+					case "2":
+					{//日常节假日场景//LTE场景
+						if(!VectorMapFactory.getMapDictionary(mapWork.vectorMapID,mapWork.configBaseUrl).getMapVector(cityId)){
+							e.param.currentState="gisMap";
+							e.param.iscounty=true;
+							user.currentMapType = "0";
+							
+							e.param.centerlongitude=event.mapNode.longitude;
+							e.param.centerlatitude=event.mapNode.latitude;
+						}
+						if(_level==1){
+							_level=2;
+						}
+						_level++;
+						e.param.level = String(_level);
+						user.level = e.param.level;
+						user.cityId = e.param.city_id;
+						dispatcher(e);
+						
+						break;
+					}
+					case "3"://场景地市区域
+					case "4":
+					{
+						e.param.currentState="gisMap";
+						user.currentMapType = "0";
+						_level=3;
+						e.param.level = String(_level);
+						e.param.centerlongitude=event.mapNode.longitude;
+						e.param.centerlatitude=event.mapNode.latitude;
+						user.level = String(_level);
+						user.cityId = e.param.city_id;
+						log.info(e.param);
+						dispatcher(e);
+						break;
+					}
+						
+				}
+				
+				
+				
+				
+//				history.addHistory(e);
+				
+			}
+			
+			
+			[MessageHandler(selector="CMS_SCENE_GENERAL_MAPVECTOR_DYEMAP")]
+			public function dyeMapHandler(e:MapVectorEvent = null):void
+			{
+				log.info("准备加载数据Tips!");
+//				if (mapFinished){
+					seeMapTips();
+//				}else{
+//					setTimeout(dyeMapHandler, 500);
+//				}
+			}
+			/**
+			 * 显示数据，渲染地图。
+			 **/
+//			private var labelMap:Object = {}; //存放渲染的label
+			public function seeMapTips():void
+			{
+				log.info("[矢量地图]传过来的数据集为map");
+				var className:String = MapVectorUtil.getTipClass(scenePM.mapVectorDM.loadMapInfoType);
+				log.info("[矢量地图]classname=" + className);
+				var definition:Class = getDefinitionByName(className) as Class; // get class  
+				var gisMap:Object = scenePM.mapVectorDM.dyeMap;
+//				for (var k:* in gisMap){
+//					log.info("k:{0},v:{1}",k,gisMap[k]);
+//				}
+//				
+				var cityId:String;
+				var sLabel:BorderContainer;
+				//循环地图，寻找MapNodeA，
+				for each (var obj:Object in mapWork.elementBox.elements)
+				{
+//					log.info("[矢量地图]------------------->{0}",obj);
+					if (obj is MapNode && String(obj.id).indexOf("_a") != -1)
+					{
+						var mn:MapNode = obj as MapNode;
+						mn.toolTip = "";
+						cityId = (mn.id).split("_")[0];
+						//给地图填充颜色
+						if (gisMap.hasOwnProperty(cityId) && null!=gisMap[cityId])
+						{
+							//1.提示
+							if (gisMap[cityId].hasOwnProperty("kpi_id") && gisMap[cityId]["kpi_id"]){
+								mn.toolTip = gisMap[cityId]["kpi_name"] + ":" + gisMap[cityId]["value"];
+							}
+							//2.指标框
+							sLabel = new definition();
+							sLabel["loadMapShowKey"] = scenePM.mapVectorDM.loadMapShowKey;
+							log.info("dm.loadMapShowKey");
+							log.info(scenePM.mapVectorDM.loadMapShowKey);
+							sLabel.x = mn.centerPoint.x + sLabel["Offset_X"];
+							sLabel.y = mn.centerPoint.y + sLabel["Offset_Y"];
+							sLabel["data"] = gisMap[cityId];
+							newLayer.addElement(sLabel as BorderContainer);
+							
+//							labelMap[cityId] = sLabel;//存放渲染的label，方便后期使用。
+							//3.矢量图渲染颜色
+							if (gisMap[cityId].hasOwnProperty("color")&& ""!=gisMap[cityId]["color"]){
+								mn.fillColor(Number(gisMap[cityId].color));
+							}
+							else if(_level==1){
+//								区县的，正常情况下，不渲染。
+								mn.fillColor(0x00ff00);
+							}
+							//							else{
+							//								mn.reset();
+							//							}
+						}
+						else
+						{ //否则，恢复原状，清空数据
+//							if("provinceState" == this.currentState){
+								//区县的，正常情况下，不渲染。
+//								mn.reset();
+								//								mn.fillColor(0x0f9cb3);
+//							}
+						}
+					}
+				}
+				log.info("[矢量地图]渲染地图完成！！");
+			}
+			
+			protected function linkbutton1_clickHandler():void
+			{
+				log.info("漫游视图");
+				//带跳转
+				var url:String = user.context + "/cms/roamnew/roamnew.action?type=2";
+				navigateToURL(new URLRequest(url));
+			}
+			protected function linkbutton2_clickHandler():void
+			{
+				log.info("小时快报");
+				//带跳转
+				var url:String = user.context + "/perfmonitornew/sheet/sheetAction!hourKpi.action";
+				navigateToURL(new URLRequest(url));
+			}
+			protected function linkbutton3_clickHandler():void
+			{
+				log.info("重点网元");
+				//带跳转
+				var url:String = user.context + "/perfmonitornew/sheet/sheetAction!badKpi.action";
+				navigateToURL(new URLRequest(url));
+			}
+			protected function linkbutton4_clickHandler():void
+			{
+				log.info("三网性能");
+				//带跳转
+				var url:String = user.context + "/cms/threeWebPerfChart/kpitwmutypecharts.jsp?type=3";
+				navigateToURL(new URLRequest(url));
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup width="100%" height="100%" horizontalAlign="center" verticalAlign="middle">
+		<s:Group top="50">
+			<!--<linkage_compts:MapWork id="mapWork"/>-->
+			<ailk_compts:VectorMapWork id="mapWork" height="500"/>
+			<s:Group id="newLayer"/>
+		</s:Group>
+	</s:HGroup>
+	<s:Group width="100%" height="100%" >
+		<viewnew:MapVectorCollectNew id="mapVectorCollect" visible="false"
+									 right="5"
+									 top="63"/>
+		
+		<viewnew:KeyAreasCompNew id="keyAreas"
+								 left="40"
+								 top="20"/>
+		<s:VGroup left="35" top="90">
+			<mapcomp:LinkButton overIcon="{GsSceneResource.roamView_over}" outIcon="{GsSceneResource.roamView_out}"
+								title="漫游视图"
+								click="linkbutton1_clickHandler()"/>
+			
+			<mapcomp:LinkButton overIcon="{GsSceneResource.noraHour_over}" outIcon="{GsSceneResource.noraHour_out}"
+								title="小时快报"
+								click="linkbutton2_clickHandler()"/>
+			
+			<mapcomp:LinkButton overIcon="{GsSceneResource.FocusNE_over}" outIcon="{GsSceneResource.FocusNE_out}"
+								title="重点网元"
+								click="linkbutton3_clickHandler()"/>
+			
+			<mapcomp:LinkButton overIcon="{GsSceneResource.three_over}" outIcon="{GsSceneResource.three_out}"
+								title="三网性能"
+								click="linkbutton4_clickHandler()"/>
+		</s:VGroup>
+		
+	</s:Group>
+</s:Group>

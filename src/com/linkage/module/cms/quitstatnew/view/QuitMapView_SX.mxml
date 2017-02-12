@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk="http://www.ailk.com/2011/ailk"
+		 xmlns:local="*"
+		 clipAndEnableScrolling="true"
+		 creationComplete="quitMapView_creationCompleteHandler(event)"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:dummymap="http://www.ailk.com/2011/cms"
+		 xmlns:dummymap1="com.linkage.module.cms.components.dummymap.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-10-22
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.structure.map.Map;
+			import com.linkage.module.cms.components.dummymap.MapLabel;
+			import com.linkage.module.cms.components.dummymap.MapNode;
+			import com.linkage.module.cms.quitstatnew.domain.User;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+			import com.linkage.module.cms.quitstatnew.view.components.QuitMapConfigItemComp;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+
+			[Inject("quitMapViewPM")]
+			[Bindable]
+			public var pm:QuitMapViewPM;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			[Inject("user")]
+			[Bindable]
+			public var user:User;
+
+			private var mapArray:Array=new Array;
+
+			protected function quitMapView_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+
+				mapArray["35501_a"]=sx_changzhi_a;
+				mapArray["35501_b"]=sx_changzhi_b;
+				mapArray["35201_a"]=sx_datong_a;
+				mapArray["35201_b"]=sx_datong_b;
+				mapArray["35401_a"]=sx_jinzhong_a;
+				mapArray["35401_b"]=sx_jinzhong_b;
+				mapArray["35701_a"]=sx_linfen_a;
+				mapArray["35701_b"]=sx_linfen_b;
+				mapArray["35801_a"]=sx_nuliang_a;
+				mapArray["35801_b"]=sx_nuliang_b;
+				mapArray["35601_a"]=sx_puchen_a;
+				mapArray["35601_b"]=sx_puchen_b;
+				mapArray["34901_a"]=sx_shuozhou_a;
+				mapArray["34901_b"]=sx_shuozhou_b;
+				mapArray["35101_a"]=sx_taiyuan_a;
+				mapArray["35101_b"]=sx_taiyuan_b;
+				mapArray["35001_a"]=sx_xinzhou_a;
+				mapArray["35001_b"]=sx_xinzhou_b;
+				mapArray["35301_a"]=sx_yangchuan_a;
+				mapArray["35301_b"]=sx_yangchuan_b;
+				mapArray["35901_a"]=sx_yunchen_a;
+				mapArray["35901_b"]=sx_yunchen_b;
+
+				//通过http请求xml文件
+				var httpService:HTTPService=new HTTPService();
+				httpService.method="get";
+				httpService.resultFormat="e4x";
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				httpService.url="xml/map_shanxi.xml";
+				httpService.send();
+
+			}
+
+			//加载xml文件地图生成
+			private function httpService_resultHandler(event:ResultEvent):void
+			{
+				mapWork.mapObjArray=mapArray;
+				mapWork.xmlData=event.result as XML;
+				mapWork.showMap();
+
+				var label:MapLabel;
+				var cityId:String;
+//				for each (var mno:Object in mapWork.elementBox.elements)
+//				{
+//					if (mno is MapNode && (mno as MapNode).id.indexOf("_a") != -1)
+//					{
+//						cityId=MapNode(mno).id.split("_")[0];
+//						label=new MapLabel();
+//						label.id=cityId + "quit_label";
+//						label.x=int(MapNode(mno).centerPoint.x);
+//						label.y=int(MapNode(mno).centerPoint.y) + 16;
+//						label.text="0";
+//						mapWork.elementBox.add(label);
+//					}
+//				}
+				
+				var cityNumOffset:Object = {
+					"35201": {"x": 443, "y": 51},
+					"34901": {"x": 352, "y": 77},
+					"35001": {"x": 324, "y": 134},
+					"35801": {"x": 231, "y": 228},
+					"35101": {"x": 301, "y": 226},
+					"35301": {"x": 388, "y": 233},
+					"35401": {"x": 354, "y": 276},
+					"35701": {"x": 161, "y": 337},
+					"35501": {"x": 288, "y": 333},
+					"35901": {"x": 136, "y": 419},
+					"35601": {"x": 239, "y": 419}
+				};
+				
+				for each (var mno:Object in mapWork.elementBox.elements)
+				{
+					if (mno is MapNode && (mno as MapNode).id.indexOf("_a") != -1)
+					{
+						cityId = MapNode(mno).id.split("_")[0];
+						label = new MapLabel();
+						label.id = cityId + "quit_label";
+						//                        label.x = MapNode(mno).centerPoint.x + MapNode(mno).x;
+						//                        label.y = MapNode(mno).centerPoint.y + 26;
+						label.x = cityNumOffset[cityId].x;
+						label.y = cityNumOffset[cityId].y;
+						label.text = "0";
+						mapWork.elementBox.add(label);
+					}
+				}
+			}
+
+			[MessageHandler(selector="QUITSTAT_LOADDATA_MAP_COMPLETE")]
+			public function quitStatLoadDataMapComplete(e:QuitStatEvent):void
+			{
+//				kpiConfigs.removeAllElements();
+				var mapNode:MapNode;
+				var numLabel:MapLabel;
+				for each (var data:Object in pm.dm.citysList)
+				{
+					mapNode=MapNode(mapWork.elementBox.getElementById(data["cityId"] + "_a"));
+					numLabel=MapLabel(mapWork.elementBox.getElementById(data["cityId"] + "quit_label"));
+					if (mapNode)
+					{
+						mapNode.fillColor(Number("0x" + data["kpiColor"]));
+						mapNode.toolTip=data["kpiName"] + "：" + data["kpiValue"];
+					}
+					if (numLabel)
+					{
+						numLabel.text=data["kpiValue"];
+						numLabel.toolTip=data["kpiName"] + "：" + data["kpiValue"];
+					}
+				}
+			}
+
+			[MessageHandler(selector="MAPCOLOR_DYEING")]
+			public function mapColorDyeing(e:QuitStatEvent):void
+			{
+				var cityId:String;
+				var mapNode:MapNode;
+				var numLabel:MapLabel;
+				for each (var mno:Object in mapWork.elementBox.elements)
+				{
+					if (mno is MapNode && (mno as MapNode).id.indexOf("_a") != -1)
+					{
+						cityId=MapNode(mno).id.split("_")[0];
+						mapNode=MapNode(mapWork.elementBox.getElementById(cityId + "_a"));
+						numLabel=MapLabel(mapWork.elementBox.getElementById(cityId + "quit_label"));
+
+						if (mapNode)
+						{
+							mapNode.fillColor(Number("0x" + e.param["kpiColor" + cityId]));
+							mapNode.toolTip=e.param["kpiName"] + "：" + e.param["city" + cityId];
+						}
+						if (numLabel)
+						{
+							numLabel.text=e.param["city" + cityId];
+							numLabel.toolTip=e.param["kpiName"] + "：" + e.param["city" + cityId];
+						}
+
+					}
+				}
+
+
+				kpiConfigs.removeAllElements();
+
+				for each (var config:Object in e.param.kpiConfig)
+				{
+					var quitMapConfigItem:QuitMapConfigItemComp=new QuitMapConfigItemComp();
+					quitMapConfigItem.data=config;
+					kpiConfigs.addElement(quitMapConfigItem);
+				}
+			}
+
+			protected function btn_clickHandler(event:MouseEvent):void
+			{
+				if (btn.label == "实时查询")
+				{
+					user.searchType="1";
+					btn.label="24小时查询";
+				}
+				else if (btn.label == "24小时查询")
+				{
+					user.searchType="2";
+					btn.label="实时查询";
+				}
+				btn.enabled=false;
+				dispatchMsg(new QuitStatEvent(QuitStatEvent.QUITSTAT_LOADDATA));
+			}
+
+			[MessageHandler(selector="QUITSTAT_LOADDATA_COMPLETE")]
+			public function btnEnabled(e:QuitStatEvent):void
+			{
+				btn.enabled=true;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<local:changzhi_a id="sx_changzhi_a"/>
+		<local:changzhi_b id="sx_changzhi_b"/>
+		<local:datong_a id="sx_datong_a"/>
+		<local:datong_b id="sx_datong_b"/>
+		<local:jinzhong_a id="sx_jinzhong_a"/>
+		<local:jinzhong_b id="sx_jinzhong_b"/>
+		<local:linfen_a id="sx_linfen_a"/>
+		<local:linfen_b id="sx_linfen_b"/>
+		<local:nuliang_a id="sx_nuliang_a"/>
+		<local:nuliang_b id="sx_nuliang_b"/>
+		<local:puchen_a id="sx_puchen_a"/>
+		<local:puchen_b id="sx_puchen_b"/>
+		<local:shuozhou_a id="sx_shuozhou_a"/>
+		<local:shuozhou_b id="sx_shuozhou_b"/>
+		<local:taiyuan_a id="sx_taiyuan_a"/>
+		<local:taiyuan_b id="sx_taiyuan_b"/>
+		<local:xinzhou_a id="sx_xinzhou_a"/>
+		<local:xinzhou_b id="sx_xinzhou_b"/>
+		<local:yangchuan_a id="sx_yangchuan_a"/>
+		<local:yangchuan_b id="sx_yangchuan_b"/>
+		<local:yunchen_a id="sx_yunchen_a"/>
+		<local:yunchen_b id="sx_yunchen_b"/>
+	</fx:Declarations>
+
+	<s:VGroup width="100%"
+			  height="100%"
+			  verticalAlign="middle"
+			  horizontalAlign="center">
+		<s:Group width="580"
+				 height="500">
+			<dummymap1:MapWork id="mapWork">
+			</dummymap1:MapWork>
+		</s:Group>
+
+	</s:VGroup>
+
+	<s:SkinnableContainer width="100%"
+						  height="40">
+		<s:layout>
+			<s:HorizontalLayout horizontalAlign="right"
+								verticalAlign="middle"
+								gap="10"/>
+		</s:layout>
+		<s:Label text="{pm.dm.endTime}"
+				 fontSize="16"/>
+		<s:Button label="实时查询"
+				  id="btn"
+				  click="btn_clickHandler(event)"/>
+		<!--<mx:Image source="@Embed(source='../img/search.png')"
+			 buttonMode="true"
+			 click="dispatchMsg(new QuitStatEvent(QuitStatEvent.QUITSTAT_LOADDATA_HISTORY_WINDOW_SHOW))"
+			 toolTip="历史记录查询"/>-->
+		<mx:Image source="@Embed(source='../img/shconfig.png')"
+				  buttonMode="true"
+				  click="dispatchMsg(new QuitStatEvent(QuitStatEvent.QUITSTAT_CONFIG_WINDOW_SHOW))"
+				  toolTip="配置"/>
+		<!--<mx:Image source="@Embed(source='../img/shconfig.png')"
+			 buttonMode="true"
+			 click="dispatchMsg(new QuitStatEvent(QuitStatEvent.QUITSTAT_LOADDATA))"
+			 toolTip="刷新"/>-->
+	</s:SkinnableContainer>
+
+
+	<s:VGroup bottom="10"
+			  left="10"
+			  gap="10"
+			  verticalAlign="middle"
+			  horizontalAlign="left"
+			  fontSize="15"
+			  id="kpiConfigs">
+
+	</s:VGroup>
+</s:Group>

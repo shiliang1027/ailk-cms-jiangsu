@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					minimizable="false"
+					styleName="windowScene"
+					dragable="true"
+					close="closeWindow()"
+					title="机房信息"
+					restore="window1_restoreHandler(event)"
+					maximize="window1_maximizeHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="window1_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.gsscene.view.components.neroom.event.NeRoomEvent;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.managers.PopUpManager;
+			private var log:ILogger=Log.getLoggerByClass(NeRoomWindowNew);
+			
+			import mx.events.FlexEvent;
+			
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				initTable();
+			}
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			
+			private function initTable():void
+			{
+				var colArr:Array=new Array();
+				
+				var col1:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+				col1.dataField="key1";
+				col1.headerText=" ";
+				col1.setStyle('textAlign', 'left');
+				col1.wordWrap=false;
+				col1.width=70;
+				colArr=colArr.concat(col1);
+				
+				var col2:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+				col2.dataField="value1";
+				col2.headerText=" ";
+				col2.setStyle('textAlign', 'left');
+				col2.width=155;
+				col2.wordWrap=true;
+				colArr=colArr.concat(col2);
+				
+				var col3:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+				col3.dataField="key2";
+				col3.headerText=" ";
+				col3.setStyle('textAlign', 'left');
+				col3.width=80;
+				col3.wordWrap=false;
+				colArr=colArr.concat(col3);
+				
+				var col4:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+				col4.dataField="value2";
+				col4.headerText=" ";
+				col4.setStyle('textAlign', 'left');
+				col4.width=110;
+				col4.wordWrap=false;
+				colArr=colArr.concat(col4);
+				
+				//列
+				this.grid.columns=colArr;
+				
+			}
+			
+			[MessageHandler(selector="LOAD_NEROOM_DATA_COMP")]
+			public function getDataResult(e:NeRoomEvent):void
+			{
+				if (scenePM.neRoomDM.dataList != null)
+				{
+					log.info("加载机房信息成功！");
+					this.grid.dataProvider=scenePM.neRoomDM.dataList;
+					
+					
+					//设置表格长度
+					var count:int=0;
+					for each (var tmp:Object in scenePM.neRoomDM.dataList)
+					{
+						count++;
+					}
+					this.grid.rowCount=count;
+					
+				}
+				else
+				{
+					log.info("加载机房信息为空！");
+				}
+			}
+			
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width=this.parentApplication.width;
+				this.height=this.parentApplication.height;
+				this.closeButton.visible=false;
+			}
+			
+			protected function closeWindow():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				this.width=1000;
+				this.height=600;
+				this.x=(this.parentApplication.width - this.width) / 2
+				this.y=5;
+				this.closeButton.visible=true;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="grid"
+						 width="100%"
+						 height="100%"
+						 styleName="sceneDG"
+						 sortableColumns="false"
+						 showHeaders="false"
+						 verticalScrollPolicy="auto"
+						 horizontalScrollPolicy="auto"/>
+</ailk_compts:Window>

@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    width="100%"
+                    title="投诉工单统计"
+                    minimizable="false"
+                    styleName="windowScene"
+                    titleIcon="@Embed(source='../../img/title_ico01.png')"
+                    close="closeWindow(1)"
+                    maximize="window2_resize(true)"
+                    restore="window2_resize(false)"
+                    height="100%"
+                    xmlns:parsley="http://www.spicefactory.org/parsley" xmlns:linkage_compts="http://www.ailk.com/2011/ailk/components">
+
+    <fx:Declarations>
+        <parsley:Configure/>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.alarm.countflow.component.AlarmSeverityColumnRenderer;
+			
+			import com.linkage.module.cms.scene.domain.SheetStatDM;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.SheetStatEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Group;
+
+            private var log:ILogger = Log.getLoggerByClass(ComplaintSheetStat);
+
+            public var location:String;
+            public var index:String;
+            private var maxFlag:Boolean = false;
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            [Inject("sheetStatPM")]
+            [Bindable]
+            public var sheetStatPM:SheetStatPM;
+			
+			[Inject("user")]
+			public var user:IUser;
+
+            [Inject("sheetStatDM")]
+            [Bindable]
+            public var sheetStatDM:SheetStatDM;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+            [MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+            public function loadData(e:SceneEvent = null):void
+            {
+                log.info("开始加载工单数据。");
+                sheetStatPM.loadData();
+//				setTimeout(sheetStatPM.loadData, 100);
+            }
+			
+			//当前工单统计 点击的地市、
+			private var cityName:Object;
+
+            public function closeWindow(type:int = 0):void
+            {
+                if (type == 1)
+                {
+                    if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+                    {
+                        this.visible = false;
+                        this.includeInLayout = false;
+                    }
+                }
+                else
+                    (this.parent as Group).removeElement(this);
+
+                if (type == 1)
+                {
+                    var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+                    e.panelName = this.name;
+                    e.param.index = this.index;
+                    e.param.pid = this.parent['id'];
+                    msgDispatcher(e);
+                }
+            }
+
+            protected function window2_resize(flag:Boolean):void
+            {
+                log.info("工单统计最大化、恢复窗口：" + flag + "_" + maxFlag);
+                var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+                e.panelName = this.name;
+                e.panelIndex = this.index;
+                e.panellocation = this.location;
+                e.panelMaxFlag = this.maxFlag;
+                msgDispatcher(e);
+                log.info("工单统计 最大化、恢复窗口：派发事件！");
+
+                this.maxFlag = flag;
+
+                this.closeButton.visible = !flag;
+                this.closeButton.includeInLayout = !flag;
+            }
+
+            protected function showSheetOfMotype(event:ListEvent):void
+            {
+                var cityname:String = sheetStatCityDG.selectedItem.CITYNAME;
+                log.info("工单　击：" +　cityname);
+                var evt:SheetStatEvent = new SheetStatEvent(SheetStatEvent.LOAD_SHEET_DATA_MOTYPE);
+                evt.param = cityname;
+				this.cityName = cityname;
+//				msgDispatcher(evt);
+				requestServerUtil.addRequest(evt);
+            }
+
+            [MessageHandler(selector = "LOAD_SHEET_DATA_MOTYPE_SUCC")]
+            public function showSheetMotype(evt:SheetStatEvent):void
+            {
+				if(!sw.visible)
+				{
+					sw.visible = true;
+	                PopUpManager.addPopUp(sw, this.parentApplication as DisplayObject);
+	                PopUpManager.centerPopUp(sw);
+				}
+            }
+			
+			
+			protected function showSheetAlarms(pageFalg:Boolean = false):void
+			{
+				var motypename:String = sheetStatMotypeDG.selectedItem.MOTYPENAME;
+				var num:String = sheetStatMotypeDG.selectedItem.SHEETNUM;
+				log.info("工单数量点击，显示告警：" +　motypename);
+				var evt:SheetStatEvent = new SheetStatEvent(SheetStatEvent.LOAD_SHEET_ALARMS);
+				var p:Object = {};
+				p.curPage  = "1";
+				p.pageSize = "10";
+				
+				if(pageFalg)
+					p.curPage  = warnSheetPager.currentPage;
+				
+				p.login_name =  user.account;
+				p.mk = "queryalarm";
+				p.level = user.level;
+				p.moType = motypename;
+				p.cityName = cityName;
+				p.sceneId = user.sceneId;
+				p.num = num;
+				
+				evt.param = p;
+//				msgDispatcher(evt);
+				requestServerUtil.addRequest(evt);
+			}
+			
+            [MessageHandler(selector = "LOAD_SHEET_ALARMS_SUCC")]
+			public function showSheetAlarmsWin(event:SheetStatEvent):void
+			{
+				log.debug("LOAD_SHEET_ALARMS_SUCC");
+				initDataSource(this.sheetStatDM.sheetAlarmsList);
+				
+				if(!sd.visible)
+				{
+					sd.visible = true;
+					PopUpManager.addPopUp(sd, this.parentApplication as DisplayObject);
+					PopUpManager.centerPopUp(sd);
+				}
+			}
+			
+			private var alarmColArrs:Array = new Array();
+			
+			public function initDataSource(data:Object):void
+			{
+				log.info("显示工单告警：");
+				log.info(data["datas"]);
+				
+				if (data != null && data.hasOwnProperty("displayColumns") && alarmColArrs.length < 1)
+				{
+					log.info("显示工单告警，初始化表头");
+					for each (var col:String in data['displayColumns'])
+					{
+						var dgColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						dgColumn.headerText = col.split(",")[0];
+						dgColumn.dataField = col.split(",")[1];
+						dgColumn.width = dgColumn.headerText.length * 20;
+						
+						switch (dgColumn.dataField)
+						{
+							case "specialty":
+								dgColumn.width = 80;
+								break;
+							case "alarmseverity": // 告警级别
+								dgColumn.itemRenderer = new ClassFactory(AlarmSeverityColumnRenderer);
+								break;
+							case "eventtime": // 告警时间
+							case "canceltime": // 告警时间
+							case "daltime": // 告警时间
+							case "acktime": // 告警时间
+								dgColumn.width = 190;
+								break;
+							case "alarmtitle": // 告警标题
+							case "alarmtext": // 告警正文
+								dgColumn.wordWrap = false;
+								break;
+						}
+						
+						alarmColArrs.push(dgColumn);
+					}
+					
+					sheetAlarmDG.columns = alarmColArrs;
+					
+				}
+				sheetAlarmDG.dataProvider = data["datas"];
+				warnSheetPager.totalRowCount = int(data['total']);
+				
+				log.info("显示工单告警--end");
+			}
+			
+			protected function sheetAlarmDG_itemClickHandler(event:ListEvent):void
+			{
+				var url:String = "warn/sheet/sheetAction.action?alarmuniqueid=" + sheetAlarmDG.selectedItem.alarmuniqueid + "&dalTime=" + sheetAlarmDG.selectedItem.daltime_old;
+				log.debug("跳转到工单详情：" +　url);
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+		]]>
+
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <mx:AdvancedDataGrid width="100%"
+                         height="100%"
+                         styleName="sceneDG"
+                         id="sheetStatCityDG"
+                         verticalAlign="middle"
+                         doubleClickEnabled="true"
+                         horizontalScrollPolicy="auto"
+                         itemClick="showSheetOfMotype(event)"
+                         dataProvider="{sheetStatDM.sheetListCity}">
+        <mx:columns>
+            <mx:AdvancedDataGridColumn dataField="CITYNAME"
+                                       headerText="属地"/>
+            <mx:AdvancedDataGridColumn dataField="SHEETNUM"
+                                       headerText="工单数"/>
+        </mx:columns>
+    </mx:AdvancedDataGrid>
+
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="sw" visible="false"
+                            minimizable="false"
+                            maximizable="false" dragable="true"
+                            close="{PopUpManager.removePopUp(sw);sw.visible = false;}"
+                            styleName="windowScene">
+            <mx:AdvancedDataGrid id="sheetStatMotypeDG"
+                                 width="100%"
+                                 height="100%"
+                                 styleName="sceneDG"
+                                 verticalAlign="middle" 
+								 itemClick="showSheetAlarms()"
+                                 horizontalScrollPolicy="auto"
+                                 dataProvider="{sheetStatDM.sheetListMotype}">
+                <mx:columns>
+                    <mx:AdvancedDataGridColumn dataField="MOTYPENAME"
+                                               headerText="网元类型"/>
+                    <mx:AdvancedDataGridColumn dataField="SHEETNUM"
+                                               headerText="工单数"/>
+                </mx:columns>
+            </mx:AdvancedDataGrid>
+        </ailk_compts:Window>
+    </mx:Box>
+
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="sd" visible="false"
+                            minimizable="false" width="500"
+                            maximizable="false" dragable="true"
+                            close="{PopUpManager.removePopUp(sd);sd.visible = false;}"
+                            styleName="windowScene">
+			<s:VGroup width="100%"
+					  height="100%">
+	            <mx:AdvancedDataGrid id="sheetAlarmDG" width="100%"
+	                                 height="100%" itemClick="sheetAlarmDG_itemClickHandler(event)"
+	                                 styleName="sceneDG"
+	                                 verticalAlign="middle"
+	                                 horizontalScrollPolicy="auto"/>
+				<s:HGroup width="100%"
+						  horizontalAlign="right">
+					<linkage_compts:Pager id="warnSheetPager"
+								 pageSize="10"
+								 currentPage="1"
+								 pageChange="showSheetAlarms(true)"/>
+				</s:HGroup>
+			</s:VGroup>
+        </ailk_compts:Window>
+    </mx:Box>
+</ailk_compts:Window>

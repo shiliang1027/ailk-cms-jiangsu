@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-8-28
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+
+			import mx.events.FlexEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(QuotaConfigComp);
+
+			[Inject("quotaConfigCompPM")]
+			[Bindable]
+			public var pm:QuotaConfigCompPM;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+
+			[MessageHandler(selector="QUITSTAT_KPI_DISPLAY_CONFIG_WINDOW_SHOW")]
+			public function quitStatKpiDisplayConfigWindowShow(e:QuitStatEvent):void
+			{
+				this.visible=this.includeInLayout=true;
+				this.x=(this.parent.width - this.width) / 2;
+				this.y=(this.parent.height - this.height) / 2;
+			}
+
+		]]>
+	</fx:Script>
+
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  height="100%"
+				  horizontalAlign="center">
+			<s:VGroup width="100%"
+					  height="100%"
+					  horizontalAlign="center">
+				<s:Label text="待选择指标"
+						 styleName="label"/>
+				<s:List width="100%" styleName="sceneList" allowMultipleSelection="true"
+						height="100%"
+						contentBackgroundAlpha="0"
+						dataProvider="{pm.dm.unselList}"
+						dropEnabled="true"
+						dragEnabled="true"
+						dragMoveEnabled="true"
+						itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.QuotaConfigItemRenderer">
+
+				</s:List>
+			</s:VGroup>
+
+
+			<s:VGroup width="100%"
+					  height="100%"
+					  horizontalAlign="center">
+				<s:Label text="已选择指标"
+						 styleName="label"/>
+				<s:List width="100%" styleName="sceneList" allowMultipleSelection="true"
+						height="100%"
+						contentBackgroundAlpha="0"
+						dataProvider="{pm.dm.selList}"
+						dropEnabled="true"
+						dragEnabled="true"
+						dragMoveEnabled="true"
+						itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.QuotaConfigItemRenderer">
+
+				</s:List>
+			</s:VGroup>
+		</s:HGroup>
+		<s:HGroup width="100%"
+				  horizontalAlign="right" verticalAlign="middle">
+			<s:Button label="保存" buttonMode="true"
+					  click="dispatchMsg(new QuitStatEvent(QuitStatEvent.SAVE_QUOTASH_CONFIGDATA))"/>
+		</s:HGroup>
+	</s:VGroup>
+</s:VGroup>

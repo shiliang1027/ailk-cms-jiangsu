@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+								  xmlns:s="library://ns.adobe.com/flex/spark" 
+								  xmlns:mx="library://ns.adobe.com/flex/mx" 
+								  focusEnabled="true" autoDrawBackground="false"
+								  creationComplete="mxadvanceddatagriditemrenderer1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.components.Render");
+			
+			protected function mxadvanceddatagriditemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				createRightMenu();
+			}
+			[Bindable]
+			var complexMenu:ContextMenu;
+			private function createRightMenu():void
+			{
+				//右键菜单初始化
+				complexMenu = new ContextMenu();
+				complexMenu.hideBuiltInItems();
+				var contextMenuItem:ContextMenuItem = new ContextMenuItem("复 制");
+				contextMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, complexPopupDeal);
+				complexMenu.customItems.push(contextMenuItem);
+				
+				var item:ContextMenuItem = new ContextMenuItem("资源信息");
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, complexPopupDeal);
+				complexMenu.customItems.push(item);
+				
+				this.contextMenu = complexMenu;
+			}
+			private function complexPopupDeal(e:ContextMenuEvent):void
+			{
+//				Alert.show("e.currentTarget.caption："+e.currentTarget.caption);
+				switch(e.currentTarget.caption)
+				{
+					case "复 制":
+						System.setClipboard(lblData.text);
+						break;
+					case "资源信息":
+						resourceInfo(e);
+				}
+			}
+			private function resourceInfo(evt:ContextMenuEvent):void
+			{
+				var custInfoUrl:String = "/cms/cms/groupcustom/unifyquery/unifyQuery!toResInfo.action?custNo="
+					+data["cust_no"]+"&prodNo="+data["prod_no"]+"&EMOSSN=&servType="
+					+data["serv_type_id"]+"&pboss_root=&back_data=&prodId="+data["prodId"];
+				var request:URLRequest = new URLRequest(custInfoUrl);
+				navigateToURL(request, "_blank");
+			}
+		]]>
+	</fx:Script>
+	<s:Label maxDisplayedLines="1" lineBreak="toFit" id="lblData" top="0" left="0" right="0" bottom="0" verticalAlign="middle" text="{listData.label}" toolTip="{listData.label}" buttonMode="true" backgroundAlpha="0"/>
+</s:MXAdvancedDataGridItemRenderer>

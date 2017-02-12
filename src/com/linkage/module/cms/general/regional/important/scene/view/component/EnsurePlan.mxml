@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  close="windowOpenClose()"
+			  title="保障方案"
+			  minimizable="false"
+			  maximizable="false"
+			  dragable="true"
+			  width="100%"
+			  height="100%"
+			  alpha="1">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+			import com.linkage.module.cms.general.regional.important.scene.view.resource.imagesclass.IconParam;
+
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			/**
+			 * 日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.important.scene.view.component.EnsurePlan");
+			/**
+			 * 场馆监控控制器
+			 */
+			private var _monitorAction:MonitorAction=null;
+			/**
+			 * 下载方案
+			 */
+			private var _ensureDocUrl:String=null;
+
+			//加载保障方案信息
+			public function loadEnsurePlanInfo(venueId:String):void
+			{
+				monitorAction.getVenueEnsureDoc(venueId, function(result:Object):void
+					{
+						initEnsurePlanInfo(result);
+					});
+			}
+
+			//初始化保障方案信息
+			private function initEnsurePlanInfo(data:Object):void
+			{
+				ensureDesc.text=data["ensure_desc"];
+				_ensureDocUrl=data["ensure_doc_url"]
+			}
+
+			//下载方案
+			protected function hgroup_clickHandler(event:MouseEvent):void
+			{
+				var url:String=_monitorAction.monitorFO.context + _ensureDocUrl;
+				ExternalInterface.call("function(){window.open('" + url + "','','resizable=yes,toolbar=no')}");
+			}
+
+			//打开关闭当前窗口
+			public function windowOpenClose():void
+			{
+				if (visible)
+				{
+					visible=false;
+					includeInLayout=false;
+				}
+				else
+				{
+					visible=true;
+					includeInLayout=true;
+				}
+			}
+
+			public function set monitorAction(monitorAction:MonitorAction):void
+			{
+				_monitorAction=monitorAction;
+			}
+
+			public function get monitorAction():MonitorAction
+			{
+				return _monitorAction;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:Label id="ensureDesc"
+				 width="100%"
+				 height="65%"/>
+		<s:HGroup width="100%"
+				  height="35%"
+				  verticalAlign="middle"
+				  horizontalAlign="center"
+				  buttonMode="true"
+				  click="hgroup_clickHandler(event)">
+			<mx:Image source="{IconParam.downLoadIcon}"/>
+			<s:Label text="下载保障方案"/>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

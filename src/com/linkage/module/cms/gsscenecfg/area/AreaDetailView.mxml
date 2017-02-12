@@ -1,0 +1,1628 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                      xmlns:s="library://ns.adobe.com/flex/spark"
+                      xmlns:mx="library://ns.adobe.com/flex/mx"
+                      backgroundColor="0x5D6060"
+                      backgroundAlpha=".6"
+                      width="100%"
+                      height="100%"
+                      initialize="{lm = new LoadManager(this)}"
+                      creationComplete="group1_creationCompleteHandler(event)"
+                      xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis"
+                      xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                      xmlns:common="com.linkage.module.cms.gsscenecfg.common.*"
+                      xmlns:ailk="http://www.ailk.com/2011/ailk">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.metry.GisPoint;
+			import com.ailk.common.ui.gis.core.metry.GisRegion;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.ailk.common.ui.gis.core.styles.GisTextStyle;
+			import com.ailk.common.ui.gis.event.GisDrawEvent;
+			import com.ailk.common.ui.gis.event.MapEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.gsscenecfg.common.CommonUtil;
+			import com.linkage.module.cms.gsscenecfg.common.LEvent;
+			import com.linkage.module.cms.gsscenecfg.dao.AreaDAO;
+			import com.linkage.module.cms.gsscenecfg.dao.SceneDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			
+			import spark.components.CheckBox;
+			import spark.components.NavigatorContent;
+			import spark.components.RadioButtonGroup;
+			import spark.events.IndexChangeEvent;
+
+            public var context:String;
+
+            private var fileRef:FileReference;
+            private var imagesFilter:FileFilter = new FileFilter("图片文件", "*.jpg;*.gif;*.png");
+            private var excelFilter:FileFilter = new FileFilter("Excel", "*.xls");
+
+            private var log:ILogger = Log.getLoggerByClass(AreaDetailView);
+
+            private var timeRadioGroup:RadioButtonGroup = new RadioButtonGroup;
+			private var statusGroup:RadioButtonGroup = new RadioButtonGroup;
+
+            private var sceneAc:ArrayCollection = new ArrayCollection;
+            private var cityAc:ArrayCollection = new ArrayCollection;
+            private var moTypeAc:ArrayCollection = new ArrayCollection;
+            private var areaList:ArrayCollection = new ArrayCollection;
+            private var releatedAreaAc:ArrayCollection = new ArrayCollection;
+
+            private var selectedAreaList:ArrayCollection = new ArrayCollection;
+            private var importMoList:ArrayCollection = new ArrayCollection;
+            private var importEmgList:ArrayCollection = new ArrayCollection;
+            private var importResType:String;
+
+            private var areaDao:AreaDAO;
+            private var sceneDao:SceneDAO;
+
+            private var mapCahce:MapWork;
+
+            //每个网元类型 已选择的列表
+            private var selectedMoTypeDataChache:Object = {};
+            //已选择网元id缓存
+            private var selectedMoTypeDataExist:Object = {};
+            private var selectedMotypeNameTabIndexMap = {};
+
+            private var toBeSelectDG:Object = {};
+            private var toBeSelectedMotypeNameTabIndexMap = {};
+
+            private var importTypeAc:ArrayCollection = new ArrayCollection([{"name": "网元", "value": "1"}, {"name": "应急资源", "value": "2"}]);
+
+            [Bindable]
+            private var marqueeMoTreeXml:XML;
+
+            public var ready:Boolean = false;
+            public var editData:Object;
+
+            public var sceneName:String;
+
+            private var areaid:String="";
+
+            private var lm:LoadManager;
+
+            protected function group1_creationCompleteHandler(event:FlexEvent):void
+            {
+                ready = true;
+
+                areaDao = AreaDAO.getInstance();
+                sceneDao = SceneDAO.getInstance();
+
+                tn.setData(new ArrayCollection([{"name": "基本信息配置"}, {"name": "监控对象配置"}]));
+                relatedAreaList.addEventListener(LEvent.DELETECLICKED, deleteRelatedArea);
+				moTree.addEventListener(LEvent.TREECHANGE,treeChang);
+
+                startTime.selectedDate = new Date;
+                var endDate:Date = new Date;
+                endDate.setMonth(endDate.month + 12);
+                endTime.selectedDate = endDate;
+
+                resTypeDDP.selectedIndex = 0;
+
+                loadPics();
+
+                init();
+            }
+
+            public function init():void
+            {
+				log.info(editData);
+                if (editData != null)
+                {
+                    areaNameTextInput.text = editData.areaname;
+                    areaImg.source = context + editData.areapic;
+                    outListTa.text = editData.areaoutline;
+                    longitude.text = editData.longitude;
+                    latitude.text = editData.latitude;
+					statusGroup.selectedValue = editData.status;
+
+                    areaid = editData.areaid;
+                }
+                else
+                {
+                    areaNameTextInput.text = "";
+                    areaImg.source = null;
+                    outListTa.text = "";
+                    longitude.text = "";
+                    latitude.text = "";
+					areaid = "";
+					statusGroup.selectedValue = "0";
+                }
+				
+				if(sceneAc.length==0){
+					loadSceneInfo();
+				}else{
+					setSelectSceneDDP();
+				}
+				if(cityAc.length==0){
+					loadCitys();
+				}else{
+					setSelectCity();
+				}
+				if(moTypeAc.length==0){
+					loadMotype();
+				}
+            }
+
+            private function deleteRelatedArea(e:LEvent):void
+            {
+                var item:Object = relatedAreaList.selectedItem;
+                releatedAreaAc.removeItemAt(releatedAreaAc.getItemIndex(item));
+ 
+                var num:int = areaListGroup.numElements;
+
+                for (var index:int = 0; index < num; index++)
+                {
+                    var cb:CheckBox = (areaListGroup.getElementAt(index) as CheckBox);
+
+                    if (cb.id == item.areaid)
+                    {
+                        cb.selected = false;
+                        break;
+                    }
+                }
+            }
+
+            private function loadSceneInfo():void
+            {
+                sceneDao.getSceneGeneralInfo(
+                    function(data:Object):void
+                    {
+                        sceneAc.removeAll();
+                        sceneAc.addAll(data as IList);
+
+						setSelectSceneDDP();
+                    });
+            }
+			
+			private function setSelectSceneDDP():void
+			{
+				if (editData != null || sceneName != null)
+				{
+					for each (var obj:Object in sceneAc)
+					if (obj.scenename == editData.scenename || sceneName == obj.scenename)
+					{
+						sceneDDP.selectedItem = obj;
+						break;
+					}
+				}else{
+					sceneDDP.selectedIndex = 0;
+				}
+			}
+			
+            private function loadCitys():void
+            {
+                areaDao.getCityInfo(
+                    function(data:Object):void
+                    {
+                        cityAc.removeAll();
+                        cityAc.addAll(data as IList);
+
+                        for each (var d:Object in cityAc)
+                            d.label = d.city_name;
+							
+						setSelectCity();
+                    });
+            }
+			
+			private function setSelectCity():void
+			{
+				if (editData != null)
+				{
+					for each (var obj:Object in cityAc)
+					if (obj.city_id == editData.city_id)
+					{
+						cityDDP.selectedItem = obj;
+						break;
+					}
+				}else{
+					cityDDP.selectedIndex = 0;
+				}
+			}
+            private function loadPics():void
+            {
+                sceneDao.getScenePic(
+                    function(data:Object):void
+                    {
+                        for each (var d:Object in data)
+                        {
+                            if (areaImg.source == null)
+                                areaImg.source = context + d.pic_url;
+
+                            var img:Image = new Image;
+                            img.width = 60;
+                            img.height = 60;
+                            img.source = context + d.pic_url;
+                            img.buttonMode = true;
+                            img.addEventListener(MouseEvent.CLICK, changeSceneImg);
+                            imgGroup.addElement(img);
+                        }
+                    });
+            }
+
+            private function changeSceneImg(e:MouseEvent):void
+            {
+                areaImg.source = (e.currentTarget as Image).source;
+            }
+
+            private function loadMotype():void
+            {
+                areaDao.getMotypeInfo(
+                    function(data:Object):void
+                    {
+                        moTypeAc.removeAll();
+                        moTypeAc.addAll(data as IList);
+
+                        for each (var d:Object in moTypeAc)
+                            d.label = d.mo_type_name;
+                    });
+            }
+
+            protected function loadAreaList():void
+            {
+                lm.showLoading();
+
+                areaDao.getAreaInfo(
+                    function(data:Object):void
+                    {
+                        areaList.removeAll();
+                        areaList.addAll(data as IList);
+
+                        for each (var area:Object in areaList)
+                        {
+                            var cb:CheckBox = new CheckBox;
+                            cb.label = area.areaname;
+                            cb.id = area.areaid;
+                            cb.addEventListener(MouseEvent.CLICK, dealAreaRelated);
+                            areaListGroup.addElement(cb);
+                        }
+
+                        lm.hideLoading();
+                    });
+            }
+
+            private function dealAreaRelated(e:MouseEvent):void
+            {
+                var cb:CheckBox = e.currentTarget as CheckBox;
+
+                if (cb.selected)
+                    releatedAreaAc.addItemAt({"areaid": cb.id, "label": cb.label}, 0);
+                else
+                {
+                    for each (var d:Object in releatedAreaAc)
+                    {
+                        if (d.areaid == cb.id)
+                        {
+                            releatedAreaAc.removeItemAt(releatedAreaAc.getItemIndex(d));
+                            break;
+                        }
+                    }
+                }
+            }
+
+
+            protected function uploadPic():void
+            {
+                fileRef = new FileReference;
+                fileRef.addEventListener(Event.SELECT, uploadPicFile);
+                fileRef.addEventListener(Event.COMPLETE, uploadPicComplete);
+                fileRef.addEventListener(IOErrorEvent.IO_ERROR, uploadPicFailed);
+
+                fileRef.browse([imagesFilter]);
+            }
+
+            private function uploadPicFile(e:Event):void
+            {
+                var urlRequest:URLRequest = new URLRequest(context + "cms/gsscenecfg/sceneconf/sceneConfig!uploadThumbnail.action");
+                urlRequest.method = "POST";
+                urlRequest.contentType = "multipart/form-data";
+
+                var upLoadData:URLVariables = new URLVariables();
+                upLoadData.fileName = fileRef.name;
+                urlRequest.data = upLoadData;
+
+                fileRef.upload(urlRequest);
+            }
+
+            private function uploadPicComplete(e:Event):void
+            {
+                areaImg.source = context + "cms/images/" + e.target.name;
+            }
+
+            private function uploadPicFailed(e:IOErrorEvent):void
+            {
+                log.error("error:" + e.text.toString());
+                Alert.show("上传失败", "失败");
+            }
+
+            protected function resetPrompt(type:Object, name:String = '网元'):void
+            {
+                if (this["moNameTextInput" + type].text == "")
+                    this["moNameTextInput" + type].text = "请输入" + name + "名称";
+            }
+
+            protected function getPointFromMap():void
+            {
+                gis.map.removeAllGisFeature();
+
+                gis.addEventListener(MapEvent.MAP_CLICK, getPointByClick);
+                gis.drawToolBar.visible = false;
+                gis.drawToolBar.includeInLayout = false;
+
+                PopUpManager.addPopUp(gis, this, true);
+                PopUpManager.centerPopUp(gis);
+
+                mapCahce = gis;
+            }
+
+            protected function map_draw_endHandler(event:GisDrawEvent):void
+            {
+                lm.showLoading();
+
+                var points:ArrayCollection = new ArrayCollection();
+                var parts:Array = (event.gisFeature.gisMetry as GisRegion).parts;
+
+                for each (var point:GisPoint in parts)
+                {
+                    var pointObj:Object = new Object();
+                    pointObj.x = point.x;
+                    pointObj.y = point.y;
+                    points.addItem(pointObj);
+                }
+                log.info("points");
+                log.info(points);
+
+                areaDao.getMarqueeNeList(
+                    {"points": points},
+                    function(data:Object):void
+                    {
+                        moTree.visible = true;
+                        moTree.includeInLayout = true;
+
+                        marqueeMoTreeXml = new XML(data.xmlStr);
+                        gis.map.removeAllGisFeature();
+
+                        CommonUtil.forEachTreeDown(marqueeMoTreeXml, function(node:XML):void
+                        {
+                            if (node.@isSave == "1")
+                            {
+                                var point:GisPoint = new GisPoint(Number(node.@x), Number(node.@y));
+                                var icon:Class = CommonUtil.getIcon(node.@type, gis.map.scale);
+                                var picFeature:GisFeature = new GisFeature(point, new GisMarkerPictureStyle(icon));
+
+                                picFeature.toolTip = String(node.@label);
+                                picFeature.visible = Boolean(Number(node.@selected));
+
+                                var labelFeature:GisFeature = new GisFeature(point, new GisTextStyle(String(node.@label), 0x660099, true, 0x999900, true, 0x99CC00, 0, "middle", 0, -30));
+                                labelFeature.visible = Boolean(Number(node.@selected));
+                                gis.map.addGisFeature(picFeature);
+                            }
+                        });
+
+                        lm.hideLoading();
+                    },
+                    function():void
+                    {
+                        gis.map.removeAllGisFeature();
+                        lm.hideLoading();
+                    });
+
+            }
+
+            protected function getPointByClick(event:MapEvent):void
+            {
+                var p:GisPoint = event.mapPoint;
+                longitude.text = String(p.x);
+                latitude.text = String(p.y);
+
+                PopUpManager.removePopUp(gis);
+
+                mapBox.addElement(mapCahce);
+
+                gis.drawToolBar.visible = true;
+                gis.drawToolBar.includeInLayout = true;
+                gis.removeEventListener(MapEvent.MAP_CLICK, getPointByClick);
+            }
+
+            protected function button1_clickHandler(event:MouseEvent):void
+            {
+                releatedAreaAc.removeAll();
+                relatedAllAreas(false);
+            }
+
+            protected function relatedAllAreas(flag:Boolean):void
+            {
+                var num:int = areaListGroup.numElements;
+
+                if (flag)
+                    releatedAreaAc.removeAll();
+
+                for (var index:int = 0; index < num; index++)
+                {
+                    var cb:CheckBox = (areaListGroup.getElementAt(index) as CheckBox);
+
+                    cb.selected = flag;
+
+                    if (flag)
+                        releatedAreaAc.addItemAt({"areaid": cb.id, "label": cb.label}, 0);
+                }
+
+            }
+
+            protected function filterAreaList():void
+            {
+                areaListGroup.removeAllElements();
+
+                for each (var area:Object in areaList)
+                {
+                    if (moNameTextInput3.text == null
+                        || moNameTextInput3.text == ""
+                        || moNameTextInput3.text == "请输入区域名称"
+                        || area.areaname.indexOf(moNameTextInput3.text) > -1)
+                    {
+                        var cb:CheckBox = new CheckBox;
+                        cb.label = area.areaname;
+                        cb.id = area.areaid;
+                        cb.addEventListener(MouseEvent.CLICK, dealAreaRelated);
+                        areaListGroup.addElement(cb);
+                    }
+                }
+            }
+
+            protected function tabbar1_changeHandler(event:IndexChangeEvent):void
+            {
+                if (event.newIndex == 3 && areaListGroup.numElements < 1)
+                    loadAreaList();
+            }
+
+            protected function downloadMoTemplate(type:int):void
+            {
+                var url:String = context + "cms/scene/quickconf/template.xls";
+
+                if (type == 2)
+                    url = context + "cms/scene/quickconf/emergencyTmplate.xls";
+
+                navigateToURL(new URLRequest(url));
+            }
+
+            protected function importRes():void
+            {
+                if (resTypeDDP.selectedIndex == 0)
+                    Alert.show("是否以英文进行匹配？英文匹配请选是，中文匹配请选否。", "匹配方式提示", Alert.YES | Alert.NO, null, uploadResource);
+                else
+                    uploadResource();
+
+                lm.showLoading();
+            }
+
+            private function uploadResource(event:CloseEvent = null):void
+            {
+                log.info("网元/已经资源导入：");
+
+                importResType = resTypeDDP.selectedItem.value;
+
+                var urlRequest:URLRequest = new URLRequest(context + "cms/gsscenecfg/areaconf/areaConfig!importNe.action");
+                urlRequest.method = "POST";
+                urlRequest.contentType = "multipart/form-data";
+
+                var upLoadParam:URLVariables = new URLVariables();
+
+                if (event != null)
+                {
+                    if (Alert.YES == event.detail)
+                    {
+                        upLoadParam.type = "en";
+                    }
+                    else if (Alert.NO == event.detail)
+                    {
+                        upLoadParam.type = "ch";
+                    }
+                }
+
+                upLoadParam.fileName = fileRef.name;
+                upLoadParam.resType = resTypeDDP.selectedItem.value;
+
+                urlRequest.data = upLoadParam;
+
+                fileRef.addEventListener(Event.COMPLETE, uploadMoComplete);
+                fileRef.addEventListener(IOErrorEvent.IO_ERROR, uploadMoFailed);
+
+                fileRef.upload(urlRequest);
+            }
+
+            private function uploadMoComplete(e:Event):void
+            {
+                var param:Object = {};
+                param.sessionId = this.parentApplication.parameters['sessionId'];
+                param.resType = resTypeDDP.selectedItem.value;
+
+                areaDao.getTempImportNeList(
+                    param,
+                    function(data:IList):void
+                    {
+                        if (param.resType == "1")
+                        {
+                            importMoList.removeAll();
+                            importMoList.addAll(data);
+                        }
+                        else
+                        {
+                            importEmgList.removeAll();
+                            importEmgList.addAll(data);
+                        }
+
+                        lm.hideLoading();
+                    });
+            }
+
+            private function uploadMoFailed(e:IOErrorEvent):void
+            {
+                log.error("error:" + e.text.toString());
+                Alert.show("上传失败", "失败");
+            }
+
+            protected function selectMoFile(event:MouseEvent):void
+            {
+                fileRef = new FileReference;
+                fileRef.addEventListener(Event.SELECT, selectedMoFile);
+
+                fileRef.browse([excelFilter]);
+            }
+
+            private function selectedMoFile(e:Event):void
+            {
+                importBtn.enabled = true;
+                selectedMoFileNameTextInput.text = fileRef.name;
+            }
+
+            protected function loadMoList():void
+            {
+                searchBtn.enabled = false;
+
+                var param:Object = {};
+                var list:ArrayCollection = new ArrayCollection;
+                param.mo = list;
+
+                if (moTypeDDP.selectedItems.length > 0)
+                {
+                    for each (var d:Object in moTypeDDP.selectedItems)
+                    {
+                        var data:Object = {"mo_type_id": d.mo_type_id, "mo_type_name": d.mo_type_name};
+
+                        data.startRow = 1;
+                        data.countsRow = 100;
+
+                        if (moNameTextInput1.text != null && moNameTextInput1.text != '请输入网元名称')
+                            data.name = moNameTextInput1.text;
+
+                        data.city_id = getCityIds();
+                        list.addItem(data);
+                    }
+                }
+                else
+                {
+                    Alert.show("请至少选择一个类型", "提示");
+                    searchBtn.enabled = true;
+                    return;
+                }
+
+                lm.showLoading();
+
+                areaDao.getMoInfo(
+                    param,
+                    function(data:Object):void
+                    {
+                        showMoTabs(data);
+                        lm.hideLoading();
+                    },
+                    function(e:FaultEvent):void
+                    {
+                        searchBtn.enabled = true;
+                        lm.hideLoading();
+                    });
+            }
+
+            private function getCityIds():String
+            {
+                var cityIds:String = "";
+
+                if (city2DDP.selectedItems.length > 0)
+                {
+                    for each (var city:Object in city2DDP.selectedItems)
+                    {
+                        cityIds = cityIds + "'" + city.city_id + "',";
+                    }
+
+                    cityIds = cityIds.substring(0, cityIds.length - 1);
+                }
+                else
+                {
+                    cityIds = null;
+                }
+
+                return cityIds;
+            }
+
+            //显示待选择网元表格
+            private function showMoTabs(data:Object):void
+            {
+                log.info("显示网元tab页");
+                toBeSelectDG = {};
+                moViewStack.removeAllElements();
+                toBeSelectedMotypeNameTabIndexMap = {};
+                var index:int = 0;
+
+                for (var moTypeName:String in data)
+                {
+                    log.info("处理：" + moTypeName + "  " + data[moTypeName]["num"]);
+                    log.info(data[moTypeName]['data']);
+
+                    var mpdg:MoPageDataGrid = new MoPageDataGrid;
+                    mpdg.selectCallback = setSelectOne;
+                    mpdg.lm = this.lm;
+                    mpdg.setData(moTypeName, data[moTypeName], moNameTextInput1.text, getCityIds());
+
+                    moViewStack.addElement(mpdg);
+                    toBeSelectDG[index] = mpdg;
+                    toBeSelectDG[moTypeName] = mpdg;
+                    toBeSelectedMotypeNameTabIndexMap[moTypeName] = index++;
+                }
+
+                searchBtn.enabled = true;
+            }
+
+            //单个网元选中处理
+            private function setSelectOne(dt:Object):void
+            {
+                var moTypeName:String = dt.mo_type_name;
+                log.info("单个网元选择处理：" + moTypeName);
+
+                var key:String = "mo_id";
+
+                if (moTypeName == "应急资源")
+                    key = "id";
+
+                if (dt.selected == "true")
+                {
+                    //该类型的网元 还没有tab页，生成该类型的已选择tab页和表格
+                    if (selectedMoTypeDataChache[moTypeName] == null)
+                    {
+                        var ac:ArrayCollection = new ArrayCollection;
+                        var mdg:MoDataGrid = new MoDataGrid;
+                        mdg.deleteCallback = unselectOne;
+                        mdg.setData(moTypeName, ac);
+                        selectedMoTypeDataChache[moTypeName] = ac;
+
+                        selectedMoViewStack.addElement(mdg);
+
+                        selectedMotypeNameTabIndexMap[moTypeName] = selectedMoViewStack.numElements - 1;
+                        selectedMotypeNameTabIndexMap[selectedMoViewStack.numElements - 1] = moTypeName;
+                    }
+
+                    selectedMoTabbar.selectedIndex = selectedMotypeNameTabIndexMap[moTypeName];
+
+                    if (selectedMoTypeDataExist[dt[key]] == null)
+                    {
+                        selectedMoTypeDataExist[dt[key]] = "";
+
+                        (selectedMoTypeDataChache[moTypeName] as ArrayCollection).addItemAt(dt, 0);
+                    }
+                }
+                else
+                {
+                    if (selectedMoTypeDataExist[dt[key]] != null)
+                    {
+                        selectedMoTypeDataExist[dt[key]] = null;
+                        (selectedMoTypeDataChache[moTypeName] as ArrayCollection).removeItemAt((selectedMoTypeDataChache[moTypeName] as ArrayCollection).getItemIndex(dt));
+                    }
+                }
+            }
+
+            //单个网元去选择
+            private function unselectOne(dt:Object):void
+            {
+                var moTypeName:String = dt.mo_type_name;
+
+                var key:String = "mo_id";
+
+                if (moTypeName == "应急资源")
+                    key = "id";
+
+                log.info("网元去选择：" + moTypeName);
+                log.info(dt);
+
+                selectedMoTypeDataExist[dt[key]] = null;
+
+                moTabbar.selectedIndex = toBeSelectedMotypeNameTabIndexMap[moTypeName];
+
+                if (toBeSelectDG[moTypeName] != null)
+                    (toBeSelectDG[moTypeName] as MoPageDataGrid).selectOne(dt[key], false);
+            }
+
+
+            protected function dealSelectAll(flag:Boolean):void
+            {
+                for each (var mpdg:MoPageDataGrid in toBeSelectDG)
+                {
+                    //处理左边 checkbox
+                    mpdg.selectALL(flag);
+
+                    //选中时，添加到右边表格
+                    if (flag)
+                        for each (var dt:Object in mpdg.ac)
+                            setSelectOne(dt);
+                }
+            }
+
+            //清空已选择网元
+            protected function unselectAll():void
+            {
+                selectedMoViewStack.removeAllElements();
+                selectedMotypeNameTabIndexMap = {};
+                selectedMoTypeDataChache = {};
+                selectedMoTypeDataExist = {};
+
+                dealSelectAll(false);
+            }
+
+            private function saveAreaConfig():void
+            {
+                if (areaNameTextInput.text == null || areaNameTextInput.text == "")
+                {
+                    Alert.show("请输入区域名称！", "提示");
+                    tn.selectedIndex = 0;
+                    areaNameTextInput.setFocus();
+                    return;
+                }
+
+                var saveData:Object = {};
+                saveData.sceneId = this.sceneDDP.selectedItem.sceneid;
+                saveData.sceneTypeId = this.sceneDDP.selectedItem.scenetypeid;
+                saveData.areaId = areaid;
+                saveData.areaName = this.areaNameTextInput.text;
+                saveData.cityId = this.cityDDP.selectedItem.city_id;
+				saveData.timeType = timeRadioGroup.selectedValue;
+				saveData.status = statusGroup.selectedValue;
+				
+                if (timeRadioGroup.selectedValue == 1)
+                {
+                    saveData.startTime = startTime.selectedDate.getTime() / 1000;
+                    saveData.endTime = endTime.selectedDate.getTime() / 1000;
+                }
+
+                saveData.longitude = longitude.text;
+                saveData.latitude = latitude.text;
+
+                saveData.areaPicUrl = areaImg.source;
+                saveData.outLine = outListTa.text;
+                //框选的网元
+                saveData.moMarqueeList = dealSaveMoList(1);
+
+                //选择的网元
+                saveData.moSelectList = dealSaveMoList(2);
+
+                //查询到的应急资源
+                saveData.emergresList = new ArrayCollection;
+                saveData.emergresList.addAll(dealSaveMoList(5));
+
+
+                //导入的网元和应急资源
+                if (importResType == "1")
+                    saveData.moImportList = importMoList;
+                else
+                    saveData.emergresList.addAll(importEmgList);
+
+                //关联的区域
+                saveData.moRelateAreaIds = dealSaveMoList(4);
+                saveData.account = this.parentApplication.parameters.account;
+				
+				if(this.areaid==""){
+					areaDao.insertAreaInfo(saveData,resultFun);
+				}else{
+					areaDao.updateAreaInfo(saveData,resultFun);
+				}
+            }
+			
+			private function resultFun(result:Object):void
+			{
+				var e:LEvent = new LEvent(LEvent.QUERYLIST);
+				this.dispatchEvent(e);
+				Alert.show(result.toString(), "提示");
+			}
+            private function dealSaveMoList(type:int):Object
+            {
+                var result:Object;
+
+                switch (type)
+                {
+                    case 1: //框选的网元
+                        result = new ArrayCollection;
+                        if (marqueeMoTreeXml != null){
+							forEachTree(marqueeMoTreeXml as XML, function(node:XML):void{
+								log.info(node);
+								log.info(node.@selected=="1"&&node.@id);
+								if (node.@selected=="1"&&String(node.@id)!=""){
+									result.addItem({"mo_id": String(node.@id), "mo_name": String(node.@label), "city_id": String(node.@city_id), "mo_type_id": String(node.@type)});
+								}
+							});
+						}
+//                            CommonUtil.forEachTreeDown(
+//                                marqueeMoTreeXml,
+//                                function(node:XML):void
+//                                {
+////                                    if (node.@selected)
+////                                        result.addItem({"mo_id": String(node.@id), "mo_name": String(node.@label), "city_id": String(node.@city_id), "mo_type_id": String(node.@type)});
+//									log.info("1:"+node);
+//									if(null!=node&&node.attributes().length()>0){
+//									log.info("2:"+node);
+//										for each (var childnode:XML in node.attributes()) 
+//										{
+//											if (childnode.selected=="1")
+//												result.addItem({"mo_id": String(childnode.@id), "mo_name": String(childnode.@label), "city_id": String(childnode.@city_id), "mo_type_id": String(childnode.@type)});
+//										}
+//									}
+//								});
+                        break;
+                    case 2: //选择的网元
+                        result = new ArrayCollection;
+                        for (var t:Object in selectedMoTypeDataChache)
+                        {
+                            if (t != "应急资源")
+                                result.addAll(selectedMoTypeDataChache[t] as IList);
+                        }
+                        break;
+                    case 5: //选择的应急资源
+                        result = new ArrayCollection;
+                        log.info("处理选择的应急资源");
+                        for (var tp:Object in selectedMoTypeDataChache)
+                        {
+                            log.debug(selectedMoTypeDataChache[tp]);
+
+                            if (tp == "应急资源")
+                                result.addAll(selectedMoTypeDataChache[tp] as IList);
+                        }
+                        break;
+                    case 4: //关联的区域
+                        result = "";
+                        if (releatedAreaAc.length > 0)
+                        {
+                            for each (var area:Object in releatedAreaAc)
+                            {
+                                result += area.areaid + ",";
+                            }
+                            result = result.toString().substring(0, result.toString().length - 1);
+                        }
+                        break;
+                }
+				
+				log.info(result);
+                return result;
+            }
+
+            protected function exportSelectedRes():void
+            {
+                var name:String = selectedMotypeNameTabIndexMap[selectedMoTabbar.selectedIndex];
+                var headArray:Array = new Array;
+
+                if (name != "应急资源")
+                {
+                    headArray.push({"id": "mo_type_id", "name": "网元类型ID"});
+                    headArray.push({"id": "mo_type_name", "name": "网元类型名称"});
+                    headArray.push({"id": "mo_id", "name": "网元ID"});
+                    headArray.push({"id": "mo_name", "name": "网元名称"});
+                }
+                else
+                {
+                    headArray.push({"id": "type_id", "name": "应急资源类型ID"});
+                    headArray.push({"id": "type_name", "name": "应急资源类型名称"});
+                    headArray.push({"id": "id", "name": "应急资源类型ID"});
+                    headArray.push({"id": "name", "name": "应急资源类型名称"});
+
+                }
+
+                ExcelUtil.exportSimpleExcel(name + "列表", headArray, selectedMoTypeDataChache[name] as ArrayCollection);
+            }
+
+            protected function areaKeyUpHandler(event:KeyboardEvent):void
+            {
+                if (event.keyCode == 13)
+                    filterAreaList();
+            }
+
+            protected function moNameTextInput2_keyUpHandler(event:KeyboardEvent):void
+            {
+                if (event.keyCode == 13)
+                    loadMoList();
+            }
+			
+			protected function treeChang(event:LEvent):void
+			{
+				log.debug("点击复选");
+				var item:Object = event.dt;
+				log.debug(item);
+				forEachTree(item as XML, function(node:XML):void{node.@selected = item.@selected;});
+				//如果不选中则向上递归，取消选择
+				 if (!Boolean(Number(item.@selected))){
+					forEachTree2(item as XML, function(node:XML):void
+					{
+						if (Boolean(Number(node.@selected)))
+						{
+							node.@selected = item.@selected;
+						}
+					});
+				} 
+			}
+			//向下迭代
+			private function forEachTree(node:XML, callback:Function = null):void
+			{
+				for each (var child:XML in node.children())
+				{
+					if (callback is Function)
+					{
+						callback.call(null, child);
+					}
+					
+					if (child.hasComplexContent())
+					{
+						forEachTree(child, callback);
+					}
+				}
+			}
+			
+			//向上迭代
+			private function forEachTree2(node:XML, callback:Function = null):void
+			{
+				var parent:XML = node.parent();
+				
+				if (Boolean(String(parent)))
+				{
+					if (callback is Function)
+					{
+						callback.call(null, parent);
+					}
+					
+					if (parent.parent() && parent != null && Boolean(String(parent.parent())))
+					{
+						forEachTree2(parent, callback);
+					}
+				}
+			}
+		]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:Group width="900"
+             height="506"
+             verticalCenter="0"
+             horizontalCenter="0">
+
+        <s:VGroup width="100%"
+                  height="100%"
+                  gap="0">
+            <s:HGroup width="100%"
+                      horizontalAlign="left"
+                      paddingLeft="10">
+                <common:NiceTabBar id="tn"/>
+            </s:HGroup>
+            <s:BorderContainer width="100%"
+                               height="100%"
+                               borderAlpha="0"
+                               cornerRadius="5"
+                               backgroundAlpha="1"
+                               backgroundImageFillMode="repeat"
+                               backgroundImage="@Embed('../img/stackBg.png')">
+                <mx:ViewStack id="vs"
+                              width="100%"
+                              height="100%"
+                              selectedIndex="{tn.selectedIndex}"
+                              borderAlpha="0"
+                              backgroundAlpha="0"
+                              cornerRadius="5"
+                              contentBackgroundAlpha="0"
+                              creationPolicy="all">
+                    <mx:Box label="基本信息配置"
+                            width="100%"
+                            height="100%"
+                            paddingLeft="50"
+                            paddingTop="45"
+                            paddingRight="30">
+                        <s:Group width="100%"
+                                 height="100%">
+                            <mx:Form width="100%"
+                                     height="100%"
+                                     verticalGap="20">
+                                <mx:FormItem label="归属场景：">
+                                    <s:DropDownList id="sceneDDP"
+                                                    labelField="scenename"
+                                                    dataProvider="{sceneAc}"
+                                                    width="280"/>
+                                </mx:FormItem>
+
+                                <mx:FormItem label="区域名称：">
+                                    <s:HGroup>
+                                        <s:TextInput id="areaNameTextInput"
+                                                     width="280"/>
+                                        <s:Label text="*"
+                                                 color="red"/>
+                                    </s:HGroup>
+                                </mx:FormItem>
+
+                                <mx:FormItem label="归属地市：">
+                                    <s:DropDownList id="cityDDP"
+                                                    labelField="city_name"
+                                                    dataProvider="{cityAc}"
+                                                    width="155"/>
+                                </mx:FormItem>
+
+                                <mx:FormItem label="生效时间：">
+                                    <s:HGroup>
+                                        <s:RadioButton label="长期生效"
+                                                       value="0"
+                                                       selected="true"
+                                                       group="{timeRadioGroup}"/>
+                                        <s:RadioButton id="timeRb"
+                                                       label="生效时间"
+                                                       value="1"
+                                                       group="{timeRadioGroup}"/>
+                                        <mx:DateField id="startTime"
+                                                      width="118"
+                                                      formatString="YYYY-MM-DD"
+                                                      enabled="{timeRb.selected}"/>
+                                        <mx:DateField id="endTime"
+                                                      width="118"
+                                                      formatString="YYYY-MM-DD"
+                                                      enabled="{timeRb.selected}"/>
+                                    </s:HGroup>
+                                </mx:FormItem>
+								
+								<mx:FormItem label="激活状态：">
+									<s:HGroup>
+										<s:RadioButton label="激活"
+													   value="1"
+													   selected="true"
+													   group="{statusGroup}"/>
+										<s:RadioButton label="关闭"
+													   value="0"
+													   group="{statusGroup}"/>
+									</s:HGroup>
+								</mx:FormItem>
+
+                                <mx:FormItem label="经纬度设置：">
+                                    <s:HGroup>
+                                        <s:Label text="经度："/>
+                                        <s:TextInput id="longitude"
+                                                     width="112"/>
+                                        <s:Label text="*"
+                                                 color="red"/>
+                                        <mx:Spacer width="10"/>
+                                        <s:Label text="纬度："/>
+                                        <s:TextInput id="latitude"
+                                                     width="112"/>
+                                        <s:Label text="*"
+                                                 color="red"/>
+                                        <mx:Spacer/>
+                                        <mx:Image id="pointSlectImg"
+                                                  buttonMode="true"
+                                                  click="getPointFromMap()"
+                                                  source="@Embed('../img/point.png')"/>
+                                    </s:HGroup>
+                                </mx:FormItem>
+
+                                <mx:FormItem label="图标选择：">
+                                    <s:HGroup>
+                                        <s:HGroup width="75"
+                                                  horizontalAlign="center">
+                                            <mx:Image id="areaImg"
+                                                      width="60"
+                                                      height="60"/>
+                                        </s:HGroup>
+                                        <s:VGroup>
+                                            <s:Button label="图片选择"
+                                                      click="{imgWin.visible = true}"/>
+                                            <s:Button label="本地上传"
+                                                      click="uploadPic()"/>
+                                        </s:VGroup>
+                                    </s:HGroup>
+                                </mx:FormItem>
+
+                                <mx:FormItem label="区域描述：">
+                                    <s:TextArea id="outListTa"
+                                                contentBackgroundAlpha=".8"
+                                                width="600"
+                                                height="72"/>
+                                </mx:FormItem>
+                            </mx:Form>
+
+                            <ailk_compts:Window id="imgWin"
+                                                width="285"
+                                                height="160"
+                                                styleName="window"
+                                                visible="false"
+                                                close="{imgWin.visible = false;}"
+                                                dragable="true"
+                                                left="350"
+                                                top="100">
+                                <s:Scroller width="100%"
+                                            height="100%"
+                                            horizontalScrollPolicy="off"
+                                            verticalScrollPolicy="auto">
+                                    <s:TileGroup id="imgGroup"
+                                                 verticalCenter="0"
+                                                 horizontalCenter="0"
+                                                 orientation="rows"/>
+                                </s:Scroller>
+                            </ailk_compts:Window>
+                        </s:Group>
+                    </mx:Box>
+
+                    <mx:VBox label="监控对象配置"
+                             width="100%"
+                             height="100%"
+                             verticalGap="0"
+                             paddingLeft="30"
+                             paddingTop="10"
+                             paddingRight="30"
+                             paddingBottom="42">
+                        <s:TabBar styleName="commonTabBar"
+                                  change="tabbar1_changeHandler(event)"
+                                  dataProvider="{subVS}"/>
+                        <mx:ViewStack id="subVS"
+                                      creationPolicy="all"
+                                      backgroundAlpha="0"
+                                      cornerRadius="5"
+                                      contentBackgroundAlpha="0"
+                                      height="100%"
+                                      width="100%">
+                            <mx:Box label="地图框选"
+                                    width="100%"
+                                    height="100%">
+                                <s:Group width="100%"
+                                         height="100%">
+                                    <mx:Box width="100%"
+                                            id="mapBox"
+                                            height="100%">
+                                        <ailk_gis:MapWork id="gis"
+                                                          width="100%"
+                                                          minHeight="351"
+                                                          minWidth="750"
+                                                          draw_end="map_draw_endHandler(event)"
+                                                          showZoomSlider="false"
+                                                          showToolBar="false"
+                                                          showDrawToolBar="true"
+                                                          showScaleBar="false"
+                                                          height="100%"/>
+                                    </mx:Box>
+                                    <mx:Tree id="moTree"
+                                             dataProvider="{marqueeMoTreeXml}"
+                                             width="210"
+                                             right="2"
+                                             top="2"
+                                             bottom="2"
+                                             visible="false"
+                                             includeInLayout="false"
+                                             borderAlpha="0.5"
+                                             contentBackgroundAlpha="0.6"
+                                             showRoot="false"
+                                             labelField="@label"
+                                             editorHeightOffset="0"
+                                             horizontalScrollPolicy="auto"
+                                             verticalScrollPolicy="auto"
+                                             folderClosedIcon="{null}"
+                                             folderOpenIcon="{null}"
+                                             defaultLeafIcon="{null}"
+                                             disclosureClosedIcon="@Embed('../img/+.png')"
+                                             disclosureOpenIcon="@Embed('../img/-.png')"
+                                             itemRenderer="com.linkage.module.cms.gsscenecfg.common.CheckBoxTreeRenderer"/>
+                                </s:Group>
+                            </mx:Box>
+
+                            <mx:VBox label="列表选择" visible="false"
+                                     width="100%"
+                                     height="100%"
+                                     paddingBottom="7"
+                                     paddingLeft="7"
+                                     paddingRight="7"
+                                     paddingTop="7">
+                                <s:HGroup verticalAlign="middle"
+                                          paddingLeft="10"
+                                          id="searchBtn">
+                                    <s:Label text="网元类型"/>
+                                    <ailk_compts:PrettyComboBox id="moTypeDDP"
+                                                                promptDefault="请选择"
+                                                                multiSlecteEnabled="true"
+                                                                labelField="mo_type_name"
+                                                                dataProvider="{moTypeAc}"/>
+                                    <s:Label text="所属地市"/>
+                                    <ailk_compts:PrettyComboBox id="city2DDP"
+                                                                promptDefault="请选择"
+                                                                multiSlecteEnabled="true"
+                                                                labelField="city_name"
+                                                                dataProvider="{cityAc}"/>
+                                    <s:HGroup gap="0">
+                                        <s:TextInput id="moNameTextInput1"
+                                                     fontWeight="bold"
+                                                     text="请输入网元名称"
+                                                     keyUp="moNameTextInput2_keyUpHandler(event)"
+                                                     focusIn="{moNameTextInput1.selectAll();}"
+                                                     focusOut="resetPrompt(1)"/>
+                                        <mx:Button icon="@Embed('../img/search.png')"
+                                                   width="25"
+                                                   click="loadMoList()"/>
+                                    </s:HGroup>
+                                </s:HGroup>
+                                <s:BorderContainer width="100%"
+                                                   height="100%"
+                                                   borderAlpha="0"
+                                                   cornerRadius="5"
+                                                   backgroundAlpha="1"
+                                                   backgroundImageFillMode="repeat"
+                                                   backgroundImage="@Embed('../img/bcBg.png')">
+                                    <s:HGroup width="100%"
+                                              height="100%"
+                                              paddingLeft="8"
+                                              paddingRight="8"
+                                              paddingBottom="8"
+                                              paddingTop="8"
+                                              gap="30">
+                                        <s:VGroup width="50%"
+                                                  height="100%">
+                                            <s:HGroup width="100%">
+                                                <s:Label left="3"
+                                                         text="可选网元"/>
+                                                <mx:Spacer width="100%"/>
+                                                <s:Button right="3"
+                                                          label="全选"
+                                                          click="dealSelectAll(true)"/>
+                                            </s:HGroup>
+
+                                            <s:BorderContainer width="100%"
+                                                               height="100%">
+                                                <s:VGroup gap="0"
+                                                          paddingBottom="3"
+                                                          paddingLeft="3"
+                                                          paddingRight="3"
+                                                          paddingTop="3"
+                                                          width="100%"
+                                                          height="100%">
+                                                    <s:Scroller width="100%"
+                                                                horizontalScrollPolicy="auto">
+                                                        <s:Group width="100%">
+                                                            <s:TabBar id="moTabbar"
+                                                                      styleName="commonTabBar"
+                                                                      dataProvider="{moViewStack}"/>
+                                                        </s:Group>
+                                                    </s:Scroller>
+                                                    <mx:ViewStack id="moViewStack"
+                                                                  width="100%"
+                                                                  height="100%"
+                                                                  borderAlpha="0"
+                                                                  backgroundAlpha="0"
+                                                                  textAlign="left"
+                                                                  contentBackgroundAlpha="0"/>
+                                                </s:VGroup>
+                                            </s:BorderContainer>
+                                        </s:VGroup>
+
+                                        <s:VGroup width="50%"
+                                                  height="100%">
+                                            <s:HGroup width="100%">
+                                                <s:Label left="3"
+                                                         text="已选网元"/>
+                                                <mx:Spacer width="100%"/>
+                                                <s:HGroup gap="0"
+                                                          visible="false">
+                                                    <s:TextInput id="moNameTextInput2"
+                                                                 fontWeight="bold"
+                                                                 text="请输入网元名称"
+                                                                 focusIn="{moNameTextInput2.selectAll();}"
+                                                                 focusOut="resetPrompt(2)"/>
+                                                    <mx:Button icon="@Embed('../img/search.png')"
+                                                               width="25"/>
+                                                </s:HGroup>
+                                                <s:Button label="导出"
+                                                          click="exportSelectedRes()"/>
+                                                <s:Button right="3"
+                                                          label="全删"
+                                                          click="unselectAll()"/>
+                                            </s:HGroup>
+                                            <s:BorderContainer width="100%"
+                                                               height="100%">
+                                                <s:Scroller width="100%"
+                                                            height="100%"
+                                                            horizontalScrollPolicy="auto"
+                                                            verticalScrollPolicy="auto">
+                                                    <s:VGroup gap="0"
+                                                              paddingBottom="3"
+                                                              paddingLeft="3"
+                                                              paddingRight="3"
+                                                              paddingTop="3"
+                                                              width="100%"
+                                                              height="100%">
+                                                        <s:TabBar id="selectedMoTabbar"
+                                                                  styleName="commonTabBar"
+                                                                  dataProvider="{selectedMoViewStack}"/>
+                                                        <mx:ViewStack id="selectedMoViewStack"
+                                                                      width="100%"
+                                                                      height="100%"
+                                                                      borderAlpha="0"
+                                                                      backgroundAlpha="0"
+                                                                      textAlign="left"
+                                                                      contentBackgroundAlpha="0"/>
+                                                    </s:VGroup>
+                                                </s:Scroller>
+                                            </s:BorderContainer>
+                                        </s:VGroup>
+                                    </s:HGroup>
+                                </s:BorderContainer>
+                            </mx:VBox>
+
+                            <mx:HBox label="模版导入" visible="false"
+                                     horizontalGap="10"
+                                     paddingBottom="10"
+                                     paddingLeft="10"
+                                     paddingRight="10"
+                                     paddingTop="10">
+                                <s:BorderContainer width="50%"
+                                                   height="100%"
+                                                   borderAlpha="0"
+                                                   cornerRadius="5"
+                                                   backgroundAlpha="1"
+                                                   backgroundImageFillMode="repeat"
+                                                   backgroundImage="@Embed('../img/bcBg.png')">
+                                    <s:VGroup width="100%"
+                                              height="100%"
+                                              gap="20"
+                                              paddingBottom="10"
+                                              paddingLeft="10"
+                                              paddingRight="10"
+                                              paddingTop="10">
+                                        <s:Label text="导入模版下载"/>
+                                        <s:BorderContainer width="100%"
+                                                           height="100%">
+                                            <s:VGroup width="100%"
+                                                      height="100%">
+                                                <s:BorderContainer width="100%"
+                                                                   borderAlpha="0"
+                                                                   backgroundAlpha="1"
+                                                                   backgroundImageFillMode="scale"
+                                                                   backgroundImage="@Embed('../img/btbg.png')"
+                                                                   height="22">
+                                                    <s:Label text="模板名称"
+                                                             verticalCenter="0"
+                                                             horizontalCenter="0"/>
+                                                </s:BorderContainer>
+                                                <mx:HRule width="100%"
+                                                          height="1"/>
+                                                <s:HGroup width="100%"
+                                                          paddingLeft="10">
+                                                    <mx:Image source="@Embed('../img/orange.png')"/>
+                                                    <s:Label text="重点关注网元导入模板"
+                                                             buttonMode="true"
+                                                             click="downloadMoTemplate(1)"/>
+                                                </s:HGroup>
+                                                <mx:HRule width="100%"
+                                                          height="1"/>
+                                                <s:HGroup width="100%"
+                                                          paddingLeft="10">
+                                                    <mx:Image source="@Embed('../img/orange.png')"/>
+                                                    <s:Label text="应急资源导入模板"
+                                                             buttonMode="true"
+                                                             click="downloadMoTemplate(2)"/>
+                                                </s:HGroup>
+                                                <mx:HRule width="100%"
+                                                          height="1"/>
+                                            </s:VGroup>
+                                        </s:BorderContainer>
+                                    </s:VGroup>
+                                </s:BorderContainer>
+                                <s:BorderContainer width="50%"
+                                                   height="100%"
+                                                   borderAlpha="0"
+                                                   cornerRadius="5"
+                                                   backgroundAlpha="1"
+                                                   backgroundImageFillMode="repeat"
+                                                   backgroundImage="@Embed('../img/bcBg.png')">
+                                    <s:VGroup width="100%"
+                                              height="100%"
+                                              gap="20"
+                                              paddingBottom="10"
+                                              paddingLeft="10"
+                                              paddingRight="10"
+                                              paddingTop="10">
+                                        <s:Label text="监控对象导入 "/>
+                                        <s:VGroup width="100%"
+                                                  height="100%">
+                                            <s:HGroup width="100%"
+                                                      gap="0">
+                                                <s:DropDownList id="resTypeDDP"
+                                                                labelField="name"
+                                                                width="90"
+                                                                dataProvider="{importTypeAc}"/>
+                                                <s:TextInput id="selectedMoFileNameTextInput"
+                                                             width="100%"
+                                                             editable="false"/>
+                                                <s:Button label="浏览"
+                                                          click="selectMoFile(event)"/>
+                                                <s:Button id="importBtn"
+                                                          enabled="false"
+                                                          label="导入"
+                                                          click="importRes()"/>
+                                                <s:Button label="清空"
+                                                          click="{importMoList.removeAll();importEmgList.removeAll();}"/>
+                                            </s:HGroup>
+
+                                            <s:VGroup width="100%"
+                                                      height="100%"
+                                                      gap="0">
+                                                <s:TabBar selectedIndex="{resTypeDDP.selectedIndex}"
+                                                          dataProvider="{improtResVS}"
+                                                          styleName="commonTabBar"/>
+                                                <mx:ViewStack id="improtResVS"
+                                                              width="100%"
+                                                              height="100%">
+                                                    <s:NavigatorContent width="100%"
+                                                                        label="网元"
+                                                                        height="100%">
+                                                        <mx:AdvancedDataGrid width="100%"
+                                                                             height="100%"
+                                                                             styleName="adg"
+                                                                             showHeaders="false"
+                                                                             dataProvider="{importMoList}">
+                                                            <mx:columns>
+                                                                <mx:AdvancedDataGridColumn dataField="name"
+                                                                                           headerText="网元名称"/>
+                                                            </mx:columns>
+                                                        </mx:AdvancedDataGrid>
+                                                    </s:NavigatorContent>
+                                                    <s:NavigatorContent width="100%"
+                                                                        label="应急资源"
+                                                                        height="100%">
+                                                        <mx:AdvancedDataGrid width="100%"
+                                                                             height="100%"
+                                                                             styleName="adg"
+                                                                             showHeaders="false"
+                                                                             dataProvider="{importEmgList}">
+                                                            <mx:columns>
+                                                                <mx:AdvancedDataGridColumn dataField="type_name"
+                                                                                           headerText="资源类型"/>
+                                                                <mx:AdvancedDataGridColumn dataField="name"
+                                                                                           headerText="应急资源名称"/>
+                                                            </mx:columns>
+                                                        </mx:AdvancedDataGrid>
+                                                    </s:NavigatorContent>
+                                                </mx:ViewStack>
+                                            </s:VGroup>
+                                        </s:VGroup>
+                                    </s:VGroup>
+                                </s:BorderContainer>
+                            </mx:HBox>
+
+                            <mx:VBox label="关联区域" visible="false"
+                                     paddingBottom="10"
+                                     paddingLeft="10"
+                                     paddingRight="10"
+                                     paddingTop="10">
+                                <s:HGroup gap="0">
+                                    <s:TextInput id="moNameTextInput3"
+                                                 fontWeight="bold"
+                                                 text="请输入区域名称"
+                                                 keyUp="areaKeyUpHandler(event)"
+                                                 focusIn="{moNameTextInput3.selectAll();}"
+                                                 focusOut="resetPrompt(3, '区域')"/>
+                                    <mx:Button icon="@Embed('../img/search.png')"
+                                               width="25"
+                                               click="filterAreaList()"/>
+                                </s:HGroup>
+
+                                <s:BorderContainer width="100%"
+                                                   height="100%"
+                                                   borderAlpha="0"
+                                                   cornerRadius="5"
+                                                   backgroundAlpha="1"
+                                                   backgroundImageFillMode="repeat"
+                                                   backgroundImage="@Embed('../img/bcBg.png')">
+                                    <s:HGroup width="100%"
+                                              height="100%"
+                                              paddingLeft="15"
+                                              paddingRight="15"
+                                              paddingBottom="15"
+                                              paddingTop="15"
+                                              gap="30">
+                                        <s:VGroup width="100%"
+                                                  height="100%">
+                                            <s:HGroup width="100%">
+                                                <s:Label left="3"
+                                                         text="可选区域"/>
+                                                <mx:Spacer width="100%"/>
+                                                <s:Button right="3"
+                                                          label="全选"
+                                                          click="relatedAllAreas(true)"/>
+                                            </s:HGroup>
+
+                                            <s:BorderContainer width="100%"
+                                                               height="100%">
+                                                <s:Scroller width="100%"
+                                                            height="100%"
+                                                            horizontalScrollPolicy="auto">
+                                                    <s:TileGroup id="areaListGroup"
+                                                                 width="100%"
+                                                                 height="100%"
+                                                                 orientation="columns"/>
+                                                </s:Scroller>
+                                            </s:BorderContainer>
+                                        </s:VGroup>
+
+                                        <s:VGroup width="275"
+                                                  height="100%">
+                                            <s:HGroup width="100%">
+                                                <s:Label left="3"
+                                                         text="{'已选区域    '+releatedAreaAc.length}"/>
+                                                <mx:Spacer width="100%"/>
+                                                <s:Button right="3"
+                                                          label="全删"
+                                                          click="button1_clickHandler(event)"/>
+                                            </s:HGroup>
+                                            <s:List id="relatedAreaList"
+                                                    width="100%"
+                                                    height="100%"
+                                                    dataProvider="{releatedAreaAc}"
+                                                    itemRenderer="com.linkage.module.cms.gsscenecfg.common.LineListRenderer"
+                                                    contentBackgroundAlpha=".5"/>
+                                        </s:VGroup>
+                                    </s:HGroup>
+                                </s:BorderContainer>
+                            </mx:VBox>
+                        </mx:ViewStack>
+                    </mx:VBox>
+                </mx:ViewStack>
+            </s:BorderContainer>
+        </s:VGroup>
+
+        <s:Button label="上一步"
+                  width="60"
+                  right="86"
+                  bottom="12"
+                  visible="{tn.selectedIndex == 1}"
+                  click="{tn.selectedIndex = tn.selectedIndex - 1;}"/>
+
+        <s:Button label="下一步"
+                  width="60"
+                  visible="{tn.selectedIndex == 0}"
+                  click="{tn.selectedIndex = tn.selectedIndex + 1;}"
+                  right="16"
+                  bottom="12"/>
+
+        <s:Button label="保存"
+                  width="60"
+                  right="16"
+                  visible="{tn.selectedIndex == 1}"
+                  click="saveAreaConfig()"
+                  bottom="12"/>
+
+        <s:Group right="20"
+                 buttonMode="true"
+                 click="{PopUpManager.removePopUp(this);}"
+                 top="18">
+            <mx:Image id="bgimg"
+                      source="@Embed('../img/iconBg.png')"/>
+            <mx:Image x="4"
+                      y="2"
+                      source="@Embed('../img/close.png')"/>
+        </s:Group>
+    </s:Group>
+</s:SkinnableContainer>

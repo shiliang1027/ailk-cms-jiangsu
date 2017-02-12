@@ -1,0 +1,2764 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    width="200"
+                    height="600"
+                    close="closeWindow(1)"
+                    maximize="window2_resize(true)"
+                    restore="window2_resize(false)"
+                    title="指标概况"
+                    minimizable="false"
+                    styleName="windowScene"
+                    titleIcon="@Embed(source='../../img/title_ico01.png')"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    xmlns:components="com.linkage.module.cms.scene.view.components.*">
+
+
+    <!--
+         ***************************************
+         This is Content
+         @author 张传存 (69207)
+         @version 1.0
+         @date 2012-7-27
+         @langversion 3.0
+         @playerversion Flash 11
+         @productversion Flex 4
+         @copyright Ailk NBS-Network Mgt. RD Dept.
+         ***************************************
+    -->
+    <fx:Declarations>
+        <parsley:Configure/>
+
+        <s:Fade id="fade"
+                duration="500"/>
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.alarm.framework.view.filter.InAlarmFilter;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.KPISituationEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+			import com.linkage.module.cms.scene.view.components.kpi.KPISituationKPIConfig;
+			import com.linkage.module.cms.scene.view.components.kpi.KPISituationKPISearch;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			import mx.messaging.channels.StreamingAMFChannel;
+			import mx.utils.ColorUtil;
+			
+			import org.spicefactory.lib.reflect.types.Void;
+			
+			import spark.components.CheckBox;
+			import spark.components.Group;
+			import spark.components.TextInput;
+			import spark.events.IndexChangeEvent;
+
+            private var log:ILogger = Log.getLoggerByClass(KPISituation);
+            public var location:String;
+            public var index:String;
+            private var maxFlag:Boolean = false;
+
+            [Embed(source = "../../../scenedaily/img/icon_export.png")]
+            [Bindable]
+            public var export:Class;
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            private var labelNum:int = 8;
+
+            [Inject("user")]
+            public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+            [Inject("kPISituationPM")]
+            [Bindable]
+            public var kpiSituationPM:KPISituationPM;
+            [Bindable]
+            public var noSelectKPIArr:ArrayCollection = new ArrayCollection([{"kpiName": "测试1", "kpiId": "001"}, {"kpiName": "测试2", "kpiId": "002"}, {"kpiName": "测试3", "kpiId": "003"}]);
+            [Bindable]
+            public var isSelectKPIArr:ArrayCollection = new ArrayCollection([{"kpiName": "已选测试1", "kpiId": "001"}, {"kpiName": "已选测试2", "kpiId": "002"}, {"kpiName": "已选测试3", "kpiId": "003"}]);
+
+//            [MessageHandler(selector = "COMPONENT_REFRESH_DATA_GIS")]
+            [MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+            public function loadData(event:SceneEvent = null):void
+            {
+				if (!user.isGisFinished){
+//					setTimeout(loadData, 20);
+					loadData();
+					return;
+				}
+				
+                log.info("加载指标概况数据：");
+                user.perfClass = 1;
+
+                if (kpiSituationViewStack.selectedIndex == 0)
+                {
+                    log.info("刷新数据！！");
+                    kpiSituationPM.showKPISituationData();
+//					setTimeout(kpiSituationPM.showKPISituationData, 20);
+                }
+                else
+                {
+                    log.info(" test 触发change事件！！！！");
+//                    kpiSituationViewStack.selectedIndex = 0;
+                }
+
+            }
+//			[MessageHandler(selector = "SHOW_SCENE_GAME_ACTIVE")]
+//			public function showSceneGameActive(e:SceneIntroEvent):void
+//			{
+//				loadData();
+//			}
+			
+			
+//            [MessageHandler(selector = "COMPONENT_REFRESH_KPI_DATA")]
+//            public function reLoadData(event:SceneEvent = null):void
+//            {
+//                log.info("COMPONENT_REFRESH_KPI_DATA 加载指标概况数据：");
+//                user.perfClass = 1;
+//
+//                if (kpiSituationViewStack.selectedIndex == 0)
+//                {
+//                    log.info(" COMPONENT_REFRESH_KPI_DATA刷新数据！！");
+//                    kpiSituationPM.showKPISituationData();
+//
+//                }
+//                else
+//                {
+//                    log.info("COMPONENT_REFRESH_KPI_DATA  test 触发change事件！！！！");
+//                    kpiSituationViewStack.selectedIndex = 0;
+//                }
+//
+//            }
+
+            private var flag501:Boolean = false;
+
+            private function kpiOut(e:MouseEvent):void
+            {
+                flag501 = false;
+            }
+
+            private var kpiNameEleCache:Object = new Object;
+            private var kpiNameEleCache2:Object = new Object;
+            private var kpiNameEleCache3:Object = new Object;
+
+            private function kpi1Over(e:MouseEvent):void
+            {
+                flag501 = true;
+                //									log.info("flag=" + flag501 + "isNew=" + user.isNew);
+                //									log.info(e.currentTarget is KpiSmallElement);
+                var obj2:Object = new Object;
+                obj2.sceneId = user.sceneId;
+                obj2.level = user.level;
+                obj2.labelId = 501;
+                obj2.perfId = (e.currentTarget as KpiSmallElement).perfId;
+                obj2.moId = (e.currentTarget as KpiSmallElement).moId;
+                setTimeout(function():void
+                {
+                    if (flag501 && user.isNew == "1")
+                    {
+                        user.labelTypeId = "501";
+                        var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                        e.obj = obj2;
+//                        msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+                    }
+                    flag501 = false;
+                }, 3000)
+            }
+
+            private function kpi1Click(event:MouseEvent):void
+            {
+                var obj1:Object = event.currentTarget.param;
+                log.debug("指标概况，抛出事件.......");
+                log.debug(obj1);
+                user.isDrillDown = false;
+                showChart(obj1);
+            }
+
+            private function kpi1CheckBox(event:MouseEvent):void
+            {
+                var cb:CheckBox = CheckBox(event.target);
+                var ksl:KpiSmallElement = kpiNameEleCache[cb.label] as KpiSmallElement;
+                fade.target = ksl;
+
+                if (!cb.selected)
+                    setTimeout(function():void
+                    {
+                        ksl.visible = cb.selected;
+                        ksl.includeInLayout = cb.selected;
+                    }, 500);
+                else
+                {
+                    ksl.visible = cb.selected;
+                    ksl.includeInLayout = cb.selected;
+                }
+
+                if (cb.selected)
+                {
+                    fade.alphaFrom = 0;
+                    fade.alphaTo = 1;
+                }
+                else
+                {
+                    fade.alphaFrom = 1;
+                    fade.alphaTo = 0;
+                }
+
+                fade.play();
+            }
+
+
+            [MessageHandler(selector = "CMS_SCENE_KPISITUATION_SHOW_DATA")]
+            public function showKpiSituData(event:KPISituationEvent):void
+            {
+                var systime:Number = (new Date()).getTime();
+//                khgzkpi.removeAllElements();
+//                ywxnkpi.removeAllElements();
+//                sbxnkpi.removeAllElements();
+//                kpiNameEleCache = new Object;
+                kpiSetVgroup.removeAllElements();
+
+                if (user.perfClass == 0)
+                {
+                    user.perfClass = 1;
+                }
+                var timeInterval:String = "";
+                var threshold:String = "";
+
+                log.info("指标概况处理：" + user.perfClass + ' -- ' + kpiSituationPM.kpiSituationDM.kpiSituationArr.length);
+
+//				log.debug(kpiSituationPM.kpiSituationDM.kpiSituationArr);
+                if (user.perfClass == 1)
+                {
+                    try
+                    {
+                        for each (var obj:Object in kpiSituationPM.kpiSituationDM.kpiSituationArr)
+                        {
+                            var kpiElement1:KpiSmallElement = new KpiSmallElement;
+
+                            if (kpiNameEleCache[obj.kpiName] != null)
+                                kpiElement1 = kpiNameEleCache[obj.kpiName] as KpiSmallElement;
+
+                            kpiElement1.moId = String(obj["moTypeId"]);
+                            kpiElement1.perfId = String(obj["kpiId"]);
+                            kpiElement1.addEventListener(MouseEvent.MOUSE_OVER, kpi1Over);
+                            kpiElement1.addEventListener(MouseEvent.MOUSE_OUT, kpiOut);
+                            //添加搜索过滤功能
+                            var kpiName:String = obj.kpiName as String;
+
+                            if (searchKpiName == null || searchKpiName == "")
+                            {
+                                kpiElement1.visible = true;
+                                kpiElement1.includeInLayout = true;
+                            }
+                            else if (kpiName.indexOf(searchKpiName) == -1)
+                            {
+                                kpiElement1.visible = false;
+                                kpiElement1.includeInLayout = false;
+                            }
+                            else
+                            {
+                                kpiElement1.visible = true;
+                                kpiElement1.includeInLayout = true;
+                            }
+                            timeInterval = obj["timeInterval"] == null ? "" : obj["timeInterval"];
+                            threshold = (obj["threshold"] == null ? "" : obj["threshold"]);
+                            kpiElement1.maxHeight = 60;
+                            kpiElement1.showDetial = "粒度:" + timeInterval + "\n" + "阈值:" + threshold;
+                            kpiElement1.kpiName = kpiName;
+                            kpiElement1.kpiValue = obj.kpiValues;
+                            kpiElement1.isup = obj.isup;
+                            kpiElement1.rate = obj.rate;
+                            kpiElement1.isSceneArea = obj.isSceneArea;
+                            kpiElement1.dateTime = obj.dateTime;
+                            kpiElement1.color = ColorUtil.adjustBrightness(uint(obj.color), -120);
+                            kpiElement1.param = obj;
+                            kpiElement1.addEventListener(MouseEvent.CLICK, kpi1Click);
+
+                            //如果当前组件visible 为真，添加到group中，并且添加到缓存中，
+                            if (kpiElement1.visible)
+                            {
+                                if (kpiNameEleCache[obj.kpiName] == null)
+                                {
+                                    khgzkpi.addElement(kpiElement1);
+                                    kpiNameEleCache[obj.kpiName] = kpiElement1;
+                                }
+                                var kpicheckbox:CheckBox = new CheckBox;
+                                kpicheckbox.label = obj.kpiName;
+                                kpicheckbox.selected = true;
+                                kpicheckbox.addEventListener(MouseEvent.CLICK, kpi1CheckBox);
+                                kpiSetVgroup.addElement(kpicheckbox);
+                            }
+
+                        }
+                    }
+                    catch (e:Error)
+                    {
+                        log.error(e.getStackTrace());
+                    }
+
+                }
+
+                if (user.perfClass == 2)
+                {
+                    for each (var obj2:Object in kpiSituationPM.kpiSituationDM.kpiSituationArr)
+                    {
+                        var kpiElement2:KpiSmallElement = new KpiSmallElement;
+
+                        if (kpiNameEleCache2[obj2.kpiName] != null)
+                            kpiElement2 = kpiNameEleCache2[obj2.kpiName] as KpiSmallElement;
+
+                        kpiElement2.moId = String(obj2["moTypeId"]);
+                        kpiElement2.perfId = String(obj2["kpiId"]);
+                        kpiElement2.addEventListener(MouseEvent.MOUSE_OVER, kpi1Over);
+                        kpiElement2.addEventListener(MouseEvent.MOUSE_OUT, kpiOut);
+                        //添加搜索过滤功能
+                        var kpiName:String = obj2.kpiName as String;
+
+                        if (searchKpiName == null || searchKpiName == "")
+                        {
+                            kpiElement2.visible = true;
+                            kpiElement2.includeInLayout = true;
+                        }
+                        else if (kpiName.indexOf(searchKpiName) == -1)
+                        {
+                            kpiElement2.visible = false;
+                            kpiElement2.includeInLayout = false;
+                        }
+                        else
+                        {
+                            kpiElement2.visible = true;
+                            kpiElement2.includeInLayout = true;
+                        }
+                        timeInterval = obj2["timeInterval"] == null ? "" : obj2["timeInterval"];
+                        threshold = (obj2["threshold"] == null ? "" : obj2["threshold"]);
+                        kpiElement2.showDetial = "粒度:" + timeInterval + "\n" + "阈值:" + threshold;
+                        kpiElement2.maxHeight = 60;
+                        kpiElement2.kpiName = obj2.kpiName;
+                        kpiElement2.kpiValue = obj2.kpiValues;
+                        kpiElement2.isup = obj2.isup;
+                        kpiElement2.rate = obj2.rate;
+                        kpiElement2.isSceneArea = obj2.isSceneArea;
+                        kpiElement2.dateTime = obj2.dateTime;
+                        kpiElement2.color = ColorUtil.adjustBrightness(uint(obj2.color), -120);
+                        kpiElement2.param = obj2;
+                        kpiElement2.addEventListener(MouseEvent.CLICK, kpi1Click);
+
+                        //如果当前组件visible 为真，添加到group中，并且添加到缓存中，
+                        if (kpiElement2.visible)
+                        {
+                            if (kpiNameEleCache2[obj2.kpiName] == null)
+                            {
+                                ywxnkpi.addElement(kpiElement2);
+                                kpiNameEleCache2[obj2.kpiName] = kpiElement2;
+                            }
+                            var kpicheckbox:CheckBox = new CheckBox;
+                            kpicheckbox.label = obj2.kpiName;
+                            kpicheckbox.selected = true;
+                            kpicheckbox.addEventListener(MouseEvent.CLICK, kpi1CheckBox);
+                            kpiSetVgroup.addElement(kpicheckbox);
+                        }
+                    }
+                }
+
+                if (user.perfClass == 3)
+                {
+                    log.debug("searchKpiName=" + searchKpiName);
+
+                    for each (var obj3:Object in kpiSituationPM.kpiSituationDM.kpiSituationArr)
+                    {
+                        var kpiElement3:KpiSmallElement = new KpiSmallElement;
+
+                        if (kpiNameEleCache3[obj3.kpiName] != null)
+                            kpiElement3 = kpiNameEleCache3[obj3.kpiName] as KpiSmallElement;
+
+                        kpiElement3.moId = String(obj3["moTypeId"]);
+                        kpiElement3.perfId = String(obj3["kpiId"]);
+                        kpiElement3.addEventListener(MouseEvent.MOUSE_OVER, kpi1Over);
+                        kpiElement3.addEventListener(MouseEvent.MOUSE_OUT, kpiOut);
+
+                        //添加搜索过滤功能
+                        var kpiName:String = obj3.kpiName as String;
+
+                        if (searchKpiName == null || searchKpiName == "")
+                        {
+                            kpiElement3.visible = true;
+                            kpiElement3.includeInLayout = true;
+                        }
+                        else if (kpiName.indexOf(searchKpiName) == -1)
+                        {
+                            kpiElement3.visible = false;
+                            kpiElement3.includeInLayout = false;
+                        }
+                        else
+                        {
+                            kpiElement3.visible = true;
+                            kpiElement3.includeInLayout = true;
+                        }
+                        timeInterval = obj3["timeInterval"] == null ? "" : obj3["timeInterval"];
+                        threshold = (obj3["threshold"] == null ? "" : obj3["threshold"]);
+                        kpiElement3.showDetial = "粒度:" + timeInterval + "\n" + "阈值:" + threshold;
+                        kpiElement3.maxHeight = 60;
+                        kpiElement3.kpiName = obj3.kpiName;
+                        kpiElement3.kpiValue = obj3.kpiValues;
+                        kpiElement3.isup = obj3.isup;
+                        kpiElement3.rate = obj3.rate;
+                        kpiElement3.isSceneArea = obj3.isSceneArea;
+                        kpiElement3.dateTime = obj3.dateTime;
+                        kpiElement3.color = ColorUtil.adjustBrightness(uint(obj3.color), -120);
+                        kpiElement3.param = obj3;
+                        kpiElement3.addEventListener(MouseEvent.CLICK, kpi1Click);
+
+                        //如果当前组件visible 为真，添加到group中，并且添加到缓存中，
+                        if (kpiElement3.visible)
+                        {
+                            if (kpiNameEleCache3[obj3.kpiName] == null)
+                            {
+                                sbxnkpi.addElement(kpiElement3);
+                                kpiNameEleCache3[obj3.kpiName] = kpiElement3;
+                            }
+                            var kpicheckbox:CheckBox = new CheckBox;
+                            kpicheckbox.label = obj3.kpiName;
+                            kpicheckbox.selected = true;
+                            kpicheckbox.addEventListener(MouseEvent.CLICK, kpi1CheckBox);
+                            kpiSetVgroup.addElement(kpicheckbox);
+                        }
+                    }
+                }
+
+                if (user.kpiId != null)
+                {
+                    log.info("刷新视图或者下一级钻取后，加载原先的指标。");
+                    log.info(user);
+                    var obj:Object = {};
+                    obj['kpiId'] = user.kpiId;
+                    obj['kpiName'] = user.kpiName;
+                    obj['moTypeId'] = user.moTypeId;
+                    obj['timeInterval'] = user.timeInterval;
+                    showChart(obj);
+                }
+
+                log.warn("指标概况处理耗时：{0}", (new Date).getTime() - systime);
+
+//                setTimeout(function():void
+//                {
+//                    msgDispatcher(new SceneEvent("COMPONENT_REFRESH_DATA_GIS"));
+//                }, 500);
+				log.warn("[指标概况处理]: 结束：{0}", new Date().toString());
+            }
+
+
+            /**
+             * 显示指标对应的图表
+             */
+            private function showChart(obj:Object):void
+            {
+                var kpiId:String = obj['kpiId'];
+                var moTypeId:String = obj['moTypeId'];
+                var kpiName:String = obj['kpiName'];
+                var timeInterval:String = obj['timeInterval'];
+
+                log.info("load kpi chart data ------><----------------");
+
+                user.kpiId = kpiId;
+                user.kpiIdList = kpiId;
+                user.kpiName = kpiName;
+                user.moTypeId = moTypeId;
+                user.moTypeIdList = moTypeId;
+                user.timeInterval = timeInterval;
+                user.dateFlag = "1";
+                user.isStaticres = obj['isStaticres'];
+
+                user.startTime = null;
+                user.endTime = null;
+
+                log.debug(user);
+
+                //LOAD_LINE_DATA 获取历史图表数据
+//				kpiSituationPM.getKpiHisByHistory(user);  modified by hurw 2013-4-21  because yuanjun
+
+                log.debug("[指标概况]：指标切换事件：KPI_CHANGE");
+                var e:SceneEvent = new SceneEvent(SceneEvent.KPI_CHANGE);
+                e.kpiName = kpiName;
+                msgDispatcher(e);
+
+                log.info("[指标概况]：刷新泰森多边形数据:" + user.sceneId);
+
+                if (!user.isDrillDown)
+                    user.refreshPolygon = true;
+
+                if (user.currentMapType == "0" && user.level == "2" && !user.isDrillDown)
+//                    msgDispatcher(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+					requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+
+//				log.info("[指标概况]：二次指标:");
+//				msgDispatcher(new KPISituationEvent(KPISituationEvent.LOAD_KPI_AREA_DATA));
+				requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.LOAD_LINE_DATA));
+            }
+
+            public function closeWindow(type:int = 0):void
+            {
+                if (type == 1)
+                {
+                    if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+                    {
+                        this.visible = false;
+                        this.includeInLayout = false;
+                    }
+                }
+                else
+                    (this.parent as Group).removeElement(this);
+
+                if (type == 1)
+                {
+                    var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+                    e.panelName = this.name;
+                    e.param.index = this.index;
+                    e.param.pid = this.parent['id'];
+                    msgDispatcher(e);
+                }
+            }
+
+            public function window2_resize(flag:Boolean):void
+            {
+                log.info("指标概况最大化、恢复窗口：" + flag + "_" + maxFlag);
+                var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+                e.panelName = this.name;
+                e.panelIndex = this.index;
+                e.panellocation = this.location;
+                e.panelMaxFlag = this.maxFlag;
+                msgDispatcher(e);
+                log.info("指标概况 最大化、恢复窗口：派发事件！");
+
+                this.maxFlag = flag;
+
+                this.closeButton.visible = !flag;
+                this.closeButton.includeInLayout = !flag;
+            }
+
+            public function kpiSituationViewStack_changeHandler(event:IndexChangedEvent):void
+            {
+                log.debug("tabbar info:" + event.newIndex);
+
+                if (event.newIndex == 0)
+                {
+                    if (this.searchName)
+                        this.searchName.text = "";
+                    searchKpiName = "";
+//                    khgzkpi.removeAllElements();
+                    user.perfClass = 1;
+                    kpiSituationPM.showKPISituationData();
+                }
+
+                if (event.newIndex == 1)
+                {
+                    if (this.searchName)
+                        this.searchName.text = "";
+                    searchKpiName = "";
+//                    ywxnkpi.removeAllElements();
+                    user.perfClass = 2;
+                    kpiSituationPM.showKPISituationData();
+                }
+
+                if (event.newIndex == 2)
+                {
+                    if (this.searchName)
+                        this.searchName.text = "";
+                    searchKpiName = "";
+//                    sbxnkpi.removeAllElements();
+                    user.perfClass = 3;
+                    kpiSituationPM.showKPISituationData();
+                }
+            }
+
+            public function closeWindowDetail():void
+            {
+                PopUpManager.removePopUp(kpiSituationSet);
+            }
+
+            public function image1_clickHandler(event:MouseEvent):void
+            {
+                PopUpManager.addPopUp(kpiSituationSet, this.parent as DisplayObject);
+                kpiSituationSet.x = 730
+                kpiSituationSet.y = 10;
+                kpiSituationSet.visible = true;
+
+            }
+
+
+            private function exportKPI():void
+            {
+                var url:String = user.context + "/scene/panels/exportSceneKpiGeneralInfoAction!exportSceneKpiGeneralInfo.action?sceneId=" + user.sceneId + "&cityId=" + user.cityId + "&level=" + user.level;
+                navigateToURL(new URLRequest(url));
+            }
+
+            public function image2_clickHandler(event:MouseEvent):void
+            {
+                log.debug(" 弹出查询控件");
+                PopUpManager.addPopUp(searchWindow, this.parent as DisplayObject);
+                searchWindow.x = 625;
+                searchWindow.y = 60;
+                searchWindow.visible = true;
+
+            }
+            private var searchKpiName:String = "";
+
+            //------------------------------------------------------------
+            private var _searchWindow:KPISituationKPISearch = null;
+
+            public function get searchWindow():KPISituationKPISearch
+            {
+                if (_searchWindow == null)
+                {
+                    _searchWindow = new KPISituationKPISearch();
+                    _searchWindow.callback = button1_clickHandler;
+                }
+                return _searchWindow;
+            }
+
+            public function get searchName():TextInput
+            {
+                return searchWindow.searchName;
+            }
+
+            //--------------------------------------------------------------
+            private var _kpiThresholdWindow:KPISituationKPIConfig = null;
+
+            public function get kpiThresholdWindow():KPISituationKPIConfig
+            {
+                if (_kpiThresholdWindow == null)
+                {
+                    _kpiThresholdWindow = new KPISituationKPIConfig();
+                    _kpiThresholdWindow.callback_sbxnbutton5 = sbxnbutton5_clickHandler;
+                    _kpiThresholdWindow.callback_kpiThresholdTabBar = kpiThresholdTabBar_changeHandler;
+                    _kpiThresholdWindow.callback_khgzselectToCancel = khgzselectToCancel_clickHandler;
+                    _kpiThresholdWindow.callback_khgzselectToOk = khgzselectToOk_clickHandler;
+                    _kpiThresholdWindow.callback_khgzisSelectKpiDataGrid = khgzisSelectKpiDataGrid_itemClickHandler;
+                    _kpiThresholdWindow.callback_image4 = image4_clickHandler;
+                    _kpiThresholdWindow.callback_image5 = image5_clickHandler;
+                    _kpiThresholdWindow.callback_image6 = image6_clickHandler;
+                    _kpiThresholdWindow.callback_khgzbutton3 = khgzbutton3_clickHandler;
+                    _kpiThresholdWindow.callback_khgzbutton4 = khgzbutton4_clickHandler;
+                    _kpiThresholdWindow.callback_khgzbutton5 = khgzbutton5_clickHandler;
+                    _kpiThresholdWindow.callback_selectEnd = selectEnd_clickHandler;
+                    _kpiThresholdWindow.callback_selectFirst = selectFirst_clickHandler;
+                    _kpiThresholdWindow.callback_selectDown = selectDown_clickHandler;
+                    _kpiThresholdWindow.callback_selectUp = selectUp_clickHandler;
+                    _kpiThresholdWindow.callback_khgzThresholdSave = khgzThresholdSave_clickHandler;
+                    _kpiThresholdWindow.callback_khgzThresholdShare = khgzThresholdShare_clickHandler;
+                    _kpiThresholdWindow.callback_ywxnselectToCancel = ywxnselectToCancel_clickHandler;
+                    _kpiThresholdWindow.callback_ywxnisSelectKpiDataGrid = ywxnisSelectKpiDataGrid_itemClickHandler;
+                    _kpiThresholdWindow.callback_ywxnselectToOk = ywxnselectToOk_clickHandler;
+                    _kpiThresholdWindow.callback_ywxnbutton3 = ywxnbutton3_clickHandler;
+                    _kpiThresholdWindow.callback_ywxnbutton4 = ywxnbutton4_clickHandler;
+                    _kpiThresholdWindow.callback_ywxnbutton5 = ywxnbutton5_clickHandler;
+                    _kpiThresholdWindow.callback_ywxnThresholdShare = ywxnThresholdShare_clickHandler;
+                    _kpiThresholdWindow.callback_ywxnThresholdSave = ywxnThresholdSave_clickHandler;
+                    _kpiThresholdWindow.callback_sbxnThresholdShare = sbxnThresholdShare_clickHandler;
+                    _kpiThresholdWindow.callback_sbxnThresholdSave = sbxnThresholdSave_clickHandler;
+                    _kpiThresholdWindow.callback_sbxnselectToOk = sbxnselectToOk_clickHandler;
+                    _kpiThresholdWindow.callback_sbxnselectToCancel = sbxnselectToCancel_clickHandler;
+                    _kpiThresholdWindow.callback_sbxnisSelectKpiDataGrid = sbxnisSelectKpiDataGrid_itemClickHandler;
+                    _kpiThresholdWindow.callback_sbxnbutton3 = sbxnbutton3_clickHandler;
+                    _kpiThresholdWindow.callback_sbxnbutton4 = sbxnbutton4_clickHandler;
+                    _kpiThresholdWindow.callback_label1 = label1_clickHandler;
+                    _kpiThresholdWindow.kpiSituationPM = kpiSituationPM;
+                }
+                return _kpiThresholdWindow;
+            }
+
+            public function get khgzthresholdName():TextInput
+            {
+                return kpiThresholdWindow.khgzthresholdName;
+            }
+
+            public function get ywxnthresholdName():TextInput
+            {
+                return kpiThresholdWindow.ywxnthresholdName;
+            }
+
+            public function get sbxnthresholdName():TextInput
+            {
+                return kpiThresholdWindow.sbxnthresholdName;
+            }
+
+            public function get khgzisSelectKpiDataGrid():AdvancedDataGrid
+            {
+                return kpiThresholdWindow.khgzisSelectKpiDataGrid;
+            }
+
+            public function get kugznoSelectKpiDataGrid():AdvancedDataGrid
+            {
+                return kpiThresholdWindow.kugznoSelectKpiDataGrid;
+            }
+
+            public function get ywxnisSelectKpiDataGrid():AdvancedDataGrid
+            {
+                return kpiThresholdWindow.ywxnisSelectKpiDataGrid;
+            }
+
+            public function get ywxnnoSelectKpiDataGrid():AdvancedDataGrid
+            {
+                return kpiThresholdWindow.ywxnnoSelectKpiDataGrid;
+            }
+
+            public function get sbxnisSelectKpiDataGrid():AdvancedDataGrid
+            {
+                return kpiThresholdWindow.sbxnisSelectKpiDataGrid;
+            }
+
+            public function get sbxnnoSelectKpiDataGrid():AdvancedDataGrid
+            {
+                return kpiThresholdWindow.sbxnnoSelectKpiDataGrid;
+            }
+
+            public function get sbxnthresholdConfigGroup():VGroup
+            {
+                return kpiThresholdWindow.sbxnthresholdConfigGroup;
+            }
+
+            public function get khgzthresholdConfigGroup():VGroup
+            {
+                return kpiThresholdWindow.khgzthresholdConfigGroup;
+            }
+
+            public function get ywxnthresholdConfigGroup():VGroup
+            {
+                return kpiThresholdWindow.ywxnthresholdConfigGroup;
+            }
+
+            public function get kpiThresholdViewStack():ViewStack
+            {
+                return kpiThresholdWindow.kpiThresholdViewStack;
+            }
+
+            //----------------------------------------------------------------
+
+            public function button1_clickHandler(event:MouseEvent):void
+            {
+                PopUpManager.removePopUp(this.searchWindow);
+                searchKpiName = this.searchName.text;
+                log.debug("查询名称：" + searchKpiName);
+                kpiSituationPM.showKPISituationData();
+            }
+
+            public function button2_clickHandler(event:MouseEvent):void
+            {
+                this.searchName.text = "";
+                searchKpiName = "";
+                log.debug("查询名称：" + searchKpiName);
+                kpiSituationPM.showKPISituationData();
+            }
+
+            public function image3_clickHandler(event:MouseEvent):void
+            {
+                log.debug("进入阈值配置页面...");
+
+                //重置指标阈值名称
+                if (khgzthresholdName)
+                    khgzthresholdName.text = "";
+
+                if (ywxnthresholdName)
+                    ywxnthresholdName.text = "";
+
+                if (sbxnthresholdName)
+                    sbxnthresholdName.text = "";
+
+
+                var isSelectParam:Object = new Object;
+                var noSelectParam:Object = new Object;
+                user.configPerfClass = 1;
+                isSelectParam.perfClass = 1;
+                isSelectParam.isSelected = 1;
+                isSelectParam.sceneId = user.sceneId;
+                isSelectParam.level = user.level;
+
+                noSelectParam.perfClass = 1;
+                noSelectParam.isSelected = 0;
+                noSelectParam.sceneId = user.sceneId;
+                noSelectParam.level = user.level;
+                kpiSituationPM.queryKpiIsSelect(isSelectParam);
+                kpiSituationPM.queryKpiNoSelect(noSelectParam);
+                PopUpManager.addPopUp(kpiThresholdWindow, this.parent as DisplayObject);
+                kpiThresholdWindow.x = 300;
+                kpiThresholdWindow.y = 5;
+                kpiThresholdWindow.width = 740;
+                kpiThresholdWindow.height = 400;
+                kpiThresholdWindow.visible = true;
+            }
+
+
+            public function kpiThresholdTabBar_changeHandler(event:IndexChangeEvent):void
+            {
+                //重置指标阈值名称
+                khgzthresholdName.text = "";
+                ywxnthresholdName.text = "";
+                sbxnthresholdName.text = "";
+
+                if (event.newIndex == 0)
+                {
+                    log.debug("切换tabbar event.newIndex ==" + event.newIndex);
+                    khgzsavaArr.removeAll();
+                    khgzsavaArr.refresh();
+                    user.configPerfClass = 1;
+                    var isSelectParam1:Object = new Object;
+                    var noSelectParam1:Object = new Object;
+                    isSelectParam1.perfClass = 1;
+                    isSelectParam1.isSelected = 1;
+                    isSelectParam1.sceneId = user.sceneId;
+                    isSelectParam1.level = user.level;
+
+                    noSelectParam1.perfClass = 1;
+                    noSelectParam1.isSelected = 0;
+                    noSelectParam1.sceneId = user.sceneId;
+                    noSelectParam1.level = user.level;
+                    kpiSituationPM.queryKpiIsSelect(isSelectParam1);
+                    kpiSituationPM.queryKpiNoSelect(noSelectParam1);
+
+                }
+
+                if (event.newIndex == 1)
+                {
+                    log.debug("切换tabbar event.newIndex ==" + event.newIndex);
+                    ywxnsavaArr.removeAll();
+                    ywxnsavaArr.refresh();
+                    user.configPerfClass = 2;
+                    var isSelectParam2:Object = new Object;
+                    var noSelectParam2:Object = new Object;
+                    isSelectParam2.perfClass = 2;
+                    isSelectParam2.isSelected = 1;
+                    isSelectParam2.sceneId = user.sceneId;
+                    isSelectParam2.level = user.level;
+
+                    noSelectParam2.perfClass = 2;
+                    noSelectParam2.isSelected = 0;
+                    noSelectParam2.sceneId = user.sceneId;
+                    noSelectParam2.level = user.level;
+                    kpiSituationPM.queryKpiIsSelect(isSelectParam2);
+                    kpiSituationPM.queryKpiNoSelect(noSelectParam2);
+                }
+
+                if (event.newIndex == 2)
+                {
+                    log.debug("切换tabbar event.newIndex ==" + event.newIndex);
+                    sbxnsavaArr.removeAll();
+                    sbxnsavaArr.refresh();
+                    user.configPerfClass = 3;
+                    var isSelectParam3:Object = new Object;
+                    var noSelectParam3:Object = new Object;
+                    isSelectParam3.perfClass = 3;
+                    isSelectParam3.isSelected = 1;
+                    isSelectParam3.sceneId = user.sceneId;
+                    isSelectParam3.level = user.level;
+
+                    noSelectParam3.perfClass = 3;
+                    noSelectParam3.isSelected = 0;
+                    noSelectParam3.sceneId = user.sceneId;
+                    noSelectParam3.level = user.level;
+                    kpiSituationPM.queryKpiIsSelect(isSelectParam3);
+                    kpiSituationPM.queryKpiNoSelect(noSelectParam3);
+                }
+            }
+            //临时存储配置指标对象
+            private var khgzsavaArr:ArrayCollection = new ArrayCollection();
+            private var ywxnsavaArr:ArrayCollection = new ArrayCollection();
+            private var sbxnsavaArr:ArrayCollection = new ArrayCollection();
+
+            public function khgzselectToCancel_clickHandler(event:MouseEvent):void
+            {
+                if (this.khgzisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList;
+                var noSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList;
+                var selectIndex:int = this.khgzisSelectKpiDataGrid.selectedIndex;
+                var obj:Object = isSelectDataList.getItemAt(selectIndex);
+                //添加指标到临时保存对象中，添加删除状态标志
+                obj.operateType = "delete";
+                khgzsavaArr.addItem(obj);
+                khgzsavaArr.refresh();
+                log.debug(khgzsavaArr);
+                //添加到未选择指标中，从已经选择指标列表中删除
+                noSelectDataList.addItem(obj);
+                isSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            public function khgzselectToOk_clickHandler(event:MouseEvent):void
+            {
+                if (this.kugznoSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList;
+                var noSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList;
+                var selectIndex:int = this.kugznoSelectKpiDataGrid.selectedIndex;
+                var obj:Object = noSelectDataList.getItemAt(selectIndex);
+                //暂存到保存对象 中
+                obj.operateType = "add";
+                khgzsavaArr.addItem(obj);
+                khgzsavaArr.refresh();
+                log.debug(khgzsavaArr);
+                //添加到已选择列表，从未选择列表删除
+                isSelectDataList.addItem(obj);
+                noSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            public function ywxnselectToCancel_clickHandler(event:MouseEvent):void
+            {
+                if (this.ywxnisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList;
+                var noSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList;
+                var selectIndex:int = this.ywxnisSelectKpiDataGrid.selectedIndex;
+                var obj:Object = isSelectDataList.getItemAt(selectIndex);
+                //添加指标到临时保存对象中，添加删除状态标志
+                obj.operateType = "delete";
+                ywxnsavaArr.addItem(obj);
+                ywxnsavaArr.refresh();
+                log.debug(ywxnsavaArr);
+                //添加到未选择指标中，从已经选择指标列表中删除
+                noSelectDataList.addItem(obj);
+                isSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            public function ywxnselectToOk_clickHandler(event:MouseEvent):void
+            {
+                if (this.ywxnnoSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList;
+                var noSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList;
+                var selectIndex:int = this.ywxnnoSelectKpiDataGrid.selectedIndex;
+                var obj:Object = noSelectDataList.getItemAt(selectIndex);
+                //暂存到保存对象 中
+                obj.operateType = "add";
+                ywxnsavaArr.addItem(obj);
+                ywxnsavaArr.refresh();
+                log.debug(ywxnsavaArr);
+                //添加到已选择列表，从未选择列表删除
+                isSelectDataList.addItem(obj);
+                noSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            public function sbxnselectToCancel_clickHandler(event:MouseEvent):void
+            {
+                if (this.sbxnisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList;
+                var noSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList;
+                var selectIndex:int = this.sbxnisSelectKpiDataGrid.selectedIndex;
+                var obj:Object = isSelectDataList.getItemAt(selectIndex);
+                //添加指标到临时保存对象中，添加删除状态标志
+                obj.operateType = "delete";
+                sbxnsavaArr.addItem(obj);
+                sbxnsavaArr.refresh();
+                log.debug(sbxnsavaArr);
+                //添加到未选择指标中，从已经选择指标列表中删除
+                noSelectDataList.addItem(obj);
+                isSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            public function sbxnselectToOk_clickHandler(event:MouseEvent):void
+            {
+                if (this.sbxnnoSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList;
+                var noSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList;
+                var selectIndex:int = this.sbxnnoSelectKpiDataGrid.selectedIndex;
+                var obj:Object = noSelectDataList.getItemAt(selectIndex);
+                //暂存到保存对象 中
+                obj.operateType = "add";
+                sbxnsavaArr.addItem(obj);
+                sbxnsavaArr.refresh();
+                log.debug(sbxnsavaArr);
+                //添加到已选择列表，从未选择列表删除
+                isSelectDataList.addItem(obj);
+                noSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            public function khgzThresholdSave_clickHandler(event:MouseEvent):void
+            {
+//				if (khgzsavaArr.length == 0)
+//				{
+//					Alert.show("保存成功", "提示");
+//					return;
+//				}
+                var param:Object = new Object;
+
+                if (user.level == "2")
+                {
+                    param.sceneId = user.initSceneId;
+                }
+                else
+                {
+                    param.sceneId = user.sceneId;
+                }
+                param.configPerfClass = user.configPerfClass;
+                param.datas = khgzsavaArr;
+                param.perforder = this.khgzisSelectKpiDataGrid.dataProvider as ArrayCollection;
+                log.debug(khgzsavaArr);
+                this.kpiSituationPM.saveConfigKpi(param);
+
+            }
+
+            public function ywxnThresholdSave_clickHandler(event:MouseEvent):void
+            {
+//				if (ywxnsavaArr.length == 0)
+//				{
+//					Alert.show("保存成功", "提示");
+//					return;
+//				}
+                var param:Object = new Object;
+
+                if (user.level == "2")
+                {
+                    param.sceneId = user.initSceneId;
+                }
+                else
+                {
+                    param.sceneId = user.sceneId;
+                }
+                param.configPerfClass = user.configPerfClass;
+                param.datas = ywxnsavaArr;
+                param.perforder = this.ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection;
+                log.debug(ywxnsavaArr);
+                this.kpiSituationPM.saveConfigKpi(param);
+
+            }
+
+            public function sbxnThresholdSave_clickHandler(event:MouseEvent):void
+            {
+//				if (sbxnsavaArr.length == 0)
+//				{
+//					Alert.show("保存成功", "提示");
+//					return;
+//				}
+                var param:Object = new Object;
+
+                if (user.level == "2")
+                {
+                    param.sceneId = user.initSceneId;
+                }
+                else
+                {
+                    param.sceneId = user.sceneId;
+                }
+                param.configPerfClass = user.configPerfClass;
+                param.datas = sbxnsavaArr;
+                param.perforder = this.sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection;
+                log.debug(sbxnsavaArr);
+                this.kpiSituationPM.saveConfigKpi(param);
+
+            }
+
+
+            [MessageHandler(selector = "CMS_SCENE_KPISITUATION_SAVE_RESULT")]
+            public function saveResult(event:KPISituationEvent):void
+            {
+
+                log.debug("保存结果：" + event.param.resultInfo);
+
+                if (event.param.resultInfo == "success")
+                {
+                    Alert.show("保存成功", "提示");
+                    khgzsavaArr.removeAll();
+                    ywxnsavaArr.removeAll();
+                    sbxnsavaArr.removeAll();
+                    //重新调用指标概况展示
+                    loadData();
+                }
+                else
+                {
+                    Alert.show("保存失败", "提示");
+                }
+            }
+
+
+            //阈值批量导出
+            public function image4_clickHandler(event:MouseEvent):void
+            {
+                var url:String = user.context + "scene/panels/exportThresholdAction!exportThreshold.action?sceneId=" + user.sceneId + "&cityId=" + user.cityId + "&level=" + user.level + "&initSceneId=" + user.initSceneId;
+                navigateToURL(new URLRequest(url));
+            }
+
+            private var khgzthresholdIsBtsDispatch:Boolean = false; //判断当前是否基站也派单
+            private var ywxnthresholdIsBtsDispatch:Boolean = false;
+            private var sbxnthresholdIsBtsDispatch:Boolean = false;
+
+
+            public function khgzbutton3_clickHandler(event:MouseEvent):void
+            {
+                var tcf:ThresholdConfigComp = new ThresholdConfigComp;
+
+                if (khgzthresholdIsBtsDispatch)
+                {
+                    tcf.isBtsDispatch.visible = true;
+                    tcf.isBtsDispatch.includeInLayout = true;
+                }
+
+                khgzthresholdConfigGroup.addElement(tcf);
+            }
+
+            public function ywxnbutton3_clickHandler(event:MouseEvent):void
+            {
+                var tcf:ThresholdConfigComp = new ThresholdConfigComp;
+
+                if (ywxnthresholdIsBtsDispatch)
+                {
+                    tcf.isBtsDispatch.visible = true;
+                    tcf.isBtsDispatch.includeInLayout = true;
+                }
+                ywxnthresholdConfigGroup.addElement(tcf);
+            }
+
+            public function sbxnbutton3_clickHandler(event:MouseEvent):void
+            {
+                var tcf:ThresholdConfigComp = new ThresholdConfigComp;
+
+                if (sbxnthresholdIsBtsDispatch)
+                {
+                    tcf.isBtsDispatch.visible = true;
+                    tcf.isBtsDispatch.includeInLayout = true;
+                }
+                sbxnthresholdConfigGroup.addElement(tcf);
+            }
+
+            public function khgzbutton4_clickHandler(event:MouseEvent):void
+            {
+                log.debug("khgzthresholdConfigGroup.numElements=" + khgzthresholdConfigGroup.numElements);
+
+                if (khgzthresholdConfigGroup.numElements > 1)
+                {
+                    khgzthresholdConfigGroup.removeElementAt(khgzthresholdConfigGroup.numElements - 1);
+                }
+            }
+
+            public function ywxnbutton4_clickHandler(event:MouseEvent):void
+            {
+                log.debug("ywxnthresholdConfigGroup.numElements=" + ywxnthresholdConfigGroup.numElements);
+
+                if (ywxnthresholdConfigGroup.numElements > 1)
+                {
+                    ywxnthresholdConfigGroup.removeElementAt(ywxnthresholdConfigGroup.numElements - 1);
+                }
+            }
+
+            public function sbxnbutton4_clickHandler(event:MouseEvent):void
+            {
+                log.debug("sbxnthresholdConfigGroup.numElements=" + sbxnthresholdConfigGroup.numElements);
+
+                if (sbxnthresholdConfigGroup.numElements > 1)
+                {
+                    sbxnthresholdConfigGroup.removeElementAt(sbxnthresholdConfigGroup.numElements - 1);
+                }
+            }
+
+            public function khgzisSelectKpiDataGrid_itemClickHandler(event:ListEvent):void
+            {
+                var kpiName:String = khgzisSelectKpiDataGrid.selectedItem['showName'];
+                this.khgzthresholdName.text = kpiName;
+                var param:Object = new Object;
+                param.resId = user.sceneId;
+                param.resType = user.level;
+                param.kpiId = khgzisSelectKpiDataGrid.selectedItem['kpiId'];
+                param.moTypeId = khgzisSelectKpiDataGrid.selectedItem['moTypeId'];
+                param.sceneId = user.initSceneId;
+                param.cityId = user.cityId;
+                this.kpiSituationPM.queryThreshold(param);
+
+                //判断当前选中的指标是否是cell，如果是的话，多出现个checkbox hrw
+                if (param.moTypeId == "101" || param.moTypeId == "102")
+                {
+                    khgzthresholdIsBtsDispatch = true;
+                }
+                else
+                {
+                    khgzthresholdIsBtsDispatch = false;
+                }
+
+                log.info("khgzthresholdIsBtsDispatch::{0}，{1}", khgzthresholdIsBtsDispatch, param.moTypeId);
+            }
+
+            public function ywxnisSelectKpiDataGrid_itemClickHandler(event:ListEvent):void
+            {
+                var kpiName:String = ywxnisSelectKpiDataGrid.selectedItem['showName'];
+                log.debug("thresholdName=" + kpiName);
+                this.ywxnthresholdName.text = kpiName;
+                var param:Object = new Object;
+                param.resId = user.sceneId;
+                param.resType = user.level;
+                param.kpiId = ywxnisSelectKpiDataGrid.selectedItem['kpiId'];
+                param.moTypeId = ywxnisSelectKpiDataGrid.selectedItem['moTypeId'];
+                param.sceneId = user.initSceneId;
+                param.cityId = user.cityId;
+                this.kpiSituationPM.queryThreshold(param);
+
+                //判断当前选中的指标是否是cell，如果是的话，多出现个checkbox hrw
+                if (param.moTypeId == "101" || param.moTypeId == "102")
+                {
+                    ywxnthresholdIsBtsDispatch = true;
+                }
+                else
+                {
+                    ywxnthresholdIsBtsDispatch = false;
+                }
+                log.info("khgzthresholdIsBtsDispatch::{0}，{1}", khgzthresholdIsBtsDispatch, param.moTypeId);
+
+            }
+
+            public function sbxnisSelectKpiDataGrid_itemClickHandler(event:ListEvent):void
+            {
+                var kpiName:String = sbxnisSelectKpiDataGrid.selectedItem['showName'];
+                log.debug("thresholdName=" + kpiName);
+                this.sbxnthresholdName.text = kpiName;
+                var param:Object = new Object;
+                param.resId = user.sceneId;
+                param.resType = user.level;
+                param.kpiId = sbxnisSelectKpiDataGrid.selectedItem['kpiId'];
+                param.moTypeId = sbxnisSelectKpiDataGrid.selectedItem['moTypeId'];
+                param.sceneId = user.initSceneId;
+                param.cityId = user.cityId;
+                this.kpiSituationPM.queryThreshold(param);
+
+                //判断当前选中的指标是否是cell，如果是的话，多出现个checkbox hrw
+                if (param.moTypeId == "101" || param.moTypeId == "102")
+                {
+                    sbxnthresholdIsBtsDispatch = true;
+                }
+                else
+                {
+                    sbxnthresholdIsBtsDispatch = false;
+                }
+                log.info("khgzthresholdIsBtsDispatch::{0}，{1}", khgzthresholdIsBtsDispatch, param.moTypeId);
+
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_KPISITUATION_SHOW_THRESHOLD_INIT")]
+            public function initThresholdInfo(event:KPISituationEvent):void
+            {
+                log.debug("开始初始化阈值配置....");
+                log.debug(kpiSituationPM.kpiSituationDM.queryThresholdList);
+                log.debug(user.configPerfClass);
+
+                if (user.configPerfClass == 1)
+                {
+                    khgzthresholdConfigGroup.removeAllElements();
+
+                    if (kpiSituationPM.kpiSituationDM.queryThresholdList.length == 0)
+                    {
+                        var comp:ThresholdConfigComp = new ThresholdConfigComp;
+                        log.info("khgzthresholdIsBtsDispatch::{0}", khgzthresholdIsBtsDispatch);
+
+                        if (khgzthresholdIsBtsDispatch)
+                        {
+                            comp.isBtsDispatch.visible = true;
+                            comp.isBtsDispatch.includeInLayout = true;
+                        }
+                        khgzthresholdConfigGroup.addElement(comp);
+                    }
+                    else
+                    {
+                        for each (var obj:Object in kpiSituationPM.kpiSituationDM.queryThresholdList)
+                        {
+                            var comp:ThresholdConfigComp = new ThresholdConfigComp;
+
+                            if (khgzthresholdIsBtsDispatch)
+                            {
+                                comp.isBtsDispatch.visible = true;
+                                comp.isBtsDispatch.includeInLayout = true;
+
+                                if (obj.isBtsDispatch == "1")
+                                {
+                                    comp.isBtsDispatch.selected = true;
+                                }
+                                else
+                                {
+                                    comp.isBtsDispatch.selected = false;
+                                }
+                            }
+                            comp.thresholdDown.text = obj.down;
+                            comp.thresholdUp.text = obj.up;
+							comp.data = obj
+
+
+                            for each (var aobj:Object in comp.isAlarmList)
+                            {
+                                if (aobj.alarmId == obj.isAlarm)
+                                {
+                                    log.debug("是否告警：" + obj.isAlarm);
+                                    comp.isAlarmDownList.selectedItem = aobj;
+
+                                    break;
+                                }
+                            }
+
+                            for each (var bobj:Object in comp.isDispatchList)
+                            {
+                                if (bobj.dispatchId == obj.isDispatch)
+                                {
+                                    log.debug("是否派单：" + obj.isDispatch);
+                                    comp.isDispatchDownList.selectedItem = bobj;
+                                    break;
+                                }
+                            }
+
+                            for each (var cobj:Object in comp.colorList)
+                            {
+                                if (cobj.key == obj.rendingColor)
+                                {
+                                    log.debug("渲染颜色：" + obj.rendingColor);
+                                    comp.colorsel.selectedItem = cobj;
+                                    break;
+                                }
+                            }
+
+                            for each (var dobj:Object in comp.alarmLevelList)
+                            {
+                                if (dobj.alarmLevelId == obj.warningLevel)
+                                {
+                                    log.debug("告警级别：" + obj.warningLevel);
+                                    comp.alarmLevelDownList.selectedItem = dobj;
+                                    comp.alarmLevelcolor.selectedColor = dobj.color;
+                                    break;
+                                }
+                            }
+
+                            if (obj.isAlarm == "1")
+                            {
+                                comp.kpicolorlabel.visible = false;
+                                comp.kpicolorlabel.includeInLayout = false;
+                                comp.colorsel.visible = false;
+                                comp.colorsel.includeInLayout = false;
+
+                                comp.alarmLevelLabel.visible = true;
+                                comp.alarmLevelLabel.includeInLayout = true;
+                                comp.alarmLevelDownList.visible = true;
+                                comp.alarmLevelDownList.includeInLayout = true;
+                                comp.alarmLevelcolor.visible = true;
+                                comp.alarmLevelcolor.includeInLayout = true;
+                            }
+
+                            if (obj.isAlarm == "0")
+                            {
+
+                                comp.kpicolorlabel.visible = true;
+                                comp.kpicolorlabel.includeInLayout = true;
+                                comp.colorsel.visible = true;
+                                comp.colorsel.includeInLayout = true;
+                                comp.alarmLevelLabel.visible = false;
+                                comp.alarmLevelLabel.includeInLayout = false;
+                                comp.alarmLevelDownList.visible = false;
+                                comp.alarmLevelDownList.includeInLayout = false;
+                                comp.alarmLevelcolor.visible = false;
+                                comp.alarmLevelcolor.includeInLayout = false;
+                            }
+                            khgzthresholdConfigGroup.addElement(comp);
+                        }
+                    }
+                }
+
+                if (user.configPerfClass == 2)
+                {
+                    ywxnthresholdConfigGroup.removeAllElements();
+
+                    if (kpiSituationPM.kpiSituationDM.queryThresholdList.length == 0)
+                    {
+                        var comp:ThresholdConfigComp = new ThresholdConfigComp;
+
+                        if (ywxnthresholdIsBtsDispatch)
+                        {
+                            comp.isBtsDispatch.visible = true;
+                            comp.isBtsDispatch.includeInLayout = true;
+                        }
+                        ywxnthresholdConfigGroup.addElement(comp);
+                    }
+                    else
+                    {
+                        for each (var obj:Object in kpiSituationPM.kpiSituationDM.queryThresholdList)
+                        {
+                            var comp:ThresholdConfigComp = new ThresholdConfigComp;
+
+                            if (ywxnthresholdIsBtsDispatch)
+                            {
+                                comp.isBtsDispatch.visible = true;
+                                comp.isBtsDispatch.includeInLayout = true;
+
+                                if (obj.isBtsDispatch == "1")
+                                {
+                                    comp.isBtsDispatch.selected = true;
+                                }
+                                else
+                                {
+                                    comp.isBtsDispatch.selected = false;
+                                }
+                            }
+                            comp.thresholdDown.text = obj.down;
+                            comp.thresholdUp.text = obj.up;
+
+                            for each (var aobj:Object in comp.isAlarmList)
+                            {
+                                if (aobj.alarmId == obj.isAlarm)
+                                {
+                                    log.debug("是否告警：" + obj.isAlarm);
+                                    comp.isAlarmDownList.selectedItem = aobj;
+
+                                    break;
+                                }
+                            }
+
+                            for each (var bobj:Object in comp.isDispatchList)
+                            {
+                                if (bobj.dispatchId == obj.isDispatch)
+                                {
+                                    log.debug("是否派单：" + obj.isDispatch);
+                                    comp.isDispatchDownList.selectedItem = bobj;
+                                    break;
+                                }
+                            }
+
+                            for each (var cobj:Object in comp.colorList)
+                            {
+                                if (cobj.key == obj.rendingColor)
+                                {
+                                    log.debug("渲染颜色：" + obj.rendingColor);
+                                    comp.colorsel.selectedItem = cobj;
+                                    break;
+                                }
+                            }
+
+                            for each (var dobj:Object in comp.alarmLevelList)
+                            {
+                                if (dobj.alarmLevelId == obj.warningLevel)
+                                {
+                                    log.debug("告警级别：" + obj.warningLevel);
+                                    comp.alarmLevelDownList.selectedItem = dobj;
+                                    comp.alarmLevelcolor.selectedColor = dobj.color;
+                                    break;
+                                }
+                            }
+
+                            if (obj.isAlarm == "1")
+                            {
+                                comp.kpicolorlabel.visible = false;
+                                comp.kpicolorlabel.includeInLayout = false;
+                                comp.colorsel.visible = false;
+                                comp.colorsel.includeInLayout = false;
+
+                                comp.alarmLevelLabel.visible = true;
+                                comp.alarmLevelLabel.includeInLayout = true;
+                                comp.alarmLevelDownList.visible = true;
+                                comp.alarmLevelDownList.includeInLayout = true;
+                                comp.alarmLevelcolor.visible = true;
+                                comp.alarmLevelcolor.includeInLayout = true;
+                            }
+
+                            if (obj.isAlarm == "0")
+                            {
+
+                                comp.kpicolorlabel.visible = true;
+                                comp.kpicolorlabel.includeInLayout = true;
+                                comp.colorsel.visible = true;
+                                comp.colorsel.includeInLayout = true;
+                                comp.alarmLevelLabel.visible = false;
+                                comp.alarmLevelLabel.includeInLayout = false;
+                                comp.alarmLevelDownList.visible = false;
+                                comp.alarmLevelDownList.includeInLayout = false;
+                                comp.alarmLevelcolor.visible = false;
+                                comp.alarmLevelcolor.includeInLayout = false;
+                            }
+                            ywxnthresholdConfigGroup.addElement(comp);
+                        }
+                    }
+
+                }
+
+                if (user.configPerfClass == 3)
+                {
+                    sbxnthresholdConfigGroup.removeAllElements();
+
+                    if (kpiSituationPM.kpiSituationDM.queryThresholdList.length == 0)
+                    {
+                        var comp:ThresholdConfigComp = new ThresholdConfigComp;
+
+                        if (sbxnthresholdIsBtsDispatch)
+                        {
+                            comp.isBtsDispatch.visible = true;
+                            comp.isBtsDispatch.includeInLayout = true;
+                        }
+                        sbxnthresholdConfigGroup.addElement(comp);
+                    }
+                    else
+                    {
+                        for each (var obj:Object in kpiSituationPM.kpiSituationDM.queryThresholdList)
+                        {
+                            var comp:ThresholdConfigComp = new ThresholdConfigComp;
+
+                            if (sbxnthresholdIsBtsDispatch)
+                            {
+                                comp.isBtsDispatch.visible = true;
+                                comp.isBtsDispatch.includeInLayout = true;
+
+                                if (obj.isBtsDispatch == "1")
+                                {
+                                    comp.isBtsDispatch.selected = true;
+                                }
+                                else
+                                {
+                                    comp.isBtsDispatch.selected = false;
+                                }
+                            }
+                            comp.thresholdDown.text = obj.down;
+                            comp.thresholdUp.text = obj.up;
+
+                            for each (var aobj:Object in comp.isAlarmList)
+                            {
+                                if (aobj.alarmId == obj.isAlarm)
+                                {
+                                    log.debug("是否告警：" + obj.isAlarm);
+                                    comp.isAlarmDownList.selectedItem = aobj;
+
+                                    break;
+                                }
+                            }
+
+                            for each (var bobj:Object in comp.isDispatchList)
+                            {
+                                if (bobj.dispatchId == obj.isDispatch)
+                                {
+                                    log.debug("是否派单：" + obj.isDispatch);
+                                    comp.isDispatchDownList.selectedItem = bobj;
+                                    break;
+                                }
+                            }
+
+                            for each (var cobj:Object in comp.colorList)
+                            {
+                                if (cobj.key == obj.rendingColor)
+                                {
+                                    log.debug("渲染颜色：" + obj.rendingColor);
+                                    comp.colorsel.selectedItem = cobj;
+                                    break;
+                                }
+                            }
+
+                            for each (var dobj:Object in comp.alarmLevelList)
+                            {
+                                if (dobj.alarmLevelId == obj.warningLevel)
+                                {
+                                    log.debug("告警级别：" + obj.warningLevel);
+                                    comp.alarmLevelDownList.selectedItem = dobj;
+                                    comp.alarmLevelcolor.selectedColor = dobj.color;
+                                    break;
+                                }
+                            }
+
+                            if (obj.isAlarm == "1")
+                            {
+                                comp.kpicolorlabel.visible = false;
+                                comp.kpicolorlabel.includeInLayout = false;
+                                comp.colorsel.visible = false;
+                                comp.colorsel.includeInLayout = false;
+
+                                comp.alarmLevelLabel.visible = true;
+                                comp.alarmLevelLabel.includeInLayout = true;
+                                comp.alarmLevelDownList.visible = true;
+                                comp.alarmLevelDownList.includeInLayout = true;
+                                comp.alarmLevelcolor.visible = true;
+                                comp.alarmLevelcolor.includeInLayout = true;
+                            }
+
+                            if (obj.isAlarm == "0")
+                            {
+
+                                comp.kpicolorlabel.visible = true;
+                                comp.kpicolorlabel.includeInLayout = true;
+                                comp.colorsel.visible = true;
+                                comp.colorsel.includeInLayout = true;
+                                comp.alarmLevelLabel.visible = false;
+                                comp.alarmLevelLabel.includeInLayout = false;
+                                comp.alarmLevelDownList.visible = false;
+                                comp.alarmLevelDownList.includeInLayout = false;
+                                comp.alarmLevelcolor.visible = false;
+                                comp.alarmLevelcolor.includeInLayout = false;
+                            }
+                            sbxnthresholdConfigGroup.addElement(comp);
+                        }
+                    }
+                }
+            }
+
+
+            public function khgzbutton5_clickHandler(event:MouseEvent):void
+            {
+                if (khgzisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    Alert.show("请选择指标", "提示");
+                    return;
+                }
+
+                var tcc:ThresholdConfigComp;
+
+                for (var i:int = 0; i < khgzthresholdConfigGroup.numElements; i++)
+                {
+                    tcc = khgzthresholdConfigGroup.getElementAt(i) as ThresholdConfigComp;
+
+                    if (tcc.thresholdDown.text == "" && tcc.thresholdUp.text == "")
+                    {
+                        Alert.show("第" + (i + 1) + "个上限阈值和下限阈值不能同时为空！", "错误");
+                        return;
+                    }
+                    else
+                    {
+                        var threshldDown:String = tcc.thresholdDown.text;
+                        var threshldUp:String = tcc.thresholdUp.text;
+
+                        if (threshldDown.indexOf(".") > 0 && threshldDown.substr(threshldDown.indexOf(".")).length > 3)
+                        {
+                            Alert.show("第" + (i + 1) + "个下限阈值小数点后限制为两位！", "错误");
+                            return;
+                        }
+
+                        if (threshldUp.indexOf(".") > 0 && threshldUp.substr(threshldUp.indexOf(".")).length > 3)
+                        {
+                            Alert.show("第" + (i + 1) + "个上限阈值小数点后限制为两位！", "错误");
+                            return;
+                        }
+                    }
+                }
+
+                sharKpiTmep.level = user.level;
+                sharKpiTmep.sceneId = user.initSceneId;
+                sharKpiTmep.isShare = 0;
+                kpiSituationPM.getShareSceneList(sharKpiTmep);
+                PopUpManager.addPopUp(sceneGradingWindow, this.parent as DisplayObject);
+                sceneGradingWindow.x = 300;
+                sceneGradingWindow.y = 5;
+                sceneGradingWindow.width = 740;
+                sceneGradingWindow.height = 400;
+                areaGroup.removeAllElements();
+                grandingScene.selected = grandingArea.selected = grandingUnit.selected = false;
+                areaGroup.visible = areaGroup.includeInLayout = false;
+                sceneGradingWindow.includeInLayout = true;
+                sceneGradingWindow.visible = true;
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_KPISITUATION_SHOW_AREA_SELECT_LIST")]
+            public function showAreaSelectList(event:KPISituationEvent):void
+            {
+                log.debug("展示区域指标列表信息....");
+
+                for each (var obj:Object in kpiSituationPM.kpiSituationDM.shareSceneList)
+                {
+                    var cb:CheckBoxComp = new CheckBoxComp();
+                    cb.label = obj.areaName;
+                    cb.areaId = obj.areaId;
+                    cb.cityId = obj.cityId;
+                    cb.selected = false;
+                    areaGroup.addElement(cb);
+                }
+            }
+
+            public function ywxnbutton5_clickHandler(event:MouseEvent):void
+            {
+                if (ywxnisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    Alert.show("请选择指标", "提示");
+                    return;
+                }
+
+                var tcc:ThresholdConfigComp;
+
+                for (var i:int = 0; i < ywxnthresholdConfigGroup.numElements; i++)
+                {
+                    tcc = ywxnthresholdConfigGroup.getElementAt(i) as ThresholdConfigComp;
+
+                    if (tcc.thresholdDown.text == "" && tcc.thresholdUp.text == "")
+                    {
+                        Alert.show("第" + (i + 1) + "个上限阈值和下限阈值不能同时为空！", "错误");
+                        return;
+                    }
+                    else
+                    {
+                        var threshldDown:String = tcc.thresholdDown.text;
+                        var threshldUp:String = tcc.thresholdUp.text;
+
+                        if (threshldDown.indexOf(".") > 0 && threshldDown.substr(threshldDown.indexOf(".")).length > 3)
+                        {
+                            Alert.show("第" + (i + 1) + "个下限阈值小数点后限制为两位！", "错误");
+                            return;
+                        }
+
+                        if (threshldUp.indexOf(".") > 0 && threshldUp.substr(threshldUp.indexOf(".")).length > 3)
+                        {
+                            Alert.show("第" + (i + 1) + "个上限阈值小数点后限制为两位！", "错误");
+                            return;
+                        }
+                    }
+                }
+
+                sharKpiTmep.level = user.level;
+                sharKpiTmep.sceneId = user.initSceneId;
+                sharKpiTmep.isShare = 0;
+                kpiSituationPM.getShareSceneList(sharKpiTmep);
+                PopUpManager.addPopUp(sceneGradingWindow, this.parent as DisplayObject);
+                sceneGradingWindow.x = 300;
+                sceneGradingWindow.y = 5;
+                sceneGradingWindow.width = 740;
+                sceneGradingWindow.height = 400;
+                areaGroup.removeAllElements();
+                grandingScene.selected = grandingArea.selected = grandingUnit.selected = false;
+                areaGroup.visible = areaGroup.includeInLayout = false;
+                sceneGradingWindow.includeInLayout = true;
+                sceneGradingWindow.visible = true;
+            }
+
+            public function sbxnbutton5_clickHandler(event:MouseEvent):void
+            {
+                if (sbxnisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    Alert.show("请选择指标", "提示");
+                    return;
+                }
+
+                var tcc:ThresholdConfigComp;
+
+                for (var i:int = 0; i < sbxnthresholdConfigGroup.numElements; i++)
+                {
+                    tcc = sbxnthresholdConfigGroup.getElementAt(i) as ThresholdConfigComp;
+
+                    if (tcc.thresholdDown.text == "" && tcc.thresholdUp.text == "")
+                    {
+                        Alert.show("第" + (i + 1) + "个上限阈值和下限阈值不能同时为空！", "错误");
+                        return;
+                    }
+                    else
+                    {
+                        var threshldDown:String = tcc.thresholdDown.text;
+                        var threshldUp:String = tcc.thresholdUp.text;
+
+                        if (threshldDown.indexOf(".") > 0 && threshldDown.substr(threshldDown.indexOf(".")).length > 3)
+                        {
+                            Alert.show("第" + (i + 1) + "个下限阈值小数点后限制为两位！", "错误");
+                            return;
+                        }
+
+                        if (threshldUp.indexOf(".") > 0 && threshldUp.substr(threshldUp.indexOf(".")).length > 3)
+                        {
+                            Alert.show("第" + (i + 1) + "个上限阈值小数点后限制为两位！", "错误");
+                            return;
+                        }
+                    }
+                }
+
+                sharKpiTmep.level = user.level;
+                sharKpiTmep.sceneId = user.initSceneId;
+                sharKpiTmep.isShare = 0;
+                kpiSituationPM.getShareSceneList(sharKpiTmep);
+                PopUpManager.addPopUp(sceneGradingWindow, this.parent as DisplayObject);
+                sceneGradingWindow.x = 300;
+                sceneGradingWindow.y = 5;
+                sceneGradingWindow.width = 740;
+                sceneGradingWindow.height = 400;
+                areaGroup.removeAllElements();
+                grandingScene.selected = grandingArea.selected = grandingUnit.selected = false;
+                areaGroup.visible = areaGroup.includeInLayout = false;
+                sceneGradingWindow.includeInLayout = true;
+                sceneGradingWindow.visible = true;
+            }
+
+            public function image5_clickHandler(event:MouseEvent):void
+            {
+                log.debug("下载模板...");
+                navigateToURL(new URLRequest(user.context + "cms/scene/template/threshold_template.xls"));
+            }
+
+            public function image6_clickHandler(event:MouseEvent):void
+            {
+                log.debug("阈值导入...");
+                this.kpiSituationPM.importDatas();
+
+            }
+            private var sharKpiTmep:Object = new Object;
+
+
+            public function khgzThresholdShare_clickHandler(event:MouseEvent):void
+            {
+
+                if (khgzisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    Alert.show("请选择指标", "提示");
+                    return;
+                }
+                sharKpiTmep.level = user.level;
+                sharKpiTmep.sceneId = user.initSceneId;
+                sharKpiTmep.isShare = 1;
+                kpiSituationPM.getShareSceneList1(sharKpiTmep);
+                PopUpManager.addPopUp(shareSceneWindow, this.parent as DisplayObject);
+                shareSceneWindow.x = 500;
+                shareSceneWindow.y = 50;
+                shareSceneWindow.width = 350;
+                shareSceneWindow.height = 320;
+                kpiThresholdWindow.visible = true;
+                log.debug("加载全选");
+                isUsedColumn.headerRenderer = new ClassFactory(EmgyHeaderCheckRenderer);
+                log.debug("加载全选完成");
+            }
+
+            public function ywxnThresholdShare_clickHandler(event:MouseEvent):void
+            {
+
+                if (ywxnisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    Alert.show("请选择指标", "提示");
+                    return;
+                }
+                sharKpiTmep.level = user.level;
+                sharKpiTmep.sceneId = user.initSceneId;
+                sharKpiTmep.isShare = 1;
+                kpiSituationPM.getShareSceneList1(sharKpiTmep);
+                PopUpManager.addPopUp(shareSceneWindow, this.parent as DisplayObject);
+                shareSceneWindow.x = 450;
+                shareSceneWindow.y = 50;
+                shareSceneWindow.width = 450;
+                shareSceneWindow.height = 320;
+                kpiThresholdWindow.visible = true;
+                log.debug("加载全选");
+                isUsedColumn.headerRenderer = new ClassFactory(EmgyHeaderCheckRenderer);
+                log.debug("加载全选完成");
+            }
+
+            public function sbxnThresholdShare_clickHandler(event:MouseEvent):void
+            {
+
+                if (sbxnisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    Alert.show("请选择指标", "提示");
+                    return;
+                }
+                sharKpiTmep.level = user.level;
+                sharKpiTmep.sceneId = user.initSceneId;
+                sharKpiTmep.isShare = 1;
+                kpiSituationPM.getShareSceneList1(sharKpiTmep);
+                PopUpManager.addPopUp(shareSceneWindow, this.parent as DisplayObject);
+                shareSceneWindow.x = 500;
+                shareSceneWindow.y = 50;
+                shareSceneWindow.width = 350;
+                shareSceneWindow.height = 320;
+                kpiThresholdWindow.visible = true;
+                log.debug("加载全选");
+                isUsedColumn.headerRenderer = new ClassFactory(EmgyHeaderCheckRenderer);
+                log.debug("加载全选完成");
+            }
+
+            public function setAllSelected(flag:Boolean):void
+            {
+                for each (var data:Object in this.kpiSituationPM.kpiSituationDM.shareSceneList)
+                {
+                    data.isUsed = flag ? 1 : 0;
+                }
+                kpiSituationPM.kpiSituationDM.shareSceneList.refresh();
+                log.debug(kpiSituationPM.kpiSituationDM.shareSceneList);
+
+            }
+
+            public function button3_clickHandler(event:MouseEvent):void
+            {
+                var saveParam:ArrayCollection = this.kpiSituationPM.kpiSituationDM.shareSceneList;
+                Alert.show("是否覆盖已经配置的场景阈值？", "提示", Alert.YES | Alert.NO, null, function(event:CloseEvent):void
+                {
+                    var obj:Object = new Object;
+                    obj.level = user.level;
+                    obj.sceneId = user.initSceneId;
+                    obj.cityId = user.cityId;
+
+                    var temparr:ArrayCollection = new ArrayCollection;
+
+                    for each (var ttt:Object in saveParam)
+                    {
+                        if (ttt.isUsed == 1)
+                        {
+                            temparr.addItem(ttt);
+                        }
+                    }
+
+                    if (user.configPerfClass == 1)
+                    {
+                        obj.kpiId = khgzisSelectKpiDataGrid.selectedItem['kpiId'];
+                        obj.moTypeId = khgzisSelectKpiDataGrid.selectedItem['moTypeId'];
+                    }
+                    if (user.configPerfClass == 2)
+                    {
+                        obj.kpiId = ywxnisSelectKpiDataGrid.selectedItem['kpiId'];
+                        obj.moTypeId = ywxnisSelectKpiDataGrid.selectedItem['moTypeId'];
+                    }
+                    if (user.configPerfClass == 3)
+                    {
+                        obj.kpiId = sbxnisSelectKpiDataGrid.selectedItem['kpiId'];
+                        obj.moTypeId = sbxnisSelectKpiDataGrid.selectedItem['moTypeId'];
+                    }
+
+                    obj.shareSceneId = temparr;
+                    if (event.detail == Alert.YES)
+                    {
+                        log.debug("覆盖操作...");
+                        obj.isCover = 1;
+                        log.debug(obj);
+                    }
+                    else if (event.detail == Alert.NO)
+                    {
+                        log.debug("不覆盖操作...");
+                        obj.isCover = 0;
+                        log.debug(obj);
+                    }
+                    kpiSituationPM.saveShareScene(obj);
+                });
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_KPISITUATION_SHOW_SHARE_SCENE_SAVE_RESULT")]
+            public function shareSceneResult(event:KPISituationEvent):void
+            {
+                log.debug("保存结果：" + event.param.resultInfo);
+
+                if (event.param.resultInfo == "success")
+                {
+                    Alert.show("保存成功", "提示");
+                }
+                else
+                {
+                    Alert.show("保存失败", "提示");
+                }
+            }
+
+            //阈值区域选中事件
+            public function grandingArea_changeHandler(event:Event):void
+            {
+                areaGroup.visible = areaGroup.includeInLayout = grandingArea.selected;
+
+                for (var tt:int = 0; tt < areaGroup.numElements; tt++)
+                {
+                    var cbt:CheckBoxComp = areaGroup.getElementAt(tt) as CheckBoxComp;
+                    cbt.selected = grandingArea.selected;
+                }
+
+            }
+
+            //阈值保存
+            private var param:Object = new Object;
+            private var areaArr:String = "";
+            private var cityArr:String = "";
+
+            public function button4_clickHandler(event:MouseEvent):void
+            {
+                log.debug("配置阈值保存..");
+
+                //循环装载已经选择的区域ID
+                for (var tt:int = 0; tt < areaGroup.numElements; tt++)
+                {
+                    var cbt:CheckBoxComp = areaGroup.getElementAt(tt) as CheckBoxComp;
+
+                    if (cbt.selected)
+                    {
+                        areaArr = areaArr + cbt.areaId + "#";
+                        cityArr = cityArr + cbt.cityId + "#";
+                    }
+                }
+                areaArr = areaArr.substr(0, areaArr.length - 1);
+                cityArr = cityArr.substr(0, cityArr.length - 1);
+                param.areaId = areaArr;
+                param.cityId = cityArr;
+                log.debug(areaArr);
+                log.debug(cityArr);
+
+                if (user.configPerfClass == 1)
+                {
+                    if (khgzisSelectKpiDataGrid.selectedIndex == -1)
+                    {
+                        Alert.show("请选择指标", "提示");
+                        return;
+                    }
+                    param.sceneId = user.sceneId;
+                    param.sceneFlag = grandingScene.selected == true ? 1 : 0;
+                    param.areaFlag = grandingArea.selected == true ? 1 : 0;
+                    param.moTypeFlag = grandingUnit.selected == true ? 1 : 0;
+                    param.moTypeId = khgzisSelectKpiDataGrid.selectedItem['moTypeId'];
+                    param.kpiId = khgzisSelectKpiDataGrid.selectedItem['kpiId'];
+                    log.debug(param);
+                    var saveThresConfigArr:ArrayCollection = new ArrayCollection;
+                    saveThresConfigArr.removeAll();
+
+                    for (var i:int = 0; i < khgzthresholdConfigGroup.numElements; i++)
+                    {
+                        var trc:ThresholdConfigComp = khgzthresholdConfigGroup.getElementAt(i) as ThresholdConfigComp;
+                        var obj:Object = new Object;
+                        obj.indexId = i + 1;
+                        obj.up = trc.thresholdUp.text;
+                        obj.down = trc.thresholdDown.text;
+//                        obj.isAlarm = trc.isAlarmDownList.selectedItem['alarmId'];
+//                        obj.warningLevel = trc.alarmLevelDownList.selectedItem['alarmLevelId'];
+//                        obj.rendingColor = trc.colorsel.selectedItem['key'];
+//                        obj.isDispatch = trc.isDispatchDownList.selectedItem['dispatchId'];
+//						if(trc.data.watch_time && trc.data.alarm_watch_time){
+//							obj.watch_time = trc.data.watch_time;
+//							obj.alarm_watch_time = trc.data.alarm_watch_time;
+//						}
+						
+						if(trc.isAlarmDownList.selectedItem['alarmId']){
+							obj.isAlarm = trc.isAlarmDownList.selectedItem['alarmId'];
+						}
+						if(trc.alarmLevelDownList.selectedItem['alarmLevelId']){
+							obj.warningLevel = trc.alarmLevelDownList.selectedItem['alarmLevelId'];
+						}
+						if(trc.colorsel.selectedItem['key']){
+							obj.rendingColor = trc.colorsel.selectedItem['key'];
+						}
+						if(trc.isDispatchDownList.selectedItem['dispatchId']){
+							obj.isDispatch = trc.isDispatchDownList.selectedItem['dispatchId'];
+						}
+						
+						
+						if(trc.data && trc.data.watch_time && trc.data.alarm_watch_time){
+							obj.watch_time = trc.data.watch_time;
+							obj.alarm_watch_time = trc.data.alarm_watch_time;
+						}
+						
+						
+                        if (trc.isBtsDispatch.visible == true)
+                        {
+                            if (trc.isBtsDispatch.selected)
+                                obj.isBtsDispatch = "1";
+                            else
+                                obj.isBtsDispatch = "0";
+                        }
+
+                        if (obj.isAlarm == "1")
+                        {
+                            if (obj.warningLevel == "1")
+                            {
+                                obj.rendingColor = "0xFF0000";
+                            }
+
+                            if (obj.warningLevel == "2")
+                            {
+                                obj.rendingColor = "0XEE9800";
+                            }
+
+                            if (obj.warningLevel == "3")
+                            {
+                                obj.rendingColor = "0XFED701";
+                            }
+
+                            if (obj.warningLevel == "4")
+                            {
+                                obj.rendingColor = "0X4169E1";
+                            }
+                        }
+
+                        if (obj.isAlarm == "0")
+                        {
+                            if (obj.rendingColor == "0xFF0000")
+                            {
+                                obj.warningLevel = "1";
+                            }
+
+                            if (obj.rendingColor == "0XEE9800")
+                            {
+                                obj.warningLevel = "2";
+                            }
+
+                            if (obj.rendingColor == "0XFED701")
+                            {
+                                obj.warningLevel = "3";
+                            }
+
+                            if (obj.rendingColor == "0X4169E1")
+                            {
+                                obj.warningLevel = "4";
+                            }
+                        }
+                        log.debug(user);
+                        obj.userName = user.account;
+                        saveThresConfigArr.addItem(obj);
+                    }
+
+                    saveThresConfigArr.refresh();
+                    param.datas = saveThresConfigArr;
+                    log.debug("保存结果...");
+                    log.debug(param);
+                    this.kpiSituationPM.thresholdConfig(param);
+                }
+
+                if (user.configPerfClass == 2)
+                {
+                    if (ywxnisSelectKpiDataGrid.selectedIndex == -1)
+                    {
+                        Alert.show("请选择指标", "提示");
+                        return;
+                    }
+                    param.sceneId = user.sceneId;
+                    param.sceneFlag = grandingScene.selected == true ? 1 : 0;
+                    param.areaFlag = grandingArea.selected == true ? 1 : 0;
+                    param.moTypeFlag = grandingUnit.selected == true ? 1 : 0;
+                    param.moTypeId = ywxnisSelectKpiDataGrid.selectedItem['moTypeId'];
+                    param.kpiId = ywxnisSelectKpiDataGrid.selectedItem['kpiId'];
+                    var saveThresConfigArr:ArrayCollection = new ArrayCollection;
+                    saveThresConfigArr.removeAll();
+
+                    for (var i:int = 0; i < ywxnthresholdConfigGroup.numElements; i++)
+                    {
+                        var trc:ThresholdConfigComp = ywxnthresholdConfigGroup.getElementAt(i) as ThresholdConfigComp;
+                        var obj:Object = new Object;
+                        obj.indexId = i + 1;
+                        obj.up = trc.thresholdUp.text;
+                        obj.down = trc.thresholdDown.text;
+                        obj.isAlarm = trc.isAlarmDownList.selectedItem['alarmId'];
+                        obj.warningLevel = trc.alarmLevelDownList.selectedItem['alarmLevelId'];
+                        obj.rendingColor = trc.colorsel.selectedItem['key'];
+                        obj.isDispatch = trc.isDispatchDownList.selectedItem['dispatchId'];
+
+                        if (trc.isBtsDispatch.visible == true)
+                        {
+                            if (trc.isBtsDispatch.selected)
+                                obj.isBtsDispatch = "1";
+                            else
+                                obj.isBtsDispatch = "0";
+                        }
+
+
+                        if (obj.isAlarm == "1")
+                        {
+                            if (obj.warningLevel == "1")
+                            {
+                                obj.rendingColor = "0xFF0000";
+                            }
+
+                            if (obj.warningLevel == "2")
+                            {
+                                obj.rendingColor = "0XEE9800";
+                            }
+
+                            if (obj.warningLevel == "3")
+                            {
+                                obj.rendingColor = "0XFED701";
+                            }
+
+                            if (obj.warningLevel == "4")
+                            {
+                                obj.rendingColor = "0X4169E1";
+                            }
+                        }
+
+                        if (obj.isAlarm == "0")
+                        {
+                            if (obj.rendingColor == "0xFF0000")
+                            {
+                                obj.warningLevel = "1";
+                            }
+
+                            if (obj.rendingColor == "0XEE9800")
+                            {
+                                obj.warningLevel = "2";
+                            }
+
+                            if (obj.rendingColor == "0XFED701")
+                            {
+                                obj.warningLevel = "3";
+                            }
+
+                            if (obj.rendingColor == "0X4169E1")
+                            {
+                                obj.warningLevel = "4";
+                            }
+                        }
+                        log.debug(user);
+                        obj.userName = user.account;
+                        saveThresConfigArr.addItem(obj);
+                    }
+
+                    saveThresConfigArr.refresh();
+                    param.datas = saveThresConfigArr;
+                    log.debug("保存结果...");
+                    log.debug(param);
+                    this.kpiSituationPM.thresholdConfig(param);
+                }
+
+                if (user.configPerfClass == 3)
+                {
+                    if (sbxnisSelectKpiDataGrid.selectedIndex == -1)
+                    {
+                        Alert.show("请选择指标", "提示");
+                        return;
+                    }
+                    param.sceneId = user.sceneId;
+                    param.sceneFlag = grandingScene.selected == true ? 1 : 0;
+                    param.areaFlag = grandingArea.selected == true ? 1 : 0;
+                    param.moTypeFlag = grandingUnit.selected == true ? 1 : 0;
+                    param.moTypeId = sbxnisSelectKpiDataGrid.selectedItem['moTypeId'];
+                    param.kpiId = sbxnisSelectKpiDataGrid.selectedItem['kpiId'];
+                    var saveThresConfigArr:ArrayCollection = new ArrayCollection;
+                    saveThresConfigArr.removeAll();
+
+                    for (var i:int = 0; i < sbxnthresholdConfigGroup.numElements; i++)
+                    {
+                        var trc:ThresholdConfigComp = sbxnthresholdConfigGroup.getElementAt(i) as ThresholdConfigComp;
+                        var obj:Object = new Object;
+                        obj.indexId = i + 1;
+                        obj.up = trc.thresholdUp.text;
+                        obj.down = trc.thresholdDown.text;
+                        obj.isAlarm = trc.isAlarmDownList.selectedItem['alarmId'];
+                        obj.warningLevel = trc.alarmLevelDownList.selectedItem['alarmLevelId'];
+                        obj.rendingColor = trc.colorsel.selectedItem['key'];
+                        obj.isDispatch = trc.isDispatchDownList.selectedItem['dispatchId'];
+
+                        if (trc.isBtsDispatch.visible == true)
+                        {
+                            if (trc.isBtsDispatch.selected)
+                                obj.isBtsDispatch = "1";
+                            else
+                                obj.isBtsDispatch = "0";
+                        }
+
+
+                        if (obj.isAlarm == "1")
+                        {
+                            if (obj.warningLevel == "1")
+                            {
+                                obj.rendingColor = "0xFF0000";
+                            }
+
+                            if (obj.warningLevel == "2")
+                            {
+                                obj.rendingColor = "0XEE9800";
+                            }
+
+                            if (obj.warningLevel == "3")
+                            {
+                                obj.rendingColor = "0XFED701";
+                            }
+
+                            if (obj.warningLevel == "4")
+                            {
+                                obj.rendingColor = "0X4169E1";
+                            }
+                        }
+
+                        if (obj.isAlarm == "0")
+                        {
+                            if (obj.rendingColor == "0xFF0000")
+                            {
+                                obj.warningLevel = "1";
+                            }
+
+                            if (obj.rendingColor == "0XEE9800")
+                            {
+                                obj.warningLevel = "2";
+                            }
+
+                            if (obj.rendingColor == "0XFED701")
+                            {
+                                obj.warningLevel = "3";
+                            }
+
+                            if (obj.rendingColor == "0X4169E1")
+                            {
+                                obj.warningLevel = "4";
+                            }
+                        }
+                        log.debug(user);
+                        obj.userName = user.account;
+                        saveThresConfigArr.addItem(obj);
+                    }
+
+                    saveThresConfigArr.refresh();
+                    param.datas = saveThresConfigArr;
+                    log.debug("保存结果...");
+                    log.debug(param);
+                    this.kpiSituationPM.thresholdConfig(param);
+                }
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_KPISITUATION_CONFIG_SAVE_RESULT")]
+            public function configsaveResult(event:KPISituationEvent):void
+            {
+                areaArr = "";
+                cityArr = "";
+                log.debug("保存结果：" + event.param.resultInfo);
+
+                if (event.param.resultInfo == "success")
+                {
+                    Alert.show("保存成功", "提示");
+                    PopUpManager.removePopUp(sceneGradingWindow);
+                    //重新调用指标概况展示
+                    loadData();
+
+                }
+                else
+                {
+                    Alert.show("保存失败", "提示");
+                }
+            }
+
+            /**
+             * 记录上移
+             */
+            public function selectUp_clickHandler(event:MouseEvent):void
+            {
+                var item:Object = null;
+                var selectIndex:int;
+
+                if (user.configPerfClass == 1)
+                {
+                    item = khgzisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex - 1);
+                    khgzisSelectKpiDataGrid.selectedItem = item;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 2)
+                {
+                    item = ywxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.ywxnisSelectKpiDataGrid.selectedIndex;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex - 1);
+                    ywxnisSelectKpiDataGrid.selectedItem = item;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 3)
+                {
+                    item = sbxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.sbxnisSelectKpiDataGrid.selectedIndex;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex - 1);
+                    sbxnisSelectKpiDataGrid.selectedItem = item;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+
+            }
+
+            /**
+             * 记录下移
+             */
+            public function selectDown_clickHandler(event:MouseEvent):void
+            {
+                var item:Object = null;
+                var selectIndex:int;
+
+                if (user.configPerfClass == 1)
+                {
+                    item = khgzisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex + 1);
+                    khgzisSelectKpiDataGrid.selectedItem = item;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 2)
+                {
+                    item = ywxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.ywxnisSelectKpiDataGrid.selectedIndex;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex + 1);
+                    ywxnisSelectKpiDataGrid.selectedItem = item;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 3)
+                {
+                    item = sbxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.sbxnisSelectKpiDataGrid.selectedIndex;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex + 1);
+                    sbxnisSelectKpiDataGrid.selectedItem = item;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+
+            }
+
+            /**
+             * 移到最上
+             */
+            public function selectFirst_clickHandler(event:MouseEvent):void
+            {
+                var item:Object = null;
+                var selectIndex:int;
+
+                if (user.configPerfClass == 1)
+                {
+                    item = khgzisSelectKpiDataGrid.selectedItem;
+                    selectIndex = khgzisSelectKpiDataGrid.selectedIndex;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, 0);
+                    khgzisSelectKpiDataGrid.selectedItem = item;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 2)
+                {
+                    item = ywxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = ywxnisSelectKpiDataGrid.selectedIndex;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, 0);
+                    ywxnisSelectKpiDataGrid.selectedItem = item;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 3)
+                {
+                    item = sbxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = sbxnisSelectKpiDataGrid.selectedIndex;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, 0);
+                    sbxnisSelectKpiDataGrid.selectedItem = item;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+            }
+
+            /**
+             * 移到最下
+             */
+            public function selectEnd_clickHandler(event:MouseEvent):void
+            {
+                var item:Object = null;
+                var selectIndex:int;
+
+                if (user.configPerfClass == 1)
+                {
+                    item = khgzisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).length);
+                    khgzisSelectKpiDataGrid.selectedItem = item;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 2)
+                {
+                    item = ywxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.ywxnisSelectKpiDataGrid.selectedIndex;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).length);
+                    ywxnisSelectKpiDataGrid.selectedItem = item;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 3)
+                {
+                    item = sbxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.sbxnisSelectKpiDataGrid.selectedIndex;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).length);
+                    sbxnisSelectKpiDataGrid.selectedItem = item;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+
+            }
+
+            public function label1_clickHandler(event:MouseEvent):void
+            {
+                // TODO Auto-generated method stub
+                PopUpManager.addPopUp(thresdQuery, this.parent as DisplayObject);
+                thresdQuery.x = 200;
+                thresdQuery.y = 10;
+                thresdQuery.visible = true;
+                var p:Object = new Object;
+                p.perfClass = kpiThresholdViewStack.selectedIndex + 1;
+                kpiAndThreshold.kpiAndThresholdPM.loadData(p);
+            }
+        ]]>
+    </fx:Script>
+    <s:VGroup gap="0"
+              width="100%"
+              height="100%">
+        <s:TabBar id="kpiSituationTabBar"
+                  styleName="sceneTabBar"
+                  width="100%"
+                  dataProvider="{kpiSituationViewStack}"/>
+        <mx:ViewStack id="kpiSituationViewStack"
+                      creationPolicy="all"
+                      styleName="sceneViewStack"
+                      height="100%"
+                      width="100%"
+                      change="kpiSituationViewStack_changeHandler(event)">
+            <s:NavigatorContent label="客户感知"
+                                width="100%"
+                                height="100%">
+                <s:layout>
+                    <s:VerticalLayout paddingLeft="3"
+                                      paddingTop="5"
+                                      paddingRight="3"
+                                      paddingBottom="5"
+                                      gap="0"/>
+                </s:layout>
+                <s:Scroller styleName="sceneScroller"
+                            height="100%"
+                            width="100%"
+                            horizontalScrollPolicy="off">
+                    <s:VGroup id="khgzkpi"
+                              height="100%"
+                              width="100%"
+                              paddingRight="3">
+                    </s:VGroup>
+                </s:Scroller>
+            </s:NavigatorContent>
+            <s:NavigatorContent label="业务性能"
+                                width="100%"
+                                height="100%">
+                <s:layout>
+                    <s:VerticalLayout paddingLeft="3"
+                                      paddingTop="5"
+                                      paddingRight="3"
+                                      paddingBottom="5"
+                                      gap="0"/>
+                </s:layout>
+                <s:Scroller styleName="sceneScroller"
+                            horizontalScrollPolicy="off"
+                            height="100%"
+                            width="100%">
+                    <s:VGroup id="ywxnkpi"
+                              paddingRight="3"
+                              height="100%"
+                              width="100%">
+                    </s:VGroup>
+                </s:Scroller>
+            </s:NavigatorContent>
+            <s:NavigatorContent label="设备性能"
+                                width="100%"
+                                height="100%">
+                <s:layout>
+                    <s:VerticalLayout paddingLeft="3"
+                                      paddingTop="5"
+                                      paddingRight="3"
+                                      paddingBottom="5"
+                                      gap="0"/>
+                </s:layout>
+                <s:Scroller styleName="sceneScroller"
+                            horizontalScrollPolicy="off"
+                            height="100%"
+                            width="100%">
+                    <s:VGroup id="sbxnkpi"
+                              paddingRight="3"
+                              height="100%"
+                              width="100%">
+                    </s:VGroup>
+                </s:Scroller>
+            </s:NavigatorContent>
+        </mx:ViewStack>
+    </s:VGroup>
+    <s:HGroup verticalAlign="middle"
+              horizontalAlign="center"
+              right="55"
+              top="-24">
+        <mx:Image source="@Embed('../../img/viewAll.png')"
+                  buttonMode="true"
+                  toolTip="显示全部"
+                  click="button2_clickHandler(event)"/>
+        <mx:Image source="@Embed('../../img/search.png')"
+                  buttonMode="true"
+                  toolTip="指标查询"
+                  click="image2_clickHandler(event)"/>
+        <mx:Image source="@Embed('../../img/u2.png')"
+                  buttonMode="true"
+                  toolTip="阈值配置"
+                  click="image3_clickHandler(event)"/>
+        <!--<mx:Image source="@Embed('../../img/u2.png')"
+             buttonMode="true"
+             toolTip="指标配置"
+             click="image1_clickHandler(event)"/>-->
+        <mx:Image source="{export}"
+                  buttonMode="true"
+                  toolTip="导出"
+                  click="exportKPI()"/>
+    </s:HGroup>
+
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="kpiSituationSet"
+                            title="指标设置"
+                            dragable="true"
+                            visible="false"
+                            styleName="window"
+                            minimizable="false"
+                            maximizable="false"
+                            close="closeWindowDetail()"
+                            width="300"
+                            height="450">
+            <s:Scroller styleName="sceneScroller"
+                        height="100%"
+                        width="100%"
+                        horizontalScrollPolicy="off">
+                <s:VGroup width="100%"
+                          height="100%"
+                          id="kpiSetVgroup">
+                </s:VGroup>
+            </s:Scroller>
+
+        </ailk_compts:Window>
+    </mx:Box>
+
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="thresdQuery"
+                            title="阈值查看"
+                            dragable="true"
+                            visible="false"
+                            styleName="window"
+                            minimizable="false"
+                            maximizable="false"
+                            close="PopUpManager.removePopUp(thresdQuery);"
+                            width="800"
+                            height="450">
+            <s:Scroller styleName="sceneScroller"
+                        height="100%"
+                        width="100%"
+                        horizontalScrollPolicy="off">
+                <components:KpiAndThreshold width="100%"
+                                            height="100%"
+                                            id="kpiAndThreshold"/>
+            </s:Scroller>
+        </ailk_compts:Window>
+    </mx:Box>
+    <!--阈值配置场景区域粒度-->
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="sceneGradingWindow"
+                            width="100%"
+                            height="100%"
+                            dragable="true"
+                            styleName="windowScene"
+                            title="阈值类型"
+                            minimizable="false"
+                            maximizable="false"
+                            close="PopUpManager.removePopUp(sceneGradingWindow);">
+            <s:VGroup width="100%"
+                      height="100%">
+                <s:HGroup width="100%"
+                          height="35"
+                          verticalAlign="middle"
+                          horizontalAlign="center">
+                    <s:CheckBox label="场景"
+                                id="grandingScene"/>
+                    <s:CheckBox label="区域"
+                                id="grandingArea"
+                                change="grandingArea_changeHandler(event)"/>
+                    <s:CheckBox label="网元"
+                                id="grandingUnit"/>
+                </s:HGroup>
+                <s:Scroller styleName="sceneScroller"
+                            height="100%"
+                            width="100%">
+                    <s:TileGroup width="100%"
+                                 horizontalGap="1"
+                                 verticalGap="1"
+                                 requestedColumnCount="5"
+                                 id="areaGroup"
+                                 includeInLayout="false"
+                                 visible="false">
+                    </s:TileGroup>
+                </s:Scroller>
+                <s:HGroup width="100%"
+                          height="35"
+                          verticalAlign="middle"
+                          horizontalAlign="center">
+                    <s:Button label="保存"
+                              click="button4_clickHandler(event)"/>
+                </s:HGroup>
+            </s:VGroup>
+        </ailk_compts:Window>
+    </mx:Box>
+    <!--阈值共享窗口-->
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="shareSceneWindow"
+                            width="100%"
+                            height="100%"
+                            dragable="true"
+                            styleName="windowScene"
+                            title="场景共享"
+                            minimizable="false"
+                            maximizable="false"
+                            close="PopUpManager.removePopUp(shareSceneWindow);">
+            <s:VGroup width="100%"
+                      height="100%">
+                <mx:AdvancedDataGrid id="shareSceneDataGrid"
+                                     styleName="sceneDG"
+                                     verticalAlign="middle"
+                                     width="100%"
+                                     height="100%"
+                                     horizontalScrollPolicy="auto"
+                                     textAlign="left"
+                                     dataProvider="{kpiSituationPM.kpiSituationDM.shareSceneList}">
+                    <mx:columns>
+                        <mx:AdvancedDataGridColumn id="isUsedColumn"
+                                                   headerText="   全选">
+                            <mx:itemRenderer>
+                                <fx:Component>
+                                    <mx:CheckBox width="50"
+                                                 label="是否共享"
+                                                 selected="{data.isUsed==1?true:false}"
+                                                 change="checkbox1_changeHandler(event)">
+                                        <fx:Script>
+                                            <![CDATA[
+                                                public function checkbox1_changeHandler(event:Event):void
+                                                {
+                                                    data.isUsed = CheckBox(event.target).selected ? 1 : 0;
+                                                }
+                                            ]]>
+                                        </fx:Script>
+                                    </mx:CheckBox>
+                                </fx:Component>
+                            </mx:itemRenderer>
+                        </mx:AdvancedDataGridColumn>
+                        <mx:AdvancedDataGridColumn dataField="sceneName"
+                                                   headerText="场景名称"/>
+                    </mx:columns>
+                </mx:AdvancedDataGrid>
+                <s:HGroup width="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="center">
+                    <s:Button label="共享配置"
+                              click="button3_clickHandler(event)"
+                              buttonMode="true"/>
+                </s:HGroup>
+            </s:VGroup>
+
+        </ailk_compts:Window>
+    </mx:Box>
+
+</ailk_compts:Window>

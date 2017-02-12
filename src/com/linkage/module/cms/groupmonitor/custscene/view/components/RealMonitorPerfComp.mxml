@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="性能监控"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 creationComplete="realMonitorPerfComp_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Metadata>
+
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.groupmonitor.custscene.event.CustSceneEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.components.CheckBox;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+			private var log:ILogger=Log.getLoggerByClass(RealMonitorPerfComp);
+
+			[Inject]
+			[Bindable]
+			public var pm:RealMonitorPerfCompPM;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Bindable]
+			public var cusId:String;
+
+			//选中的服务类型
+			[Bindable]
+			public var servTypeId:String;
+
+			//选中的服务类型
+			[Bindable]
+			public var servTypeName:String;
+
+//			//业务类型数据集(供性能查询)
+//			[Bindable]
+//			private var servTypeList:ArrayCollection=new ArrayCollection();
+
+			//性能查询指标数据集
+			private var realServerTargetData:ArrayCollection=new ArrayCollection();
+
+			private var realServTargetSelectedCompArray:Array;
+			private var perfDataShowComps:Object;
+			private var realCheckBoxArray:Object;
+			private var realSelectArray:Array;
+			private var realServTargetCompArray:Array;
+			private var perfTypeSelectArray:Array;
+
+			protected function realMonitorPerfComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				//加载服务类型返回
+				//this.addEventListener(RealMonitorPerfCompEvent.SERVERCHANGE, onServerChange);
+				//加载指标返回
+				//this.addEventListener(RealMonitorPerfCompEvent.SERVERTARGETCHANGE, onServerTargetChange);
+				//this.addEventListener(RealMonitorPerfCompEvent.PERFDATACHANGE, onPerfDataChange);
+//				this.dispatchEvent(new RealMonitorPerfCompEvent(RealMonitorPerfCompEvent.SERVERQUERY));
+			}
+
+			//导航栏返回函数
+//			[MessageHandler(selector="loadServerTypeByCustIdComp")]
+//			public function onServerChange(event:CustSceneEvent):void
+//			{
+//				log.info("onServerChange  begin");
+//				servTypeList=new ArrayCollection();
+//				for each (var data:Object in pm.dm.realServTypeBar)
+//				{
+//					servTypeList.addItem(data);
+//				}
+//				if (servTypeList.length > 0)
+//				{
+//					var param:Object=new Object;
+//					param.servTypeId=String(servTypeList[0].serv_type_id);
+//					var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_KPI_GROUP_BY_CUST_ID);
+//					evt.param=param;
+//					msgDispatcher(evt);
+////					var evt:RealMonitorPerfCompEvent=new RealMonitorPerfCompEvent(RealMonitorPerfCompEvent.SERVERTARGETQUERY);
+////					evt.param=param;
+////					this.dispatchEvent(evt);
+//				}
+//				else
+//				{
+//					Alert.show("该集客业务为空！", "提示");
+//				}
+//				log.info("onServerChange  end");
+//			}
+
+			//加载指标返回函数
+			[MessageHandler(selector="loadKpiGroupByCustIdComp")]
+			public function onServerTargetChange(event:CustSceneEvent):void
+			{
+				log.info("onServerTargetChange  begin");
+				var result:Object=event.param;
+				realServTargetCompArray=new Array;
+				realServerTargetSelectGroup.removeAllElements();
+				realPrefSelectGroup.removeAllElements();
+				perfDataShowGroup.removeAllElements();
+				realCheckBoxArray=null;
+				realSelectArray=null;
+				if (result && result.length == 0)
+				{
+					var promp:Label=new Label();
+					promp.text="无指标";
+					realServerTargetSelectGroup.addElement(promp);
+					selectBtnGroup.visible=false;
+					return;
+				}
+				//var bussType:String=String(servTypeList[realServTypeBar.selectedIndex].serv_type_id);
+				var bussType:String=servTypeId;
+				for each (var data:Object in result)
+				{
+					var servTargetComp:PerServerTargetSelectComp=new PerServerTargetSelectComp();
+					data.bussType=bussType;
+					servTargetComp.serverTarget=data;
+					realServerTargetSelectGroup.addElement(servTargetComp);
+					realServTargetCompArray.push(servTargetComp);
+				}
+				selectBtnGroup.visible=true;
+				log.info("onServerTargetChange  end");
+			}
+
+			//加载趋势图返回函数
+			[MessageHandler(selector="loadPrefChartDataComp")]
+			public function onPerfDataChange(event:CustSceneEvent):void
+			{
+				log.info("onPerfDataChange in");
+				var result:Object=event.param;
+				if (result.perfTypeId)
+				{
+					if (!realCheckBoxArray)
+					{
+						realCheckBoxArray=new Object;
+						realSelectArray=new Array;
+						var length:Number=0;
+						for (var key:String in result)
+						{
+							if (key == "avg" || key == "total" || key == "experience" || key == "perfTypeId")
+							{
+								continue;
+							}
+							var data1:Object=new Object;
+							//data1.label=String(servTypeList[realServTypeBar.selectedIndex].cust_serv_type_name) + key;
+							data1.label=servTypeName + key;
+							var serverProdSelectComp1:ServerProdSelectComp=new ServerProdSelectComp();
+							serverProdSelectComp1.data=data1;
+							serverProdSelectComp1.checkbox.addEventListener(MouseEvent.CLICK, onRealCheckBoxClick);
+							realCheckBoxArray[key]=serverProdSelectComp1;
+							realPrefSelectGroup.addElement(serverProdSelectComp1);
+							realSelectArray.push(key);
+							length++;
+						}
+
+						if (length > 1)
+						{
+							var data:Object=new Object;
+							//data.label=String(servTypeList[realServTypeBar.selectedIndex].cust_serv_type_name) + "汇总";
+							data1.label=servTypeName + "汇总";
+							var serverProdSelectComp:ServerProdSelectComp=new ServerProdSelectComp();
+							serverProdSelectComp.data=data;
+							serverProdSelectComp.checkbox.addEventListener(MouseEvent.CLICK, onRealCheckBoxClick);
+							realCheckBoxArray["汇总"]=serverProdSelectComp;
+							realPrefSelectGroup.addElement(serverProdSelectComp);
+							realSelectArray.push("汇总");
+						}
+
+					}
+					result.realSelectArray=realSelectArray;
+					var perfDataShow:PerfDataShowComp=perfDataShowComps[result.perfTypeId];
+					var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.DATACHANGE);
+					evt.param=result;
+					perfDataShow.dispatchEvent(evt);
+				}
+				log.info("onPerfDataChange out");
+			}
+
+			private var isRealCheckClick:Boolean=false;
+			private var i:Number=0;
+
+			//点击业务复选框
+			private function onRealCheckBoxClick(event:MouseEvent):void
+			{
+				log.info("onRealCheckBoxClick  in");
+				isRealCheckClick=true;
+				realSelectArray=new Array;
+				for (var key:String in realCheckBoxArray)
+				{
+					if (ServerProdSelectComp(realCheckBoxArray[key]).checkbox.selected)
+					{
+						realSelectArray.push(key);
+					}
+				}
+				perfTypeChange();
+				log.info("onRealCheckBoxClick  out");
+			}
+
+//			//点击导航栏改变
+//			protected function realServTypeBar_changeHandler(event:IndexChangeEvent):void
+//			{
+//				var param:Object=new Object;
+//				param.servTypeId=String(servTypeList[event.newIndex].serv_type_id);
+//				var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_KPI_GROUP_BY_CUST_ID);
+//				evt.param=param;
+//				msgDispatcher(evt);
+//				realPrefSelectGroup.removeAllElements();
+//				perfDataShowGroup.removeAllElements();
+//				realCheckBoxArray=null;
+//				realSelectArray=null;
+//			}
+
+			//点击查询
+			protected function realPrefQuery_clickHandler(event:MouseEvent):void
+			{
+				realServTargetSelectedCompArray=new Array;
+				perfDataShowComps=new Object;
+				perfTypeSelectArray=new Array;
+				var hasSelect:Boolean=false;
+				if (realServTargetCompArray && realServTargetCompArray.length > 0)
+				{
+					for each (var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray)
+					{
+						if (servTargetComp.checkbox.selected)
+						{
+							hasSelect=true;
+							realServTargetSelectedCompArray.push(servTargetComp);
+						}
+					}
+					if (!hasSelect)
+					{
+						Alert.show("请选择指标", "提示");
+						return;
+					}
+					perfDataShowGroup.removeAllElements();
+					sendQuery();
+				}
+
+			}
+
+			//根据选中指标创建趋势图组件
+			private function sendQuery():void
+			{
+				log.info("realServTargetSelectedCompArray" + realServTargetSelectedCompArray.length);
+				var servTargetSelectedComp:PerServerTargetSelectComp=realServTargetSelectedCompArray.shift();
+				var param:Object=new Object();
+				param.cusId=cusId;
+				param.bussType=servTargetSelectedComp.serverTarget.bussType;
+				param.perfTypeId=servTargetSelectedComp.serverTarget.perfTypeId;
+				param.title=servTargetSelectedComp.serverTarget.showName;
+				param.perf_algorithm=servTargetSelectedComp.serverTarget.perf_algorithm;
+				//param.cust_serv_type_name=String(servTypeList[realServTypeBar.selectedIndex].cust_serv_type_name);
+				param.cust_serv_type_name=servTypeName;
+				//param.servTypeId=String(servTypeList[realServTypeBar.selectedIndex].serv_type_id);
+				param.servTypeId=servTypeId;
+				var perfDataShow:PerfDataShowComp=new PerfDataShowComp();
+				perfDataShow.param=param;
+				perfDataShow.addEventListener(CustSceneEvent.DATAQUERY, onPerfDataQuery);
+				perfDataShow.addEventListener(CustSceneEvent.COMPLETE, onPerfDataShowComplete);
+				perfDataShowGroup.addElement(perfDataShow);
+				perfDataShowComps[param.perfTypeId]=perfDataShow;
+				perfTypeSelectArray.push(param.perfTypeId);
+			}
+
+
+			//加载数据
+			private function onPerfDataQuery(event:CustSceneEvent):void
+			{
+				var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_PREF_CHART_DATA);
+				evt.param=event.param;
+				msgDispatcher(evt);
+			}
+
+			//加载下一个
+			private function onPerfDataShowComplete(event:CustSceneEvent):void
+			{
+				if (isRealCheckClick)
+				{
+					setTimeout(perfTypeChange, Number(event.param));
+				}
+				else if (realServTargetSelectedCompArray.length > 0)
+				{
+					setTimeout(sendQuery, Number(event.param));
+				}
+			}
+
+			private function perfTypeChange():void
+			{
+				var perfDataShowComp:PerfDataShowComp=perfDataShowComps[perfTypeSelectArray[i]];
+				i++;
+				if (i == perfTypeSelectArray.length)
+				{
+					isRealCheckClick=false;
+					i=0;
+				}
+				var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.SELECTCHANGE);
+				evt.param=realSelectArray;
+				perfDataShowComp.dispatchEvent(evt);
+			}
+
+			protected function selectAllBtn_clickHandler(event:MouseEvent):void
+			{
+				for each (var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray)
+				{
+					servTargetComp.checkbox.selected=true;
+				}
+			}
+
+			protected function selectOtherBtn_clickHandler(event:MouseEvent):void
+			{
+				for each (var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray)
+				{
+					servTargetComp.checkbox.selected=!servTargetComp.checkbox.selected;
+				}
+			}
+
+			//清空页面
+			public function clear():void
+			{
+				realServerTargetSelectGroup.removeAllElements();
+				realPrefSelectGroup.removeAllElements();
+				perfDataShowGroup.removeAllElements();
+				selectBtnGroup.visible=false;
+			}
+		]]>
+	</fx:Script>
+
+	<s:Group width="100%"
+			 height="100%">
+		<!--<mx:ViewStack width="100%"
+			 height="100%"
+			 top="23"
+			 styleName="commonViewStack"
+			 creationPolicy="all">
+			 <s:NavigatorContent width="100%"
+			 height="100%">-->
+		<s:Scroller width="100%"
+					height="100%"
+					horizontalScrollPolicy="auto"
+					verticalScrollPolicy="auto">
+			<s:VGroup width="100%"
+					  height="100%"
+					  paddingLeft="10"
+					  paddingRight="10"
+					  paddingTop="10"
+					  paddingBottom="10">
+				<s:TileGroup width="100%"
+							 rowHeight="20"
+							 verticalGap="1"
+							 horizontalGap="1"
+							 id="realServerTargetSelectGroup"
+							 requestedColumnCount="6"
+							 horizontalAlign="left"
+							 columnAlign="justifyUsingGap">
+				</s:TileGroup>
+				<s:HGroup id="selectBtnGroup"
+						  visible="false"
+						  width="100%"
+						  horizontalAlign="right">
+					<s:Button label="全选"
+							  id="selectAllBtn"
+							  buttonMode="true"
+							  click="selectAllBtn_clickHandler(event)"/>
+					<s:Button label="反选"
+							  id="selectOtherBtn"
+							  buttonMode="true"
+							  click="selectOtherBtn_clickHandler(event)"/>
+					<s:Button label="查询"
+							  id="realPrefQuery"
+							  buttonMode="true"
+							  click="realPrefQuery_clickHandler(event)"/>
+				</s:HGroup>
+
+				<s:TileGroup width="100%"
+							 rowHeight="20"
+							 verticalGap="1"
+							 horizontalGap="1"
+							 id="realPrefSelectGroup"
+							 requestedColumnCount="6"
+							 horizontalAlign="left"
+							 columnAlign="justifyUsingGap">
+				</s:TileGroup>
+				<s:TileGroup width="100%"
+							 height="100%"
+							 columnAlign="justifyUsingWidth"
+							 columnWidth="200"
+							 verticalGap="1"
+							 horizontalGap="1"
+							 id="perfDataShowGroup"
+							 requestedColumnCount="2"
+							 horizontalAlign="left">
+				</s:TileGroup>
+				<!--<s:VGroup width="100%" id="perfDataShowGroup">
+
+					 </s:VGroup>-->
+			</s:VGroup>
+		</s:Scroller>
+		<!--</s:NavigatorContent>
+			 </mx:ViewStack>-->
+		<!--<s:TabBar dataProvider="{servTypeList}"
+			 id="realServTypeBar"
+			 labelField="cust_serv_type_name"
+			 styleName="commonTabBar"
+			 buttonMode="true"
+			 change="realServTypeBar_changeHandler(event)"/>-->
+	</s:Group>
+</mx:VBox>

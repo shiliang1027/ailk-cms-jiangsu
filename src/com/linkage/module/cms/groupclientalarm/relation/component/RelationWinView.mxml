@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VDividedBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				width="100%"
+				height="100%"
+				xmlns:view="com.linkage.module.cms.alarm.framework.view.*"
+				xmlns:component="com.linkage.module.cms.groupclientalarm.relation.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.alarm.framework.common.param.ColumnConstants;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.groupclientalarm.relation.RelationContainer;
+			import com.linkage.module.cms.groupclientalarm.relation.event.MatrixEvent;
+			import com.linkage.module.cms.groupclientalarm.relation.util.RelationUtil;
+			
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.alarm.relation.core.RelationManager");
+			// 窗口id
+			private var _windowId:String = null;
+			// 窗口id
+			private var _windowName:String = null;
+			//窗口KEY
+			private var _windonKey:String = null;
+			//告警数据管理
+			private var _alarmAction:AlarmAction = null;
+			//统计主题JSONS
+			private var _subjectJsons:Object = null;
+
+			public function initWindow():void
+			{
+				//1.初始化矩阵窗口
+				relationMatrix.alarmAction = _alarmAction;
+				relationMatrix.windonKey = _windonKey;
+				relationMatrix.windowId = _windowId;
+				
+				relationMatrix.initView();
+
+				//2.初始化流水窗口
+				activeView.alarmAction = _alarmAction;
+				activeView.windowUniquekey = _windonKey;
+				activeView.windowId = _windowId;
+				activeView.initView();
+
+				//3.初始化矩阵窗口监听器
+				initMatrixListener();
+			}
+
+			/**
+			 * 初始化矩阵窗口监听器
+			 */
+			public function initMatrixListener():void
+			{
+				relationMatrix.addEventListener(_windowId + MatrixEvent.MATRIX_CLICK, function(event:MatrixEvent):void
+					{
+						var xId:String = event.obj[RelationContainer.XID];
+						var xValue:String = event.obj[RelationContainer.XVALUE];
+						var uniqueIdArray:Array = event.obj[RelationContainer.MATRIXTREEUNIQUE];
+						filterAlarmStr(xId, xValue, uniqueIdArray);
+					});
+				relationMatrix.addEventListener(_windowId + MatrixEvent.MATRIX_FILTER, function(event:MatrixEvent):void
+				{
+					var uniqueIdArray:Array = event.obj as Array;
+					var filterRule:String = RelationUtil.getAlarmUniqueIdFilter(uniqueIdArray);
+					activeView.filterAlarm(filterRule, function(dataArray:Object):void
+					{
+					});
+				});
+				
+			}
+
+			/**
+			 * 过滤告警信息
+			 */
+			private function filterAlarmStr(xId:String, xValue:String, uniqueIdArray:Array):void
+			{
+				if (RelationUtil.checkValueNull(xId) || xId.length <= 6)
+				{
+					return;
+				}
+				//1.展开所有节点
+				activeView.flowAlarm.displayItemsExpanded = true;
+
+				var filterRule:String = RelationUtil.getAlarmUniqueIdFilter(uniqueIdArray);
+				//2.如果是统计数据过滤,则直接通过树唯一标识过滤和统计字段过滤
+				if (RelationUtil.checkMatrixCount(xId))
+				{
+					//1.获取统计字段过滤规则
+					var countRule:String = RelationUtil.getMatrixCountFilterRule(xId);
+					if (countRule != null)
+					{
+						filterRule += "&" + countRule;
+					}
+				}
+				else if (RelationUtil.checkMatrixAlarmSort(xId))
+				{
+					//1.获取告警分类过滤规则
+					var sortRule:String = RelationUtil.getMatrixSortFilterRule(xId);
+					if (sortRule != null)
+					{
+						filterRule += "&" + sortRule;
+					}
+				}
+				
+				log.warn(filterRule);
+				activeView.filterAlarm(filterRule, function(dataArray:Object):void
+					{
+						//父告警的子告警排序
+						activeView.sortAlarmChildrenArray(uniqueIdArray[0]);
+					});
+			}
+
+			//清空矩阵表格
+			public function matrixGridClear():void
+			{
+				relationMatrix.matrixGridClear();
+			}
+			
+			public function set windowId(value:String):void
+			{
+				_windowId = value;
+			}
+
+			public function set windonKey(value:String):void
+			{
+				_windonKey = value;
+			}
+
+			public function set windowName(value:String):void
+			{
+				_windowName = value;
+			}
+
+			public function set alarmAction(value:AlarmAction):void
+			{
+				_alarmAction = value;
+			}
+
+			public function set subjectJsons(value:Object):void
+			{
+				_subjectJsons = value;
+			}
+
+			public function get beforeNum():int
+			{
+				return relationMatrix.beforeNum;
+			}
+
+			public function get afterNum():int
+			{
+				return relationMatrix.afterNum;
+			}
+		]]>
+	</fx:Script>
+	<component:RelationAlarmMatrix id="relationMatrix"
+								   width="100%"
+								   height="165"
+								   minHeight="50"/>
+	<view:AlarmView id="activeView"
+					windowType="1"
+					viewTitle="活动告警"
+					minHeight="76"/>
+</mx:VDividedBox>

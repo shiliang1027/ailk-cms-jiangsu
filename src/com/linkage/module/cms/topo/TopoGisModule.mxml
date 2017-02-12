@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%"
+		   xmlns:gis="com.linkage.gis.*" creationComplete="topoGis_applicationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.events.FlexEvent;
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.TopoGis");
+			[Bindable]
+			private var _mapType:String = "arcgis";
+			[Bindable]
+			private var _defaultMapId:String = null;
+			
+			public var parameters:Object;
+			protected function topoGis_applicationCompleteHandler(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+				var target:MonsterTarget2 = new MonsterTarget2();
+				target.level = int(this.parameters.logLevel);
+				target.filters = splitFilters(this.parameters.logFilters);
+				Log.addTarget(target);
+				
+				
+				// 加载样式
+				styleManager.loadStyleDeclarations2(this.parameters.styleUrl);
+				styleManager.loadStyleDeclarations2(this.parameters.topoStyle);
+				
+				var mapType:String = this.parameters.mapType;
+				if (!StringUtils.isNullStr(mapType))
+				{
+					_mapType = mapType;
+				}
+				
+				var cityId:String = this.parameters.cityId;
+				if (!StringUtils.isNullStr(cityId))
+				{
+					_defaultMapId = cityId;
+				}
+				
+				log.info(" >>>>> 进入TopoGIS {0} {1}>>>>> ", _mapType, _defaultMapId);
+				
+				widthNS.value = mapWork.width;
+				heightNS.value = mapWork.height;
+			}
+			// 分隔日志过滤器
+			private function splitFilters(filters:String):Array
+			{
+				var array:Array = null;
+				if (filters != null)
+				{
+					array = filters.split(",");
+				}
+				return array;
+			}
+
+			// 变更页面大小
+			protected function changeSize_clickHandler(event:MouseEvent):void
+			{
+				mapWork.width = widthNS.value;
+				mapWork.height = heightNS.value;
+				
+				mapWork.validateNow();
+				
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:HGroup width="100%"
+			  height="25">
+		<s:Label text="宽"/>
+		<s:NumericStepper id="widthNS"
+						  toolTip="范围: 100～5000"
+						  minimum="100"
+						  maximum="5000"
+						  stepSize="100"
+						  snapInterval="0"/>
+		<s:Label text="高"/>
+		<s:NumericStepper id="heightNS"
+						  toolTip="范围: 100～5000"
+						  minimum="100"
+						  maximum="5000"
+						  stepSize="100"
+						  snapInterval="0"/>
+		<s:Button label="应用"
+				  click="changeSize_clickHandler(event)"/>
+	</s:HGroup>
+	<s:SkinnableContainer id="container"
+						  width="100%"
+						  height="100%">
+		<gis:MapWork id="mapWork"
+					 mapType="{_mapType}"
+					 defaultMapId="{_defaultMapId}"
+					 width="100%"
+					 height="100%"
+					 showZoomSlider="true">
+		</gis:MapWork>
+	</s:SkinnableContainer>
+</mx:Module>

@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 creationComplete="MOAlarmMatrixComp_creationCompleteHandler(event)"
+		 width="100%" height="100%" xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.alarm.matrix.data.DataManager;
+			import com.linkage.module.cms.alarm.matrix.data.IDataManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			
+			import org.spicefactory.lib.reflect.types.Void;
+			
+			import spark.components.NavigatorContent;
+			import spark.events.IndexChangeEvent;
+			
+			private var params:Object;
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.alarm.matrix.MoAlarmMatrixComp");
+			private var cacheTable:Dictionary = new Dictionary();
+			private var specNames:ArrayCollection = new ArrayCollection([{"specName":"移动核心网"},{"specName":"数据网"},
+				{"specName":"传输网"},{"specName":"动力环境"},{"specName":"无线网"},{"specName":"固网交换网"},{"specName":"IP承载网"}]);
+			private var moTypes:ArrayCollection = new ArrayCollection([{"moType":"地市"},{"moType":"BSC"},{"moType":"BTS"},{"moType":"CELL"}]);
+			private var data:ArrayCollection = new ArrayCollection([{"value":"济南"},{"value":"10"},{"value":"20"},{"value":"10"},{"value":"40"}]);
+			private var ncArray:Array = new Array();
+			private var dataManager:IDataManager = null;
+			private var areaId:String = null;
+			protected function MOAlarmMatrixComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				var target:ILoggingTarget=new MonsterTarget2();
+				target.level=0;
+				target.filters=["com.linkage.*"];
+				Log.addTarget(target);
+				
+				this.params = parentApplication.parameters;
+				dataManager = new DataManager(this.params["urlContext"]);
+				areaId = String(AlarmUtil.jsonDecode(this.params["user"].toString()).areaId);
+				var specId:String = "1";
+				dataManager.getMoAlarmMatrix(specId,areaId,createNavigatorContent,getMoAlarmMatrixErr);
+				moViewStack.addEventListener(IndexChangedEvent.CHANGE,moViewStack_tabIndexChangeHandler);
+				//createNavigatorContent(specNames);
+				
+				//初始化流水
+				var mapInfo:String = this.params["user"];
+				alarmFlow.params = {mapInfo: mapInfo};
+				alarmFlow.initInfo();
+			}
+			
+			//create NavigatorContent
+			private function createNavigatorContent(obj:Object):void
+			{
+				log.info("getMoAlarmMatrix");
+				log.info(obj);
+				//specNames = obj["specNames"];
+				moTypes = obj.moTypes;
+				data = obj.moAlarms;
+				for(var i:int=0;i<specNames.length;i++)
+				{
+					var nc:NavigatorContent = new NavigatorContent();
+					nc.label = String(specNames[i]["specName"]);
+					nc.percentHeight = 100;
+					nc.percentWidth = 100;
+					this.moViewStack.addElement(nc);
+					ncArray.push(nc);
+				}
+				createTable(ncArray[0],specNames[0]["specName"],data);
+				
+			}
+			
+			private function getMoAlarmMatrixErr():void
+			{
+				Alert.show("查询设备告警矩阵失败！");
+				log.error("查询设备告警矩阵失败！");
+			}
+			
+			//create AdvancedDataGrid
+			private function createTable(nc:NavigatorContent,specName:String,data:Object):void
+			{
+				var dataGrid:AdvancedDataGrid;
+				if(cacheTable[specName] == null)
+				{
+					dataGrid = new AdvancedDataGrid();
+					dataGrid.addEventListener(ListEvent.ITEM_CLICK,moAlarmMatrixDataGrid_itemClickHandler);
+					dataGrid.width = moViewStack.width;
+					dataGrid.percentHeight=100;
+					var columns:Array = new Array();
+					var column : AdvancedDataGridColumn = new AdvancedDataGridColumn("地市/区县");
+					column.width = Number(moViewStack.width/(moTypes.length+1));
+					column.dataField="alarmregion";
+					columns.push(column);
+					for(var i:int=0;i<moTypes.length;i++)
+					{
+						var column : AdvancedDataGridColumn = new AdvancedDataGridColumn(moTypes[i]["moType"]);
+						column.width = Number(moViewStack.width/(moTypes.length+1));
+						column.dataField=moTypes[i]["moType"];
+						columns.push(column);
+					}
+					dataGrid.columns = columns;
+					dataGrid.dataProvider = data;
+					dataGrid.horizontalScrollPolicy = "off";
+					dataGrid.verticalScrollPolicy = "auto";
+					nc.addElement(dataGrid);
+					cacheTable[specName] = dataGrid;
+				}
+			}
+			
+			protected function moAlarmMatrixDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				var xidValue:String=event.target.columns[event.columnIndex].dataField;
+				var yidValue:String=event.target.selectedItem["alarmregion"];
+				
+				if(alarmFlow != null && xidValue != "alarmregion")
+				{
+					alarmFlow.reload("alarmregion=\""+yidValue+"\"&equipmentclass=\""+xidValue+"\"");
+				}
+			}
+			
+			protected function moViewStack_tabIndexChangeHandler(event:IndexChangedEvent):void
+			{
+				var specId:String = String(moViewStack.selectedIndex);
+				var areaId:String = String(AlarmUtil.jsonDecode(this.params["user"].toString()).areaId);
+				dataManager.getMoAlarmMatrix(specId,areaId,viewStackSelected,getMoAlarmMatrixErr);
+			}
+			
+			private function viewStackSelected(data:Object):void
+			{
+				var specId:String = String(moViewStack.selectedIndex);
+				Alert.show(specId);
+				createTable(ncArray[Number(specId)],specNames[Number(specId)],data);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:VDividedBox width="100%" height="100%">
+		<panel:Window width="100%" height="65%" maximizable="false"
+					  closable="false" title="设备告警矩阵" minHeight="30">
+			<s:TabBar dataProvider="{moViewStack}" styleName="commonTabBar"></s:TabBar>
+			<mx:ViewStack id="moViewStack" top="23"
+						  height="100%"
+						  width="100%"
+						  paddingBottom="1"
+						  paddingLeft="1"
+						  paddingRight="2"
+						  paddingTop="1">
+			</mx:ViewStack>
+		</panel:Window>
+		<panel:Window width="100%" height="35%" maximizable="false" minimizable="false"
+					  closable="false" title="告警流水" minHeight="30">
+			<pubflow:alarm id="alarmFlow" width="100%" height="100%" moduleKey="totalflowalarm"/>
+		</panel:Window>
+	</mx:VDividedBox>
+</s:Group>

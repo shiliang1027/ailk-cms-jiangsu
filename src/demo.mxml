@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="955" minHeight="600">
+	<fx:Script>
+		<![CDATA[
+			import flash.geom.Matrix;
+			
+			/*
+			画图形之前必要调用的函数（其中之一即可）：
+			linestyle()、beginFill()、lineGradientStyle()、beginGradientFill()、beginBitmapFill()方法来设置线条样式和/或填充。 
+			*/
+			
+			//画矩形
+			private function rect(rectX:Number, rectY:Number, rectWidth:Number, rectHeight:Number):void{
+				rectBoxID.graphics.clear();
+				if(radioLineID.selected){    //线性
+					rectBoxID.graphics.lineStyle(20, 0xFF0000, 1.0, false, LineScaleMode.VERTICAL, CapsStyle.NONE, JointStyle.MITER, 100);
+				}else if(radioGradientID.selected){    //渐变
+					var matr:Matrix = new Matrix();
+					matr.createGradientBox(20, 20, 0, 0, 0);
+					//the last parameter can selete three type: SpreadMethod.PAD or SpreadMethod.REFLECT or SpreadMethod.REPEAT.
+					rectBoxID.graphics.beginGradientFill(GradientType.LINEAR, [0xFF0000, 0x00FF00], [1, 1], [0x00, 0xFF], matr, SpreadMethod.REPEAT);
+				}else if(radioFullID.selected){    //填充
+					rectBoxID.graphics.beginFill(0xFF0000, 1.0);
+				}
+				rectBoxID.graphics.drawRect(rectX, rectY, rectWidth, rectHeight);
+				//    
+			}
+			
+			//画圆角矩形
+			private function circleRect(cRectX:Number, cRectY:Number, cRectWidth:Number, cRectHeight:Number, cRectDU:Number):void{
+				cRectBoxID.graphics.clear();
+				if(radioLineID.selected){    //线性
+					cRectBoxID.graphics.lineStyle(20, 0xFF0000, 1.0, false, LineScaleMode.VERTICAL, CapsStyle.NONE, JointStyle.MITER, 100);
+				}else if(radioGradientID.selected){    //渐变
+					//the last parameter can selete three type: SpreadMethod.PAD or SpreadMethod.REFLECT or SpreadMethod.REPEAT.
+					cRectBoxID.graphics.beginGradientFill(GradientType.LINEAR, [0xFF0000, 0x0000FF], [1, 0.1], [0, 255], new Matrix(), SpreadMethod.PAD);
+					rectBoxID.graphics.endFill();
+				}else if(radioFullID.selected){    //填充
+					cRectBoxID.graphics.beginFill(0xFF0000, 1.0);
+				}
+				cRectBoxID.graphics.drawRoundRect(cRectX, cRectY, cRectWidth, cRectHeight, cRectDU);
+			}
+			
+			//画直线
+			private function line(lineX:Number, lineY:Number):void{    //两个参数都表示从起始的位置坐标x、y相加这两个参数后值就是结束的x、y值
+				lineBoxID.graphics.clear();
+				if(radioLineID.selected){    //线性
+					lineBoxID.graphics.lineStyle(20, 0xFF0000, 1.0, false, LineScaleMode.VERTICAL, CapsStyle.NONE, JointStyle.MITER, 100);
+				}else if(radioGradientID.selected){    //渐变
+					lineBoxID.graphics.lineStyle(20, 0xFF0000, 1.0, false, LineScaleMode.VERTICAL, CapsStyle.NONE, JointStyle.MITER, 100);
+					lineBoxID.graphics.lineGradientStyle(GradientType.LINEAR, [0xFF0000, 0x0000FF], [1, 0.5], [0, 255], new Matrix(), SpreadMethod.PAD);
+				}else if(radioFullID.selected){    //（填充）直线不存在填充的，呵呵
+					lineBoxID.graphics.lineStyle(20, 0xFF0000, 1.0, false, LineScaleMode.VERTICAL, CapsStyle.NONE, JointStyle.MITER, 100);
+				}
+				lineBoxID.graphics.lineTo(lineX, lineY);
+			}
+			
+			//画曲线
+			private function cLine(endX:Number, endY:Number):void{
+				cLineBoxID.graphics.clear();
+				if(radioLineID.selected){    //线性
+					cLineBoxID.graphics.lineStyle(20, 0xFF0000, 1.0, false, LineScaleMode.VERTICAL, CapsStyle.NONE, JointStyle.MITER, 100);
+				}else if(radioGradientID.selected){    //渐变
+					var matr:Matrix = new Matrix();
+					matr.createGradientBox(20, 20, 0, 0, 0);
+					cLineBoxID.graphics.beginGradientFill(GradientType.LINEAR, [0xFF0000, 0x00FF00, 0xFF0000], [0.2, 1, 1], [0, 128, 255], matr, SpreadMethod.REFLECT);
+				}else if(radioFullID.selected){    //填充
+					cLineBoxID.graphics.beginFill(0xFF0000);
+				}
+				cLineBoxID.graphics.curveTo(100, 80, endX, endY);    //前两个参数表示弧度的偏移量，后两个参数表示结束点的x、y坐标
+			}
+			
+			//画圆
+			private function circle(oX:Number, oY:Number, radius:Number):void{
+				circleBoxID.graphics.clear();
+				if(radioLineID.selected){    //线性
+					circleBoxID.graphics.lineStyle(20, 0xFF0000, 1.0, false, LineScaleMode.VERTICAL, CapsStyle.NONE, JointStyle.MITER, 100);
+				}else if(radioGradientID.selected){    //渐变
+					var matr:Matrix = new Matrix();
+					matr.createGradientBox(20, 20, 0, 0, 0);
+					circleBoxID.graphics.beginGradientFill(GradientType.LINEAR, [0xFF0000, 0x00FF00, 0xFF0000], [0.2, 1, 1], [0, 128, 255], matr, SpreadMethod.REFLECT, "rgb", 0.7);
+				}else if(radioFullID.selected){    //填充
+					circleBoxID.graphics.beginFill(0xFF0000);
+				}
+				circleBoxID.graphics.drawCircle(oX, oY, radius);
+			}
+			
+			//画椭圆
+			private function tCircle(x:Number, y:Number, tWidth:Number, tHeight:Number):void{
+				tCircleBoxID.graphics.clear();
+				if(radioLineID.selected){    //线性
+					tCircleBoxID.graphics.lineStyle(20, 0xFF0000, 1.0, false, LineScaleMode.VERTICAL, CapsStyle.NONE, JointStyle.MITER, 100);
+				}else if(radioGradientID.selected){    //渐变
+					var matr:Matrix = new Matrix();
+					matr.createGradientBox(20, 20, 0, 0, 0);
+					//the last parameter can selete three type: SpreadMethod.PAD or SpreadMethod.REFLECT or SpreadMethod.REPEAT.
+					tCircleBoxID.graphics.beginGradientFill(GradientType.LINEAR, [0xFF0000, 0x00FF00], [1.0, 1.0], [0x00, 0xFF], matr, SpreadMethod.REPEAT);
+				}else if(radioFullID.selected){    //填充
+					tCircleBoxID.graphics.beginFill(0xFF0000);
+				}
+				tCircleBoxID.graphics.drawEllipse(x, y, tWidth, tHeight);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<!--画矩形-->
+	<mx:Button id="rectButID" x="500" y="50" label="画矩形" click="rect(100, 20, 250, 50);"/>
+	<mx:Box id="rectBoxID"/>
+	
+	<!--画圆角矩形-->
+	<mx:Button id="cRectButID" x="500" y="120" label="画圆角矩形" click="circleRect(100, 100, 300, 80, 50);"/>
+	<mx:Box id="cRectBoxID"/>
+	
+	<!--画直线-->
+	<mx:Button id="lineButID" x="500" y="250" label="画直线" click="line(350, 0);"/>
+	<mx:Box id="lineBoxID" x="50" y="250"/>
+	
+	<!--画曲线-->
+	<mx:Button id="cLineButID" x="500" y="350" label="画曲线" click="cLine(300, 0);"/>
+	<mx:Box id="cLineBoxID" x="100" y="300"/>
+	
+	<!--画圆-->
+	<mx:Button id="circleButID" x="500" y="450" label="画圆" click="circle(250, 450, 50);"/>
+	<mx:Box id="circleBoxID"/>
+	
+	<!--画椭圆-->
+	<mx:Button id="tCircleButID" x="500" y="550" label="画椭圆" click="tCircle(120, 520, 150, 50);"/>
+	<mx:Box id="tCircleBoxID"/>
+	
+	<mx:RadioButton id="radioLineID" x="600" y="50" label="线性"/>
+	<mx:RadioButton id="radioGradientID" x="750" y="50" label="渐变" selected="true"/>
+	<mx:RadioButton id="radioFullID" x="900" y="50" label="填充"/>
+	
+	
+	
+	<s:VGroup maxWidth="50" horizontalAlign="center">
+		<s:Label text="adfsfd"/>
+		<s:Label text="aasdfsdfsdfasfasdfasfasdfasdfasfdasdfasdfasdfsdfsdf-----------=======================>" maxWidth="150" textAlign="center" verticalAlign="middle"/>
+	</s:VGroup>
+</s:Application>

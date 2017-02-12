@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:navbar="com.linkage.module.cms.components.navbar.*"
+		 width="160"
+		 height="373">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.important.scene.common.event.SceneEvent;
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+			import com.linkage.module.cms.general.regional.important.scene.view.element.ImageNode;
+			import com.linkage.module.cms.general.regional.important.scene.view.resource.imagesclass.IconParam;
+			import com.linkage.system.structure.map.Map;
+
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			/**
+			 * 日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.important.scene.view.component.SceneList");
+			/**
+			 * 场馆监控控制器
+			 */
+			private var _monitorAction:MonitorAction=null;
+			/**
+			 * 历史时间
+			 */
+			private var _historyTime:String=null;
+			/**
+			 * 节点Map
+			 */
+			private var _nodeMap:Map=new Map();
+			/**
+			 * 是否在移动
+			 */
+			private var isMove:Boolean=false;
+			/**
+			 * 移动个数
+			 */
+			private var moveNum:int=0;
+			/**
+			 * 场馆个数
+			 */
+			private var sceneNum:int=0;
+
+			//初始化列表
+			public function initList(data:Object):void
+			{
+				for each (var obj:Object in data)
+				{
+					sceneNum++;
+					var venueId:String=obj["venue_id"];
+					var venueURL:String=obj["venue_image"];
+					var venueName:String=obj["venue_name"];
+					//生成场馆列表
+					var imageNode:ImageNode=new ImageNode(160, 100, venueId, venueURL, venueName);
+					imageNode.addEventListener(MouseEvent.CLICK, imageNodeClick);
+					sceneList.addElement(imageNode);
+					log.info("缓存场景， venueId：" + venueId);
+					_nodeMap.put(venueId, imageNode);
+				}
+			}
+
+			//展示当前场景监控
+			public function showSceneMonitor(venueId:String, historyTime:String=null):void
+			{
+				log.info("提取场景， venueId：" + venueId);
+				_historyTime=historyTime;
+				var node:ImageNode=_nodeMap.get(venueId);
+				log.info("提取场景， node1：");
+				if (node != null)
+				{
+					log.info("提取场景不为空， node2：");
+					monitorAction.dispatchEvent(new SceneEvent(SceneEvent.SCENE_CLICK, node.imageId, node.imageUrl, _historyTime));
+				}
+			}
+
+			//图片节点点击事件
+			private function imageNodeClick(event:MouseEvent):void
+			{
+				var node:ImageNode=event.currentTarget as ImageNode;
+				log.info("提取场景， node1：");
+				if (node != null)
+				{
+					log.info("提取场景不为空， node2：");
+					monitorAction.dispatchEvent(new SceneEvent(SceneEvent.SCENE_CLICK, node.imageId, node.imageUrl, _historyTime));
+				}
+			}
+
+			//图片向上点击事件
+			private function upClickHandler(event:MouseEvent):void
+			{
+				if (moveNum <= 0)
+				{
+					return;
+				}
+				if (!isMove)
+				{
+					moveNum--;
+					isMove=true;
+					showMove.yBy=106;
+					showMove.play();
+					//1秒后才可以继续移动
+					setTimeout(function():void
+						{
+							isMove=false;
+						}, 1000);
+				}
+			}
+
+			//图片向下点击事件
+			private function underClickHandler(event:MouseEvent):void
+			{
+				if (moveNum >= sceneNum - 3)
+				{
+					return;
+				}
+				if (!isMove)
+				{
+					moveNum++;
+					isMove=true;
+					showMove.yBy=-106;
+					showMove.play();
+					//1秒后才可以继续移动
+					setTimeout(function():void
+						{
+							isMove=false;
+						}, 1000);
+				}
+			}
+
+			public function set monitorAction(monitorAction:MonitorAction):void
+			{
+				_monitorAction=monitorAction;
+			}
+
+			public function get monitorAction():MonitorAction
+			{
+				return _monitorAction;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:Move id="showMove"
+				duration="1000"
+				target="{sceneList}"
+				yBy="0"/>
+	</fx:Declarations>
+	<navbar:NavBar title="场馆列表"
+				   location="right"
+				   width="160"
+				   top="6"
+				   titleLocation="top">
+		<mx:VBox width="160"
+				 height="373"
+				 verticalGap="5"
+				 color="0x000000"
+				 horizontalAlign="center"
+				 verticalScrollPolicy="off"
+				 horizontalScrollPolicy="off">
+			<mx:Image width="105"
+					  height="25"
+					  buttonMode="true"
+					  click="upClickHandler(event)"
+					  source="{IconParam.upIcon}"/>
+			<mx:VBox width="100%"
+					 height="313"
+					 horizontalScrollPolicy="off"
+					 verticalScrollPolicy="off">
+				<s:VGroup id="sceneList"
+						  width="100%"
+						  height="100%">
+
+				</s:VGroup>
+			</mx:VBox>
+			<mx:Image width="105"
+					  height="25"
+					  buttonMode="true"
+					  click="underClickHandler(event)"
+					  source="{IconParam.underIcon}"/>
+		</mx:VBox>
+	</navbar:NavBar>
+</s:Group>

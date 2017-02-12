@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					title=""
+					minimizable="false"
+					maximizable="false"
+					styleName="windowScene"
+					closable="false"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2014-5-25
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.transferdevicepanel.domain.TransferDevicePanelDM;
+			import com.linkage.module.cms.transferdevicepanel.event.TransferDevicePanelEvent;
+			[Inject("transferDevicePanelDM")]
+			[Bindable]
+			public var dm:TransferDevicePanelDM;
+			private var log:ILogger=Log.getLoggerByClass(PropertyComp);
+
+			private var isAlarmFlowInit:Boolean=false;
+			private var rule:String;
+			[MessageHandler(selector="PROPCOLUMNSCHANGE")]
+			public function propcolumnschange(e:TransferDevicePanelEvent):void
+			{
+				propDG.columns=dm.propColumns;
+				rule = 'neid="' + dm.parameters.neid + '"';
+				if(!isAlarmFlowInit){
+					alarmFlow.params={mapInfo: dm.parameters.user};
+					alarmFlow.moduleKey=dm.parameters.moduleKey;
+					alarmFlow.ruleContent = rule;
+					alarmFlow.initInfo();
+					log.info("alarm flow init");
+					isAlarmFlowInit=true;
+				}else{
+					alarmFlow.reload(rule);
+				}
+			}
+
+			[MessageHandler(selector="LOAD_PROPDATA")]
+			public function loadPropData(e:TransferDevicePanelEvent):void
+			{
+				
+			}
+			
+			[MessageHandler(selector="ALARMFLOWSTART")]
+			public function alarmFlowStart(e:TransferDevicePanelEvent):void
+			{
+//				log.info("alarm flow start");
+				alarmFlow.start();
+//				alarmFlow.reload(rule);
+			}
+			
+			[MessageHandler(selector="ALARMFLOWSTOP")]
+			public function alarmFlowStop(e:TransferDevicePanelEvent):void
+			{
+//				log.info("alarm flow stop");
+				alarmFlow.stop();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="0"
+			  top="-26">
+		<s:TabBar id="chartTabBar"
+				  dataProvider="{chartViewStack}"
+				  buttonMode="true"
+				  styleName="sceneTabBar1"/>
+		<mx:ViewStack width="100%"
+					  height="100%"
+					  styleName="sceneViewStack"
+					  id="chartViewStack"
+					  creationPolicy="all">
+			<s:NavigatorContent width="100%"
+								height="100%"
+								label="属性列表">
+				<mx:AdvancedDataGrid styleName="sceneDG"
+									 id="propDG"
+									 width="100%"
+									 height="100%"
+									 verticalScrollPolicy="auto"
+									 horizontalScrollPolicy="auto"
+									 dataProvider="{dm.propData}">
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+			<s:NavigatorContent width="100%"
+								height="100%"
+								label="告警信息">
+				<pubflow:sceneAlarm id="alarmFlow"
+									width="100%"
+									height="100%"/>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:VGroup>
+</ailk_compts:Window>

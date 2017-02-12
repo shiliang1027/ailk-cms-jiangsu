@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:CompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					title="漫游"
+					titleIcon="@Embed(source='../img/title_ico01.png')" xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.roam.RoamPM;
+			import com.linkage.module.cms.gsscene.view.components.roam.event.RoamEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			import spark.components.Group;
+			
+			private var log:ILogger = Log.getLoggerByClass(RoamNew);
+			public var location:String;
+			public var index:String;
+			private var maxFlag:Boolean = false;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			[Inject("roamPM")]
+			public var roamPM:RoamPM;
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			private var roamData:ArrayCollection = new ArrayCollection();
+			
+			private var loopIndex:int = 0;
+			
+			private var labelNum:int = 6;
+			
+			private var timer:Timer = new Timer(10000);
+			
+			/**
+			 * 漫游数据入口方法
+			 */
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(event:SceneEvent = null):void
+			{
+				roam.percentHeight = 100;
+				roam.percentWidth = 100;
+				
+				log.info("漫游视图 加载数据！" + event);
+				//派发事件
+				roamPM.showRoamData();
+			}
+			
+			[MessageHandler(selector="SHOW_ROAM_DATA")]
+			public function showChartData(e:RoamEvent):void
+			{
+				log.info("处理漫游视图数据！");
+				
+				var p1:SerialParam = new SerialParam('roamNum', '漫游用户数');
+				p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+				
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "roamName";
+				charParam.showLegend = false;
+				charParam.labelStep = int(roamPM.roamDM.roamArray[loopIndex].length / labelNum);
+				
+				roam.chartParam = charParam;
+				
+				this.roam.series = new ArrayCollection([p1]);
+				var arr:ArrayCollection = roamPM.roamDM.roamArray[loopIndex++] as ArrayCollection;
+				
+				log.debug("显示图表数据：" + roamPM.roamDM.roamArray.length)
+				
+				roam.chartData(arr, true);
+				
+				setTimeout(function():void
+				{
+					if(timer.running)
+						timer.stop();
+					timer.start();
+				}, 10000);
+			}
+			
+			[MessageHandler(selector="LOOP_ROAM_DATA")]
+			public function loopChartData():void
+			{
+				var p1:SerialParam = new SerialParam('roamNum', '漫游用户数');
+				p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+				
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "roamName";
+				charParam.showLegend = false;
+				charParam.labelStep = int(roamPM.roamDM.roamArray[loopIndex].length / labelNum);
+				
+				roam.chartParam = charParam;
+				
+				this.roam.series = new ArrayCollection([p1]);
+				var arr:ArrayCollection = roamPM.roamDM.roamArray[loopIndex++ % roamPM.roamDM.roamArray.length] as ArrayCollection;
+				roam.chartData(arr, true);
+				roam.percentHeight = 100;
+				roam.percentWidth = 100;
+			}
+			
+			public function closeWindow(type:int = 0):void
+			{
+				if(type == 1)
+				{
+					if(this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+					{
+						this.visible = false;
+						this.includeInLayout = false;
+					}
+				}
+				else
+					(this.parent as Group).removeElement(this);
+				
+				if(type == 1)
+				{
+					var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+					e.panelName = this.name;
+					e.param.index = this.index;
+					e.param.pid = this.parent['id'];
+					msgDispatcher(e);
+				}
+			}
+			
+			protected function window2_resize(flag:Boolean):void
+			{
+				log.info("漫游图表最大化、恢复窗口：" + flag + "_" + maxFlag);
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+				e.panelName = this.name;
+				e.panelIndex = this.index;
+				e.panellocation = this.location;
+				e.panelMaxFlag = this.maxFlag;
+				msgDispatcher(e);
+				log.info("漫游图表最大化、恢复窗口：派发事件！");
+				
+				this.maxFlag = flag;
+				
+				this.closeButton.visible = !flag;
+				this.closeButton.includeInLayout = !flag;
+			}
+			
+			//			protected function roam_clickHandler(event:MouseEvent):void
+			//			{
+			//				navigateToURL(new URLRequest(user.context + "cms/scene/roam/roam.action?sceneId=" + user.sceneId + "&level=" + user.level), "_blank");
+			//			}
+			
+			protected function window2_creationCompleteHandler(event:FlexEvent):void
+			{
+				timer.addEventListener(TimerEvent.TIMER, function(e:TimerEvent):void
+				{
+					msgDispatcher(new RoamEvent(RoamEvent.LOOP_ROAM_DATA));
+				});
+				
+			}
+		]]>
+	</fx:Script>
+	<ailk_chart:PrettyChart id="roam"
+							width="200"
+							height="100"/>
+</viewnew:CompWindow>

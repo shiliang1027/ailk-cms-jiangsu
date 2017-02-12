@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:panel="com.linkage.system.component.panel.*"
+			   xmlns:component="com.linkage.module.cms.alarm.totalflow.component.*"
+			   xmlns:view="com.linkage.module.cms.alarm.framework.view.*"
+			   xmlns:mdi="com.linkage.module.cms.alarm.totalflow.component.mdi.*"
+			   width="100%" height="100%"
+			   creationComplete="application_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.module.server.source.DefaultCollection;
+			import com.linkage.module.cms.alarm.totalflow.core.AlarmStatManager;
+			import com.linkage.module.cms.alarm.totalflow.core.AlarmStatManagerGD;
+			
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.alarm.totalflow.TotalflowAlarm");
+			/**
+			 * 数据控制类
+			 */
+			private var _windowId:String=null;
+			/**
+			 * 数据控制类
+			 */
+			private var _alarmAction:AlarmAction=null;
+			/**
+			 * 告警统计管理
+			 */
+			private var _alarmStatManager:AlarmStatManager=null;
+			
+			private var _running:Boolean=true;
+			
+			//初始化告警信息
+			protected function application_creationCompleteHandler(event:FlexEvent):void
+			{
+				//1.初始化logger
+				var target:ILoggingTarget=new MonsterTarget2();
+				target.level=this.parameters.logLevel;
+				target.filters=[this.parameters.filters];
+				Log.addTarget(target);
+				//2.初始化样式信息
+				if (this.parameters.local == "true")
+				{
+					styleManager.loadStyleDeclarations2("./css/common/show/ui.swf");
+				}
+				else
+				{
+					styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				}
+				
+				System.useCodePage=true;
+				//根据省份初始化告警统计管理
+				initAlarmStatManager(this.parameters.provice);
+				if (this.parameters.local == "true")
+				{
+					localTest();
+				}
+				else
+				{
+					serversRun();
+				}
+				ExternalInterface.addCallback("flashStart",start); 
+				ExternalInterface.addCallback("flashStop",stop); 
+			}
+			
+			
+			// 开始
+			public function start():String
+			{
+				_running=true;
+				if (_alarmAction != null)
+				{
+					_alarmAction.reload(null, false);
+				}
+				return "总流水启动成功";
+			}
+			
+			// 结束
+			public function stop():String
+			{
+				_running=false;
+				if (_alarmAction != null)
+				{
+					_alarmAction.stopLoad();
+				}
+				return "总流水停止成功";
+			}
+			
+			
+			//根据省份初始化不通的告警统计管理
+			private function initAlarmStatManager(provice:String):void
+			{
+				switch (provice)
+				{
+					case AlarmContainer.STATKEY_PROVICE_GUANGDONG:
+						_alarmStatManager=new AlarmStatManagerGD(this.parameters);
+						break;
+					case AlarmContainer.STATKEY_PROVICE_JIANGSU:
+					default:
+						_alarmStatManager=new AlarmStatManager(this.parameters);
+				}
+			}
+			
+			//服务器上运行
+			private function serversRun():void
+			{
+				//1.初始化流水窗口
+				initFlowWindow();
+				//2.初始化统计面板
+				initStatWindow();
+			}
+			
+			//初始化告警控制类并把数据注入视图
+			private function initFlowWindow():void
+			{
+				var ruleList:ArrayList=new ArrayList();
+				var ruleContent:String=_alarmStatManager.statParam.alarmFilter;
+				log.info("总流水过滤规则===========>" + ruleContent);
+				if (ruleContent != null)
+				{
+					var ruleObject:Object=new Object();
+					ruleObject[AlarmContainer.PARAMKEY_RULECONTENT]=ruleContent;
+					ruleList.addItem(ruleObject);
+				}
+				
+				_alarmAction=new AlarmAction(this.parameters, DefaultCollection);
+				_alarmAction.regListener(ruleList, function():void
+				{
+					//1.初始化窗口ID
+					var winJsons:Array=_alarmAction.alarmParamMo.winJsons;
+					var uniqueKey:String=(winJsons.length > 0) ? winJsons[0].windowUniquekey : '';
+					_windowId=(winJsons.length > 0) ? winJsons[0].windowId : "1";
+					log.info("当前展示窗口Id=" + _windowId);
+					//2.活动告警窗口
+					alarmflowPanel.activeView.alarmAction=_alarmAction;
+					alarmflowPanel.activeView.windowUniquekey=uniqueKey;
+					alarmflowPanel.activeView.windowId=_windowId;
+					alarmflowPanel.activeView.initView();
+					//3.清除告警窗口
+					alarmflowPanel.clearView.alarmAction=_alarmAction;
+					alarmflowPanel.clearView.windowUniquekey=uniqueKey;
+					alarmflowPanel.clearView.windowId=_windowId;
+					alarmflowPanel.clearView.initView();
+				});
+			}
+			
+			//初始化告警统计
+			private function initStatWindow():void
+			{
+				_alarmStatManager.specGeneralStatPanel=specGeneralStat;
+				_alarmStatManager.specCityStatPanel=specCityStat;
+				_alarmStatManager.alarmAction=_alarmAction;
+				_alarmStatManager.activeView=alarmflowPanel.activeView;
+				_alarmStatManager.totalflowAlarm=this;
+				_alarmStatManager.treeDiv=treeDiv;
+				_alarmStatManager.startInit();
+			}
+			
+			//本地测试
+			private function localTest():void
+			{
+				//1.初始化告警控制类并把数据注入视图
+				_alarmAction=new AlarmAction(this.parameters, DefaultCollection);
+				_alarmAction.regListenerDefaultTest();
+				_alarmAction.sendAlarmTest();
+				//2.活动告警窗口
+				alarmflowPanel.activeView.alarmAction=_alarmAction;
+				alarmflowPanel.activeView.windowId="91"
+				alarmflowPanel.activeView.initView();
+				//3.清除告警窗口
+				alarmflowPanel.clearView.alarmAction=_alarmAction;
+				alarmflowPanel.clearView.windowId="91"
+				alarmflowPanel.clearView.initView();
+				//4.初始化告警统计
+				initStatWindow();
+			}
+			
+			public function get running():Boolean
+			{
+				return _running;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Scroller width="100%" height="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+		<mdi:WindowManager width="100%" height="100%">
+			<mdi:addwindows>
+				<component:AlarmStatPanel id="specGeneralStat" width="100%" columnNameFirst="专业"
+										  title="全专业告警概况表[所有告警]"/>
+				<component:AlarmStatPanel id="specCityStat" width="100%" columnNameFirst="专业"
+										  title="全省各地市严重告警统计列表[所有告警]"/>
+				<component:AlarmflowPanel id="alarmflowPanel" width="100%" height="100%"/>
+			</mdi:addwindows>
+		</mdi:WindowManager>
+	</s:Scroller>
+	<component:TreeDiv id="treeDiv" visible="false"/>
+</s:Application>

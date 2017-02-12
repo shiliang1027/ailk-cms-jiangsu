@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  xmlns:component="com.linkage.module.cms.general.regional.main.multiview.component.*"
+			  xmlns:view="com.linkage.module.cms.alarm.framework.view.*"
+			  minHeight="160"
+			  width="100%"
+			  height="100%"
+			  closable="false"
+			  minimizable="false"
+			  maximizable="false">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.AlarmContainer;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.module.server.source.DefaultCollection;
+			import com.linkage.module.cms.general.regional.main.multiview.core.MultiViewAction;
+			import com.linkage.module.cms.general.regional.main.multiview.util.MultiUtil;
+
+			import mx.collections.ArrayList;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.multiview.component.AlarmWindow");
+			/**
+			 * 数据控制类
+			 */
+			private var _alarmAction:AlarmAction=null;
+			/**
+			 * 是否初始化
+			 */
+			private var _isInit:Boolean=false;
+			/**
+			 * 参数
+			 */
+			private var _param:Object=null;
+
+			//初始化告警纬度
+			public function initView(param:Object, multiViewAction:MultiViewAction):void
+			{
+				//1.初始化告警总览
+				statWindow.multiViewAction=multiViewAction;
+				statWindow.initWindow();
+
+				//2.初始化流水窗口
+				if (param.local == "true")
+				{
+					localTest(param);
+				}
+				else
+				{
+					_param=param;
+				}
+			}
+
+			//服务器上运行
+			private function serverTest(ruleContent:String):void
+			{
+				log.info("多维视图告警流水ruleContent=" + ruleContent);
+				//1.设置参数
+				var ruleList:ArrayList=new ArrayList();
+				if (ruleContent)
+				{
+					var ruleObject:Object=new Object();
+					ruleObject[AlarmContainer.PARAMKEY_RULECONTENT]=ruleContent;
+					ruleList.addItem(ruleObject);
+				}
+				_param[AlarmContainer.PARAMKEY_MODULEKEY]="regionalviewflow";
+
+				//2.初始化控制器
+				if (!_isInit)
+				{
+					_isInit=true;
+					_alarmAction=new AlarmAction(_param, DefaultCollection);
+					_alarmAction.regListener(ruleList, function():void
+						{
+							//1.初始化窗口ID
+							var winJsons:Array=_alarmAction.alarmParamMo.winJsons;
+							var windowId:String=(winJsons.length > 0) ? winJsons[0].windowId : "1";
+							log.info("当前展示窗口Id=" + windowId);
+							//2.活动告警窗口
+							devAlarmView.alarmAction=_alarmAction;
+							devAlarmView.windowId=windowId;
+							devAlarmView.initView();
+							devAlarmView.filterAlarm(MultiUtil.checkDevAlarm());
+							//3.清除告警窗口
+							proAlarmView.alarmAction=_alarmAction;
+							proAlarmView.windowId=windowId;
+							proAlarmView.initView();
+							proAlarmView.filterAlarm(MultiUtil.checkProAlarm());
+						});
+				}
+				else
+				{
+					_alarmAction.reload(ruleList);
+				}
+			}
+
+			//展示告警
+			public function showAlarm(rule:String):void
+			{
+				serverTest(rule);
+			}
+
+			//隐藏告警
+			public function hideAlarm():void
+			{
+				if (_isInit && _alarmAction != null)
+				{
+					log.info("多维视图隐藏告警");
+					_alarmAction.stopAction();
+				}
+			}
+
+			//本地测试
+			private function localTest(param:Object):void
+			{
+				//1.初始化告警控制类并把数据注入视图
+				_alarmAction=new AlarmAction(param, DefaultCollection);
+				_alarmAction.regListenerDefaultTest();
+				_alarmAction.sendAlarmTest();
+				//2.活动告警窗口
+				devAlarmView.alarmAction=_alarmAction;
+				devAlarmView.windowId="91"
+				devAlarmView.initView();
+				devAlarmView.filterAlarm(MultiUtil.checkDevAlarm());
+				//3.清除告警窗口
+				proAlarmView.alarmAction=_alarmAction;
+				proAlarmView.windowId="91"
+				proAlarmView.initView();
+				proAlarmView.filterAlarm(MultiUtil.checkProAlarm());
+			}
+		]]>
+	</fx:Script>
+	<s:Group width="100%"
+			 height="100%">
+		<mx:ViewStack id="myViewStack"
+					  width="100%"
+					  height="100%"
+					  top="23"
+					  creationPolicy="all"
+					  paddingBottom="2"
+					  paddingLeft="2"
+					  paddingRight="2"
+					  paddingTop="2">
+			<s:NavigatorContent label="告警总览">
+				<component:StatWindow id="statWindow"
+									  width="100%"
+									  height="100%"
+									  columnNameFirst="等级"/>
+			</s:NavigatorContent>
+			<s:NavigatorContent label="设备告警">
+				<view:AlarmView id="devAlarmView"
+								windowType="1"/>
+			</s:NavigatorContent>
+			<s:NavigatorContent label="性能告警">
+				<view:AlarmView id="proAlarmView"
+								windowType="1"/>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+		<s:TabBar dataProvider="{myViewStack}"
+				  buttonMode="true"
+				  styleName="commonTabBar"/>
+	</s:Group>
+</panel:Window>

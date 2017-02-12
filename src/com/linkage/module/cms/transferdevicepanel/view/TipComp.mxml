@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  backgroundColor="{bgColor}" minWidth="30"
+					  backgroundAlpha="{bgColor?1:0}"
+					  skinClass="com.linkage.module.cms.transferdevicepanel.skins.TipSkin"
+					  xmlns:parsley="http://www.spicefactory.org/parsley"
+					  creationComplete="tipComp_creationCompleteHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-10-16
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<s:states>
+		<s:State name="normal"/>
+		<s:State name="disabled"/>
+	</s:states>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<mx:Glow id="glow"
+				 target="{this}"
+				 duration="500"
+				 alphaFrom="0"
+				 alphaTo="1.0"
+				 blurXFrom="35.0"
+				 blurXTo="0.0"
+				 blurYFrom="35.0"
+				 blurYTo="0.0"
+				 repeatCount="10"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			[Bindable]
+			public var bgColor:uint;
+			[Bindable]
+			public var tip:String;
+
+			protected function tipComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (bgColor && bgColor == 0XFF0000)
+				{
+					glow.end();
+					glow.color=bgColor;
+					glow.play();
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout paddingTop="5" paddingBottom="5" paddingLeft="5" paddingRight="5"
+							horizontalAlign="center"/>
+	</s:layout>
+	<s:Label text="{tip}"/>
+</s:SkinnableContainer>

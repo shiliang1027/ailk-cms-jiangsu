@@ -1,0 +1,791 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         width="100%"
+         height="100%"
+         xmlns:parsley="http://www.spicefactory.org/parsley"
+         xmlns:components="com.linkage.module.cms.gsscene.view.components.*"
+         xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+         xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart" xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<fx:Script source="SceneViewAS.as"/>
+    <fx:Declarations>
+        <parsley:Configure/>
+        <s:Resize heightTo="0"
+                  effectEnd="resize_effectEndHandler(event)"
+                  id="resize"/>
+        <s:Fade id="winListResize"
+                target="{pbh}"
+                effectEnd="winListResize_effectEndHandler(event)"/>
+    </fx:Declarations>
+    <s:HGroup width="100%"
+              horizontalAlign="center"
+              paddingLeft="10"
+              paddingRight="10"
+              paddingBottom="30"
+              paddingTop="5"
+              height="100%">
+        <s:Scroller verticalScrollPolicy="off"
+                    id="scroller_1"
+                    width="22%"
+                    height="100%">
+            <s:VGroup id="panelShowGroup_1"
+                      clipAndEnableScrolling="true"
+                      width="100%"
+                      height="100%">
+                <components:SceneIntro id="sceneIntro"/>
+<!--                <components:RaceInfoComp id="raceInfoComp"
+                                         minHeight="260"
+                                         height="100%"
+                                         width="100%"/>-->
+                <components:EmgyResource id="emgyResource"
+                                         minHeight="250"
+                                         width="100%"/>
+				<components:QuitService id="quitService"
+										minHeight="250"
+										height="100%"
+										width="100%"/>
+<!--                <components:ResMatrixComp id="resMatrixComp"
+                                          minHeight="200"
+                                          height="100%"
+                                          width="100%"/>-->
+<!--                <components:TrainTimeTable id="trainTimeTable"
+                                           minHeight="200"
+                                           height="100%"
+                                           width="100%"/>
+                <components:WeatherSituation id="weatherSituation"
+                                             minHeight="200"
+                                             height="100%"
+                                             width="100%"/>-->
+            </s:VGroup>
+        </s:Scroller>
+        <!-- GIS -->
+        <ailk_compts:Window id="gisWindow"
+                            maximizable="true"
+                            minimizable="false"
+                            closable="false"
+                            styleName="windowSceneGis"
+                            maximize="gisWindow_resize(1)"
+                            restore="gisWindow_resize(2)"
+                            title="GIS 视图"
+                            width="55%"
+                            height="100%">
+			<s:HGroup width="100%" top="-23" right="39" gap="20" horizontalAlign="right">
+				<mx:Image source="{openTip}"
+						  id="madePrompt"
+						  buttonMode="true"
+						  toolTip="定制提示"
+						  click="madePrompt_clickHandler()"/>
+				
+				<mx:Image source="{config}"
+						  id="areaMoConfigPanel"
+						  buttonMode="true"
+						  toolTip="地图显示配置"
+						  visible="{mapVectorFlag}"
+						  includeInLayout="{mapVectorFlag}"
+						  click="mapconfig_clickHandler(event)"/>
+				
+				<mx:Image source="{gislayer}"
+						  id="mapGisLayer"
+						  buttonMode="true"
+						  toolTip="显示图层"
+						  visible="{'1'==user.logicalType||'2'==user.logicalType}"
+						  includeInLayout="{'1'==user.logicalType||'2'==user.logicalType}"
+						  click="mapGisLayer_clickHandler()"/>
+				
+				<mx:Image id="refreshImg"
+						  name="refresh"
+						  source="{refresh}"
+						  buttonMode="true"
+						  toolTip="自动刷新已启动"
+						  click="button1_clickHandler(event)"/>
+				
+				
+				<mx:Image source="{sceneTreePng}"
+						  id="sceneTree"
+						  visible="{!gisLayerMapType}"
+						  includeInLayout="{!gisLayerMapType}"
+						  buttonMode="true"
+						  toolTip="场景树图"
+						  click="scenetree_clickHandler(event)"/>
+			</s:HGroup>
+
+			<s:Group width="100%"
+					 height="100%"
+					 id="gisGroup"/>
+            <s:Group width="100%"
+                     height="100%">
+<!--                <components:MapView id="gisComp"
+                                    width="100%"
+                                    height="100%"
+									visible="{!mapVectorFlag}"/>
+                <components:MapVectorShow id="mapVectorComp"
+										  visible="{mapVectorFlag}"
+                                          width="100%"
+                                          height="100%"/>-->
+                <s:HGroup top="40"
+                          right="60"
+                          width="100">
+                    <s:TextInput id="moQueryText"
+                                 width="50"/>
+                    <s:Button label="网元检索"
+                              buttonMode="true"
+                              id="queryButton"
+                              click="queryButton_clickHandler(event)"/>
+                </s:HGroup>
+                <s:HGroup top="66"
+                          right="60"
+                          width="100"
+                          visible="{user.initSceneId == '1003'}">
+                    <s:TextInput id="cameraName"
+                                 width="50"/>
+                    <s:Button label="摄像查询"
+                              buttonMode="true"
+                              click="cameraQuery_clickHandler(event)"/>
+                </s:HGroup>
+				<components:MapVectorCollect id="mapVectorCollect"
+											  visible="{mapVectorFlag}"
+											  right="30"
+											  top="93"/>
+				
+				<components:MapGisCollect id="mapGisCollect"
+											 right="30"
+											 top="93"/>
+                <!--<components:AreaMoConfigPanel id="areaMoConfigPanel"
+                                              width="100"
+                                              height="50"
+                                              right="30"
+                                              top="40"/>-->
+                <mx:Box visible="false"
+                        includeInLayout="false">
+                    <ailk_compts:Window id="gisSearchWindow"
+                                        title="网元信息"
+                                        dragable="true"
+                                        visible="false"
+                                        styleName="window"
+                                        minimizable="false"
+                                        maximizable="false"
+                                        width="380"
+                                        height="250"
+                                        close="gisSearchWindow_closeHandler(event)">
+                        <mx:AdvancedDataGrid width="100%"
+                                             height="100%"
+                                             dataProvider="{mapViewPM.mapViewDM.selectMoList}"
+                                             itemClick="advanceddatagrid1_itemClickHandler(event)"
+                                             horizontalScrollPolicy="on">
+                            <mx:columns>
+                                <mx:AdvancedDataGridColumn dataField="areaName"
+                                                           headerText="区域名称"/>
+                                <mx:AdvancedDataGridColumn dataField="moTypeName"
+                                                           headerText="网元类型"/>
+                                <mx:AdvancedDataGridColumn dataField="moName"
+                                                           headerText="网元名称"/>
+                            </mx:columns>
+                        </mx:AdvancedDataGrid>
+                    </ailk_compts:Window>
+                </mx:Box>
+                <!-- chart comp -->
+                <s:Group id="chartOuterGroup"
+                         bottom="0"
+                         width="100%"
+                         height="240">
+                    <s:HGroup id="chartGroup"
+                              width="100%"
+                              height="100%"
+                              horizontalAlign="center">
+                        <mx:Box height="100%"
+                                id="kpiChartBox"
+                                minWidth="1"
+                                horizontalScrollPolicy="off"
+                                paddingRight="10"
+                                width="100%">
+                            <ailk_compts:Window id="kpiChartWin"
+                                                width="100%"
+                                                height="100%"
+                                                dragable="true"
+                                                styleName="windowSceneGisBottom"
+                                                maximize="kpiChartWin_maximizeHandler(event)"
+                                                restore="kpiChartWin_restoreHandler(event)"
+                                                minimizable="false"
+                                                closable="false">
+                                <s:VGroup width="100%"
+                                          height="100%"
+                                          gap="0"
+                                          top="-22">
+                                    <s:TabBar id="chartTabBar"
+                                              dataProvider="{chartViewStack}"
+                                              buttonMode="true"
+                                              styleName="sceneTabBar1"/>
+                                    <mx:ViewStack width="100%"
+                                                  height="100%"
+                                                  styleName="sceneViewStack"
+                                                  change="chartViewStack_changeHandler(event)"
+                                                  id="chartViewStack"
+                                                  creationPolicy="all">
+                                        <s:NavigatorContent width="100%"
+                                                            id="navtab1"
+                                                            height="100%"
+                                                            creationPolicy="all"
+                                                            label="退服统计"
+                                                            mouseOver="navtab1_mouseOverHandler(event)">
+                                            <!-- 重点指标详情图表 -->
+                                            <s:Scroller width="100%"
+                                                        height="100%"
+                                                        styleName="sceneScroller">
+                                                <s:Group width="100%" height="100%">
+                                                    <ailk_chart:PrettyChart id="quitChart"
+                                                                            showYaxisTitle="true"
+                                                                            visible="false"
+																			top="30"
+																			width="100%"
+																			height="88%"
+                                                                            columnWidthRatio="0.3"
+                                                                            xAxisFontSize="12"
+                                                                            steadyYAxis="false"
+                                                                            pageNum="7"
+																			horizontalCenter="0"
+																			verticalCenter="0"/>
+                                                </s:Group>
+                                            </s:Scroller>
+											<s:HGroup gap="25" left="210">
+												<s:CheckBox label="显示门限"
+															styleName="label"
+															visible="false"
+															click="showQuitChartByAreaKpi()"
+															id="thresholdCB"/>
+											</s:HGroup>
+                                        </s:NavigatorContent>
+                                        <s:NavigatorContent width="100%"
+                                                            height="100%"
+                                                            mouseOver="navigatorcontent1_mouseOverHandler(event)"
+                                                            mouseOut="navigatorcontent1_mouseOutHandler(event)"
+                                                            label="指标趋势">
+											<s:Group  width="100%" height="100%">
+												<!-- 指标趋势图表 -->
+												<s:Scroller width="100%"
+															height="100%"
+															bottom="0"
+															styleName="sceneScroller">
+													<s:Group width="100%" height="100%">
+														<ailk_chart:PrettyChart id="kpiChart"
+																				top="30"
+																				width="100%"
+																				height="88%"
+																				dataTipFunc="dataTipFormate"
+																				steadyYAxis="false"
+																				xAxisFontSize="12"
+																				pageNum="20"
+																				horizontalCenter="0"
+																				verticalCenter="0"/>
+													</s:Group>
+												</s:Scroller>
+												<s:HGroup gap="23" left="200">
+													<s:CheckBox label="显示门限"
+																styleName="label"
+																click="showKpiChart()"
+																id="thresholdKpi"/>
+													<s:RadioButton label="日"
+																   groupName="statisticsLevelg"
+																   id="dayLevel"
+																   styleName="label"
+																   click="dayLevel_clickHandler()"
+																   value="1"
+																   selected="true"/>
+													<s:RadioButton label="周"
+																   styleName="label"
+																   groupName="statisticsLevelg"
+																   id="weekLevel"
+																   click="weekLevel_clickHandler()"
+																   value="2"/>
+													<s:RadioButton label="月"
+																   styleName="label"
+																   groupName="statisticsLevelg"
+																   id="monthLevel"
+																   click="monthLevel_clickHandler()"
+																   value="3"/>
+													<mx:VBox>
+														<mx:Image id="addImg"
+																  source="@Embed('../img/u2.png')"
+																  buttonMode="true"
+																  toolTip="比较时间"
+																  click="openWin1();"/>
+													</mx:VBox>
+													<mx:Image id="hisImg"
+															  source="@Embed('../img/clock1.png')"
+															  buttonMode="true"
+															  toolTip="历史查询"
+															  click="openWin();"/>
+													<mx:Image source="@Embed('../img/icon_export.png')"
+															  buttonMode="true"
+															  toolTip="导出"
+															  click="exportKPI()"/>
+													<s:Label id="kpiLabel"
+															 styleName="label"/>
+												</s:HGroup>
+											</s:Group>
+                                            
+                                        </s:NavigatorContent>
+										<s:NavigatorContent width="100%" height="100%" 
+															label="工程割接">
+											<!-- 工程割接列表 -->
+											<components:ProjectCutoverGroup id="projectCutoverGroup"
+																			minHeight="50"
+																			height="100%"
+																			width="100%"/>
+										</s:NavigatorContent>
+										<s:NavigatorContent width="100%" height="100%" 
+															label="投诉工单">
+											<components:ComplaintSheetGroup id="complaintSheetGroup"
+																			minHeight="50"
+																			height="100%"
+																			width="100%"/>
+										</s:NavigatorContent>
+										<s:NavigatorContent width="100%" height="100%" 
+															label="故障工单">
+											<viewnew:sheetFlow width="100%"
+															 height="100%">
+											</viewnew:sheetFlow>
+										</s:NavigatorContent>
+
+                                    </mx:ViewStack>
+                                </s:VGroup>
+                            </ailk_compts:Window>
+                        </mx:Box>
+                    </s:HGroup>
+
+
+
+                    <s:VGroup width="15"
+                              height="100%"
+                              right="0"
+                              top="-3"
+                              verticalAlign="middle">
+                        <mx:Image id="chartImg"
+                                  source="{_left_gray}"
+                                  name="left"
+                                  toolTip="图表面板"
+                                  click="resizeWindow(3);"
+                                  buttonMode="true"
+                                  mouseOver="this.chartImg.name == 'left'? this.chartImg.source = _left_blue : this.chartImg.source = _right_blue;"
+                                  mouseOut="this.chartImg.name == 'left' ? this.chartImg.source = _left_gray : this.chartImg.source = _right_gray;"/>
+                    </s:VGroup>
+
+                </s:Group>
+
+                <!-- pic comp -->
+                <s:Group id="picGroup"
+                         visible="false"
+                         creationComplete="resizeWindow(2);"
+                         bottom="0"
+                         right="0"
+                         width="100%"
+                         height="114"
+                         includeInLayout="false">
+                    <components:SceneThumbnailComp id="stc"
+                                                   width="100%"
+                                                   height="100%"/>
+                    <s:VGroup width="15"
+                              height="100%"
+                              left="0"
+                              top="-3"
+                              verticalAlign="middle">
+                        <mx:Image id="picImg"
+                                  source="{_right_gray}"
+                                  name="right"
+                                  toolTip="缩略图面板"
+                                  click="resizeWindow(2);"
+                                  buttonMode="true"
+                                  mouseOver="this.picImg.name == 'left'? this.picImg.source = _left_blue : this.picImg.source = _right_blue;"
+                                  mouseOut="this.picImg.name == 'left' ? this.picImg.source = _left_gray : this.picImg.source = _right_gray;"/>
+                    </s:VGroup>
+                </s:Group>
+				
+				<!-- 重点区域展示区-->
+				<components:KeyAreasComp id="keyAreas"
+										 visible="{mapVectorFlag}"
+										 left="40"
+										 top="20"/>
+                <!-- 区域导航树-->
+                <components:SceneTreeComp id="naviTree"
+										  visible="{!gisLayerMapType}"
+                                          x="0"
+                                          width="150"
+                                          height="250"
+                                          top="5"/>
+                <!-- 面板配置组件-->
+                <ailk_compts:NavBar id="cfgBar"
+                                    location="right"
+                                    styleName="sceneNavBar"
+									visible="{!gisLayerMapType}"
+                                    title="配置"
+                                    x="0"
+                                    top="220">
+                    <s:VGroup width="140"
+                              horizontalAlign="right">
+                        <s:VGroup id="panelCfgGroup"
+                                  width="140"
+                                  gap="5">
+                            <s:CheckBox label="加载失败"/>
+                        </s:VGroup>
+                        <s:Button label="保存"
+                                  click="config_clickHandler()"/>
+                    </s:VGroup>
+                </ailk_compts:NavBar>
+
+
+                <!--指标定制   根据所有指标渲染地图   返回上一层-->
+                <s:HGroup top="12"
+                          right="20"
+                          gap="-2"
+                          horizontalAlign="center"
+                          verticalAlign="middle">
+                    <!--	<s:Button label="定制提示"
+                         id="madePrompt"
+                         click="madePrompt_clickHandler()"/>-->
+                    <s:Button label="指标查询"
+                              id="indexDingzhiButton"
+                              buttonMode="true"
+                              click="button2_clickHandler(event)"
+                              mouseOver="indexDingzhiButton_mouseOverHandler(event)"/>
+                    <s:Button label="渲染所有"
+                              id="dyeMapByAllButton"
+                              buttonMode="true"
+                              click="dyeMapByAllHandler()"
+                              mouseOver="dyeMapByAllButton_mouseOverHandler(event)"/>
+                    <s:Button label="漫游数据"
+                              id="roamButton"
+                              buttonMode="true"
+                              click="roam_clickHandler(event)"
+                              mouseOver="roamButton_mouseOverHandler(event)"/>
+                    <s:Button label="返回"
+                              id="backButton"
+                              buttonMode="true"
+                              click="backlastfloor()"
+                              mouseOver="backButton_mouseOverHandler(event)"/>
+                </s:HGroup>
+                <s:Button id="back2vectMapBT"
+                          top="33"
+                          right="40"
+                          visible="false"
+                          label="返回矢量图"
+                          buttonMode="true"
+                          click="back2vectMap()"/>
+
+                <ailk_compts:Window id="jingquPanel"
+									visible="{jingquPanelSceneFlag}"
+                                    dragable="true"
+                                    maximizable="false"
+                                    minimizable="false"
+                                    closable="false"
+                                    styleName="windowSceneGisBottom"
+                                    right="17"
+                                    top="103"
+                                    width="260"
+                                    height="383">
+                    <mx:AdvancedDataGrid width="100%"
+                                         styleName="sceneDG"
+                                         dataProvider="{mapViewPM.mapViewDM.userNumList}"
+                                         height="100%">
+                        <mx:columns>
+                            <mx:AdvancedDataGridColumn dataField="areaname"
+                                                       headerText="景区"/>
+                            <mx:AdvancedDataGridColumn dataField="cityname"
+                                                       headerText="地市"/>
+                            <mx:AdvancedDataGridColumn dataField="usernum"
+                                                       headerText="用户数"/>
+                        </mx:columns>
+                    </mx:AdvancedDataGrid>
+                </ailk_compts:Window>
+            </s:Group>
+
+            <components:PerformanceIndex id="performanceIndex"
+                                         x="140"
+                                         y="100"
+                                         width="500"
+                                         height="300"
+                                         visible="false"
+                                         includeInLayout="false"/>
+            <s:Group id="gisViewGroup"
+                     clipAndEnableScrolling="true"
+                     width="100%"
+                     height="100%"/>
+            <s:HGroup id="winListGroup"
+                      left="50"
+                      gap="0"
+                      horizontalAlign="left"
+                      verticalAlign="middle"
+                      visible="{this.viewMode == '2'}"
+                      includeInLayout="{this.viewMode == '2'}"
+                      top="5">
+                <mx:Image id="winListImg"
+                          name="la"
+                          alpha=".5"
+                          toolTip="收起窗口列表栏"
+                          rollOver="{winListImg.alpha = 1}"
+                          rollOut="{winListImg.alpha = 0.5}"
+                          click="winListImg_clickHandler(event)"
+                          source="{la}"/>
+                <s:HGroup id="pbh"
+                          gap="0"/>
+            </s:HGroup>
+        </ailk_compts:Window>
+
+        <s:Scroller verticalScrollPolicy="off"
+                    id="scroller_2"
+                    width="22%"
+                    height="100%">
+            <s:VGroup id="panelShowGroup_2"
+                      paddingTop="{panelShowGroupPaddingTop}"
+                      clipAndEnableScrolling="true"
+                      width="100%"
+                      height="100%">
+                <components:KPISituation id="kPISituation"
+                                         minHeight="300"
+                                         height="100%"
+                                         width="100%"/>
+                <components:DegradationTOPN id="degradationTOPN"
+                                            minHeight="200"
+                                            height="100%"
+                                            width="100%"/>
+                <!--<components:Roam id="roam"
+                                 minHeight="200"
+                                 height="100%"
+                                 width="100%"/>
+                <components:SheetStat id="sheetStat"
+                                      minHeight="200"
+                                      height="100%"
+                                      width="100%"/>
+                <components:WorstCellPanel id="worstCell"
+                                           minHeight="200"
+                                           height="100%"
+                                           width="100%"/>-->
+				<!--<components:ComplaintSheetStat id="complaintSheetStat"
+												minHeight="200"
+												height="100%"
+												width="100%"/>-->
+				<!--<components:ProjectCutoverStat id="projectCutover"
+											   minHeight="200"
+											   height="100%"
+											   width="100%"/>-->
+            </s:VGroup>
+        </s:Scroller>
+    </s:HGroup>
+
+	<ailk_compts:Window id="topobutton"
+						title="LTE 拓扑"
+						visible="{LTESceneFlag}"
+						minimizable="false"
+						maximizable="false"
+						resizable="false"
+						closable="false"
+						styleName="windowScene"
+						minHeight="20"
+						buttonMode="true"
+						height="20"
+						width="{kPISituation.width}"
+						x="{scroller_2.x}"
+						y="{scroller_2.y}"
+						click="navigate2LteTopo(event)"/>
+
+    <mx:VDividedBox id="mainVdbox"
+                    width="100%"
+                    height="100%">
+        <s:Group id="arrowImgGroup"
+                 width="100%"
+                 height="100%">
+            <mx:Image id="leftImg"
+                      source="{down}"
+                      left="5"
+                      bottom="0"
+                      click="leftDown_clickHandler(event)"
+                      buttonMode="true"/>
+
+            <mx:Image id="rightImg"
+                      source="{down}"
+                      right="5"
+                      bottom="0"
+                      click="rightDown_clickHandler(event)"
+                      buttonMode="true"/>
+        </s:Group>
+        <!--告警流水-->
+        <s:VGroup id="alarmVgroup"
+                  width="100%"
+                  height="25"
+                  left="5"
+                  right="5"
+                  gap="0"
+                  bottom="0"
+                  resize="alarmWindow_resizeHandler(event)">
+            <s:Group width="100%"
+                     height="100%" id="alarmFlowGroup">
+                <s:HGroup width="100%"
+                          height="5"
+                          horizontalAlign="center"
+                          gap="0"
+                          y="{alarmComp.y + 2}">
+                    <mx:Image id="img"
+                              source="{_up_gray}"
+                              name="up"
+                              click="resizeWindow()"
+                              mouseOver="changeImg(1)"
+                              mouseOut="changeImg(2)"
+                              buttonMode="true"/>
+                </s:HGroup>
+            </s:Group>
+        </s:VGroup>
+    </mx:VDividedBox>
+
+    <ailk_compts:Window id="menuWinLowerLevel"
+                        width="120"
+                        styleName="window"
+                        minimizable="false"
+                        maximizable="false"
+                        dragable="true"
+                        closable="false"
+                        rollOut="{this.menuWinLowerLevel.visible = false; this.menuWinLowerLevel.includeInLayout = false;}"
+                        visible="false"
+                        includeInLayout="false">
+        <mx:VBox width="100%"
+                 top="-16"
+                 horizontalAlign="center"
+                 height="100%">
+            <s:Button id="nextLevelBT"
+                      label="下一级钻取"
+                      click="lowerLevelDrillingTopo()"/>
+            <s:Button label="历史趋势图"
+                      click="showHistoryTrend()"/>
+            <s:Button id="gisPositionLab"
+                      label="GIS 定位"
+                      click="gisPositionHandler()"
+                      visible="false"
+                      includeInLayout="false"/>
+        </mx:VBox>
+    </ailk_compts:Window>
+
+    <!-- 历史趋势弹出窗口 -->
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="hisPopupWin"
+                            width="500"
+                            height="300"
+                            dragable="true"
+                            title="历史趋势图"
+                            close="{PopUpManager.removePopUp(hisPopupWin);}"
+                            styleName="window"
+                            maximize="hisPopupWin_maximizeHandler(event)"
+                            minimizable="false"
+                            closable="true"
+                            maximizable="true">
+            <s:Scroller width="100%"
+                        height="100%"
+                        bottom="0"
+                        styleName="sceneScroller">
+                <s:HGroup width="100%"
+                          horizontalAlign="center"
+                          height="100%">
+                    <ailk_chart:PrettyChart id="hisPopChart"
+                                            width="400"
+                                            height="220"
+                                            dataTipFunc="dataTipFormate"/>
+                </s:HGroup>
+            </s:Scroller>
+        </ailk_compts:Window>
+    </mx:Box>
+    <!-- 配置窗口-->
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="configurationWin"
+                            styleName="window"
+                            minimizable="false"
+                            maximizable="false"
+                            dragable="true"
+                            close="{PopUpManager.removePopUp(configurationWin);}">
+            <s:BorderContainer styleName="borderContainer1"
+                               width="100%"
+                               height="100%">
+                <s:layout>
+                    <s:VerticalLayout/>
+                </s:layout>
+                <mx:Form>
+                    <mx:FormItem label="开始时间"
+                                 id="startTime1">
+                        <mx:DateField id="startTime"
+                                      width="200"
+                                      formatString="YYYY-MM-DD"/>
+                    </mx:FormItem>
+                    <mx:FormItem label="结束时间"
+                                 id="endTime1">
+                        <mx:DateField id="endTime"
+                                      width="200"
+                                      formatString="YYYY-MM-DD"/>
+                    </mx:FormItem>
+                    <mx:FormItem direction="vertical">
+                        <s:Button label="确定"
+                                  click="ok_clickHandler()"/>
+                    </mx:FormItem>
+                </mx:Form>
+            </s:BorderContainer>
+        </ailk_compts:Window>
+    </mx:Box>
+    <!-- 配置窗口-->
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="configurationWin1"
+                            styleName="window"
+                            minimizable="false"
+                            maximizable="false"
+                            dragable="true"
+                            width="300"
+                            minHeight="180"
+                            close="{PopUpManager.removePopUp(configurationWin1);}">
+            <s:BorderContainer styleName="borderContainer1"
+                               width="100%"
+                               height="100%">
+                <mx:Form width="100%"
+                         height="100%">
+                    <mx:FormItem label="比较日期"
+                                 width="100%"
+                                 height="100%"
+                                 id="compareDateF">
+                        <mx:Image id="addSymbol"
+                                  source="@Embed('../img/addDate.png')"
+                                  toolTip="添加"
+                                  buttonMode="true"
+                                  click="compareDateAdd()"/>
+                    </mx:FormItem>
+                    <mx:FormItem width="100%"
+                                 height="100%">
+                        <s:VGroup id="vgroup"
+                                  width="100%"/>
+                    </mx:FormItem>
+                    <mx:FormItem width="100%"
+                                 height="25">
+                        <s:Button label="确定"
+                                  click="ok_clickHandler1()"/>
+                    </mx:FormItem>
+                </mx:Form>
+
+            </s:BorderContainer>
+        </ailk_compts:Window>
+    </mx:Box>
+    <s:Group id="topGroup"
+             width="100%"
+             height="100%">
+        <components:KpiCustomView id="kpiCustomView"/>
+    </s:Group>
+
+    <components:AreaChangeGridComp id="areaChangeGridComp"
+                                   visible="false"
+                                   includeInLayout="false"
+                                   width="350"
+                                   height="200"/>
+    <components:SceneThumbNailStartComp id="sceneThumbNailStartComp"
+                                        visible="false"
+                                        includeInLayout="false"
+                                        width="550"
+                                        height="350"/>
+
+</s:Group>

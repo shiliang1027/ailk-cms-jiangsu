@@ -1,0 +1,589 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis"
+		 creationComplete="vgroup1_creationCompleteHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hrw (Ailk No.)
+		 @version 1.0
+		 @date 2012-7-26
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+		<s:Move id="showMove"
+				duration="600"
+				target="{showGroup}"
+				xBy="0"/>
+		<s:Resize heightTo="0"
+				  id="resize"
+				  target="{miniHgroup}"/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.styles.GisFillPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLinePredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLineStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.ailk.common.ui.gis.event.MapEvent;
+			import com.linkage.module.cms.common.LoadManager;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sporthistoryscene.SportHistorySceneCompPM;
+			import com.linkage.module.cms.gsscene.view.components.sporthistoryscene.event.SportHistorySceneEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			
+			import spark.components.BorderContainer;
+			import spark.components.Group;
+
+			private var log:ILogger = Log.getLoggerByClass(SportsHistorySceneComp);
+
+			[Inject("sportHistorySceneCompPM")]
+			[Bindable]
+			public var pm:SportHistorySceneCompPM;
+
+			private var _timeArr:ArrayCollection = new ArrayCollection();
+
+
+			[Embed(source="../../../img/u1219.jpg")]
+			[Bindable]
+			private static var toLeft:Class;
+
+			[Embed(source="../../../img/u1221.jpg")]
+			[Bindable]
+			private static var toRight:Class;
+
+			[Embed(source="../../../img/u940.png")]
+			[Bindable]
+			private static var autoPlay:Class;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			//初始化历史场景
+			public function init(e:SceneEvent = null):void
+			{
+				showMap();
+			}
+
+			public function showMap():void
+			{
+				if (!pm.dm.lm)
+				{
+					pm.dm.lm = new LoadManager(miniHgroup);
+					pm.dm.lm.showLoading("正在加载数据，请稍后...");
+				}
+
+				//初始化所有数据
+				log.info("showMap初始化  initDM.");
+
+				pm.initDM();
+
+				var tid:uint = setTimeout(beginProcess, 1100);
+
+				pm.dm.timeoutIdCache['beginProcess'] = tid;
+			}
+
+			public function hideLoading():void
+			{
+				pm.dm.lm.hideLoading();
+			}
+
+			private function beginProcess():void
+			{
+				//判断地图、组件是否初始化好
+				log.info("beginProcess:");
+				if (pm.dm.mapInit)
+				{
+
+					log.info("开始调用接口生成数据");
+					//先清除数据
+
+					showGroup.removeAllElements();
+					miniMapWork.map.removeAllGisFeature(); //点、线、面
+					pm.dm.timeArr.removeAll();
+
+					//调用接口数据
+					pm.loadMiniMapWork();
+				}
+				else
+				{
+					log.info("gis:mapwork未生成，等待加载1s再重新执行");
+					//等待1秒再调
+					var tid:uint = setTimeout(showMap, 1000);
+					pm.dm.timeoutIdCache['showMap'] = tid;
+				}
+			}
+
+
+			[MessageHandler(selector="LOAD_MINIMAPWORK_DATA_COMP")]
+			public function loadMapData(e:SportHistorySceneEvent):void
+			{
+				log.info("LOAD_MINIMAPWORK_DATA_COMP事件 loadMapData:");
+				log.info(pm.dm.dataList);
+
+				var obj:Object = pm.dm.dataList;
+				pm.dm.lm.hideLoading();
+
+				if (obj)
+				{
+					log.info("查询GIS缩略图成功！");
+					initMiniMap(obj);
+				}
+				else
+				{
+					log.info("查询GIS缩略图数据为空！");
+					/* if (pm.dm.isDebug)
+					   {
+					   initMiniMap(pm.dm.testData);
+					 } */
+				}
+			}
+
+			private function initMiniMap(obj:Object):void
+			{
+				//取所有的时间节点
+				if (obj != null)
+				{
+					timeArr.removeAll();
+					for (var str:String in obj)
+					{
+						timeArr.addItem(str);
+					}
+				}
+
+				//排序时间节点
+				if (timeArr.length > 0)
+				{
+					orderList();
+				}
+
+
+				log.info("缩略图数据节点：" + timeArr.length);
+
+				if (timeArr.length > 0)
+				{
+
+					var num:Number = pm.dm.showMapNum;
+					if (timeArr.length > pm.dm.showMapNum)
+						num = timeArr.length;
+					this.showGroup.minWidth = (pm.dm.miniMapWidth + pm.dm.miniMapGap) * num - pm.dm.miniMapGap;
+					this.showGroup.x = -(pm.dm.miniMapWidth + pm.dm.miniMapGap) * (num - pm.dm.showMapNum - 1);
+
+					//取第一个节点数据
+					pm.dm.curIndex = 0;
+					var key:String = String(timeArr.getItemAt(pm.dm.curIndex));
+					log.info(obj[key]);
+					initGisFeature(obj[key]);
+					pm.dm.curIndex++;
+					pm.dm.miniMapNum++;
+					//开始定时
+
+					//由于GIS地图洒点后不能直接取到，所以下面做了延迟的定时任务
+					var tid:uint = setTimeout(loopProcess, 2500, obj, key);
+					pm.dm.timeoutIdCache['loopProcess'] = tid;
+				}
+				else
+				{
+					log.info("返回的缩略图数据为0！");
+				}
+			}
+
+			//对采集到的时间进行排序
+
+			private function orderList():void
+			{
+				var len:int = timeArr.length;
+
+				for (var i:int = 0; i < len; i++)
+				{
+					for (var j:int = 0; j < (len - i - 1); j++)
+					{
+						if (timeArr.getItemAt(j) < timeArr.getItemAt(j + 1))
+						{
+							switchTime(j, j + 1);
+						}
+					}
+				}
+			}
+
+			private function switchTime(i:int, j:int):void
+			{
+				var tmpStr:String = String(timeArr.getItemAt(j));
+
+				timeArr[j] = timeArr.getItemAt(i);
+				timeArr[i] = tmpStr;
+			}
+
+			private function loopProcess(obj:Object, time:String):void
+			{
+				//生成缩略图 
+				pm.dm.timeoutIdCache['zoomToScale'] = tid;
+				var uiGroup:Group = new Group();
+				uiGroup.width = pm.dm.miniMapWidth;
+				uiGroup.height = pm.dm.miniMapHeight;
+
+				createMiniMap(uiGroup, pm.dm.curIndex, time);
+				this.showGroup.addElementAt(uiGroup, 0);
+
+				//取下一个数据
+				if (pm.dm.curIndex < timeArr.length)
+				{
+					var key:String = String(timeArr.getItemAt(pm.dm.curIndex));
+					initGisFeature(obj[key]);
+					pm.dm.curIndex++;
+					pm.dm.miniMapNum++;
+
+					var tid:uint = setTimeout(loopProcess, 2000, obj, key);
+					pm.dm.timeoutIdCache['loopProcess'] = tid;
+				}
+				else
+				{
+					//循环结束后，可以点击移到图片的按钮
+					pm.dm.isMoveabled = true;
+					log.info("全部生成历史缩略图!");
+						//循环结束后，重新定位，以防位置偏移
+				}
+			}
+
+			//初始化GIS地图数据 存入 gisFeatureArr 中
+			private function initGisFeature(data:Object):void
+			{
+				log.info("initGisFeature");
+				miniMapWork.map.removeAllGisFeature();
+				var pic:GisMarkerPictureStyle = null;
+				var feature:GisFeature = null;
+				//存入gisId,根据gisId就可以查询到所有信息生成gisfeature
+				var gisIdBtsList:ArrayCollection = new ArrayCollection();
+				var gisIdNodeBList:ArrayCollection = new ArrayCollection();
+				//存入color
+				var colorMap:Object = new Object();
+				log.info(data);
+				for each (var grid:Object in data)
+				{
+					if (String(grid.moTypeName).toUpperCase() == "BTS")
+						gisIdBtsList.addItem(grid.gisId);
+					else if (String(grid.moTypeName).toUpperCase() == "NODEB")
+						gisIdNodeBList.addItem(grid.gisId);
+
+					colorMap[grid.gisId] = 0x00FF00;
+
+					if (grid.color)
+						colorMap[grid.gisId] = grid.color;
+				}
+
+				log.info("bts 数量：{0}，nodeb数量：{1}", gisIdBtsList.length, gisIdNodeBList.length);
+
+				if (gisIdNodeBList.length > 0)
+				{
+					log.info("nodeb begin");
+					miniMapWork.map.queryNodeBGisFeaturesByAreaIds(gisIdNodeBList.toArray(), function(gisFeatures:Array):void
+						{
+							log.info("queryNodeBGisFeaturesByAreaIds方法获取的gisfeature数组个数:{0}", gisFeatures.length);
+							for each (var gisFeature:GisFeature in gisFeatures)
+							{
+								var borderStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, .8, 1);
+								var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, Number(colorMap[gisFeature.attributes.gis_id]), 0.5, borderStyle);
+
+								gisFeature.gisStyle = polygonStyle;
+								miniMapWork.map.addGisFeature(gisFeature);
+							}
+							if (gisIdNodeBList.length + gisIdBtsList.length == 1)
+							{
+								miniMapWork.map.zoomToScale(25000, gisFeatures[0].gisMetry.gisExtent.center);
+							}
+							else
+							{
+								miniMapWork.map.viewRefresh();
+							}
+						});
+				}
+				else if (gisIdBtsList.length > 0)
+				{
+					log.info("bts begin");
+					miniMapWork.map.queryBTSGisFeaturesByAreaIds(gisIdBtsList.toArray(), function(gisFeatures:Array):void
+						{
+							log.info("queryBTSGisFeaturesByAreaIds方法获取的gisfeature数组个数:{0}", gisFeatures.length);
+							for each (var gisFeature:GisFeature in gisFeatures)
+							{
+								var borderStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, .8, 1);
+								var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, Number(colorMap[gisFeature.attributes.gis_id]), 0.5, borderStyle);
+
+								gisFeature.gisStyle = polygonStyle;
+								miniMapWork.map.addGisFeature(gisFeature);
+							}
+							if (gisIdNodeBList.length + gisIdBtsList.length == 1)
+							{
+								miniMapWork.map.zoomToScale(25000, gisFeatures[0].gisMetry.gisExtent.center);
+							}
+							else
+							{
+								miniMapWork.map.viewRefresh();
+							}
+						});
+				}
+
+			}
+
+			//创建缩略图
+			private function createMiniMap(uiGroup:Group, i:int, time:String):void
+			{
+				//添加图片
+				log.info("创建缩略图createMiniMap");
+				var ui:UIComponent = new UIComponent();
+				ui.buttonMode = true;
+				ui.width = pm.dm.miniMapWidth;
+				ui.height = pm.dm.miniMapHeight;
+
+				var mdata:BitmapData = this.miniMapWork.map.exportAsBitmapData();
+
+				var matrix:Matrix = new Matrix();
+				matrix.identity();
+				matrix.scale(pm.dm.miniMapWidth / miniMapWork.width, pm.dm.miniMapHeight / miniMapWork.height);
+				ui.graphics.beginBitmapFill(mdata, matrix);
+				ui.graphics.drawRect(0, 0, pm.dm.miniMapWidth, pm.dm.miniMapHeight);
+				ui.graphics.endFill();
+
+				uiGroup.addElement(ui);
+
+				//添加时间
+				var bc:BorderContainer = new BorderContainer();
+				bc.setStyle("borderColor", "0x000000");
+				bc.setStyle("borderStyle", "solid");
+				bc.setStyle("backgroundAlpha", "0.6");
+				bc.setStyle("backgroundColor", "0x000000");
+				bc.left = 1;
+				bc.right = 1;
+				bc.bottom = 5;
+				bc.height = 20;
+
+				var timeText:Label = new Label();
+				timeText.percentWidth = 100;
+				timeText.setStyle("color", "0xFFFFFF");
+				timeText.setStyle("textAlign", "center");
+				timeText.setStyle("paddingTop", "3");
+
+				log.info(time);
+
+				timeText.text = time;
+				bc.addElement(timeText);
+				uiGroup.addElement(bc);
+				uiGroup.buttonMode = true;
+
+				uiGroup.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):void
+					{
+						sportHisSceneClick(time);
+					});
+			}
+
+			public function sportHisSceneClick(time:String):void
+			{
+				log.info("SportHistorySceneCompPM 触发事件SPORT_HISTORY_SCENE_CLICK，传递参数如下");
+
+				var evt:SportHistorySceneEvent = new SportHistorySceneEvent(SportHistorySceneEvent.SPORT_HISTORY_SCENE_CLICK);
+				evt.param = {'time': time, 'data': pm.dm.dataList[time]};
+
+				initGisFeature(pm.dm.dataList[time]);
+
+				log.info("SportHistorySceneCompPM 传递参数如下 :");
+				log.info(evt.param);
+				dispatchMsg(evt);
+			}
+
+			//右移 需要调用移动组件
+			public function moveRight():void
+			{
+				log.info("右移moveRight");
+				log.info(pm.dm.isMoveabled);
+				if (pm.dm.isMoveabled)
+				{
+					if (pm.dm.curLocation > 1)
+					{
+						//每次移动显示数减一
+						var moveNum:Number = pm.dm.showMapNum - 1;
+						if (moveNum >= pm.dm.curLocation)
+						{
+							moveNum = pm.dm.curLocation - 1;
+							pm.dm.curLocation = 1;
+						}
+						else
+						{
+							pm.dm.curLocation = pm.dm.curLocation - moveNum;
+						}
+
+						showMove.xBy = (pm.dm.miniMapWidth + pm.dm.miniMapGap) * moveNum;
+						showMove.play();
+					}
+				}
+				else
+				{
+					Alert.show("正在加载缩略图，请稍后点击！");
+				}
+			}
+
+			//左移
+			protected function moveLeft():void
+			{
+				log.info("左移moveLeft");
+				log.info(pm.dm.isMoveabled);
+				log.info("pm.dm.curLocation:{0};pm.dm.miniMapNum:{1}", pm.dm.miniMapNum);
+				if (pm.dm.isMoveabled)
+				{
+					if (pm.dm.curLocation <= (pm.dm.miniMapNum - pm.dm.showMapNum))
+					{
+						//每次移动显示数减一
+						var moveNum:Number = pm.dm.showMapNum - 1;
+						if ((pm.dm.curLocation + moveNum) > (pm.dm.miniMapNum - pm.dm.showMapNum))
+						{
+							moveNum = pm.dm.miniMapNum - pm.dm.showMapNum - pm.dm.curLocation + 1;
+							pm.dm.curLocation = pm.dm.miniMapNum - pm.dm.showMapNum + 1;
+						}
+						else
+						{
+							pm.dm.curLocation = pm.dm.curLocation + moveNum;
+						}
+
+						showMove.xBy = -(pm.dm.miniMapWidth + pm.dm.miniMapGap) * moveNum;
+						showMove.play();
+					}
+					else
+					{
+						//Alert.show("已到最后端！");
+					}
+				}
+				else
+				{
+					Alert.show("正在加载缩略图，请稍后点击！");
+				}
+			}
+
+			//自动播放
+			private function startPlay():void
+			{
+				log.info("自动播放startPlay");
+				log.info(pm.dm.isMoveabled);
+				if (pm.dm.isMoveabled)
+				{
+					//将缩略图移到起始位置
+					this.showGroup.x = 0;
+					pm.dm.curLocation = 1;
+
+					autoMove();
+				}
+				else
+				{
+					Alert.show("正在加载缩略图，请稍后点击！");
+				}
+			}
+
+			//自动播放
+			private function autoMove():void
+			{
+				log.info("自动播放autoMove");
+				if (pm.dm.curLocation <= (pm.dm.miniMapNum - pm.dm.showMapNum))
+				{
+					showMove.duration = 800;
+					showMove.xBy = -(pm.dm.miniMapWidth + pm.dm.miniMapGap);
+					showMove.play();
+
+					pm.dm.curLocation++;
+
+					//延时1.5秒执行
+					var tid:uint = setTimeout(autoMove, 1500);
+					pm.dm.timeoutIdCache['autoMove'] = tid;
+				}
+				else
+				{
+					log.info("无法自动播放？");
+					log.info(pm.dm.curLocation);
+					log.info(pm.dm.miniMapNum - pm.dm.showMapNum);
+				}
+			}
+
+			protected function miniMapWork_mapCreationCompleteHandler():void
+			{
+				pm.checkShsComp();
+			}
+
+			public function get timeArr():ArrayCollection
+			{
+				return _timeArr;
+			}
+
+			public function set timeArr(value:ArrayCollection):void
+			{
+				_timeArr = value;
+			}
+
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("SportsHistorySceneComp .width:{0}", this.width);
+				showCanvas.width = miniHgroup.width - 100;
+				log.info("SportsHistorySceneComp .width:{0}", this.width);
+
+			}
+		]]>
+	</fx:Script>
+
+	<ailk_gis:MapWork id="miniMapWork"
+					  visible="false"
+					  width="50"
+					  height="50"
+					  showOverView="false"
+					  showZoomSlider="false"
+					  creationComplete="miniMapWork_mapCreationCompleteHandler()"/>
+	<s:HGroup width="100%"
+			  height="100"
+			  horizontalAlign="center"
+			  verticalAlign="middle"
+			  gap="15"
+			  id="miniHgroup"
+			  clipAndEnableScrolling="true">
+		<mx:Image source="{toLeft}"
+				  click="moveRight()"
+				  buttonMode="true"/>
+		<mx:Canvas id="showCanvas"
+				   height="100%"
+				   verticalScrollPolicy="off"
+				   horizontalScrollPolicy="off">
+			<mx:HBox id="showGroup"
+					 horizontalAlign="right"
+					 verticalScrollPolicy="off"
+					 horizontalScrollPolicy="off"
+					 height="100%"
+					 horizontalGap="5"/>
+		</mx:Canvas>
+
+		<mx:Image source="{toRight}"
+				  click="moveLeft()"
+				  buttonMode="true"/>
+
+		<s:VGroup horizontalAlign="center"
+				  verticalAlign="middle">
+			<mx:Image source="{autoPlay}"
+					  click="startPlay()"
+					  buttonMode="true"/>
+			<s:Label text="播放"
+					 left="3"/>
+		</s:VGroup>
+	</s:HGroup>
+
+</s:Group>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:wireless="com.linkage.module.cms.oneline.view.components.wireless.*"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   preinitialize="gisHotModule_preinitializeHandler(event)"
+		   creationComplete="gisHotModule_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			public static var _context:String = "";
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			protected function gisHotModule_preinitializeHandler(event:FlexEvent):void
+			{
+				styleManager.loadStyleDeclarations2(this.parentApplication.parameters["styleUrl"]);
+				_context = this.parentApplication.parameters['context'];
+				//styleManager.loadStyleDeclarations2(this.parentApplication.parameters["styleUrl"],true,ApplicationDomain.currentDomain);
+				//this.moduleFactory = FlexGlobals.topLevelApplication.moduleFactory;
+			}
+
+			protected function gisHotModule_creationCompleteHandler(event:FlexEvent):void
+			{
+				var evt:GisHotEvent = new GisHotEvent(GisHotEvent.GISHOTVIEWSHOW);
+				var param:Object = new Object();
+				evt.param = param;
+				msgDispatcher(evt);
+			}
+		]]>
+	</fx:Script>
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-14
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<wireless:GisHotView/>
+</mx:Module>

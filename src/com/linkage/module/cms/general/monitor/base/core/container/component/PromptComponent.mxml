@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 cornerRadius="5"
+		 borderStyle="solid"
+		 backgroundColor="0xedf4fc"
+		 minWidth="150"
+		 borderColor="0x74a0dc"
+		 verticalGap="0">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.containers.HBox;
+			import mx.controls.Label;
+			
+			private var orderList:Array = ["告警","核心网","无线网","传输网","动环网","数据网","性能","投诉","工单","工程"];
+			
+			public function createTipInfo(obj:Object):void
+			{
+				if (obj != null)
+				{
+					//创建标题头
+					createTitleBox(obj["title"],obj["cityName"]);
+					//创建内容
+					createBodyBox(obj["context"]);
+				}
+			}
+
+			//创建标题头
+			private function createTitleBox(title:String,cityName:String):void
+			{
+				var hBox:HBox = new HBox();
+				hBox.percentWidth = 100;
+				hBox.height = 25;
+				addChild(hBox);
+				hBox.addChild(createLabel(title + " 区域：" + cityName, "title"));
+			}
+			
+			//创建提示信息
+			private function createBodyBox(context:ArrayCollection):void
+			{
+				var vBox:VBox = new VBox();
+				vBox.setStyle("verticalGap", "0");
+				addChild(vBox);
+				if (context != null)
+				{
+					for each (var orderStr:String in orderList)
+					{
+						for each (var obj:Object in context)
+						{
+							if (String(obj["key"]) == orderStr)
+							{
+								var value:String = obj["value"];
+								var varArr:Array = value.split(",");
+								var hbox:HBox = new HBox();
+								hbox.addChild(createLabel(obj["key"] + ":", "tip_label"));
+								hbox.addChild(createLabel(varArr[0], "tip_label"));
+								vBox.addChild(hbox);
+								
+								//如果是核心、无线、传输、动环、数据，则位置偏移
+								if (orderStr == "核心网" || orderStr == "无线网" || orderStr == "传输网" || orderStr == "动环网" || orderStr == "数据网")
+								{
+									hbox.x = 15;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			//创建标签
+			private function createLabel(text:String, sn:String):Label
+			{
+				var label:Label = new Label();
+				label.text = text;
+				label.styleName = sn;
+				return label;
+			}
+		]]>
+	</fx:Script>
+</mx:VBox>

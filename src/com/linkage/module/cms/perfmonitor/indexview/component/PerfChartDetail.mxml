@@ -1,0 +1,602 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+              xmlns:panel="com.linkage.system.component.panel.*" 
+              xmlns:fusioncharts="com.linkage.common.fusioncharts.*" 
+              xmlns:common="com.linkage.module.cms.perfmonitor.common.*"
+			  width="800" 
+              height="355"
+			  minimizable="true" 
+              maximizable="true" 
+              closable="true" 
+			  configable="false"
+              dragable="true" 
+              close="window1_closeHandler(event)" 
+              creationComplete="window1_creationCompleteHandler(event)" 
+              >
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectPowerService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanService;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			// 图表参数
+			private var chartParams:ArrayCollection=new ArrayCollection([     
+				{numberPrefix:""},                  
+				{showValues:"0"},
+				{xAxisName:"时间"},
+				{yAxisName:"性能值"},
+				{canvasBorderAlpha: "0"},
+				{lineThickness:"4"},
+				{lineColor:"0x00FF00"},
+				{labelDisplay: 'Rotate'},
+				{slantLabels:'1'}
+			]);
+			
+			private var chartParams1:ArrayCollection=new ArrayCollection([     
+				{numberPrefix:""},
+				{showValues:"0"},
+				{labelDisplay: 'Rotate'},
+				{slantLabels:'1'}
+			]); 
+			
+			private var testData:ArrayCollection = new ArrayCollection([
+				{"time":"9:00","value":"100"},
+				{"time":"10:00","value":"90"},
+				{"time":"11:00","value":"80"},
+				{"time":"12:00","value":"90"},
+				{"time":"13:00","value":"120"},
+				{"time":"14:00","value":"80"}
+			]);
+			
+			private var _cellService:SubjectCellService;
+			
+			private var _btsService:SubjectPowerService;
+			
+			private var _wlanService:SubjectWlanService;
+			
+			private var _isDebug:Boolean = false;
+			
+			private var dateFormatter:DateFormatter = new DateFormatter();
+			
+			private var curCityId:String = "";
+			
+			private var curCItyName:String = "";
+			
+			private var curType:int = 0;
+			
+			private var curChartType:String = "";
+			
+			private var perfNameIndexMap:Object = {};
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.indexview.component.PerfChartDetail");
+			
+			//等待提示
+			private var loadInfo:LoadManager;
+			
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+			
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+			
+			public function get cellService():SubjectCellService
+			{
+				return _cellService;
+			}
+			
+			public function set cellService(value:SubjectCellService):void
+			{
+				_cellService = value;
+			}
+			
+			public function get btsService():SubjectPowerService
+			{
+				return _btsService;
+			}
+			
+			public function set btsService(value:SubjectPowerService):void
+			{
+				_btsService = value;
+			}
+			
+			public function get wlanService():SubjectWlanService
+			{
+				return _wlanService;
+			}
+			
+			public function set wlanService(value:SubjectWlanService):void
+			{
+				_wlanService = value;
+			}
+			
+			//１：最差小区　２：劣化小区　３：零业务量小区　４：低价值小区　５：高无线利用率小区　６：低电压蓄电池　７：零业务量热点
+			public function showChart(cityId:String, cityName:String, perfName:Object):void
+			{
+				if(perfName.toString().indexOf('零话务量')>=0)
+				{
+					perfName = "零话务量小区";
+				}
+				
+				this.chartType.selectedIndex = 1;
+				if(perfNameIndexMap[perfName])
+					this.perfType.selectedIndex = perfNameIndexMap[perfName];
+				else
+					this.perfType.selectedIndex = 0;
+					
+				
+				//取时间
+				var d:Date = new Date();
+				this.endDate.text = dateFormatter.format(d);
+				var d1:Date = new Date(d.getTime()-86400000);
+				this.startDate.text = dateFormatter.format(d1);
+				
+				curCityId = cityId;
+				curCItyName = cityName;
+				
+				queryChart(null);
+			}
+			
+			private function initChart1(obj:Object):void
+			{
+				this.chart1.visible = true;
+				
+				if (obj == null)
+				{
+					obj = testData;
+				}
+				
+				var chartData:ArrayCollection = new ArrayCollection();
+				
+				//行
+				for each (var labelObj:Object in obj)
+				{
+					var tmp:Object = new Object();
+					tmp.label = labelObj.time;
+					tmp.value = labelObj.value;
+					chartData.addItem(tmp);
+				}
+				
+//				//标题
+				var tmp2:Object = new Object();
+				if (curType == 1)
+				{
+					tmp2.seriesName = curCItyName + "2G最差小区";
+				}
+				else if (curType == 2)
+				{
+					tmp2.seriesName = curCItyName + "2G劣化小区";
+				}
+				else if (curType == 3)
+				{
+					tmp2.seriesName = curCItyName + "2G零业务量小区";
+				}
+				else if (curType == 4)
+				{
+					tmp2.seriesName = curCItyName + "2G低价值小区";
+				}
+				else if (curType == 5)
+				{
+					tmp2.seriesName = curCItyName + "2G高无线利用率小区";
+				}
+				else
+				{
+					tmp2.seriesName = curCItyName + "2G小区数据详情";
+				}
+                this.title = perfType.selectedItem.perf_name;
+				
+				var ps:ArrayCollection = new ArrayCollection();
+				ps.addItem({caption : tmp2.seriesName});
+				
+				if (curChartType == "1")
+				{
+					this.chart1.FCChartType = "Column3D";
+					ps.addAll(chartParams1);
+				}
+				else
+				{
+					this.chart1.FCChartType = "Spline";
+					ps.addAll(chartParams);
+				}
+				
+				if (chartData.length >= 1)
+				{
+					this.chart1.FCParams = ps;
+					this.chart1.FCData = chartData;
+				}
+				else
+				{
+					Alert.show("查询数据为空！");
+				}
+			}
+			
+			private function initChart2(obj:Object):void
+			{
+				if (obj == null || obj.length < 1)
+				{
+                    chart2.visible = false;
+					this.chart2.includeInLayout = false;
+                    return;
+				}
+                
+                chart2.visible = true;
+				this.chart2.includeInLayout = true;
+				
+				var chartData:ArrayCollection = new ArrayCollection();
+				
+				//行
+				for each (var labelObj:Object in obj)
+				{
+					var tmp:Object = new Object();
+					tmp.label = labelObj.time;
+					tmp.value = labelObj.value;
+					chartData.addItem(tmp);
+				}
+				
+				//标题
+				var tmp2:Object = new Object();
+				if (curType == 1)
+				{
+					tmp2.seriesName = curCItyName + "3G最差小区";
+				}
+				else if (curType == 2)
+				{
+					tmp2.seriesName = curCItyName + "3G劣化小区";
+				}
+				else if (curType == 3)
+				{
+					tmp2.seriesName = curCItyName + "3G零业务量小区";
+				}
+				else if (curType == 4)
+				{
+					tmp2.seriesName = curCItyName + "3G低价值小区";
+				}
+				else if (curType == 5)
+				{
+					tmp2.seriesName = curCItyName + "3G高无线利用率小区";
+				}
+				else
+				{
+					tmp2.seriesName = curCItyName + "3G小区数据详情";
+				}
+                this.title = perfType.selectedItem.perf_name;
+
+				var ps:ArrayCollection = new ArrayCollection();
+				ps.addItem({caption : tmp2.seriesName});
+
+				if (curChartType == "1")
+				{
+					this.chart2.FCChartType = "Column3D";
+					ps.addAll(chartParams1);
+				}
+				else
+				{
+					this.chart2.FCChartType = "Spline";
+					ps.addAll(chartParams);
+				}
+				
+				if (chartData.length >= 1)
+				{
+					this.chart2.FCParams = ps;
+					this.chart2.FCData = chartData;
+				}
+			}
+			
+			private function initChart(obj:Object):void
+			{
+				if (obj == null)
+				{
+					obj = testData;
+				}
+				
+				var chartData:ArrayCollection = new ArrayCollection();
+				
+				//行
+				for each (var labelObj:Object in obj)
+				{
+					var tmp:Object = new Object();
+					tmp.label = labelObj.time;
+					chartData.addItem(tmp);
+				}
+				
+				//标题
+				var tmp2:Object = new Object();
+				if (curType == 6)
+				{
+					tmp2.seriesName = curCItyName + "低电压蓄电池数据详情";
+				}
+				else if (curType == 7)
+				{
+					tmp2.seriesName = curCItyName + "零业务热点数据详情";
+				}
+				else if (curType == 8)
+				{
+					tmp2.seriesName = curCItyName + "退服AP数据详情";
+				}
+                tmp2.color = '00FF00';
+                this.title = perfType.selectedItem.perf_name;
+				chartData.addItem(tmp2);
+				
+				//值
+				for each (var valueObj:Object in obj)
+				{
+					var tmp1:Object = new Object();
+					tmp1.value = valueObj.value;
+					chartData.addItem(tmp1);
+				}
+				
+				if (curChartType == "1")
+				{
+					this.chart1.FCChartType = "MSColumn3D";
+					this.chart1.FCParams = chartParams1;
+				}
+				else
+				{
+					this.chart1.FCChartType = "MSSpline";
+					this.chart1.FCParams = chartParams;
+				}
+				
+				if (chartData.length >= 3)
+				{
+					this.chart1.FCData = chartData;
+					this.chart1.visible = true;
+				}
+				else
+				{
+					Alert.show("查询数据为空！");
+				}
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+                loadInfo.hideLoading();
+				this.chartType.selectedIndex = 0;
+				this.visible = false;
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var chartTypeArr:ArrayCollection = new ArrayCollection();
+				
+				var typeObj:Object = new Object();
+				typeObj.type_id = "1";
+				typeObj.type_name = "柱状图";
+				chartTypeArr.addItem(typeObj);
+				typeObj = new Object();
+				typeObj.type_id = "2";
+				typeObj.type_name = "趋势图";
+				chartTypeArr.addItem(typeObj);
+				
+				this.chartType.dataProvider = chartTypeArr;
+				this.chartType.labelField = "type_name";
+				this.chartType.selectedIndex = 1;
+				
+				var perfTypeArr:ArrayCollection = new ArrayCollection();
+				
+				var perfObj:Object = new Object();
+				perfObj.perf_id = "1";
+				perfObj.perf_name = "最差小区";
+				perfTypeArr.addItem(perfObj);
+				perfNameIndexMap[perfObj.perf_name] = 0;
+				
+				perfObj = new Object();
+				perfObj.perf_id = "2";
+				perfObj.perf_name = "劣化小区";
+				perfTypeArr.addItem(perfObj);
+				perfNameIndexMap[perfObj.perf_name] = 1;
+				
+				perfObj = new Object();
+				perfObj.perf_id = "3";
+				perfObj.perf_name = "零话务量小区";
+				perfTypeArr.addItem(perfObj);
+				perfNameIndexMap[perfObj.perf_name] = 2;
+				
+				perfObj = new Object();
+				perfObj.perf_id = "5";
+				perfObj.perf_name = "小区无线利用率";
+				perfTypeArr.addItem(perfObj);
+				perfNameIndexMap[perfObj.perf_name] = 3;
+				
+				perfObj = new Object();
+				perfObj.perf_id = "6";
+				perfObj.perf_name = "低性能蓄电池";
+				perfTypeArr.addItem(perfObj);
+				perfNameIndexMap[perfObj.perf_name] = 4;
+				
+				perfObj = new Object();
+				perfObj.perf_id = "7";
+				perfObj.perf_name = "零业务量热点";
+				perfTypeArr.addItem(perfObj);
+				perfNameIndexMap[perfObj.perf_name] = 5;
+				
+				perfObj = new Object();
+				perfObj.perf_id = "8";
+				perfObj.perf_name = "退服AP";
+				perfTypeArr.addItem(perfObj);
+				perfNameIndexMap[perfObj.perf_name] = 6;
+				
+				this.perfType.dataProvider = perfTypeArr;
+				this.perfType.labelField = "perf_name";
+				this.perfType.selectedIndex = 0;
+				
+				dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+				
+				loadInfo = new LoadManager(this,"blue");
+			}
+
+			protected function queryChart(event:MouseEvent):void
+			{
+				curType = Number(this.perfType.selectedItem["perf_id"]);
+				curChartType = this.chartType.selectedItem["type_id"];
+				var startTimeStr:String = this.startDate.text;
+				var endTimeStr:String = this.endDate.text;
+				
+				var paramMap:Object = new Object();
+				paramMap.startTime = startTimeStr;
+				paramMap.stopTime = endTimeStr;
+				paramMap.city = curCityId;
+				paramMap.type = curType + "";
+				
+				log.info("性能类型：" + curType);
+				
+				this.chart1.visible = false;
+				this.chart2.visible = false;
+				this.chart2.includeInLayout = false;
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				if (curType <= 5)
+				{
+					_cellService.getCellCountGraphics(paramMap,loadDataSucc1,null,loadDataErr1);
+				}
+				else if (curType == 6)
+				{
+					_btsService.getBatteryGraphic(paramMap,loadDataSucc,null,loadDataErr);
+				}
+				else if (curType == 7)
+				{
+					_wlanService.wlanGrophic(paramMap,loadDataSucc,null,loadDataErr);
+				}
+				else if (curType == 8)
+				{
+					_wlanService.quitApGrophic(paramMap,loadDataSucc,null,loadDataErr);
+				}
+			}
+			
+			private function loadDataSucc1(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载图表数据成功！");
+					if (_isDebug)
+					{
+						initChart1(null);
+						initChart2(null);
+					}
+					else
+					{
+						var dataObj:Object = obj[0];
+						
+						initChart1(dataObj["2gList"]);
+						initChart2(dataObj["3gList"]);
+					}
+				}
+				else
+				{
+					log.info("加载图表数据为空！");
+					if (_isDebug)
+					{
+						initChart1(null);
+						initChart2(null);
+					}
+				}
+				
+				loadInfo.hideLoading();
+			}
+			
+			private function loadDataErr1(obj:Object):void
+			{
+				log.info("加载图表数据失败！" + obj);
+				if (_isDebug)
+				{
+					initChart1(null);
+					initChart2(null);
+				}
+				
+				loadInfo.hideLoading();
+			}
+			
+			private function loadDataSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载图表数据成功！");
+					if (_isDebug)
+					{
+						initChart(null);
+					}
+					else
+					{
+						initChart(obj);
+					}
+				}
+				else
+				{
+					log.info("加载图表数据为空！");
+					if (_isDebug)
+					{
+						initChart(null);
+					}
+				}
+				
+				loadInfo.hideLoading();
+			}
+			
+			private function loadDataErr(obj:Object):void
+			{
+				log.info("加载图表数据失败！" + obj);
+				if (_isDebug)
+				{
+					initChart(null);
+				}
+				
+				loadInfo.hideLoading();
+			}
+
+			/**
+			 * 格式化时间
+			 */
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+    <s:BorderContainer width="100%"
+                       height="100%"
+                       borderStyle="solid"
+                       borderWeight="2">
+    	<s:VGroup width="100%" height="100%" verticalAlign="middle" gap="1">
+    		<s:HGroup width="100%" height="10%" horizontalAlign="center" verticalAlign="middle">
+    			<common:UXDateField id="startDate" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="false"/>
+    			<common:UXDateField id="endDate" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="false"/>
+    			<s:DropDownList id="chartType" width="120">
+    			</s:DropDownList>
+    			<s:DropDownList id="perfType" width="150">
+    			</s:DropDownList>
+    			<s:Button label="查询" click="queryChart(event)">
+    			</s:Button>
+    		</s:HGroup>
+            <mx:HRule width="100%" height="4"/>
+    		<s:Scroller width="100%" height="280" verticalScrollPolicy="auto">
+    			<s:VGroup width="100%" height="100%" horizontalAlign="center">
+    				<fusioncharts:FusionChartsLK id="chart1" width="100%" height="280" FCFolder="/cms/flex-release/FusionCharts" FCChartType="MSSpline" FCData="{new ArrayCollection()}" FCParams="{new ArrayCollection()}">
+    				</fusioncharts:FusionChartsLK>
+    				<fusioncharts:FusionChartsLK id="chart2" width="100%" height="280" FCFolder="/cms/flex-release/FusionCharts" FCChartType="MSSpline" FCData="{new ArrayCollection()}" FCParams="{new ArrayCollection()}">
+    				</fusioncharts:FusionChartsLK>
+    			</s:VGroup>
+    		</s:Scroller>
+    	</s:VGroup>
+    </s:BorderContainer>
+</panel:Window>

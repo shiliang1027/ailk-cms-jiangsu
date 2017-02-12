@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:panel="com.linkage.system.component.panel.*"
+					xmlns:components="com.linkage.module.cms.baseline.dynamic.components.*" 
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					creationComplete="outliers_creationCompleteHandler()"
+					dragable="true"
+					minimizable="false"
+					maximizable="false"
+					close="closeWindow()"
+					title="异常值设置"
+					styleName="windowScene">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[			
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.baseline.dynamic.data.BaseLineDataManager;
+			import com.linkage.module.cms.baseline.dynamic.staticData.BaseLineBean;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			public var baseLineDataManager:BaseLineDataManager;
+			
+			private var addFlag:Boolean;
+			
+			private var operatorDP:ArrayCollection = new ArrayCollection(
+				[{label: '请选择', value: ''},{label: '小于', value: '<'},{label: '小于等于', value: '<='},
+				 {label: '等于', value: '='},{label: '大于', value: '>'},{label: '大于等于', value: '>='},
+				 {label: '不等于', value: '<>'}]
+			);
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.dynamic.components.OutliersConfigView");
+			protected function outliers_creationCompleteHandler():void
+			{
+				log.info("OutliersConfigView");
+				this.title = "(" + BaseLineBean.perfTypeName　+ ")" + "异常值设置";
+				baseLineDataManager.loadOutliers(BaseLineBean.KPIParams,loadOutliers_Handler);
+			}
+			
+			private function loadOutliers_Handler(result:Object):void
+			{
+				log.info("查询的网元指标基线异常值success！");
+				log.info(result.datas);
+				if(null!=result.datas){
+					for each (var obj:Object in operatorDP) 
+					{
+						if(obj.value==result.datas["seq"]){
+							seq.selectedItem = obj;
+							break;
+						}
+					}
+					abnomalValue.text = result.datas["abnomalValue"];
+					
+					addFlag = false;
+				}else{
+					addFlag = true;
+				}
+			}
+			protected function ok_clickHandler():void
+			{
+				var seqvalue:String = seq.selectedItem.value;
+				var abnomalVal:String = abnomalValue.text;
+				if(""==seqvalue||""==abnomalVal){
+					Alert.show("请选择一种运算符，并填写异常值！");
+					return;
+				}
+				var params:Object = BaseLineBean.getParams();
+				params.seq = seqvalue;
+				params.abnomalValue = abnomalVal;
+				params.addFlag = addFlag;
+				baseLineDataManager.saveOutliers(params,saveOutliers_Handler);
+			}
+			/**
+			 * 
+			 **/
+			private function saveOutliers_Handler(result:Object):void{
+				log.info("保存修改的基线异常值success！");
+				log.info(result.params);
+				log.info(result.saveFlag);
+				if(result.saveFlag){
+					Alert.show('保存成功！');
+					closeWindow();
+				}else{
+					Alert.show('保存失败，请重试！');
+				}
+			}
+			private function closeWindow():void
+			{
+				PopUpManager.removePopUp(this);
+				this.visible = false;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:Form width="100%"
+			 height="100%">
+		<mx:FormItem direction="horizontal" height="20"
+					 verticalCenter="0">
+			<s:Label text="规则：" />
+		</mx:FormItem>
+		<mx:FormItem direction="horizontal" height="30"
+					 verticalCenter="0">
+			<s:DropDownList id="seq"
+							width="150"
+							selectedIndex="0"
+							dataProvider="{operatorDP}"
+							contentBackgroundAlpha="1"/>
+			<s:TextInput id="abnomalValue"  restrict="0-9\."
+						 width="150"/>
+		</mx:FormItem>
+		<mx:FormItem direction="horizontal" height="30"
+					 verticalCenter="0">
+			<s:Button id="ok" label="确定" width="60" click="ok_clickHandler()"/>
+			<s:Button id="canel" label="取消" width="60" click="closeWindow()"/>
+		</mx:FormItem>
+	</mx:Form>
+</ailk_compts:Window>

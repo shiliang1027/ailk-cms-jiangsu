@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:bts="com.linkage.module.cms.perfmonitor.subject.datashow.bts.*" 
+		 creationComplete="vgroup1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExt;
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectPowerService;
+			
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private var _commonService:SubjectInterfaceCommService;
+			
+			private var _btsService:SubjectPowerService;
+			
+			[Bindable]
+			private var _btsMonitor:Object;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.datashow.BtsProvinceDataShow");
+			
+			private var _isDebug:Boolean = false;
+			
+			//显示的表格顺序
+			public var showIndex:int = 0;
+			
+			private var _dataLoaded:Function;
+			
+			private var paramMap:Object = new Object();
+			
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+			
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get btsService():SubjectPowerService
+			{
+				return _btsService;
+			}
+			
+			public function set btsService(value:SubjectPowerService):void
+			{
+				_btsService = value;
+			}
+			
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+			
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			public function get btsMonitor():Object
+			{
+				return _btsMonitor;
+			}
+			
+			public function set btsMonitor(value:Object):void
+			{
+				_btsMonitor = value;
+			}
+			
+			public function initData(cityId:String=null,layer:String=null):void
+			{
+//				this.noPowerStat.showThisWindow();
+//				this.powerDevStat.hideThisWindow();
+				
+				if(cityId && layer){
+					paramMap.city_id = cityId;
+					paramMap.city_layer = layer;
+					
+					this.noPowerStat.cityId = cityId;
+					this.powerDevStat.cityId = cityId;
+				}else{
+					paramMap = new Object;
+					this.noPowerStat.cityId = "";
+					this.powerDevStat.cityId = "";
+				}
+				
+				_btsService.btsNoPowerStat(paramMap,loadNoPowerDataSucc,null,loadNoPowerDataErr);
+//				_btsService.powerCellStat(paramMap,loadLowPowerDataSucc,null,loadLowPowerDataErr);
+			}
+			
+			private function loadNoPowerDataSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载停电统计数据正常！");
+					this.noPowerStat.initData(obj);
+				}
+				else
+				{
+					log.info("加载停电统计数据为空！");
+					if (_isDebug)
+					{
+						this.noPowerStat.initData(null);
+					}
+				}
+				
+				_btsService.powerCellStat(paramMap,loadLowPowerDataSucc,null,loadLowPowerDataErr);
+			}
+			
+			private function loadNoPowerDataErr(obj:Object):void
+			{
+				log.info("加载停电统计数据异常！" + obj);
+				if (_isDebug)
+				{
+					this.noPowerStat.initData(null);
+				}
+				
+				_btsService.powerCellStat(paramMap,loadLowPowerDataSucc,null,loadLowPowerDataErr);
+			}
+			
+			private function loadLowPowerDataSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载蓄电池统计数据正常！");
+					this.powerDevStat.initData(obj);
+				}
+				else
+				{
+					log.info("加载蓄电池统计数据为空！");
+					if (_isDebug)
+					{
+						this.powerDevStat.initData(null);
+					}
+				}
+				
+				_dataLoaded.call();
+			}
+			
+			private function loadLowPowerDataErr(obj:Object):void
+			{
+				log.info("加载蓄电池统计数据异常！" + obj);
+				if (_isDebug)
+				{
+					this.powerDevStat.initData(null);
+				}
+				
+				_dataLoaded.call();
+			}
+			
+//			private function closeOpenWindow():void
+//			{
+//				if (this.noPowerStat._defaultShow)
+//				{
+//					this.noPowerStat.hideThisWindow();
+//					showIndex = 1;
+//				}
+//				if (this.powerDevStat._defaultShow)
+//				{
+//					this.powerDevStat.hideThisWindow();
+//					showIndex = 0;
+//				}
+//			}
+
+			public function set dataLoaded(value:Function):void
+			{
+				_dataLoaded = value;
+			}
+
+			
+			private var windowArray:Array = new Array;
+			protected function windowext_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				showWindow(WindowExt(event.target));
+				WindowExt(event.target).titleDisplay.addEventListener(MouseEvent.CLICK,function(evt:MouseEvent):void{
+					getWindow(evt.target).dispatchEvent(new WindowExtEvent(WindowExtEvent.TOGGLE));
+					function getWindow(target:Object):WindowExt{
+						if(!target){
+							return null;
+						}
+						if(target is WindowExt){
+							return WindowExt(target);
+						}else{
+							return getWindow(target.parent);
+						}
+						return null;
+					}
+					
+				});
+			}
+			
+			protected function windowext_toggleHandler(event:WindowExtEvent):void
+			{
+				// TODO Auto-generated method stub
+				for each(var window:WindowExt in windowArray){
+					showWindow(window);
+				}
+			}
+			
+			private function showWindow(window:WindowExt):void{
+				var vis:Boolean = window.contentGroup.visible;
+				window.contentGroup.visible=!vis;
+				window.contentGroup.includeInLayout=!vis;
+				if(vis){
+					window.height = window.minHeight;
+					window.toggleButton.text="︽";
+				}else{
+					window.percentHeight = 100;
+					window.toggleButton.text="︾";
+					if(window is NoPowerStat){
+						_btsMonitor.changeGisVisiable(1,true);
+						_btsMonitor.changeGisVisiable(2,false);
+					}else if(window is PowerDevStat){
+						_btsMonitor.changeGisVisiable(1,false);
+						_btsMonitor.changeGisVisiable(2,true);
+					}
+				}
+			}
+
+
+
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				windowArray.push(noPowerStat);
+				windowArray.push(powerDevStat);
+				showWindow(WindowExt(windowArray[0]));
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<bts:NoPowerStat id="noPowerStat" width="100%" height="100%" minHeight="24" btsMonitor="{_btsMonitor}" maxWindowHeight="{this.height-10}" windowNum="2" creationComplete="windowext_creationCompleteHandler(event)" toggle="windowext_toggleHandler(event)">
+	</bts:NoPowerStat>
+	<bts:PowerDevStat id="powerDevStat" width="100%" height="100%" minHeight="24" btsMonitor="{_btsMonitor}" maxWindowHeight="{this.height-10}" windowNum="2" creationComplete="windowext_creationCompleteHandler(event)" toggle="windowext_toggleHandler(event)">
+	</bts:PowerDevStat>
+</s:VGroup>

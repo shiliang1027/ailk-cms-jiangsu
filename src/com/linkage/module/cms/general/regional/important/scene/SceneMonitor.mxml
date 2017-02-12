@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 hide="group1_hideHandler(event)"
+		 show="group1_showHandler(event)"
+		 xmlns:component="com.linkage.module.cms.general.regional.important.scene.view.component.*"
+		 width="100%"
+		 height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+
+			import mx.events.FlexEvent;
+
+			/**
+			 * 场景监控控制类
+			 */
+			private var monitorAction:MonitorAction=null;
+
+			//初始化窗口信息
+			public function initView(param:Object):void
+			{
+				//1.初始化监控控制器
+				monitorAction=new MonitorAction(param);
+
+				//2.初始化场馆窗口
+				sceneWin.initWindow(monitorAction);
+
+				//3.初始化图标图片窗口
+				imageWin.initWindow(monitorAction);
+			}
+
+			//展示场景监控
+			public function showSceneMonitor(venueId:String, historyTime:String=null):void
+			{
+				sceneWin.showSceneMonitor(venueId, historyTime);
+			}
+
+			//隐藏视图调用方法
+			protected function group1_hideHandler(event:FlexEvent):void
+			{
+				sceneWin.hideAlarm();
+			}
+
+			//显示视图调用方法
+			protected function group1_showHandler(event:FlexEvent):void
+			{
+				sceneWin.showAlarm();
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%"
+			  height="100%"
+			  gap="5">
+		<component:SceneWindow id="sceneWin"
+							   width="67%"
+							   height="100%"/>
+		<component:VideoChartGroup id="imageWin"
+								   width="33%"
+								   height="100%"/>
+	</s:HGroup>
+</s:Group>

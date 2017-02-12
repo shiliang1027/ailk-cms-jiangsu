@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:component="com.linkage.module.cms.general.regional.main.multiview.component.*"
+		 bottom="8"
+		 width="100%"
+		 height="100%">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.main.multiview.core.MultiViewAction;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			/**
+			 *日志记录器
+
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.MultiView");
+			/**
+			 *多维视图控制器
+
+			 */
+			private var multiViewAction:MultiViewAction=null;
+			/**
+			 *规则名称
+			 */
+			private var _ruleStr:String=null;
+
+			//初始化多维视图
+
+			public function initView(param:Object):void
+			{
+				log.info("【开始初始化多维视图】++++++");
+
+				//1.初始化多维视图控制器
+				multiViewAction=new MultiViewAction(param);
+				multiViewAction.sevChartWindow=sevChartWindow;
+				multiViewAction.proChartWindow=proChartWindow;
+				multiViewAction.initViewChart();
+
+				//2.初始化告警视图
+				alarmView.initView(param, multiViewAction);
+			}
+
+			//展示视图
+			public function showView():void
+			{
+				alarmView.showAlarm(_ruleStr);
+			}
+
+			//隐藏视图
+			public function hideView():void
+			{
+				alarmView.hideAlarm();
+			}
+
+			//业务纬度最大化
+			protected function sevChartWindowMaximize(event:WindowEvent):void
+			{
+				sevChartWindow.title="业务维度"
+				sevChartWindow.percentWidth=100;
+				sevChartWindow.comboBox.visible=false;
+				alarmView.visible=false;
+				proChartWindow.visible=false;
+				alarmView.includeInLayout=false;
+				proChartWindow.includeInLayout=false;
+				sevChartWindow.allChartToShowHandler();
+				sevChartWindow.chartBox.visible=false;
+				sevChartWindow.allChartBox.visible=true;
+				sevChartWindow.configHbox.visible=true;
+				sevChartWindow.chartBox.includeInLayout=false;
+				sevChartWindow.allChartBox.includeInLayout=true;
+			}
+
+			//业务纬度还原
+			protected function sevChartWindowRestore(event:WindowEvent):void
+			{
+				sevChartWindow.title=""
+				sevChartWindow.percentWidth=100;
+				sevChartWindow.comboBox.visible=true;
+				alarmView.visible=true;
+				proChartWindow.visible=true;
+				alarmView.includeInLayout=true;
+				proChartWindow.includeInLayout=true;
+				sevChartWindow.comboBoxChangeHandler();
+				sevChartWindow.chartBox.visible=true;
+				sevChartWindow.allChartBox.visible=false;
+				sevChartWindow.configHbox.visible=false;
+				sevChartWindow.chartBox.includeInLayout=true;
+				sevChartWindow.allChartBox.includeInLayout=false;
+			}
+
+			//业务纬度最小化
+			protected function sevChartWindowMinimize(event:WindowEvent):void
+			{
+				sevChartWindow.title="业务维度"
+				sevChartWindow.percentWidth=100;
+				sevChartWindow.comboBox.visible=true;
+				alarmView.visible=true;
+				proChartWindow.visible=true;
+				alarmView.includeInLayout=true;
+				proChartWindow.includeInLayout=true;
+				sevChartWindow.comboBoxChangeHandler();
+				sevChartWindow.chartBox.visible=true;
+				sevChartWindow.allChartBox.visible=false;
+				sevChartWindow.configHbox.visible=false;
+				sevChartWindow.chartBox.includeInLayout=true;
+				sevChartWindow.allChartBox.includeInLayout=false;
+			}
+
+			//性能纬度最大化
+			protected function proChartWindowMaximize(event:WindowEvent):void
+			{
+				proChartWindow.title="性能维度";
+				proChartWindow.percentWidth=100;
+				proChartWindow.comboBox.visible=false;
+				alarmView.visible=false;
+				sevChartWindow.visible=false;
+				alarmView.includeInLayout=false;
+				sevChartWindow.includeInLayout=false;
+				proChartWindow.allChartToShowHandler();
+				proChartWindow.chartBox.visible=false;
+				proChartWindow.allChartBox.visible=true;
+				proChartWindow.configHbox.visible=true;
+				proChartWindow.chartBox.includeInLayout=false;
+				proChartWindow.allChartBox.includeInLayout=true;
+			}
+
+			//性能纬度还原
+			protected function proChartWindowRestore(event:WindowEvent):void
+			{
+				proChartWindow.title="";
+				proChartWindow.percentWidth=100;
+				proChartWindow.comboBox.visible=true;
+				alarmView.visible=true;
+				sevChartWindow.visible=true;
+				alarmView.includeInLayout=true;
+				sevChartWindow.includeInLayout=true;
+				proChartWindow.comboBoxChangeHandler();
+				proChartWindow.chartBox.visible=true;
+				proChartWindow.allChartBox.visible=false;
+				proChartWindow.configHbox.visible=false;
+				proChartWindow.chartBox.includeInLayout=true;
+				proChartWindow.allChartBox.includeInLayout=false;
+			}
+
+			//性能纬度最小化
+			protected function proChartWindowMinimize(event:WindowEvent):void
+			{
+				proChartWindow.title="性能维度";
+				proChartWindow.percentWidth=100;
+				proChartWindow.comboBox.visible=true;
+				alarmView.visible=true;
+				sevChartWindow.visible=true;
+				alarmView.includeInLayout=true;
+				sevChartWindow.includeInLayout=true;
+				proChartWindow.comboBoxChangeHandler();
+				proChartWindow.chartBox.visible=true;
+				proChartWindow.allChartBox.visible=false;
+				proChartWindow.configHbox.visible=false;
+				proChartWindow.chartBox.includeInLayout=true;
+				proChartWindow.allChartBox.includeInLayout=false;
+			}
+
+			public function set ruleStr(ruleStr:String):void
+			{
+				_ruleStr=ruleStr;
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%">
+			<component:ChartWindow id="sevChartWindow"
+								   width="100%"
+								   height="202"
+								   minHeight="30"
+								   maximize="sevChartWindowMaximize(event)"
+								   minimize="sevChartWindowMinimize(event)"
+								   restore="sevChartWindowRestore(event)"/>
+			<component:ChartWindow id="proChartWindow"
+								   width="100%"
+								   height="202"
+								   minHeight="30"
+								   maximize="proChartWindowMaximize(event)"
+								   minimize="proChartWindowMinimize(event)"
+								   restore="proChartWindowRestore(event)"/>
+			<component:AlarmWindow id="alarmView"
+								   width="100%"
+								   height="100%"
+								   title="告警维度"/>
+		</s:VGroup>
+	</s:Scroller>
+</s:Group>

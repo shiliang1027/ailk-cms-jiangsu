@@ -1,0 +1,556 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         width="100%"
+         height="100%"
+         creationComplete="creationCompleteHandler()"
+         xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+         xmlns:view="com.linkage.module.cms.roaming.view.*">
+
+
+    <s:states>
+        <s:State name="internation"/>
+        <s:State name="civil"/>
+        <s:State name="province"/>
+    </s:states>
+
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.roaming.RoamViewApp;
+			import com.linkage.module.cms.roaming.dao.RoamViewDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+
+            private var dao:RoamViewDAO;
+
+            [Embed(source = "../img/bigscreen/国际指进.png")]
+            private var guoji:Class;
+            [Embed(source = "../img/bigscreen/中国.png")]
+            private var guonei:Class;
+            [Embed(source = "../img/bigscreen/江苏(南京指入）.png")]
+            private var shengnei:Class;
+
+
+            [Embed(source = "../img/背景.png")]
+            private var bg:Class;
+            [Embed(source = "../img/背景2.png")]
+            private var bg2:Class;
+
+            private static var log:ILogger = Log.getLoggerByClass(RoamView);
+
+            private var viewTimer:Timer = new Timer(5 * 60 * 1000);
+			var country_name:String = "";
+
+          /*   private var roamTypeDP:ArrayCollection = new ArrayCollection(
+                [
+                {"value": "1", "label": "国际漫入"},
+                {"value": "2", "label": "国内漫入"},
+                {"value": "3", "label": "省内漫入"}
+                ]); */
+            private var roamTypeDP:ArrayCollection = new ArrayCollection(
+                [
+                {"value": "3", "label": "国际漫入"}
+                ]);
+
+            private var shengneiOffset:Object = {
+                    '常州': {'x': 367, 'y': 533},
+                    '苏州': {'x': 547, 'y': 546},
+                    '无锡': {'x': 491, 'y': 503},
+                    '镇江': {'x': 383, 'y': 452},
+                    '南通': {'x': 556, 'y': 419},
+                    '泰州': {'x': 444, 'y': 358},
+                    '扬州': {'x': 392, 'y': 356},
+                    '盐城': {'x': 464, 'y': 227},
+                    '淮安': {'x': 353, 'y': 210},
+                    '宿迁': {'x': 272, 'y': 165},
+                    '连云港': {'x': 341, 'y': 85},
+                    '徐州': {'x': 154, 'y': 116}
+                };
+
+            private var guoneiOffset:Object = {
+                    '安徽': {'x': 596, 'y': 420},
+                    '河南': {'x': 536, 'y': 370},
+                    '上海': {'x': 697, 'y': 416},
+                    '广东': {'x': 548, 'y': 581},
+                    '湖北': {'x': 552, 'y': 439},
+                    '福建': {'x': 637, 'y': 514},
+                    '四川': {'x': 384, 'y': 446},
+                    '湖南': {'x': 528, 'y': 485},
+                    '山东': {'x': 620, 'y': 331},
+                    '江西': {'x': 587, 'y': 489},
+                    '河北': {'x': 579, 'y': 295},
+                    '重庆': {'x': 472, 'y': 455},
+                    '北京': {'x': 582, 'y': 266},
+                    '浙江': {'x': 656, 'y': 461},
+                    '陕西': {'x': 468, 'y': 375},
+                    '山西': {'x': 529, 'y': 298},
+                    '云南': {'x': 366, 'y': 548},
+                    '黑龙江': {'x': 709, 'y': 126},
+                    '辽宁': {'x': 662, 'y': 233},
+                    '吉林': {'x': 720, 'y': 190},
+                    '天津': {'x': 615, 'y': 259},
+                    '广西': {'x': 477, 'y': 603},
+                    '新疆': {'x': 174, 'y': 186},
+                    '贵州': {'x': 445, 'y': 534},
+                    '宁夏': {'x': 434, 'y': 314},
+                    '海南': {'x': 510, 'y': 657},
+                    '青海': {'x': 359, 'y': 338},
+                    '甘肃': {'x': 417, 'y': 366},
+                    '内蒙古': {'x': 516, 'y': 243},
+                    '西藏': {'x': 194, 'y': 446}
+                };
+
+            private var guojiOffset:Object = {
+                    '西班牙': {'x': 36, 'y': 216},
+                    '意大利': {'x': 81, 'y': 203},
+                    '法国': {'x': 48, 'y': 185},
+                    '爱尔兰': {'x': 11, 'y': 147},
+                    '荷兰': {'x': 60, 'y': 143},
+                    '德国': {'x': 96, 'y': 155},
+                    '瑞典': {'x': 91, 'y': 65},
+                    '丹麦': {'x': 48, 'y': 100},
+                    '芬兰': {'x': 132, 'y': 100},
+                    '波兰': {'x': 170, 'y': 126},
+                    '奥地利': {'x': 179, 'y': 150},
+                    '土耳其': {'x': 154, 'y': 190},
+                    '希腊': {'x': 118, 'y': 220},
+                    '伊朗': {'x': 239, 'y': 196},
+                    '埃及': {'x': 138, 'y': 253},
+                    '伊拉克': {'x': 178, 'y': 241},
+                    '南非': {'x': 147, 'y': 422},
+                    '俄罗斯': {'x': 335, 'y': 122},
+                    '蒙古': {'x': 319, 'y': 177},
+                    '韩国': {'x': 447, 'y': 172},
+                    '日本': {'x': 489, 'y': 207},
+                    '香港': {'x': 361, 'y': 219},
+                    '中国香港': {'x': 361, 'y': 219},
+                    '中国澳门': {'x': 335, 'y': 227},
+                    '台湾': {'x': 442, 'y': 234},
+                    '中国台湾': {'x': 442, 'y': 234},
+                    '印度': {'x': 268, 'y': 242},
+                    '泰国': {'x': 335, 'y': 260},
+                    '越南': {'x': 359, 'y': 277},
+                    '马来西亚': {'x': 267, 'y': 300},
+                    '新加坡': {'x': 360, 'y': 297},
+                    '菲律宾': {'x': 423, 'y': 285},
+                    '印度尼西亚': {'x': 333, 'y': 347},
+                    '澳大利亚': {'x': 416, 'y': 389},
+                    '新西兰': {'x': 507, 'y': 458},
+                    '美国及加拿大': {'x': 747, 'y': 185},
+                    '北美地区': {'x': 746, 'y': 183},
+                    '墨西哥': {'x': 730, 'y': 278},
+                    '智利': {'x': 808, 'y': 391},
+                    '巴西': {'x': 886, 'y': 353},
+                    '乌拉圭': {'x': 898, 'y': 421},
+                    '葡萄牙': {'x': 17, 'y': 206},
+                    '瑞士': {'x': 110, 'y': 65},
+                    '比利时': {'x': 80, 'y': 152},
+                    '阿根廷': {'x': 835, 'y': 436}
+                };
+
+            private var stateOffsetmap:Object = {
+                    "internation": guojiOffset,
+                    "civil": guoneiOffset,
+                    "province": shengneiOffset
+                };
+
+            private var roamDGAC:ArrayCollection = new ArrayCollection;
+
+            private var lm:LoadManager = new LoadManager(this);
+
+            protected function creationCompleteHandler():void
+            {
+				log.info("creationCompleteHandler");
+				country_name = "";
+//                dateChooser.text = RoamViewApp.dateFormatter.format(new Date());
+
+                roamTypeDDP.selectedIndex = 0;
+
+                dao = RoamViewDAO.getInstance();
+
+                viewTimer.addEventListener(TimerEvent.TIMER, changeView);
+
+                loadData();
+
+                viewTimer.start();
+            }
+
+            private function changeView(event:TimerEvent):void
+            {
+                log.info('切换视图 from:' + roamTypeDDP.selectedItem.label);
+                roamTypeDDP.selectedIndex = (roamTypeDDP.selectedIndex + 1) % 3
+                log.info('切换视图 to:' + roamTypeDDP.selectedItem.label);
+
+                dropdownlist1_changeHandler();
+            }
+
+            private function loadData():void
+            {
+				log.info("loadData");
+				titlelabel.text = "江苏省-各国漫入漫出用户数";
+				lm.showLoading();
+				numLabelGroup.removeAllElements();
+				queryBtn.enabled = false;
+				
+				log.info(roamTypeDDP.selectedItem.value+"---time"+dateChooser.text+"---country_name:null");
+				dao.getRoamDatas(
+					{"type": roamTypeDDP.selectedItem.value, "time": dateChooser.text,"country_name":""},
+                    function(result:Object):void
+                    {
+                        roamDGAC.removeAll();
+                        roamDGAC.addAll(result as IList);
+
+                        roamDG.rowCount = roamDGAC.length + 1;
+
+                        if (roamDGAC.getItemAt(0).time != null)
+                            dataWin.title = roamDGAC.getItemAt(0).time;
+
+                        lm.hideLoading();
+
+                        showNumLabels();
+                        queryBtn.enabled = true;
+                    },
+                    function(e:Object):void
+                    {
+                        queryBtn.enabled = true;
+                    });
+            }
+
+            private function showNumLabels():void
+            {
+                for each (var data:Object in roamDGAC)
+//                for (var index:int = 0; index < 50; index++)
+                {
+                    var numLabel:NumLabel = new NumLabel;
+                    numLabel.label = data.user_num;
+                    numLabel.toolTip = data.city_name;
+                    var offset:Object = stateOffsetmap[this.currentState][data.city_name];
+
+                    log.debug(data.city_name);
+                    log.debug(offset);
+
+                    if (offset != null)
+                    {
+                        numLabel.x = offset.x;
+                        numLabel.y = offset.y;
+                    }
+                    else
+                    {
+                        numLabel.x = 100;
+                        numLabel.y = 100;
+                    }
+
+                    numLabelGroup.addElement(numLabel);
+                }
+            }
+
+            protected function dropdownlist1_changeHandler():void
+            {
+                switch (roamTypeDDP.selectedItem.label)
+                {
+                    case "国际漫入":
+                        this.currentState = "internation";
+                        break;
+                    case "国内漫入":
+                        this.currentState = "civil";
+                        break;
+                    case "省内漫入":
+                        this.currentState = "province";
+                        break;
+                }
+
+                loadData();
+            }
+
+            protected function button1_clickHandler(event:MouseEvent):void
+            {
+                ta.text = "{\n";
+
+                var num:int = numLabelGroup.numElements;
+
+//                var k:String = "label";
+
+                var k:String = "toolTip";
+
+                for (var index:int = 0; index < num; index++)
+                {
+                    if (numLabelGroup.getElementAt(index)[k] != "")
+                        ta.text += "'" + numLabelGroup.getElementAt(index)[k] + "':{'x':" + numLabelGroup.getElementAt(index).x + ", 'y':" + numLabelGroup.getElementAt(index).y + "},\n";
+                }
+                ta.text += "}";
+            }
+
+            private function indexNumLabelFun(value:Object, dg:Object):String
+            {
+                var indexNum:int = (roamDGAC.getItemIndex(value) + 1);
+                return indexNum.toString();
+            }
+
+            protected function tb_clickHandler(event:MouseEvent):void
+            {
+                if (tb.selected)
+                {
+                    viewTimer.start();
+                    tb.label = "自动切换刷新已开";
+                }
+                else
+                {
+                    viewTimer.stop();
+                    tb.label = "自动切换刷新已关";
+                }
+            }
+
+
+            protected function exportImg_clickHandler(event:MouseEvent):void
+            {
+                var header:Array = [{"id": "city_name", "name": "属地"}, {"id": "user_num", "name": "漫入用户数(人)"},{"id": "lte_num", "name": "4G漫入用户数(人)"}, {"id": "user_num_out", "name": "漫出用户数(人)"}];
+                ExcelUtil.exportSimpleExcel("国际漫游数据", header, roamDGAC);
+            }
+
+            protected function roam_clickHandler(event:MouseEvent):void
+            {
+                var url:String = "http://10.39.248.230/monitor/RoamIndex.html";
+                navigateToURL(new URLRequest(url));
+            }
+			
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				var dateStr:String = dateFormatter.format(date);
+				var index:int = dateStr.indexOf(":")
+				dateStr = dateStr.substr(0,index + 1) + "00";
+				return dateStr;
+			}
+			
+			//创建时间
+			protected function createTime(event:FlexEvent, remote:int):void
+			{
+				var d:Date = new Date();
+				if(d.getMinutes() < 10)
+				{
+					d.setHours(d.getHours() - 7)
+				}else{
+					d.setHours(d.getHours() - 6)
+				}
+				var dateStr:String = RoamViewApp.dateFormatter.format(d);
+ 				var index:int = dateStr.indexOf(":")
+				dateStr = dateStr.substr(0,index + 1) + "00:00"; 
+				event.currentTarget.text = dateStr;
+			}
+			
+			
+			protected function roamDG_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object = AdvancedDataGrid(event.target).dataProvider[event.rowIndex];
+				var columDataField:String=String((roamDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+				country_name = String(data[columDataField]); 
+				titlelabel.text = "江苏省各地市-"+country_name+"漫入漫出用户数";
+				if(columDataField == "city_name"){
+					lm.showLoading();
+					queryBtn.enabled = false;
+					
+					log.info(roamTypeDDP.selectedItem.value+"---time"+dateChooser.text+"---country_name:all");
+					dao.getRoamDatas(
+						{"type": roamTypeDDP.selectedItem.value, "time": dateChooser.text,"country_name":country_name},
+						function(result:Object):void
+						{
+							roamDGAC.removeAll();
+							roamDGAC.addAll(result as IList);
+							
+							log.info(roamDGAC);
+							roamDG.rowCount = roamDGAC.length + 1;
+							
+							if (roamDGAC.getItemAt(0).time != null)
+								dataWin.title = roamDGAC.getItemAt(0).time;
+							
+							lm.hideLoading();
+							
+							queryBtn.enabled = true;
+						},
+						function(e:Object):void
+						{
+							queryBtn.enabled = true;
+						});
+				}
+			}
+			
+			
+		]]>
+    </fx:Script>
+
+    <ailk_compts:Window id="win"
+                        width="100%"
+                        height="100%"
+                        styleName="window"
+                        minimizable="false"
+                        maximizable="false"
+                        closable="false">
+        <s:BitmapImage right="0"
+                       left="0"
+                       height="100%"
+                       fillMode="scale"
+                       source="{bg}"/>
+        <s:BitmapImage width="100%"
+                       height="100%"
+                       verticalCenter="0"
+                       horizontalCenter="0"
+                       fillMode="scale"
+                       source.internation="{bg2}"/>
+        <s:HGroup width="100%"
+                  height="100%"
+                  paddingLeft="20"
+                  paddingRight="50"
+                  horizontalAlign="center"
+                  verticalAlign="middle">
+            <s:Group width="100%"
+                     scaleX.internation="1.15"
+                     scaleY.internation="1.15"
+                     scaleX="1"
+                     scaleY="1"
+                     left="160">
+                <s:BitmapImage id="mapimg"
+                               verticalCenter.internation="-70"
+                               verticalCenter="0"
+                               width="100%"
+                               height="100%"
+                               fillMode="clip"
+                               source.internation="{guoji}"
+                               source.civil="{guonei}"
+                               source.province="{shengnei}"/>
+
+                <s:Group width="100%"
+                         height="100%"
+                         color="0xFFFFFF"
+                         fontSize="14"
+                         id="numLabelGroup"/>
+            </s:Group>
+        </s:HGroup>
+    </ailk_compts:Window>
+
+    <ailk_compts:Window id="dataWin"
+                        width="480"
+                        height.province="468"
+                        height="499"
+                        bottom="10"
+                        right="10"
+                        minimizable="false"
+                        maximizable="false"
+                        closable="false"
+                        dragable="true"
+                        styleName="windowSceneGisBottom">
+        <s:VGroup width="100%"
+                  height="100%"
+                  gap="2">
+            <s:HGroup paddingLeft="12"
+                      gap="10">
+				
+                <view:UXDateField id="dateChooser"
+                                  color="0x223B59"
+                                  labelFunction="{RoamViewApp.formatDate}"
+                                  width="190"
+                                  toolTip="{dateChooser.text}"
+								  creationComplete="createTime(event,-3600*6)"/>
+               <!-- <view:UXDateField id="dateChooser"
+                                  color="0x223B59"
+								  labelFunction="formatDate"
+                                  width="190"
+                                  toolTip="{dateChooser.text}" 
+								  creationComplete="createTime(event,-3600*6)"/>-->
+                <s:Button label="查询"
+                          id="queryBtn"
+                          click="loadData()"/>
+				<s:Button id="returnAll"
+						  label="返回"
+						  right="5"
+						  click="loadData()"/>
+            </s:HGroup>
+            <mx:AdvancedDataGrid id="roamDG"
+                                 width="100%"
+                                 fontSize="16"
+                                 fontFamily="微软雅黑"
+                                 height="100%"
+                                 styleName="sceneDG"
+                                 dataProvider="{roamDGAC}"
+								 itemClick="roamDG_itemClickHandler(event)">
+                <mx:columns>
+                    <mx:AdvancedDataGridColumn headerText="排名"
+                                               width="110"
+                                               labelFunction="indexNumLabelFun"/>
+                    <mx:AdvancedDataGridColumn headerText="属地"
+                                               width="110"
+                                               dataField="city_name"/>
+                    <mx:AdvancedDataGridColumn headerText="漫入用户数"
+                                               width="200"
+                                               textAlign="left"
+                                               itemRenderer="com.linkage.module.cms.roaming.view.UpDownItemRenderer"
+                                               dataField="user_num"/>
+                    <mx:AdvancedDataGridColumn headerText="4G漫入"
+                                               width="150"
+                                               textAlign="left"
+                                               itemRenderer="com.linkage.module.cms.roaming.view.lteUpDownItemRenderer"
+                                               dataField="lte_num"/>
+					<mx:AdvancedDataGridColumn headerText="漫出用户数"
+											   width="200"
+											   textAlign="left"
+											   itemRenderer="com.linkage.module.cms.roaming.view.outUpDownItemRenderer"
+											   dataField="user_num_out"/>
+                </mx:columns>
+            </mx:AdvancedDataGrid>
+        </s:VGroup>
+		<s:Label id="titlelabel" 
+				 top="-22"
+				 left="5"/>
+        <mx:Image id="exportImg"
+                  top="-22"
+                  right="5"
+                  buttonMode="true"
+                  toolTip="导出漫游数据"
+                  source="@Embed('../img/export.png')"
+                  click="exportImg_clickHandler(event)"/>
+    </ailk_compts:Window>
+
+
+    <s:DropDownList id="roamTypeDDP"
+                    x="30"
+                    top="10"
+                    change="dropdownlist1_changeHandler()"
+                    dataProvider="{roamTypeDP}"/>
+    <s:ToggleButton id="tb"
+                    click="tb_clickHandler(event)"
+                    x="{30 + roamTypeDDP.width + 30}"
+                    top="10"
+                    label="自动切换刷新已开"
+                    selected="true"/>
+
+    <s:Button top="10"
+              label="漫出数据"
+              x="{tb.x + tb.width + 30}"
+              click="roam_clickHandler(event)"/>
+
+    <s:TextArea id="ta"
+                width="200"
+                visible="false"
+                includeInLayout="false"
+                bottom="5"
+                right="5"/>
+
+    <s:Button id="bt"
+              label="坐标生成"
+              visible="false"
+              includeInLayout="false"
+              click="button1_clickHandler(event)"/>
+</s:Group>

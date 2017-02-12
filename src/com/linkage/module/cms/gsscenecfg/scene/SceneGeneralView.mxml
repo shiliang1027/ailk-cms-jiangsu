@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                   xmlns:s="library://ns.adobe.com/flex/spark"
+                   xmlns:mx="library://ns.adobe.com/flex/mx"
+                   width="235"
+                   height="190"
+                   backgroundImage="@Embed('../img/scenebg.png')"
+                   backgroundAlpha="1"
+                   borderAlpha="0"
+                   contentBackgroundAlpha="0"
+                   creationComplete="skinnablecontainer1_creationCompleteHandler(event)">
+    <fx:Script>
+        <![CDATA[
+            import com.linkage.module.cms.gsscenecfg.area.AreaDetailView;
+            import com.linkage.module.cms.gsscenecfg.common.LEvent;
+            import com.linkage.module.cms.gsscenecfg.dao.SceneDAO;
+
+            import mx.controls.Alert;
+            import mx.events.CloseEvent;
+            import mx.events.FlexEvent;
+            import mx.managers.PopUpManager;
+
+
+            public var data:Object;
+
+            public var context:String;
+
+            [Bindable]
+            public var addAlpha:Number = 1;
+
+            private var adv:AreaDetailView
+            public var sdv:SceneDetailView;
+
+            public var refreshCallBack:Function;
+
+            public var tp:DisplayObject;
+
+            protected function skinnablecontainer1_creationCompleteHandler(event:FlexEvent):void
+            {
+                mg.graphics.beginFill(0xffffff, 0.5);
+                mg.graphics.drawCircle(30, 30, 30);
+                mg.graphics.endFill();
+
+                titleLabel.text = data.scenename;
+
+                sceneImg.source = context + data.scenepic;
+
+                sceneTypeLabel.text = "类型：" + data.scenetypename;
+                createTimeLabel.text = "创建时间：" + data.starttime;
+                creatorLabel.text = "创建人：" + data.creator;
+
+                areaNumLabel.text = data.num;
+            }
+
+            protected function showAddAreaViewWin():void
+            {
+                if (adv == null)
+                {
+                    adv = new AreaDetailView;
+                    adv.context = context;
+                }
+
+                adv.width = tp.width;
+                adv.height = tp.height;
+                adv.editData = null;
+                adv.sceneName = data.scenename;
+
+                if (adv.ready)
+                    adv.init();
+
+                PopUpManager.addPopUp(adv, tp, true);
+                PopUpManager.centerPopUp(adv);
+
+            }
+
+            protected function editScene():void
+            {
+                sdv.width = tp.width;
+                sdv.height = tp.height;
+
+                sdv.editData = this.data;
+
+                if (sdv.ready)
+                    sdv.init();
+
+                PopUpManager.addPopUp(sdv, tp, true);
+                PopUpManager.centerPopUp(sdv);
+
+            }
+
+            private function deleteScene():void
+            {
+                if (this.parentApplication.parameters.account != "admin" && data.creator != this.parentApplication.parameters.account)
+                {
+                    Alert.show("您没有权限删除该场景.", "提示");
+                    return;
+                }
+
+                Alert.show("删除场景，同时会删除下属区域，确定删除吗？",
+                           "删除确认",
+                           Alert.YES | Alert.NO, null,
+                           function(event:CloseEvent):void
+                           {
+                               if (Alert.YES == event.detail)
+                                   SceneDAO.getInstance().deleteSceneInfo(
+                                       {"sceneid": data.sceneid},
+                                       function(result:Object):void
+                                       {
+                                           Alert.show(result.toString());
+
+                                           removeSelfFromParent();
+                                       });
+                           });
+            }
+
+            private function removeSelfFromParent():void
+            {
+                (this.parent as Group).removeElement(this);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:Label id="titleLabel"
+             width="160"
+             maxDisplayedLines="1"
+             top="11"
+             left="11"/>
+
+    <mx:Image source="@Embed('../img/close2.png')"
+              buttonMode="true"
+              top="11"
+              click="deleteScene()"
+              right="35"/>
+    <mx:Image source="@Embed('../img/config.png')"
+              buttonMode="true"
+              click="editScene()"
+              right="13"
+              top="11"/>
+
+    <s:Group left="13"
+             top="38">
+        <mx:Image id="sceneImg"
+                  width="60"
+                  mask="{mg}"
+                  height="60"/>
+        <s:Group id="mg"/>
+    </s:Group>
+
+    <s:VGroup horizontalAlign="left"
+              top="45"
+              gap="14"
+              fontWeight="normal"
+              left="77">
+        <s:Label id="sceneTypeLabel"
+                 width="140"
+                 maxDisplayedLines="1"
+                 textAlign="left"/>
+        <s:Label id="createTimeLabel"
+                 width="140"
+                 maxDisplayedLines="1"
+                 textAlign="left"/>
+        <s:Label id="creatorLabel"
+                 width="140"
+                 maxDisplayedLines="1"
+                 textAlign="left"/>
+    </s:VGroup>
+
+    <s:Label text="保障区域"
+             left="60"
+             bottom="26"/>
+    <s:Label id="areaNumLabel"
+             left="125"
+             bottom="22"
+             fontWeight="bold"
+             color="0x990000"
+             fontFamily="微软雅黑"
+             fontSize="16"/>
+
+    <s:SkinnableContainer id="addImgContainer"
+                          rollOver="{addAlpha = .3;}"
+                          rollOut="{addAlpha = 1;}"
+                          backgroundAlpha="{addAlpha}"
+                          backgroundColor="0x889EB0"
+                          buttonMode="true"
+                          click="showAddAreaViewWin()"
+                          height="22"
+                          width="21"
+                          bottom="21"
+                          right="22">
+        <mx:Image source="@Embed('../img/add.png')"
+                  verticalCenter="0"
+                  horizontalCenter="0"/>
+    </s:SkinnableContainer>
+
+</s:BorderContainer>

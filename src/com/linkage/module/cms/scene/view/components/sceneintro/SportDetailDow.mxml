@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					width="470" height="260" minWidth="200" close="sport_closeHandler(event)"
+					dragable="true" minimizable="false" minimizableBottom="10" minimizableLeft="10"
+					resizable="true" styleName="windowScene" title="详情"
+					titleIcon="@Embed(source='../../../img/title_ico03.png')">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scene.view.components.SceneIntroPM;
+			
+			import mx.managers.PopUpManager;
+			
+			[Inject("sceneIntroPM")]
+			[Bindable]
+			public var sceneIntroPM:SceneIntroPM;
+			
+			protected function sport_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<mx:AdvancedDataGrid id="sportDetailDataGrid" width="100%" height="100%"
+						 dataProvider="{sceneIntroPM.sceneIntroDM.sportMeetTodayArr}"
+						 horizontalScrollPolicy="auto" styleName="sceneDG" verticalAlign="middle">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="gamename" headerText="赛事名称"/>
+			<mx:AdvancedDataGridColumn dataField="gamestarttime" headerText="开始时间"/>
+			<mx:AdvancedDataGridColumn dataField="gameendtime" headerText="结束时间"/>
+			<mx:AdvancedDataGridColumn dataField="gameresult" headerText="比赛结果"/>
+			<mx:AdvancedDataGridColumn dataField="areaid" headerText="区域名称"/>
+			<mx:AdvancedDataGridColumn dataField="venues" headerText="场馆名称"/>
+			<mx:AdvancedDataGridColumn dataField="gamedesc" headerText="赛事描述"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</ailk_compts:Window>

@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  height="100%"
+		  creationComplete="vgroup1_creationCompleteHandler(event)"
+		  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-7-24
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Metadata>
+		[Event(name="CMS_SCENE_RACEINFO_DELETETIP",type="com.linkage.module.cms.scene.event.RaceInfoEvent")]
+		[Event(name="CMS_SCENE_RACEINFO_ADDTIP",type="com.linkage.module.cms.scene.event.RaceInfoEvent")]
+	</fx:Metadata>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.event.RaceInfoEvent;
+
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.utils.StringUtil;
+			private var log:ILogger = Log.getLoggerByClass(RaceInfoAddOrEditTip);
+
+
+			private var _raceInfo:Object;
+
+			private var _gameId:String;
+
+			private var _changeFlag:Boolean = false;
+
+			/**
+			 * 初始化数据
+			 * */
+			public function initRaceInfoHandler(obj:Object):void
+			{
+				gameName.text = obj.gamename;
+				venues.text = obj.venues;
+				startTime.text = obj.gamestarttime;
+				endTime.text = obj.gameendtime;
+				gameResult.text = obj.gameresult;
+				gameDesc.text = obj.gamedesc;
+			}
+
+			/**
+			 * 获取赛事信息数据 注：先获取结果才能赋值变动标志
+			 * */
+			public function getRaceInfoHandler():Object
+			{
+				if (!checkData())
+				{
+					return null;
+				}
+				var param:Object = new Object();
+				if (gameId)
+					param.gameId = gameId;
+				param.gameName = gameName.text;
+				param.venues = venues.text;
+				param.startTime = startTime.text;
+				param.endTime = endTime.text;
+				param.gameResult = gameResult.text;
+				param.gameDesc = gameDesc.text;
+
+				if (raceInfo && raceInfo.gamename == param.gameName && raceInfo.venues == param.venues && raceInfo.starttime == param.startTime && raceInfo.endtime == param.endTime && raceInfo.gamedesc == param.gameDesc)
+				{
+					changeFlag = false;
+				}
+				else
+				{
+					changeFlag = true;
+				}
+
+				return param;
+			}
+
+			private function checkData():Boolean
+			{
+				if (StringUtil.trim(gameName.text).length == 0)
+				{
+					Alert.show("赛事名称不能为空！", "错误");
+					return false;
+				}
+				else
+				{
+					gameName.text = StringUtil.trim(gameName.text);
+				}
+
+				if (StringUtil.trim(venues.text).length == 0)
+				{
+					Alert.show("场馆名称不能为空！", "错误");
+					return false;
+				}
+				else
+				{
+					venues.text = StringUtil.trim(venues.text);
+				}
+
+				return true;
+			}
+
+
+			protected function add_clickHandler(event:MouseEvent):void
+			{
+				dispatchEvent(new RaceInfoEvent(RaceInfoEvent.CMS_SCENE_RACEINFO_ADDTIP));
+
+			}
+
+			protected function delete_clickHandler(event:MouseEvent):void
+			{
+				dispatchEvent(new RaceInfoEvent(RaceInfoEvent.CMS_SCENE_RACEINFO_DELETETIP));
+
+			}
+
+			/**
+			 * 赛事信息
+			 * */
+			public function get raceInfo():Object
+			{
+				return _raceInfo;
+			}
+
+			/**
+			 * @private
+			 */
+			public function set raceInfo(value:Object):void
+			{
+				_raceInfo = value;
+			}
+
+			/**
+			 * 赛事编号
+			 * */
+			public function get gameId():String
+			{
+				return _gameId;
+			}
+
+			/**
+			 * @private
+			 */
+			public function set gameId(value:String):void
+			{
+				_gameId = value;
+			}
+
+			/**
+			 * 变动标志
+			 * */
+			public function get changeFlag():Boolean
+			{
+				return _changeFlag;
+			}
+
+			/**
+			 * @private
+			 */
+			public function set changeFlag(value:Boolean):void
+			{
+				_changeFlag = value;
+			}
+
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("chuangjianwanchen!!");
+
+			}
+		]]>
+	</fx:Script>
+	<mx:Form width="100%"
+			 height="100%">
+		<mx:FormItem direction="horizontal">
+			<s:Label text="赛事名称"/>
+			<s:TextInput id="gameName"
+						 width="150"/>
+			<s:Label text="场馆名称"/>
+			<s:TextInput id="venues"
+						 width="150"/>
+		</mx:FormItem>
+
+		<mx:FormItem direction="horizontal">
+			<s:Label text="开始时间"/>
+			<ailk_compts:UXDateField id="startTime"
+									 width="190"
+									 formatString="YYYY-MM-DD JJ:NN:SS"/>
+			<s:Label text="结束时间"/>
+			<ailk_compts:UXDateField id="endTime"
+									 width="190"
+									 formatString="YYYY-MM-DD JJ:NN:SS"/>
+		</mx:FormItem>
+
+		<mx:FormItem direction="horizontal"
+					 verticalCenter="0">
+			<s:Label text="赛事结果"/>
+			<s:TextInput id="gameResult"
+						 width="150"/>
+			<s:Label text="赛事描述"/>
+			<s:TextArea id="gameDesc"
+						height="50"
+						width="360"/>
+			<mx:Image source="@Embed(source='../../img/+.png')"
+					  click="add_clickHandler(event)"
+					  buttonMode="true"
+					  visible="{gameId==null}"/>
+			<mx:Image source="@Embed(source='../../img/-.png')"
+					  click="delete_clickHandler(event)"
+					  buttonMode="true"/>
+		</mx:FormItem>
+	</mx:Form>
+</s:VGroup>

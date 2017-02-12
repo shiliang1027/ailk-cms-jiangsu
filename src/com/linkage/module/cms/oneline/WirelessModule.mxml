@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:wireless="com.linkage.module.cms.oneline.view.components.wireless.*"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   creationComplete="wirelessModule_creationCompleteHandler(event)"
+		   preinitialize="wirelessModule_preinitializeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.oneline.event.wireless.WirelessEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.BorderContainer;
+			import spark.components.RadioButton;
+			import spark.layouts.HorizontalLayout;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var typeChooseView:BorderContainer;
+
+			protected function wirelessModule_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				var type:String=this.parentApplication.parameters["type"];
+				if (type)
+				{
+					type_changeHandler(String(type));
+				}
+				else
+				{
+					showTypeChooseView(true);
+				}
+
+			}
+
+			protected function type_changeHandler(type:String):void
+			{
+				var evt:WirelessEvent=new WirelessEvent(WirelessEvent.WIRELESSVIEWSHOW);
+				var param:Object=new Object();
+				param.type=type;
+				evt.param=param;
+				msgDispatcher(evt);
+				showTypeChooseView(false);
+			}
+
+			protected function wirelessModule_preinitializeHandler(event:FlexEvent):void
+			{
+				styleManager.loadStyleDeclarations2(this.parentApplication.parameters["styleUrl"]);
+			}
+			
+			protected function wirelessview_closeHandler(event:WindowEvent):void
+			{
+				showTypeChooseView(true);
+			}
+			
+			private function showTypeChooseView(flag:Boolean=true):void{
+				if(flag){
+					if (!typeChooseView)
+					{
+						typeChooseView=new BorderContainer();
+						var layout:HorizontalLayout=new HorizontalLayout();
+						layout.horizontalAlign="center";
+						typeChooseView.layout=layout;
+						typeChooseView.minHeight=0;
+						typeChooseView.minWidth=0;
+						var radioBtn:RadioButton=new RadioButton();
+						radioBtn.label="2G";
+						radioBtn.groupName="type";
+						radioBtn.addEventListener(Event.CHANGE, function(event:Event):void
+						{
+							type_changeHandler('bsc');
+						});
+						typeChooseView.addElement(radioBtn);
+						radioBtn=new RadioButton();
+						radioBtn.label="3G";
+						radioBtn.groupName="type";
+						radioBtn.addEventListener(Event.CHANGE, function(event:Event):void
+						{
+							type_changeHandler('rnc');
+						});
+						typeChooseView.addElement(radioBtn);
+					}
+					PopUpManager.addPopUp(typeChooseView, this);
+					PopUpManager.centerPopUp(typeChooseView);
+				}else{
+					if (typeChooseView)
+					{
+						PopUpManager.removePopUp(typeChooseView);
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-11-28
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<wireless:WirelessView close="wirelessview_closeHandler(event)"/>
+</mx:Module>

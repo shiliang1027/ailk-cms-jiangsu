@@ -1,0 +1,563 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          width="100%"
+          height="100%" xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart">
+    <!--
+    ***************************************
+    This is Content
+    @author hurw (69065)
+    @version 1.0
+    @date 2014-8-11
+    @langversion 3.0
+    @playerversion Flash 11
+    @productversion Flex 4
+    @copyright Ailk NBS-Network Mgt. RD Dept.
+    ***************************************
+    -->
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChart;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.linkage.module.cms.threeWebPerfChart.event.KpiChartEvent;
+			
+			import flashx.textLayout.formats.TextAlign;
+			
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			
+			import spark.components.CheckBox;
+			import spark.components.ComboBox;
+			import spark.components.Label;
+			import spark.components.VGroup;
+
+            private var log:ILogger = Log.getLoggerByClass(HorMuTypeChartWin);
+
+            private var _chartWidth:Number;
+
+            private var _chartHeight:Number;
+
+            private var _kpiName:String;
+            private var _kpiName_2G:String;
+            private var _kpiName_3G:String;
+            private var _kpiName_4G:String;
+//            private var _kpiName_23G:String;
+
+            public var flag:Boolean = false;
+
+            private var unit:String;
+			
+			[Bindable]
+			private var pieChartLabel:String = "基站数";
+			
+			private var lineChartArr:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var lineChartDealArr:ArrayCollection = new ArrayCollection();
+			
+//			private var GMSCbox:CheckBox = null;
+//			private var TDCbox:CheckBox = null;
+//			private var LTECbox:CheckBox = null;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+            //加入chart 表格
+
+			private var p1:SerialParam;
+			private var p2:SerialParam;
+			private var p3:SerialParam;
+			
+			public var isBing:String = "";
+//			private var chart:PrettyChart;
+            public function addChart(datas:ArrayCollection):void
+            {
+                log.info("表格处理开始：width:{0},height:{1}", chartWidth, chartHeight);
+                log.debug(datas);
+				
+                var vg:VGroup = new VGroup();
+                vg.percentHeight = 100;
+                vg.percentWidth = 100;
+                vg.width = chartWidth;
+                vg.height = chartHeight;
+                vg.horizontalAlign = "center";
+                this.addElement(vg);
+
+                var obj:Object = datas.getItemAt(datas.length - 1);
+                kpiName = obj["kpi_name"];
+                kpiName_2G = obj["kpi_name_2G"];
+                kpiName_3G = obj["kpi_name_3G"];
+                kpiName_4G = obj["kpi_name_4G"];
+//                kpiName_23G = obj["kpi_name_23G"];
+                unit = obj["unit"];
+
+                datas.removeItemAt(datas.length - 1);
+                log.debug(datas);
+				
+				lineChartArr.removeAll();
+				lineChartArr.addAll(datas);
+				lineChartArr.refresh();
+				
+			/* 	lineChartDealArr.removeAll();
+				lineChartDealArr.addAll(datas);
+				lineChartDealArr.refresh();
+				
+				log.info("lineChartDealArr");
+				log.info(lineChartDealArr); */
+				
+                var label:Label = new Label();
+
+                label = new Label();
+
+                if (flag)
+                    label.text = "2G/3G用户数及" + kpiName + "[" + unit + "]";
+                else
+                    label.text = kpiName + " [" + unit + "]";
+
+                if (this.parentApplication.parameters.type == "2" || this.parentApplication.parameters.type == "3")
+                    label.text += " 粒度：[" + obj["time_interval"] + "]";
+
+                if (datas.length > 0)
+                {
+                    label.text += " - " + datas.getItemAt(datas.length - 1)['gather_time'];
+                }
+
+                if (this.parentApplication.parameters.type == "2" && datas.length > 0 && kpiName.indexOf("RRC") >= 0)
+                    ;
+                else
+                {
+                    var time:String = datas.getItemAt(datas.length - 1)['gather_time'].toString();
+                    var hour:String = time.split(":")[0];
+                    var min:String = time.split(":")[1];
+
+                    time = (int(hour) + 1) % 24 + ":" + min;
+
+                    label.text += "~" + time;
+                }
+
+                label.setStyle("fontSize", 16);
+                vg.gap = 10;
+                vg.addElement(label);
+				
+				var hg:HGroup = new HGroup();
+				hg.percentWidth = 100;
+				hg.width = chartWidth;
+				hg.horizontalAlign = "center";
+				
+				GMSCbox = new CheckBox();
+				GMSCbox.label = "GMS";
+				GMSCbox.addEventListener(MouseEvent.CLICK,dealsData);
+				hg.addElement(GMSCbox);
+				
+				TDCbox = new CheckBox();
+				TDCbox.label = "TD";
+				TDCbox.addEventListener(MouseEvent.CLICK,dealsData);
+				hg.addElement(TDCbox);
+				
+				LTECbox = new CheckBox();
+				LTECbox.label = "LTE";
+				LTECbox.addEventListener(MouseEvent.CLICK,dealsData);
+				hg.addElement(LTECbox); 
+				
+				var perf_2G_value:String = datas.getItemAt(0)["perf_2G_value"];
+				var perf_3G_value:String = datas.getItemAt(0)["perf_3G_value"];
+				var perf_4G_value:String = datas.getItemAt(0)["perf_4G_value"];
+				if(perf_2G_value != "no")
+				{
+					GMSCbox.selected = true;
+				}else{
+					GMSCbox.selected = false;
+					GMSCbox.enabled = false;
+				}
+				
+				if(perf_3G_value != "no")
+				{
+					TDCbox.selected = true;
+				}else{
+					TDCbox.selected = false;
+					TDCbox.enabled = false;
+				}
+				
+				if(perf_4G_value != "no")
+				{
+					LTECbox.selected = true;
+				}else{
+					LTECbox.selected = false;
+					LTECbox.enabled = false;
+				}
+				
+				vg.addElement(hg);
+
+				chart = new PrettyChart();
+				chart.name=label.text;
+                chart.showXaxisTitle = true;
+                chart.showYaxisTitle = false;
+                chart.maxColumnWidth = 100;
+                chart.width = chartWidth - 20;
+                chart.height = chartHeight - 45;
+                vg.addElement(chart);
+
+                log.info("加入图表kpi_name:{0} 开始", kpiName);
+				
+               p1 = new SerialParam('perf_2G_value', kpiName_2G);
+                p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+                p1.lineStrokeColor = 0X00FF00;
+
+                p2 = new SerialParam('perf_3G_value', kpiName_3G);
+                p2.chartType = PrettyChartType.CHART_TYPE_LINE;
+                p2.lineStrokeColor = 0X0000FF;
+
+                p3 = new SerialParam('perf_4G_value', kpiName_4G);
+                p3.chartType = PrettyChartType.CHART_TYPE_LINE;
+                p3.lineStrokeColor = 0XFF0000;
+
+//                var p4:SerialParam = new SerialParam('perf_23G_value', kpiName_23G);
+//                p4.chartType = PrettyChartType.CHART_TYPE_LINE;
+//                p4.lineStrokeColor = 0X0EECF1;
+
+                var charParam:ChartParam = new ChartParam();
+                //设置横坐标参数
+                charParam.xAxisProperty = "gather_time";
+                charParam.useShowDataEffect = true;
+                charParam.showLegend = false;
+                charParam.padding = 5;
+
+
+                if (this.parentApplication.parameters.type == "2" && kpiName.indexOf("无线接通率") >= 0)
+                {
+                    charParam.leftYaxisMinimum = 80;
+                    chart.justifyMaxValue = false;
+                }
+                else
+                    chart.justifyMaxValue = true;
+
+                chart.noDataMsg = "";
+                chart.canDropLabels = true;
+                chart.chartParam = charParam;
+                chart.series = new ArrayCollection([p1, p2, p3]);
+
+                chart.chartData(datas, true);
+                log.info("加入图表kpi_name:{0} 结束", kpiName);
+            }
+			
+            public function addChartNew(datas:ArrayCollection):void
+            {
+                log.info("表格处理开始：width:{0},height:{1}", chartWidth, chartHeight);
+                log.debug(datas);
+				
+                var obj:Object = datas.getItemAt(datas.length - 1);
+                kpiName = obj["kpi_name"];
+                kpiName_2G = obj["kpi_name_2G"];
+                kpiName_3G = obj["kpi_name_3G"];
+                kpiName_4G = obj["kpi_name_4G"];
+//                kpiName_23G = obj["kpi_name_23G"];
+                unit = obj["unit"];
+
+                datas.removeItemAt(datas.length - 1);
+                log.debug(datas);
+				
+				lineChartArr.removeAll();
+				lineChartArr.addAll(datas);
+				lineChartArr.refresh();
+				
+                if (flag)
+					title.text = "2G/3G用户数及" + kpiName + "[" + unit + "]";
+                else
+					title.text = kpiName + " [" + unit + "]";
+
+                if (this.parentApplication.parameters.type == "2" || this.parentApplication.parameters.type == "3")
+					title.text += " 粒度：[" + obj["time_interval"] + "]";
+
+                if (datas.length > 0)
+                {
+					title.text += " - " + datas.getItemAt(datas.length - 1)['gather_time'];
+                }
+
+                if (this.parentApplication.parameters.type == "2" && datas.length > 0 && kpiName.indexOf("RRC") >= 0)
+                    ;
+                else
+                {
+                    var time:String = datas.getItemAt(datas.length - 1)['gather_time'].toString();
+                    var hour:String = time.split(":")[0];
+                    var min:String = time.split(":")[1];
+
+                    time = (int(hour) + 1) % 24 + ":" + min;
+
+					title.text += "~" + time;
+                }
+
+				var perf_2G_value:String = datas.getItemAt(0)["perf_2G_value"];
+				var perf_3G_value:String = datas.getItemAt(0)["perf_3G_value"];
+				var perf_4G_value:String = datas.getItemAt(0)["perf_4G_value"];
+
+				chart.name= title.text;
+                chart.showXaxisTitle = true;
+                chart.showYaxisTitle = false;
+                chart.maxColumnWidth = 100;
+                chart.width = chartWidth - 20;
+                chart.height = chartHeight - 45;
+
+                log.info("加入图表kpi_name:{0} 开始", kpiName);
+				
+                p1 = new SerialParam('perf_2G_value', kpiName_2G);
+                p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+                p1.lineStrokeColor = 0X00FF00;
+
+                p2 = new SerialParam('perf_3G_value', kpiName_3G);
+                p2.chartType = PrettyChartType.CHART_TYPE_LINE;
+                p2.lineStrokeColor = 0X0000FF;
+
+                p3 = new SerialParam('perf_4G_value', kpiName_4G);
+                p3.chartType = PrettyChartType.CHART_TYPE_LINE;
+                p3.lineStrokeColor = 0XFF0000;
+
+                var charParam:ChartParam = new ChartParam();
+                //设置横坐标参数
+                charParam.xAxisProperty = "gather_time";
+                charParam.useShowDataEffect = true;
+                charParam.showLegend = false;
+                charParam.padding = 5;
+				charParam.showLegend = false;
+
+                if (this.parentApplication.parameters.type == "2" && kpiName.indexOf("无线接通率") >= 0)
+                {
+                    charParam.leftYaxisMinimum = 80;
+                    chart.justifyMaxValue = false;
+                }
+                else
+                    chart.justifyMaxValue = true;
+
+                chart.noDataMsg = "";
+                chart.canDropLabels = true;
+                chart.chartParam = charParam;
+                chart.series = new ArrayCollection([p1, p2, p3]);
+
+                chart.chartData(datas, true);
+                log.info("加入图表kpi_name:{0} 结束", kpiName);
+            }
+			
+			/**
+			 * 
+			 * 创建图形。
+			 **/ 
+			public function pieChartBuildChart(datas:ArrayCollection):void
+			{
+				
+				log.info("饼状图处理开始：width:{0},height:{1}", chartWidth, chartHeight);
+				log.debug(datas);
+				var vg:VGroup = new VGroup();
+				vg.percentHeight = 100;
+				vg.percentWidth = 100;
+				vg.width = chartWidth;
+				vg.height = chartHeight;
+				vg.horizontalAlign = "center";
+				this.addElement(vg);
+				
+				log.info("加入饼状图表kpi_name:{0} 开始", kpiName);
+				
+				var obj:Object = datas.getItemAt(datas.length - 1);
+				kpiName = obj["kpi_name"];
+				kpiName_2G = obj["kpi_name_2G"];
+				kpiName_3G = obj["kpi_name_3G"];
+				kpiName_4G = obj["kpi_name_4G"];
+				//                kpiName_23G = obj["kpi_name_23G"];
+				unit = obj["unit"];
+				
+				datas.removeItemAt(datas.length - 1);
+				log.debug(datas);
+				
+				var label:Label = new Label();
+				
+				label = new Label();
+				
+				if (flag)
+					label.text = "2G/3G用户数及" + kpiName + "[" + unit + "]";
+				else
+					label.text = kpiName + " [" + unit + "]";
+				
+				label.setStyle("fontSize", 16);
+				vg.gap = 10;
+				vg.addElement(label);
+				
+				var pieChart:PrettyChart = new PrettyChart();
+				pieChart.showXaxisTitle = false;
+				pieChart.showYaxisTitle = false;
+				pieChart.maxColumnWidth = 100;
+				pieChart.width = chartWidth - 20;
+				pieChart.height = chartHeight - 20;
+				vg.addElement(pieChart);
+				
+				pieChart.xAxisFontSize = 13;
+				pieChart.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				var sp:SerialParam = new SerialParam("value", pieChartLabel);
+				sp.chartType = "pie";
+				series.addItem(sp);
+				
+				log.info("8");
+				pieChart.series = series;
+				pieChart.canDropLabels = true;
+				pieChart.xAxisFontSize = 12;
+				var chartparam:ChartParam = new ChartParam();
+				chartparam.labelStep = 1;
+				chartparam.itemClickEnable = true;
+				chartparam.xAxisProperty = 'mo_type_name';
+				chartparam.use3DColumn = true;
+				chartparam.showLegend = true;
+				pieChart.chartParam = chartparam;
+				
+				pieChart.chartData(datas, false);
+				
+				log.info("加入饼状图表kpi_name:{0} 结束", kpiName);
+				
+			}
+			
+			private function dealsData():void
+			{
+				
+			/* 	 var e:KpiChartEvent = new KpiChartEvent(KpiChartEvent.CMS_KPICHART_LINE_REFALSH);
+				e.param = lineChartArr;
+				dispatchMsg(e);
+				  */
+				
+				
+				log.info(lineChartArr);
+				var serArray:ArrayCollection = new ArrayCollection();
+				if(GMSCbox.selected){
+					serArray.addItem(p1);
+				}
+				
+				log.info("4");
+				if(TDCbox.selected){
+					serArray.addItem(p2);
+				}
+				
+				
+				log.info("5");
+				if(LTECbox.selected){
+					serArray.addItem(p3);
+				} 
+				
+				chart.series = serArray;
+				log.info("8");
+				chart.chartData(lineChartArr, true);
+//				chart.chartData(lineChartArr, false);
+				
+				log.info(chart.name);
+				log.info("Cbox_clickHandler end");
+				
+			}
+
+			private var topNData:ArrayCollection = new ArrayCollection(
+                [{"perf_4G_value": 15048.92, "gather_time": "10:00"},
+                 {"perf_2G_value": 3974.27, "perf_4G_value": 10199.45, "gather_time": "11:00"},
+                 {"perf_2G_value": 'aaa', "perf_4G_value": 12031.28, "gather_time": "12:00", "perf_3G_value": 1858.47},
+                 {"perf_2G_value": 3794.86, "perf_4G_value": 11352.58, "gather_time": "13:00", "perf_3G_value": 1415.9},
+                 {"perf_2G_value": 3668.06, "perf_4G_value": 9460.62, "gather_time": "14:00", "perf_3G_value": 2255.75},
+                 {"perf_2G_value": 3668.06, "perf_4G_value": 5260.25, "gather_time": "15:00", "perf_3G_value": 4521.7},
+                 {"perf_2G_value": 3724.15, "perf_4G_value": 5160.17, "gather_time": "16:00", "perf_3G_value": 2036.63},
+                 {"perf_2G_value": 6460.88, "perf_4G_value": 6580, "gather_time": "17:00", "perf_3G_value": 2088},
+                 {"perf_2G_value": 6460.88, "perf_4G_value": 7260.97, "gather_time": "18:00", "perf_3G_value": 3513.16},
+                 {"perf_2G_value": 6460, "perf_4G_value": 11024.5, "gather_time": "19:00", "perf_3G_value": 6921.7},
+                 {"perf_2G_value": 'vvv', "perf_4G_value": 6534.54, "gather_time": "20:00", "perf_3G_value": 1675.78}]);
+
+
+            private function topnTipFunc(hd:HitData):String
+            {
+                var data:Object = hd.item;
+                return "<B>" + data["kpi_name"] + "</B>\n" + data["gather_time"] + "\n" + data["perf_value"] + data["unit"];
+            }
+
+            public function get chartWidth():Number
+            {
+                return _chartWidth;
+            }
+
+			public function set chartWidth(value:Number):void
+            {
+                _chartWidth = value;
+            }
+
+			public function get chartHeight():Number
+            {
+                return _chartHeight;
+            }
+
+			public function set chartHeight(value:Number):void
+            {
+                _chartHeight = value;
+            }
+
+            private function get kpiName():String
+            {
+                return _kpiName;
+            }
+
+            private function set kpiName(value:String):void
+            {
+                _kpiName = value;
+            }
+
+            private function get kpiName_2G():String
+            {
+                return _kpiName_2G;
+            }
+
+            private function set kpiName_2G(value:String):void
+            {
+                _kpiName_2G = value;
+            }
+
+            private function get kpiName_3G():String
+            {
+                return _kpiName_3G;
+            }
+
+            private function set kpiName_3G(value:String):void
+            {
+                _kpiName_3G = value;
+            }
+
+            private function get kpiName_4G():String
+            {
+                return _kpiName_4G;
+            }
+
+            private function set kpiName_4G(value:String):void
+            {
+                _kpiName_4G = value;
+            }
+
+//            private function get kpiName_23G():String
+//            {
+//                return _kpiName_23G;
+//            }
+//
+//            private function set kpiName_23G(value:String):void
+//            {
+//                _kpiName_23G = value;
+//            }
+        ]]>
+    </fx:Script>
+	
+	<s:VGroup width="100%" height="100%">
+		<s:HGroup width="100%" horizontalAlign="center">
+			<s:Label id="title"/>
+		</s:HGroup>
+		<s:HGroup width="100%" horizontalAlign="center" visible="{!isBing}" includeInLayout="{!isBing}">
+			<s:CheckBox id="GMSCbox" label="GMS" change="dealsData()"/>
+			<s:CheckBox id="TDCbox" label="TD" change="dealsData()"/>
+			<s:CheckBox id="LTECbox" label="LTE" change="dealsData()"/>
+		</s:HGroup>
+		<s:VGroup width="100%" height="100%">
+			<ailk_chart:PrettyChart id="chart" width="100%" height="100%"/>
+		</s:VGroup>
+	</s:VGroup>
+</s:HGroup>

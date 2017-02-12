@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+								  xmlns:s="library://ns.adobe.com/flex/spark" 
+								  xmlns:mx="library://ns.adobe.com/flex/mx" 
+								  focusEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclient.event.HealthInfoCompEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.events.FlexEvent;
+			
+			import spark.events.TextOperationEvent;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.renderer");
+			protected function lblData_changeHandler(event:TextOperationEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("lblData_changeHandler");
+				var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.CHANGEDATARENDERER,true,true);
+				var param:Object = new Object();
+				param.lblDataText = lblData.text;
+				log.info("更改的数据已变成====="+param.lblDataText);
+				dispatchEvent(evt);
+			}
+			
+			
+			protected function lblData_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				lblData.editable = true;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<!--<s:Label id="lblData" top="0" left="0" right="0" bottom="0" text="{listData.label}"/>-->
+	<s:TextInput id="lblData" top="0" left="0" right="0" bottom="0" text="{listData.label}" change="lblData_changeHandler(event)" doubleClick="lblData_clickHandler(event)" editable="false"/>
+</s:MXAdvancedDataGridItemRenderer>

@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:common="com.linkage.module.cms.threeWebPerfChart.common.*"
+		 xmlns:view="com.linkage.module.cms.threeWebPerfChart.view.*"
+		 xmlns:components="com.linkage.module.cms.threeWebPerfChart.view.components.*"
+		 creationComplete="group1_creationCompleteHandler(event)" >
+	
+	<fx:Declarations>
+		<s:Fade id="fade"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="400"/>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.threeWebPerfChart.event.KpiChartEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.threeWebPerfChart.view.KpiChartView");
+			
+			private var timer:Timer = new Timer(1000*60*5); 
+			private var dateCount:Number= 0;
+			
+			[Inject("kpiChartViewPM")]
+			[Bindable]
+			public var pm:KpiChartViewPM;
+			
+			public function initView():void
+			{
+				//初始化数据
+				pm.loadLeftTree();
+			}
+			
+			/**
+			 *刷新页面
+			 * */
+			protected function refreshPage():void
+			{
+				log.info("refreshPage");
+				var date:Number = new Date().getTime();
+				if(date - dateCount > 10*1000)
+				{
+					
+					timer.stop();
+					//						refreshLoadSchemeByUser();
+				}
+				else
+				{
+					var dateS:Number = 10 - (date - dateCount)/1000 ;
+					Alert.show("刷新过勤,"+  dateS.toFixed(2) +"秒钟后可刷新");
+				}
+				
+				dateCount = date;
+				
+			}
+			
+			/**
+			 *隐藏方案配置窗口， 监控窗口最大化
+			 * */
+			protected function hideSideBar():void
+			{
+				twpWindow.visible = false;
+				monitorWindow.left = 29;
+			}
+			
+			public function getSceneInfo(event:ListEvent):void
+			{
+				pm.dm.chartDatas.removeAll();
+				var obj:XML = Tree(event.currentTarget).selectedItem as XML;
+				var params:Object = pm.dealParams(obj);
+				pm.queryKpiMuTypeCharts(params);
+			}
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+//				var target:ILoggingTarget = new MonsterTarget2();
+//				target.level = LogEventLevel.ALL;
+//				target.filters = ["com.linkage.module.cms.threeWebPerfChart*"];
+//				Log.addTarget(target);
+//				log.info('日志初始化完成~');
+			}
+			
+			[MessageHandler(selector = "CMS_KPICHART_LEFT_TREE_DEFAULT_SELECTED")]
+			public function initCharts(e:KpiChartEvent):void
+			{
+				log.info("CMS_KPICHART_LEFT_TREE_DEFAULT_SELECTED");
+				
+			 	var obj:XML = XML(pm.dm.adminTreeData);
+				log.info(obj);
+				var params:Object = pm.dealParams(obj);
+				
+				log.info("params");
+				log.info(params);
+				pm.queryKpiMuTypeCharts(params); 
+			}
+			
+			/**
+			 *显示方案配置窗口， 监控窗口恢复起初大小
+			 * */
+			protected function showSideBar():void
+			{
+				twpWindow.visible = true;
+				monitorWindow.left = 200;
+			}
+			
+			
+			protected function fullScreen():void
+			{
+				if (this.stage.displayState == StageDisplayState.NORMAL)
+				{
+					this.stage.displayState = StageDisplayState.FULL_SCREEN;
+					monitorWindow.left = 29;
+					twpWindow.visible = false;
+					
+				}
+				else
+				{
+					this.stage.displayState = StageDisplayState.NORMAL;
+					monitorWindow.left = 200;
+					twpWindow.visible = true;
+				}
+				view.resize();
+				
+			}
+			protected function monitorWindow_maximizeHandler(event:WindowEvent):void
+			{
+				twpWindow.visible = false;
+				monitorWindow.left = 29;
+				// TODO Auto-generated method stub
+			}
+			
+			protected function monitorWindow_restoreHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				twpWindow.visible = true;
+				monitorWindow.left = 200;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<ailk_compts:Window id="twpWindow"
+						width="190"
+						left="6"
+						top="6"
+						bottom="6"
+						closable="false"
+						maximizable="false"
+						minimizable="false"
+						styleName="windowPerf"
+						height="100%">
+		<mx:Image source="@Embed('../img/refresh.png')"
+				  right="25"
+				  toolTip="刷新"
+				  buttonMode="true"
+				  click="refreshPage()"
+				  top="-20"/>
+		<mx:Image source="@Embed('../img/pin.png')"
+				  right="10"
+				  toolTip="隐藏侧边栏"
+				  buttonMode="true"
+				  click="hideSideBar()"
+				  top="-20"/>
+			<s:VGroup width="100%"
+					  height="100%"
+					  paddingTop="8"
+					  paddingRight="6"
+					  paddingBottom="6"
+					  paddingLeft="6">
+				<s:TabBar id="chartTabBar"
+						  dataProvider="{chartViewStack}"
+						  buttonMode="true"
+						  styleName="sceneTabBar1"/>
+				<mx:ViewStack width="100%"
+							  height="100%"
+							  styleName="sceneViewStack"
+							  id="chartViewStack"
+							  creationPolicy="all">
+					<s:NavigatorContent width="100%" height="100%" 
+										creationPolicy="all"
+										label="行政区域">
+						<mx:Tree id="adminTree"
+								 width="100%"
+								 height="100%"
+								 borderAlpha="0" styleName="sceneTree"
+								 openItems="{pm.dm.adminTreeData}"
+								 contentBackgroundAlpha="0"
+								 dataProvider="{pm.dm.adminTreeData}"
+								 labelField="@name"
+								 itemClick="{getSceneInfo(event)}"/>
+					</s:NavigatorContent>
+					<s:NavigatorContent width="100%" height="100%" 
+										creationPolicy="all"
+										label="特定区域">
+						<mx:Tree id="specialTree" 
+								 styleName="sceneTree"
+								 width="100%"
+								 height="100%"
+								 borderAlpha="0"
+								 openItems="{pm.dm.specialTreeData}"
+								 contentBackgroundAlpha="0"
+								 dataProvider="{pm.dm.specialTreeData}"
+								 labelField="@name"
+								 itemClick="{getSceneInfo(event)}"/>
+					</s:NavigatorContent>
+					
+				</mx:ViewStack>
+		</s:VGroup>
+	</ailk_compts:Window>
+	
+	<components:VButton id="cfgMiniBtn"
+					label="三网对比"
+					left="0"
+					top="10"
+					visible="{!twpWindow.visible}"
+					click="showSideBar()"
+					width="25"
+					height="100"/>
+	<ailk_compts:Window id="monitorWindow"
+						left="200"
+						right="6"
+						top="6"
+						bottom="6"
+						styleName="windowPerf"
+						closable="false"
+						minimizable="false"
+						maximize="fullScreen()"
+						restore="fullScreen()"
+						title="三网性能对比"
+						width="100%"
+						height="100%">
+		<view:KpiChartMuTypeView id="view"/>
+	</ailk_compts:Window>
+	<s:VGroup id="explain"
+			  paddingLeft="20"
+			  paddingBottom="10"
+			  paddingTop="10"
+			  visible="false"
+			  includeInLayout="false"
+			  color="red"
+			  fontWeight="bold"
+			  gap="5">
+		<s:Label text="即时通信包括QQ、米聊、飞信、微信、陌陌等191种即时通信方式汇总"/>
+		<s:Label text="网页浏览主要包括UC、360浏览器、qq浏览器、百度、搜狗浏览器等1907种网页浏览汇总"/>
+	</s:VGroup>
+</s:Group>

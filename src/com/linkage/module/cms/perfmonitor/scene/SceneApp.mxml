@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:parsley="http://www.spicefactory.org/parsley"
+			   width="100%"
+			   height="100%"
+			   preinitialize="application1_preinitializeHandler(event)">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{SceneAppContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(SceneApp);
+
+			[Init]
+			public function init():void
+			{
+				moduleLoaderA.loadModule("C:/Users/panyin/Adobe Flash Builder 4.6/CMS/bin-release/com/linkage/module/cms/scene/SceneModule.swf");
+			}
+
+			protected function application1_preinitializeHandler(event:FlexEvent):void
+			{
+				var target:MonsterTarget2 = new MonsterTarget2();
+				target.level = LogEventLevel.DEBUG;
+				target.filters = ["*"];
+				Log.addTarget(target);
+
+				Alert.show(log.debugEnabled + " " + log.infoEnabled);
+
+				log.info("应用程序初始化结束，日志初始化完成。");
+			}
+		]]>
+	</fx:Script>
+	<mx:ModuleLoader label="A"
+					 width="100%"
+					 height="100%"
+					 id="moduleLoaderA"/>
+</s:Application>

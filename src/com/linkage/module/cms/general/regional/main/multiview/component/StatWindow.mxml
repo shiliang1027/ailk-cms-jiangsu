@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.main.multiview.component.renderer.SeverityRenderer;
+			import com.linkage.module.cms.general.regional.main.multiview.core.MultiViewAction;
+			import com.linkage.module.cms.general.regional.main.multiview.param.MultiContainer;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.multiview.component.StatWindow");
+			// 列id: 第一列
+			private var _columnKeyFirst:String="column_first";
+			// 列名称:第一列
+			private var _columnNameFirst:String="第一列";
+			[Bindable]
+			//告警列表容器
+			private var _alarmsAC:ArrayCollection=null;
+			[Bindable]
+			//告警统计行列对应数量Map容器
+			private var _rowColumnNumMap:Object=null;
+			// 列的key(包含第一列)
+			private var _columnKeys:Array=null;
+			// 行的key
+			private var _rowKeys:Array=null;
+			//多维视图控制器
+			public var _multiViewAction:MultiViewAction=null;
+			//加载统计告警定时器 Timer (30s)
+			private var _loadStatTimer:Timer=new Timer(30000);
+
+			/**
+			 * 初始化窗口
+			 */
+			public function initWindow():void
+			{
+				//1.初始化列和行
+				columns=_multiViewAction.multiFo.specs;
+				rows=_multiViewAction.multiFo.alarmLevelArray;
+
+				//2.启动定时刷新数据
+				_loadStatTimer.addEventListener(TimerEvent.TIMER, loadAlarmTotal);
+				_loadStatTimer.start();
+				loadAlarmTotal(null);
+			}
+
+			/**
+			 * 加载告警汇总
+			 */
+			public function loadAlarmTotal(event:TimerEvent):void
+			{
+				_multiViewAction.loadAlarmTotal(function(result:Object):void
+					{
+						dealWithLoadAlarmData(result);
+					});
+			}
+
+			/**
+			 * 处理汇总告警
+			 */
+			private function dealWithLoadAlarmData(result:Object):void
+			{
+				//1.循环更新数据
+				for each (var data:Object in result)
+				{
+					updateStatNum(MultiContainer.PARAMKEY_LEVEL1, data["spec"], data["level1"]);
+					updateStatNum(MultiContainer.PARAMKEY_LEVEL2, data["spec"], data["level2"]);
+					updateStatNum(MultiContainer.PARAMKEY_LEVEL3, data["spec"], data["level3"]);
+					updateStatNum(MultiContainer.PARAMKEY_LEVEL4, data["spec"], data["level4"]);
+				}
+
+				//2.刷新视图
+				refresh();
+			}
+
+			/**
+			 * 刷新视图
+			 */
+			public function refresh():Boolean
+			{
+				return _alarmsAC.refresh();
+			}
+
+			/**
+			 * 更新刷新数据
+			 *  @param rowId 行id
+			 *  @param columnId 列id
+			 *  @param num 对应数量
+			 */
+			public function updateStatNum(rowId:String, columnId:String, num:int):void
+			{
+				if (rowId == null)
+				{
+					return;
+				}
+				var columns:Object=_rowColumnNumMap[rowId];
+				if (columns == null || columns[columnId] == null)
+				{
+					return;
+				}
+				columns[columnId]=num;
+			}
+
+			/**
+			 * 配置行(先设置列,再设置行)<br>
+			 * 数据格式为 [{id:'',name:'',visible:true}]
+			 */
+			public function set rows(array:Array):void
+			{
+				_rowKeys=[];
+				_alarmsAC=new ArrayCollection();
+				_rowColumnNumMap={};
+				for each (var obj:Object in array)
+				{
+					var rowId:String=obj.id;
+					// 存储行id
+					_rowKeys.push(rowId);
+					// 构造空的列表数据
+					var row:Object={};
+					row[columnKeyFirst]=obj.name;
+					for each (var columnKey:Object in _columnKeys)
+					{
+						row[columnKey]=0;
+					}
+					_rowColumnNumMap[rowId]=row;
+					_alarmsAC.addItem(_rowColumnNumMap[rowId]);
+
+				}
+			}
+
+			/**
+			 * 配置列(先设置列,再设置行)<br>
+			 * 数据格式为 [{id:'',name:'',visible:true}]
+			 */
+			public function set columns(array:Array):void
+			{
+				var columns:Array=[];
+				var column:AdvancedDataGridColumn=null;
+				// 定义第一列
+				column=new AdvancedDataGridColumn();
+				column.dataField=columnKeyFirst;
+				column.headerText=columnNameFirst;
+				column.itemRenderer=new ClassFactory(SeverityRenderer);
+				column.visible=true;
+				column.width=150;
+				columns.push(column);
+				// 列id
+				_columnKeys=[];
+				for each (var obj:Object in array)
+				{
+					column=new AdvancedDataGridColumn();
+					column.dataField=obj.id;
+					column.headerText=obj.name;
+					if (obj.visible)
+					{
+						column.visible=obj.visible;
+					}
+					column.width=100;
+					columns.push(column);
+					_columnKeys.push(obj.id);
+				}
+				alarms.columns=columns;
+			}
+
+			public function set multiViewAction(multiViewAction:MultiViewAction):void
+			{
+				_multiViewAction=multiViewAction;
+			}
+
+			public function get columnKeyFirst():String
+			{
+				return _columnKeyFirst;
+			}
+
+			public function set columnKeyFirst(value:String):void
+			{
+				_columnKeyFirst=value;
+			}
+
+			public function get columnNameFirst():String
+			{
+				return _columnNameFirst;
+			}
+
+			public function set columnNameFirst(value:String):void
+			{
+				_columnNameFirst=value;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="alarms"
+						 width="100%"
+						 height="100%"
+						 editable="false"
+						 enabled="true"
+						 draggableColumns="false"
+						 horizontalScrollPolicy="off"
+						 dataProvider="{_alarmsAC}"
+						 rowCount="4">
+		<mx:columns>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</s:Group>

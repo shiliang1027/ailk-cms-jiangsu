@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="300" height="200" close="closeMe();" 
+			  dragable="true">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			//显示全部管线
+			private var _showAll:Function = null;
+			
+			//显示指定管线
+			private var _showLine:Function = null;
+			
+			//记录当前网元所有的管线编号
+			private var lines:ArrayCollection = new ArrayCollection();
+			
+			public function get showLine():Function
+			{
+				return _showLine;
+			}
+
+			public function set showLine(value:Function):void
+			{
+				_showLine = value;
+			}
+
+			public function get showAll():Function
+			{
+				return _showAll;
+			}
+
+			public function set showAll(value:Function):void
+			{
+				_showAll = value;
+			}
+			
+			public function closeMe():void
+			{
+				this.visible = false;
+			}
+
+			public function initData(obj:Object):void
+			{
+				this.neLineInfo.removeAllElements();
+				lines.removeAll();
+				
+				for each (var line:Object in obj)
+				{
+					var l:Label = new Label();
+					var lineId:String = line["circuit_name"];
+					l.text = line["circuit_name"];
+					l.buttonMode = true;
+					l.percentWidth = 100;
+					l.addEventListener(MouseEvent.CLICK,function(e:MouseEvent):void
+					{
+						_showLine.call(null,lineId);
+					});
+					
+					lines.addItem(lineId);
+					this.neLineInfo.addElement(l);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%">
+		<s:HGroup width="100%" height="20">
+			<s:Button label="显示所有管线链路信息" buttonMode="true" click="_showAll.call(null,lines,true);"/>
+			<s:Button label="隐藏管线" buttonMode="true" click="_showAll.call(null,lines,false);"/>
+		</s:HGroup>
+		<s:Label text="根据电路编码查询链路信息"/>
+		<mx:HRule width="100%" height="2"/>
+		<s:VGroup width="100%" height="100%" id="neLineInfo">
+		</s:VGroup>
+	</s:VGroup>
+</panel:Window>

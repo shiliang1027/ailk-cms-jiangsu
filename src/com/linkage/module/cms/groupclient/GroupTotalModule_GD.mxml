@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%" 
+		   xmlns:panel="com.linkage.system.component.panel.*" 
+		   creationComplete="module_creationCompleteHandler(event)"
+		   creationCompleteEffect="{fadeEffect}" xmlns:components="com.linkage.module.cms.groupclient.components.*" 
+		   dragDrop="dragDropHandler(event)" 
+		   dragEnter="dragEnterHandler(event)">
+	<!-- 广东集客概况模块  -->
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:states>
+		<s:State name="viewLayer"/>
+		<s:State name="viewLayer_1"/>
+		<s:State name="viewLayer_2"/>
+		<s:State name="viewLayer_3"/>
+	</mx:states>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<fx:Script source="GroupTotal.as"/>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Fade id="fadeEffect" alphaFrom="0" alphaTo="1" duration="3000" effectEnd="fadeEffect_effectEndHandler(event)"/>
+		<s:Animate id="rightBounceGroupOpenEffect"
+				   target="{rightBounceGroup}" repeatCount="1" duration="500" effectStart="rightBounceBtn.enabled=false" effectEnd="rightBounceBtn.enabled=true;rightBounceBtn.source=closeImg">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="right" valueFrom="{-rightBounceGroup.width+rightBounceBtnGroup.width}" valueTo="0"/>
+			</s:motionPaths>
+		</s:Animate>
+		<s:Animate id="rightBounceGroupCloseEffect"
+				   target="{rightBounceGroup}" repeatCount="1" duration="500" effectStart="rightBounceBtn.enabled=false" effectEnd="rightBounceBtn.enabled=true;rightBounceBtn.source=openImg">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="right" valueFrom="0" valueTo="{-rightBounceGroup.width+rightBounceBtnGroup.width}"/>
+			</s:motionPaths>
+		</s:Animate>
+
+	</fx:Declarations>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:Group width="100%" height="100%" top="5" left="5" bottom="5">
+		<mx:HDividedBox width="100%" height="100%" paddingRight="6">
+			<!-- 地图区域 -->
+			<s:BorderContainer id="leftContainer" width="720" height="100%" styleName="commonBorderContainer">
+				<components:DummyMapWork_GD id="dummyMapWork" includeIn="viewLayer_1" 
+										 init="dummyMapWork_initHandler(event)" 
+										 cityLayerChange="dummyMapWork_cityLayerChangeHandler(event)" 
+										 cityLayerNoSelected="dummyMapWork_cityLayerNoSelectedHandler(event)"
+										 mapCitySelected="dummyMapWork_mapCitySelectedHandler(event)"/>
+				<components:GisMapWork id="gisMapWork" includeIn="viewLayer_2,viewLayer_3" currentState="{this.currentState}" 
+									   init="gisMapWork_initHandler(event)" 
+									   viewBack="gisMapWork_viewBackHandler(event)" 
+									   cityLocationSelected="gisMapWork_cityLocationSelectedHandler(event)"/>
+			</s:BorderContainer>
+			<mx:VDividedBox id="rightDivBox" width="100%" height="100%">
+				<!-- 客户概况 -->
+				<components:CustWindow id="custWindow" visible.viewLayer_3="false" includeInLayout.viewLayer_3="false" currentState="{this.currentState}" 
+									   init="custWindow_initHandler(event)" 
+									   custAlarmShow="custWindow_custAlarmShowHandler(event)" 
+									   custShow="custWindow_custShowHandler(event)" 
+									   pageGo="custWindow_pageGoHandler(event)"
+									   mouseDown="mouseMoveHandler(event);" 
+									   restore="restoreHandler(event)" 
+									   maximize="maximizeHandler(event)" 
+									   close="closeHandler(event)"/>
+				<!-- 业务概况 -->
+				<components:ServWindow id="servWindow" currentState="{this.currentState}" 
+									   init="servWindow_initHandler(event)" 
+									   custAlarmShow="servWindow_custAlarmShowHandler(event)" 
+									   custShow="servWindow_custShowHandler(event)"
+									   custProv="servWindow_custProvHandler(event)" 
+									   custTransProv="servWindow_custTransProvHandler(event)" 
+									   pageGo="servWindow_pageGoHandler(event)" 
+									   custAlarmAllShow="servWindow_custAlarmAllShowHandler(event)" 
+									   custAlarmOnlyShow="servWindow_custAlarmOnlyShowHandler(event)"
+									   mouseDown="mouseMoveHandler(event);" 
+									   restore="restoreHandler(event)" 
+									   maximize="maximizeHandler(event)" 
+									   close="closeHandler(event)"/>
+				<!-- 运行质量 -->
+				<components:RunQuaWindow id="runQuaWindow" currentState="{this.currentState}" 
+										 init="runQuaWindow_initHandler(event)" 
+										 custAlarmShow="runQuaWindow_custAlarmShowHandler(event)" 
+										 custProv="runQuaWindow_custProvHandler(event)" 
+										 custTransProv="runQuaWindow_custTransProvHandler(event)" 
+										 sheetShow="runQuaWindow_sheetShowHandler(event)" 
+										 custShow="runQuaWindow_custShowHandler(event)"
+										 pageGo="runQuaWindow_pageGoHandler(event)"
+										 mouseDown="mouseMoveHandler(event);" 
+										 restore="restoreHandler(event)" 
+										 maximize="maximizeHandler(event)" 
+										 close="closeHandler(event)"/>
+			</mx:VDividedBox>
+		</mx:HDividedBox>
+		<!-- 右边伸缩区域	业务统计 性能统计 -->
+		<s:HGroup id="rightBounceGroup" width="600" height="100%" gap="0" right="{-rightBounceGroup.width+rightBounceBtnGroup.width}">
+			<s:HGroup id="rightBounceBtnGroup" width="5" height="100%" verticalAlign="middle">
+				<mx:Image id="rightBounceBtn" source="{openImg}" buttonMode="true" click="rightBounceBtn_clickHandler(event)">
+				</mx:Image>
+			</s:HGroup>
+			<s:VGroup width="100%" height="100%">
+				<mx:VDividedBox width="100%" height="100%" styleName="bgstyle1">
+					<!-- 业务统计 -->
+					<components:ServStatWindow id="servStatWindow" currentState="{this.currentState}" 
+											   init="servStatWindow_initHandler(event)" 
+											   pageGo="servStatWindow_pageGoHandler(event)"/>
+					<!-- 性能统计 -->
+					<components:PerfStatWindow id="perfStatWindow" currentState="{this.currentState}" 
+											   init="perfStatWindow_initHandler(event)" 
+											   servTypeSelectChange="perfStatWindow_servTypeSelectChangeHandler(event)" 
+											   dataQuery="perfStatWindow_dataQueryHandler(event)"/>
+				</mx:VDividedBox>
+			</s:VGroup>
+		</s:HGroup>
+		<!-- 集客告警列表 -->
+		<components:CustAlarmListWindow id="custAlarmListWindow" custShow="custAlarmListWindow_custShowHandler(event)"/>
+		<!-- 告警列表 -->
+		<components:AlarmListWindow id="alarmListWindow" custShow="alarmListWindow_custShowHandler(event)"/>
+		<!-- 集客投诉工单列表 -->
+		<components:SheetListWindow id="sheetListWindow"/>
+		<!-- 集客列表 -->
+		<components:CustListWindow id="custListWindow" custShow="custListWindow_custShowHandler(event)"/>
+	</s:Group>
+</mx:Module>

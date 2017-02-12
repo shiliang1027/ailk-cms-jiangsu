@@ -1,0 +1,1098 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%"
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		 creationComplete="groupPortalComp_tabIndexChangeHandler(event)">
+	<s:layout>
+		<s:HorizontalLayout horizontalAlign="center"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.data.GroupPortalDataManager;
+			import com.linkage.module.cms.groupclient.data.GroupPortalDataManagerBS;
+			import com.linkage.module.cms.groupclient.event.GroupPortalEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.TabBar;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			[Bindable]
+			private var serviceQAData:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var SLAAlarmData:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var serviceQAAlarmData:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var RBType:String = "";
+			public var parameters:Object;
+			private var isFaultAlarmFlowLoaded:Boolean = false;
+			private var isPerfAlarmFlowLoaded:Boolean = false;
+			private var dataManager:GroupPortalDataManager = null ;
+			private var loadManager:LoadManager;
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.components.GroupPortalComp");
+			//故障告警规则
+//			private var faultAlarmFilter:String = 'customerflag="1"&nmsalarmtype="1"&systemname="综合监控"&alarmtitle%="故障告警"';
+			private var faultAlarmFilter:String = '';
+			//性能告警规则
+			private var perfAlarmFilter:String = 'ismetropolis!=&businesslevel!=&nmsalarmtype=2&systemname="综合监控"&alarmtitle%="超门限告警"';
+//			perfAlarmFilter:String = 'customerflag="1"&(nmsalarmtype="2"|nmsalarmtype="3")&systemname="综合监控"&alarmtitle%="性能告警"';
+			[Bindable]
+			private var servTypeName:String="";
+			[Bindable]
+			private var columDataFieldName:String="";
+			[Bindable]
+			var userParams:String = "";
+			[Bindable]
+			var user:Object = new Object();
+			//creationComplete event
+			private function groupPortalComp_tabIndexChangeHandler(event:FlexEvent):void   
+			{   
+				this.parameters = parentApplication.parameters;
+				
+				var urlContext:String = parameters["urlContext"];
+				userParams = String(parameters["user"]).replace(/\'/g, "\"");
+				user = JSON.decode(userParams);
+				
+				loadManager=new LoadManager(this);
+				
+				
+				
+				dataManager = new GroupPortalDataManagerBS(urlContext);
+				
+				this.addEventListener(GroupPortalEvent.GET_ALARM_INFO,getAlarmInfo);
+				this.addEventListener(GroupPortalEvent.GET_MSG_INFO,getMsgInfo);
+				this.addEventListener(GroupPortalEvent.GET_SERVICE_QA_CIRCUIT,getServiceQACircuit);
+				this.addEventListener(GroupPortalEvent.GET_SLA_ALARM,getSLAAlarm);
+				this.addEventListener(GroupPortalEvent.GET_SERVICE_QA_ALARM,getServiceQAAlarm);
+				
+				viewstack1.addEventListener(IndexChangedEvent.CHANGE,viewstack1_tabIndexChangeHandler);
+			}     
+			
+			//tab selected event
+			protected function viewstack1_tabIndexChangeHandler(event:Event):void
+			{
+				loadViewStackData(this.parameters);
+			}
+			 
+			private var flagAlarm:String = "";
+			private function loadViewStackData(param:Object):void
+			{
+				
+				switch(viewstack1.selectedIndex)
+				{
+					
+					case 0:
+					{
+						log.info("viewstack1.selectedIndex="+viewstack1.selectedIndex);
+						  loadManager.showLoading();
+						var param:Object = new Object();
+						var param1:Object = new Object();
+						param1.areaId = user["areaId"];
+						param1.user = user["account"];
+						param.param = param1;
+						param.areaId = user["areaId"];
+						param.user = user["account"];
+						param.pageSize = 20;
+						param.currentPage = 1;
+						SLAAlarmDataPager.currentPage = 1;
+						SLAAlarmDataPager.pageSize = 20;
+						
+						dataManager.getSLAAlarmData(param,GroupPortalComp_getSLAAlarmHandle,onSuccess,onError); 
+						break; 
+					}
+					case 1:
+					{
+						var currentFilter:String = faultAlarmFilter;
+						log.info("viewstack1.selectedIndex="+viewstack1.selectedIndex+",isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+						if(isFaultAlarmFlowLoaded == true)
+						{
+							
+							log.info("case 1 isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+							if(flagAlarm == "perfAlarmFlow")
+							{
+								log.info("case 1 flagAlarm == perfAlarmFlow  isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								perfAlarmFlow.stop();
+								faultAlarmFlow.start();
+								
+								if(null!=servTypeName&&""!=servTypeName)
+								{
+//									faultAlarmFilter += "businesssystem=\"" + servTypeName + "\"";
+									currentFilter += "businesssystem=\"" + servTypeName + "\"";
+									
+								}else{
+								}
+								log.info("case 1 flagAlarm == perfAlarmFlow servTypeName is not null  ---currentFilter="+currentFilter+"--servTypeName="+servTypeName+"---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								//设置过滤规则
+								faultAlarmFlow.reload(currentFilter);
+								flagAlarm = "faultAlarmFlow";
+								isFaultAlarmFlowLoaded = true;
+								servTypeName = "";
+								currentFilter = "";
+							}else
+							{
+								log.info("case 1  flagAlarm == null+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								if(null!=servTypeName&&""!=servTypeName)
+								{
+									currentFilter += "businesssystem=\"" + servTypeName + "\"";
+									log.info("case 1 flagAlarm == null servTypeName is not null  ---currentFilter="+currentFilter+"--servTypeName="+servTypeName+"---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								}else{
+									log.info("case 1 flagAlarm == null servTypeName is null+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								}
+								
+								//设置过滤规则
+								faultAlarmFlow.reload(currentFilter);
+								flagAlarm = "faultAlarmFlow";
+								isFaultAlarmFlowLoaded = true;
+								servTypeName = "";
+								currentFilter = "";
+							}
+							
+						}else{
+							
+							if(flagAlarm == "perfAlarmFlow")
+							{
+								log.info("case 1  flagAlarm == perfAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								perfAlarmFlow.stop();
+								faultAlarmFlow.start();
+								var alarmParams:Object = {};
+								alarmParams.mapInfo=param['user'];
+								log.info("type="+typeof(param['user'])+"--alarmParams.mapInfo"+typeof(alarmParams.mapInfo));
+								alarmParams.defaultDisplay="alarmstatus";
+								faultAlarmFlow.params = alarmParams;
+								
+								if(null!=servTypeName&&""!=servTypeName)
+								{
+									currentFilter += "businesssystem=\"" + servTypeName + "\"";
+									log.info("case 1  flagAlarm == perfAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"--servTypeName="+servTypeName);
+								}else{
+									log.info("case 1  flagAlarm == perfAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"--servTypeName="+servTypeName);
+								}
+								
+								//设置过滤规则
+								faultAlarmFlow.ruleContent = currentFilter;
+								faultAlarmFlow.initInfo();
+								flagAlarm = "faultAlarmFlow";
+								isFaultAlarmFlowLoaded = true;
+								servTypeName = "";
+								currentFilter = "";
+							}else
+							{
+								log.info("case 1  flagAlarm == null+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter);
+								var alarmParams:Object = {};
+								alarmParams.mapInfo=param['user'];
+								alarmParams.defaultDisplay="alarmstatus";
+								faultAlarmFlow.params = alarmParams;
+								log.info("type="+typeof(param['user'])+"--alarmParams.mapInfo"+typeof(alarmParams.mapInfo));
+								//设置过滤规则
+								if(null!=servTypeName&&""!=servTypeName)
+								{
+									currentFilter += "businesssystem=\"" + servTypeName + "\"";
+									log.info("case 1  flagAlarm == perfAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"--servTypeName="+servTypeName);
+								}else{
+									log.info("case 1  flagAlarm == perfAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"--servTypeName="+servTypeName);
+								}
+								faultAlarmFlow.ruleContent = currentFilter;
+								faultAlarmFlow.initInfo();
+								isFaultAlarmFlowLoaded = true;
+								flagAlarm = "faultAlarmFlow";
+								servTypeName = "";
+								currentFilter = "";
+							}
+						}
+						break;
+					}
+					case 2:
+					{
+						var currentFilter = perfAlarmFilter;
+						log.info("viewstack1.selectedIndex="+viewstack1.selectedIndex+",isPerfAlarmFlowLoaded="+isPerfAlarmFlowLoaded);
+						if(isPerfAlarmFlowLoaded == true)
+						{
+							if(flagAlarm == "faultAlarmFlow")
+							{
+								log.info("case 2  flagAlarm == faultAlarmFlow+---isFaultAlarmFlowLoaded="+isPerfAlarmFlowLoaded);
+								faultAlarmFlow.stop();
+								perfAlarmFlow.start();
+								if(null!=servTypeName&&""!=servTypeName)
+								{
+									currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+									log.info("case 2  flagAlarm == faultAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"--servTypeName="+servTypeName);
+								}else{
+									log.info("case 2  flagAlarm == faultAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"--servTypeName="+servTypeName);
+								}
+								//设置过滤规则
+								perfAlarmFlow.reload(currentFilter);
+								flagAlarm = "perfAlarmFlow";
+								isPerfAlarmFlowLoaded = true;
+								servTypeName = "";
+								currentFilter= "";
+							}else
+							{
+								log.info("case 2  flagAlarm == null+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								if(null!=servTypeName&&""!=servTypeName)
+								{
+									currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+									log.info("case 2  flagAlarm == null+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"--servTypeName="+servTypeName);
+								}else{
+									log.info("case 2  flagAlarm == null+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter=++"+currentFilter+"--servTypeName="+servTypeName);
+								}
+								//设置过滤规则
+								perfAlarmFlow.reload(currentFilter);
+								flagAlarm = "perfAlarmFlow";
+								isPerfAlarmFlowLoaded = true;
+								servTypeName = "";
+								currentFilter="";
+							} 
+						}else{
+							
+							if(flagAlarm == "faultAlarmFlow")
+							{
+								log.info("case 2  flagAlarm == faultAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								
+								faultAlarmFlow.stop();
+								perfAlarmFlow.start();
+								var alarmParams:Object = {};
+								alarmParams.mapInfo=param['user'];
+								log.info("type="+typeof(param['user'])+"--alarmParams.mapInfo"+typeof(alarmParams.mapInfo));
+								alarmParams.defaultDisplay="alarmstatus";
+								perfAlarmFlow.params = alarmParams;
+								if(null!=servTypeName&&""!=servTypeName)
+								{
+									currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+									log.info("case 2  flagAlarm == faultAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"---servTypeName="+servTypeName);
+								}else{
+									log.info("case 2  flagAlarm == faultAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"---servTypeName="+servTypeName);
+								}
+								//设置过滤规则
+								perfAlarmFlow.ruleContent = currentFilter;
+								perfAlarmFlow.initInfo();
+								flagAlarm = "perfAlarmFlow";
+								isPerfAlarmFlowLoaded = true;
+								servTypeName = "";
+								currentFilter = "";
+							}else
+							{
+								log.info("case 2  flagAlarm == faultAlarmFlow---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"---servTypeName="+servTypeName);
+								var alarmParams:Object = {};
+								alarmParams.mapInfo=param['user'];
+								log.info("type="+typeof(param['user'])+"--alarmParams.mapInfo"+typeof(alarmParams.mapInfo));
+								alarmParams.defaultDisplay="alarmstatus";
+								perfAlarmFlow.params = alarmParams;
+								//设置过滤规则
+								if(null!=servTypeName&&""!=servTypeName)
+								{
+									currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+									log.info("case 2  flagAlarm == faultAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"---servTypeName="+servTypeName);
+								}else{
+									log.info("case 2  flagAlarm == faultAlarmFlow+---isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded+"---currentFilter="+currentFilter+"---servTypeName="+servTypeName);
+								}
+								perfAlarmFlow.ruleContent = perfAlarmFilter;
+								perfAlarmFlow.initInfo();
+								isPerfAlarmFlowLoaded = true;
+								flagAlarm = "perfAlarmFlow";
+								servTypeName = "";
+								currentFilter = "";
+							} 
+						}
+						break;
+					}					
+					case 3:
+					{
+						loadManager.showLoading();
+						log.info("viewstack1.selectedIndex="+viewstack1.selectedIndex);
+						var param:Object = new Object();
+						param.type = "3";
+						param.areaId = user["areaId"];
+						param.user = user["account"];
+						param.pageSize = 20;
+						param.currentPage = 1;
+						serviceQAAlarmDataPager.currentPage = 1;
+						serviceQAAlarmDataPager.pageSize = 20;
+						dataManager.getServiceQAAlarmData(param,GroupPortalComp_getServiceQAAlarmHandle,onSuccess,onError);
+					}					
+					default:
+					{
+						/* var getSLAAlarmEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SLA_ALARM);
+						param.user = user["account"];  
+						getSLAAlarmEvent.param = param;
+						this.dispatchEvent(getSLAAlarmEvent); */
+						break;
+					}
+				}
+			}
+			
+			private function getAlarmInfo(event:GroupPortalEvent):void
+			{
+				alarmInfoDataGrid.dataProvider = event.param  as ArrayCollection;
+			}
+			
+			private function getMsgInfo(event:GroupPortalEvent):void
+			{
+				var result:Object = event.param;
+				msgInfoTextArea.text = formatMsgInfo(result);
+			}
+			
+			private function getServiceQACircuit(event:GroupPortalEvent):void
+			{
+				serviceQACircuitDataGrid.dataProvider = event.param as ArrayCollection;
+			}
+			
+			private function getSLAAlarm(event:GroupPortalEvent):void
+			{
+				log.info("getSLAAlarm event.param.totalCount=");
+				log.info(event.param);
+//				log.info( event.param.datas);
+				SLAAlarmDataGrid.dataProvider = event.param.datas;
+				SLAAlarmDataPager.totalRowCount = event.param.totalCount;
+			}
+			
+			private function getServiceQAAlarm(event:GroupPortalEvent):void
+			{
+			
+				if(RBType =="1")
+				{
+					RB1.selected = true;
+					RB2.selected = false;
+					RB3.selected = false;
+					RB4.selected = false;
+				}else if(RBType =="2")
+				{
+					RB1.selected = false;
+					RB2.selected = true;
+					RB3.selected = false;
+					RB4.selected = false;
+				}
+				else if(RBType =="3")
+				{
+					RB1.selected = false;
+					RB2.selected = false;
+					RB3.selected = true;
+					RB4.selected = false;
+				}else if(RBType =="4")
+				{
+					RB1.selected = false;
+					RB2.selected = false;
+					RB3.selected = false;
+					RB4.selected = true;
+				}
+				
+				if(RB1.selected == true){
+					
+					serviceQAAlarmDataGrid1.dataProvider = event.param.datas;
+					serviceQAAlarmDataPager.totalRowCount = event.param.totalCount;
+					
+					serviceQAAlarmDataGrid1.visible = true;
+					serviceQAAlarmDataGrid1.includeInLayout = true;
+					
+					serviceQAAlarmDataGrid2.visible = false;
+					serviceQAAlarmDataGrid2.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid3.visible = false;
+					serviceQAAlarmDataGrid3.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid4.visible = false;
+					serviceQAAlarmDataGrid4.includeInLayout = false;
+					
+				}else if(RB2.selected == true){
+					serviceQAAlarmDataGrid2.dataProvider = event.param.datas;
+					serviceQAAlarmDataPager.totalRowCount = event.param.totalCount;
+					
+					serviceQAAlarmDataGrid1.visible = false;
+					serviceQAAlarmDataGrid1.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid2.visible = true;
+					serviceQAAlarmDataGrid2.includeInLayout = true;
+					
+					serviceQAAlarmDataGrid3.visible = false;
+					serviceQAAlarmDataGrid3.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid4.visible = false;
+					serviceQAAlarmDataGrid4.includeInLayout = false;
+					
+				}else if(RB3.selected == true){
+					serviceQAAlarmDataGrid3.dataProvider = event.param.datas;
+					serviceQAAlarmDataPager.totalRowCount = event.param.totalCount;
+					
+					serviceQAAlarmDataGrid1.visible = false;
+					serviceQAAlarmDataGrid1.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid2.visible = false;
+					serviceQAAlarmDataGrid2.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid3.visible = true;
+					serviceQAAlarmDataGrid3.includeInLayout = true;
+					
+					serviceQAAlarmDataGrid4.visible = false;
+					serviceQAAlarmDataGrid4.includeInLayout = false;
+					
+				}
+				else if(RB4.selected == true){
+					serviceQAAlarmDataGrid4.dataProvider = event.param.datas;
+					serviceQAAlarmDataPager.totalRowCount = event.param.totalCount;
+					
+					serviceQAAlarmDataGrid1.visible = false;
+					serviceQAAlarmDataGrid1.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid2.visible = false;
+					serviceQAAlarmDataGrid2.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid3.visible = false;
+					serviceQAAlarmDataGrid3.includeInLayout = false;
+					
+					serviceQAAlarmDataGrid4.visible = true;
+					serviceQAAlarmDataGrid4.includeInLayout = true;
+				}
+				
+			}
+			
+			private function formatMsgInfo(result:Object):String
+			{
+				log.info("GroupPortalComp.getMap-->result="+result+"，result['calltest']="+result["calltest"]+"，result['fault']="+typeof(result["fault"]));
+				var str:String = "";
+				log.info(result["task"]);
+			 	if(result["task"] != null)
+				{
+					var taskArr:Object = result["task"] as Object;
+//					var taskArr:Object = new ArrayCollection([{"type":"nanjing","subject":"10","time":"30"},{"type":"nanjing","subject":"10","time":"70"}]);
+					
+					for(var list:Object in taskArr)
+					{
+						
+						var type:String = null;
+						var subject:String = null;
+						var time:String = null;
+						
+						var taskmap:Object = taskArr[list] as Object;
+						for(var key:Object in taskmap)
+						{
+							if(key=="type")
+							{
+								type = taskmap[key] as String;
+							}
+							else if(key=="subject")
+							{
+								subject = taskmap[key] as String;
+							}
+							else  if(key=="time")
+							{
+								time = taskmap[key] as String;
+							}
+						}
+						
+						str+="【任务管理】：您有一项【"+ type +"】任务【"+ subject +"】需要执行，计划执行时间为【"+ time +"】。\n";
+						log.info("【任务管理】：您有一项【"+type+"】任务【"+subject+"】需要执行，计划执行时间为【"+time+"】。");
+					}
+				}else{
+					log.info("task  null");
+				}
+				 
+				if(result["calltest"] != null)
+				{
+					str+="【业务拨测告警监控】：发生"+result["calltest"].toString()+"起短信业务拨测不通的告警。\n";
+				}
+				else{
+					log.info("result[calltest] null");
+				}
+				log.info("GroupPortalComp.getMap-->str="+str);
+				
+				if(result["fault"] != null)
+				{
+					log.info(fault);
+					var fault:Object = result["fault"] as Object;
+					//var fault:Object = new ArrayCollection([{"city":"nanjing","faultnum":10,"servnum":30},{"city":"yancheng","faultnum":20,"servnum":40}]);
+//					str+="【重大故障告警监控】：";
+					for(var list:Object in fault)
+					{
+						var city:String = null;
+						var faultnum:int = null;
+						var servnum:int = null;
+						var map:Object = fault[list] as Object;
+						for(var key:Object in map)
+						{
+							if(key=="city")
+							{
+								city = map[key] as String;
+							}
+							else if(key=="faultnum")
+							{
+								faultnum = map[key] as int;
+							}
+							else
+							{
+								servnum = map[key] as int;
+							}
+						}
+						log.info(city+"发生"+faultnum+"起大面积IAD退服的故障告警，影响"+servnum+"个语音业务。");
+						str+="【重大故障告警监控】："+city+"发生"+faultnum+"起大面积IAD退服的故障告警，影响"+servnum+"个语音业务。";
+					}
+				}
+//				else{
+//					log.info("result[fault] null");
+//				}
+				log.info("GroupPortalComp.getMap-->result="+str);
+				return str;
+			}
+			
+			protected function RB2_clickHandler(event:MouseEvent):void
+			{
+				loadManager.showLoading();
+				log.info("业务开通工单 2");
+				var param:Object = new Object();
+				param.type = "2";
+				RBType ="2";
+				param.areaId = user["areaId"];
+				param.user = user["account"];
+				param.pageSize = 20;
+				param.currentPage = 1;
+				
+				serviceQAAlarmDataPager.currentPage = 1;
+				serviceQAAlarmDataPager.pageSize = 20;
+				dataManager.getServiceQAAlarmData(param,GroupPortalComp_getServiceQAAlarmHandle,onSuccess,onError);
+			}
+			
+			protected function RB3_clickHandler(event:MouseEvent):void
+			{
+				loadManager.showLoading();
+				log.info("故障告警工单 3");
+				var param:Object = new Object();
+				
+				RBType ="3";
+				param.type = "3";
+				param.areaId = user["areaId"];
+				param.user = user["account"];
+				param.pageSize = 20;
+				param.currentPage = 1;
+				serviceQAAlarmDataPager.currentPage = 1;
+				serviceQAAlarmDataPager.pageSize = 20;
+				log.info(param);
+				dataManager.getServiceQAAlarmData(param,GroupPortalComp_getServiceQAAlarmHandle,onSuccess,onError);
+			}
+			
+			protected function RB4_clickHandler(event:MouseEvent):void
+			{
+				loadManager.showLoading();
+				log.info("投诉工单管理 4");
+				var param:Object = new Object();
+				param.type = "4";
+				RBType ="4";
+				param.areaId = user["areaId"];
+				param.user = user["account"];
+				param.pageSize = 20;
+				param.currentPage = 1;
+				serviceQAAlarmDataPager.currentPage = 1;
+				serviceQAAlarmDataPager.pageSize = 20;
+				log.info(param);
+				dataManager.getServiceQAAlarmData(param,GroupPortalComp_getServiceQAAlarmHandle,onSuccess,onError);
+			}
+			
+			protected function RB1_clickHandler(event:MouseEvent):void
+			{
+				loadManager.showLoading();
+				log.info("资源勘查工单 1");
+				var param:Object = new Object();
+				param.type = "1";
+				RBType ="1";
+				param.areaId = user["areaId"];
+				param.user = user["account"];
+				param.pageSize = 20;
+				param.currentPage = 1;
+				serviceQAAlarmDataPager.currentPage = 1;
+				serviceQAAlarmDataPager.pageSize = 20;
+				log.info(param);
+				dataManager.getServiceQAAlarmData(param,GroupPortalComp_getServiceQAAlarmHandle,onSuccess,onError);
+			}
+			
+			private function GroupPortalComp_getSLAAlarmHandle(result:Object):void
+			{
+				loadManager.hideLoading();
+				var evt:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SLA_ALARM);
+				evt.param = result;
+				dispatchEvent(evt);
+			}
+			
+			private function GroupPortalComp_getServiceQAAlarmHandle(result:Object):void
+			{
+				loadManager.hideLoading();
+				var evt:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SERVICE_QA_ALARM);
+				evt.param = result;
+				dispatchEvent(evt);
+			}
+
+			private function onSuccess(result:Object):void
+			{
+			}
+			private function onError(event:FaultEvent):void
+			{
+			}
+			
+			protected function serviceQACircuitDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				var param:Object = new Object();
+				param.type = "1";
+				param.areaId = user["areaId"];
+				param.user = user["account"];
+				
+				var data:Object=serviceQACircuitDataGrid.dataProvider[event.rowIndex];
+				var servtype:String=serviceQACircuitDataGrid.dataProvider[event.rowIndex]["servType"];
+				var columDataField:String=String((serviceQACircuitDataGrid.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+				log.info("serviceQACircuitDataGrid_itemClickHandler==columDataField="+columDataField +"--servtype="+servtype);
+				
+				viewstack1.selectedIndex = 3;
+				
+				if(RBType =="1")
+				{
+					RB1.selected = true;
+					RB2.selected = false;
+					RB3.selected = false;
+					RB4.selected = false;
+				}else if(RBType =="2")
+				{
+					RB1.selected = false;
+					RB2.selected = true;
+					RB3.selected = false;
+					RB4.selected = false;
+				}
+				else if(RBType =="3")
+				{
+					RB1.selected = false;
+					RB2.selected = false;
+					RB3.selected = true;
+					RB4.selected = false;
+				}else if(RBType =="4")
+				{
+					RB1.selected = false;
+					RB2.selected = false;
+					RB3.selected = false;
+					RB4.selected = true;
+				}
+				
+				serviceQAAlarmDataPager.currentPage = 1;
+				serviceQAAlarmDataPager.pageSize = 20;
+				
+				param.servtype = servtype;
+				if(columDataField == "resource")
+				{
+					param.type = "1";
+					param.flag = "0";
+					RBType = "1";
+				}else if(columDataField == "business")
+				{
+					param.type = "2";
+					param.flag = "0";
+					RBType = "2";
+				}else if(columDataField == "alarm")
+				{
+					param.type = "3";
+					param.flag = "0";
+					RBType = "3";
+				}else if(columDataField == "complain")
+				{
+					param.type = "4";
+					param.flag = "0";
+					RBType = "4";
+				}else if(columDataField == "otResource")
+				{
+					param.type = "1";
+					param.flag = "1";
+					RBType = "1";
+				}else if(columDataField == "otBusiness")
+				{
+					param.type = "2";
+					param.flag = "1";
+					RBType = "2";
+				}else if(columDataField == "otAlarm")
+				{
+					param.type = "3";
+					param.flag = "1";
+					RBType = "3";
+				}else if(columDataField == "otComplain")
+				{
+					param.type = "4";
+					param.flag = "1";
+					RBType = "4";
+				}
+				param.pageSize = 20;
+				param.currentPage = 1;
+				
+				log.info("表格  param");
+				log.info(param);
+				loadManager.showLoading();
+				
+				dataManager.getServiceQAAlarmData(param,GroupPortalComp_getServiceQAAlarmHandle,onSuccess,onError);
+			}
+			
+			protected function alarmInfoDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+
+				var data:Object=alarmInfoDataGrid.dataProvider[event.rowIndex];
+				servTypeName = alarmInfoDataGrid.dataProvider[event.rowIndex]["servtype"];
+				columDataFieldName = String((alarmInfoDataGrid.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+				log.info("alarmInfoDataGrid_itemClickHandler==columDataField="+columDataFieldName +"--servtype="+servTypeName);
+				if(null!=servTypeName&&""!=servTypeName){
+					if(columDataFieldName == "equipment")
+					{
+						if(viewstack1.selectedIndex == 1)
+						{
+							log.info("viewstack1.selectedIndex="+viewstack1.selectedIndex);
+							if(isPerfAlarmFlowLoaded == true)
+							{
+								log.info("isPerfAlarmFlowLoaded == true");
+								perfAlarmFlow.stop();
+								faultAlarmFlow.start();
+							}
+							var currentFilter:String = faultAlarmFilter;
+							currentFilter += "businesssystem=\"" + servTypeName + "\"";
+							faultAlarmFlow.reload(currentFilter);
+							flagAlarm = "faultAlarmFlow";
+							isFaultAlarmFlowLoaded = true;
+							servTypeName="";
+							currentFilter = "";
+						}else{
+							viewstack1.selectedIndex = 1;
+							perfAlarmFlow.stop();
+							faultAlarmFlow.start();
+							if(isFaultAlarmFlowLoaded == true){
+								log.info("viewstack1.selectedIndex="+viewstack1.selectedIndex+"isFaultAlarmFlowLoaded="+isFaultAlarmFlowLoaded);
+								var currentFilter:String = faultAlarmFilter;
+								currentFilter += "businesssystem=\"" + servTypeName + "\"";
+								faultAlarmFlow.reload(currentFilter);
+								flagAlarm = "faultAlarmFlow";
+								isFaultAlarmFlowLoaded = true;
+								servTypeName="";
+								currentFilter = "";
+							}else{
+								var alarmParams:Object = {};
+								alarmParams.mapInfo=parameters['user'];
+								log.info("type="+typeof(parameters['user'])+"--alarmParams.mapInfo"+typeof(alarmParams.mapInfo));
+								alarmParams.defaultDisplay="alarmstatus";
+								faultAlarmFlow.params = alarmParams;
+								
+								var currentFilter:String = faultAlarmFilter;
+								currentFilter += "businesssystem=\"" + servTypeName + "\"";
+								faultAlarmFlow.ruleContent = currentFilter;
+								faultAlarmFlow.initInfo();
+								isFaultAlarmFlowLoaded = true;
+								servTypeName="";
+								currentFilter = "";
+							}
+						}
+						
+						log.info("重新加载 ---故障告警----currentFilter="+currentFilter);
+						
+					}else if(columDataFieldName == "performance")
+					{
+						if(viewstack1.selectedIndex == 2)
+						{
+							
+							if(isFaultAlarmFlowLoaded == true)
+							{
+								log.info("isFaultAlarmFlowLoaded == true");
+								faultAlarmFlow.stop();
+								perfAlarmFlow.start();
+							}
+							
+							
+							log.info("viewstack1.selectedIndex="+viewstack1.selectedIndex);
+							var currentFilter:String = perfAlarmFilter;
+							currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+							perfAlarmFlow.reload(currentFilter);
+							flagAlarm = "perfAlarmFlow";
+							isPerfAlarmFlowLoaded = true;
+							servTypeName="";
+							currentFilter = "";
+						}else{
+							viewstack1.selectedIndex = 2;
+							faultAlarmFlow.stop();
+							perfAlarmFlow.start();
+							if(isPerfAlarmFlowLoaded == true)
+							{
+								log.info("performance faultAlarmFlow stop");
+								faultAlarmFlow.stop();
+								perfAlarmFlow.start();
+								var currentFilter:String = perfAlarmFilter;
+								currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+								perfAlarmFlow.reload(currentFilter);
+								isPerfAlarmFlowLoaded = true;
+								servTypeName="";
+								currentFilter = "";
+							}else{
+								var alarmParams:Object = {};
+								alarmParams.mapInfo=parameters['user'];
+								log.info("type="+typeof(parameters['user'])+"--alarmParams.mapInfo"+typeof(alarmParams.mapInfo));
+								alarmParams.defaultDisplay="alarmstatus";
+								perfAlarmFlow.params = alarmParams;
+								
+								var currentFilter:String = faultAlarmFilter;
+								currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+								perfAlarmFlow.ruleContent = currentFilter;
+								perfAlarmFlow.initInfo();
+								isPerfAlarmFlowLoaded = true;
+								servTypeName="";
+								currentFilter = "";
+							}
+						}
+					}
+				}else{
+					log.info("servTypeName is null");
+				}
+			}
+			
+			protected function SLAAlarmDataPager_pageChangeHandler(event:PagerEvent):void
+			{
+				// TODO Auto-generated method stub
+				loadManager.showLoading();
+				var param:Object = new Object();
+				param.areaId = user["areaId"];
+				param.user = user["account"];
+				
+				var param1:Object = new Object();
+				param1.areaId = user["areaId"];
+				param1.user = user["account"];
+				
+				param.param = param1;
+				param.pageSize = SLAAlarmDataPager.pageSize;
+				param.currentPage = SLAAlarmDataPager.currentPage;
+				
+				log.info("kpiDataPager_pageChangeHandler");
+				log.info(param);
+				dataManager.getSLAAlarmData(param,GroupPortalComp_getSLAAlarmHandle,onSuccess,onError);
+			}
+			
+			protected function serviceQAAlarmDataPager_pageChangeHandler(event:PagerEvent):void
+			{
+				// TODO Auto-generated method stub
+				loadManager.showLoading();
+				var param:Object = new Object();
+				param.areaId = user["areaId"];
+				param.user = user["account"];
+				param.pageSize = serviceQAAlarmDataPager.pageSize;
+				param.currentPage = serviceQAAlarmDataPager.currentPage;
+				if(RB1.selected == true)
+				{
+					param.type = "1";
+				}else if(RB2.selected == true)
+				{
+					param.type = "2";
+				}else if(RB3.selected == true)
+				{
+					param.type = "3";
+				}else if(RB4.selected == true)
+				{
+					param.type = "4";
+				}
+				
+				log.info("serviceQAAlarmDataPager_pageChangeHandler");
+				log.info(param);
+				dataManager.getServiceQAAlarmData(param,GroupPortalComp_getServiceQAAlarmHandle,onSuccess,onError);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				top="1"
+				left="1"
+				right="10"
+				bottom="1"
+				horizontalScrollPolicy="off" verticalScrollPolicy="auto">
+			<s:VGroup width="100%" height="100%">
+				<s:HGroup width="100%" height="100%"><!--width="1360"-->
+					<panel:Window closable="false" width="100%" height="100%" maximizable="false" minimizable="false" title="业务故障概况" includeInLayout="true"> 
+						<mx:AdvancedDataGrid width="100%" height="100%" verticalScrollPolicy="auto"
+											 horizontalScrollPolicy="auto" textAlign="center" id="alarmInfoDataGrid" itemClick="alarmInfoDataGrid_itemClickHandler(event)">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn headerText="业务类型" dataField="servtype" width="150"/>
+								<mx:AdvancedDataGridColumn headerText="设备告警数" dataField="equipment" width="150"/>
+								<mx:AdvancedDataGridColumn headerText="性能越限数" dataField="performance" width="150"/>
+								<mx:AdvancedDataGridColumn headerText="告警总数" dataField="total" width="150"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</panel:Window>
+					<panel:Window closable="false" width="100%" height="100%" maximizable="false" minimizable="false" title="信息提醒">		
+						<s:TextArea editable="false" width="100%" height="100%" verticalScrollPolicy="auto"  contentBackgroundColor = "#EEF2F7"
+									horizontalScrollPolicy="auto" textAlign="justify" id="msgInfoTextArea" /> <!-- width="630"-->
+					</panel:Window>
+				</s:HGroup>
+				<s:HGroup width="100%"  height="100%">  <!--width="1360"-->
+					<panel:Window closable="false"   height="100%" maximizable="false" minimizable="false" title="服务质量全流程概况"> <!-- width="1345"-->
+						<mx:AdvancedDataGrid width="100%" height="100%" id="serviceQACircuitDataGrid" verticalScrollPolicy="auto"
+											 horizontalScrollPolicy="auto" itemClick="serviceQACircuitDataGrid_itemClickHandler(event)"><!-- width="1345"-->
+							<mx:groupedColumns>
+								<mx:AdvancedDataGridColumnGroup headerText="" >
+									<mx:AdvancedDataGridColumn headerText="业务类型" dataField="servType" width="150"/>
+								</mx:AdvancedDataGridColumnGroup>
+								<mx:AdvancedDataGridColumnGroup headerText="售前">
+									<mx:AdvancedDataGridColumn headerText="勘查数" dataField="resource" width="150"/>
+									<mx:AdvancedDataGridColumn headerText="勘查超时数" dataField="otResource" width="150" />
+								</mx:AdvancedDataGridColumnGroup>
+								<mx:AdvancedDataGridColumnGroup headerText="售中" >
+									<mx:AdvancedDataGridColumn headerText="开通数" dataField="business" width="150"/>
+									<mx:AdvancedDataGridColumn headerText="开通超时数" dataField="otBusiness" width="150"/>
+								</mx:AdvancedDataGridColumnGroup>
+								<mx:AdvancedDataGridColumnGroup headerText="售后">
+									<mx:AdvancedDataGridColumn headerText="故障工单数" dataField="alarm" width="150"/>
+									<mx:AdvancedDataGridColumn headerText="故障处理超时数" dataField="otAlarm" width="150"/>
+									<mx:AdvancedDataGridColumn headerText="投诉数" dataField="complain" width="150"/>
+									<mx:AdvancedDataGridColumn headerText="投诉处理超时数" dataField="otComplain" width="150"/>
+								</mx:AdvancedDataGridColumnGroup>
+							</mx:groupedColumns>
+						</mx:AdvancedDataGrid>
+					</panel:Window>
+				</s:HGroup>
+				
+				<s:TabBar dataProvider="{viewstack1}" styleName="commonTabBar"></s:TabBar>
+				
+				<mx:ViewStack id="viewstack1" width="100%" height="100%"><!-- width="1360"-->
+					<s:NavigatorContent width="100%" height="100%" label="SLA越限" > <!--width="1360"-->
+						<s:VGroup width="100%" height="100%">
+							<mx:AdvancedDataGrid id="SLAAlarmDataGrid" width="100%" height="100%" horizontalScrollPolicy="auto"><!-- width="1360"-->
+								<mx:groupedColumns>
+									<mx:AdvancedDataGridColumn headerText="状态" dataField="state"/>
+									<mx:AdvancedDataGridColumn headerText="模块" dataField="modulename"/>
+									<mx:AdvancedDataGridColumn headerText="工单号" dataField="orderid"/>
+									<mx:AdvancedDataGridColumn headerText="发起时间" dataField="starttime"/>
+									<mx:AdvancedDataGridColumn headerText="集团客户名称" dataField="custname" width="180"/>
+									<mx:AdvancedDataGridColumn headerText="客户服务级别" dataField="servlevel"  width="180"/>
+									<mx:AdvancedDataGridColumn headerText="业务保障等级" dataField="safelevel"  width="180"/>
+									<mx:AdvancedDataGridColumn headerText="专线类型" dataField="servtype"/>
+									<mx:AdvancedDataGridColumn headerText="SLA时长(小时)" dataField="time"  width="180"/>
+									<mx:AdvancedDataGridColumn headerText="催办记录" dataField="record"/>
+								</mx:groupedColumns>
+							</mx:AdvancedDataGrid>
+							<s:HGroup width="100%"
+									  horizontalAlign="right">
+								<pager:Pager id="SLAAlarmDataPager"
+											 pageSize="20"
+											 currentPage="1"
+											 pageChange="SLAAlarmDataPager_pageChangeHandler(event)"/>
+							</s:HGroup>
+						</s:VGroup>
+						
+					</s:NavigatorContent>
+					<s:NavigatorContent width="100%" height="100%" label="故障告警"> <!--width="1360"-->
+						<pubflow:custalarm id="faultAlarmFlow" moduleKey="groupmonitorflowalarm" width="100%" height="100%"/> <!--width="1360"-->
+					</s:NavigatorContent>
+					<s:NavigatorContent width="100%" height="100%" label="性能越限"> <!--width="1360"-->
+						<pubflow:custalarm id="perfAlarmFlow" moduleKey="groupbuss_extrakpi" width="100%" height="100%"/>
+					<!--<pubflow:custalarm id="perfAlarmFlow" moduleKey="groupbuss_extrakpi" width="100%" height="100%"/>-->
+					</s:NavigatorContent>
+					<s:NavigatorContent width="100%" height="100%" label="服务质量越限"> <!--width="1360"-->
+						<s:VGroup width="100%" height="100%"><!--width="1360"-->
+							<s:HGroup horizontalAlign="right" verticalAlign="middle" width="100%" left="10" right="10" > <!--width="1350"-->
+								<s:RadioButton label="故障告警"
+											   id="RB3"
+											   selected="true"
+											   groupName="alarmType"
+											   click="RB3_clickHandler(event)"
+											   buttonMode="true"/>
+								<s:RadioButton label="资源勘查"
+											   id="RB1"
+											   groupName="alarmType"
+											   click="RB1_clickHandler(event)"
+											   
+											   buttonMode="true"/>
+								<s:RadioButton label="业务开通"
+											   id="RB2"
+											   groupName="alarmType"
+											   click="RB2_clickHandler(event)"
+											   buttonMode="true"/>
+								<s:RadioButton label="投诉工单"
+											   id="RB4"
+											   groupName="alarmType"
+											   click="RB4_clickHandler(event)"
+											   buttonMode="true"/>
+							</s:HGroup>
+							<s:VGroup width="100%" height="100%">
+								<mx:AdvancedDataGrid width="100%" height="100%" id="serviceQAAlarmDataGrid1" visible="false" includeInLayout="false" horizontalScrollPolicy="auto">
+									<mx:groupedColumns><!--width="1350"-->
+										<mx:AdvancedDataGridColumn headerText="CRM订单号" dataField="orderid" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="订单类型" dataField="ordertype" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="发起时间" dataField="starttime" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="超时时长" dataField="overtime" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="主题" dataField="topic" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="集团客户编号" dataField="custno" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="集团客户名称" dataField="custname" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="客户服务等级" dataField="servlvl" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="产品实例标识" dataField="prod_no" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="专业类型" dataField="servtype" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="业务保障等级" dataField="safelvl" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="任务环节" dataField="step" width="150"/>
+									</mx:groupedColumns>
+								</mx:AdvancedDataGrid>
+								<mx:AdvancedDataGrid width="100%" height="100%" id="serviceQAAlarmDataGrid2" visible="true" includeInLayout="true" horizontalScrollPolicy="auto">
+									<mx:groupedColumns><!--width="1350"-->
+										<mx:AdvancedDataGridColumn headerText="CRM订单号" dataField="orderid" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="订单类型" dataField="ordertype" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="发起时间" dataField="starttime" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="超时时长" dataField="overtime" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="主题" dataField="topic" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="集团客户编号" dataField="custno" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="集团客户名称" dataField="custname" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="客户服务等级" dataField="servlvl" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="产品实例标识" dataField="prod_no" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="专业类型" dataField="servtype" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="业务保障等级" dataField="safelvl" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="任务环节" dataField="step" width="150"/>
+									</mx:groupedColumns>
+								</mx:AdvancedDataGrid>
+								<mx:AdvancedDataGrid width="100%" height="100%" id="serviceQAAlarmDataGrid3" visible="false" includeInLayout="false" horizontalScrollPolicy="auto">
+									<mx:groupedColumns><!--width="1350"-->
+										<mx:AdvancedDataGridColumn headerText="CRM订单号" dataField="orderid" width="150"/>
+										<!--<mx:AdvancedDataGridColumn headerText="订单类型" dataField="ordertype" width="150"/>-->
+										<mx:AdvancedDataGridColumn headerText="发起时间" dataField="starttime" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="超时时长" dataField="overtime" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="集团客户编号" dataField="custno" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="集团客户名称" dataField="custname" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="客户服务等级" dataField="servlvl" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="产品实例标识" dataField="prod_no" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="专业类型" dataField="servtype" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="业务保障等级" dataField="safelvl" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="派单地市" dataField="cityname" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="派单区县" dataField="areaname" width="150"/>
+									</mx:groupedColumns>
+								</mx:AdvancedDataGrid>
+								<mx:AdvancedDataGrid width="100%" height="100%" id="serviceQAAlarmDataGrid4" visible="false" includeInLayout="false" horizontalScrollPolicy="auto">
+									<mx:groupedColumns><!--width="1350"-->
+										<mx:AdvancedDataGridColumn headerText="CRM订单号" dataField="orderid" width="150"/>
+										<!--<mx:AdvancedDataGridColumn headerText="订单类型" dataField="ordertype" width="150"/>-->
+										<mx:AdvancedDataGridColumn headerText="发起时间" dataField="starttime" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="超时时长" dataField="overtime" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="集团客户编号" dataField="custno" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="集团客户名称" dataField="custname" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="客户服务等级" dataField="servlvl" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="投诉业务类型" dataField="servtype" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="投诉所在地市" dataField="cityname" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="当前历史环节" dataField="step" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="当前操作部分" dataField="dept" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="当前操作人" dataField="manager" width="150"/>
+										<mx:AdvancedDataGridColumn headerText="联系电话" dataField="phone" width="150"/>
+									</mx:groupedColumns>
+								</mx:AdvancedDataGrid>
+								<s:HGroup width="100%"
+										  horizontalAlign="right">
+									<pager:Pager id="serviceQAAlarmDataPager"
+												 pageSize="20"
+												 currentPage="1"
+												 pageChange="serviceQAAlarmDataPager_pageChangeHandler(event)"/>
+								</s:HGroup>
+							</s:VGroup>
+						</s:VGroup>
+					</s:NavigatorContent>
+				</mx:ViewStack>
+			</s:VGroup>
+		</s:Scroller>
+</s:Group>
+

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+			import spark.events.TextOperationEvent;
+			private var log:ILogger = Log.getLoggerByClass(WorstMoInputTextRenderer);
+			[Bindable]
+			private var relationShipStr:ArrayCollection = new ArrayCollection([{"operid": "1", "opername": "<"}, {"operid": "2", "opername": "<="}, {"operid": "3", "opername": "="}, {"operid": "4", "opername": ">"}, {"operid": "5", "opername": ">="}]);
+			[Bindable]
+			private var countTypeStr:ArrayCollection = new ArrayCollection([{"iscontinue": "0", "countTypeName": "连续"}, {"iscontinue": "1", "countTypeName": "累计"}]);
+
+			//获取DropDownList选中元素的索引
+			public function getSelectedIndexByResult(list:ArrayCollection, key:String, result:Object):int
+			{
+				var selectedIndex:int = 0;
+				try
+				{
+					for (var i:int = 0; i < list.length; i++)
+					{
+						if (list[i][key] == result)
+						{
+							selectedIndex = i;
+							break;
+						}
+					}
+				}
+				catch (e:Error)
+				{
+					Alert.show(e.message);
+				}
+				return selectedIndex;
+			}
+
+			protected function textinput1_changeHandler(event:TextOperationEvent):void
+			{
+				var input1:int = int((event.target as TextInput).text);
+				if (input1 <= 0 || input1 > 100)
+				{
+					Alert.show("请输入1-100之间合法百分比！", "提示");
+					TextInput(event.target).text = data.threshold;
+				}
+				else
+				{
+					data.threshold = input1;
+				}
+
+			}
+
+			protected function relationDropDownList_changeHandler(event:IndexChangeEvent):void
+			{
+				data.oper = DropDownList(event.target).selectedItem['operid'];
+
+			}
+
+			protected function textinput2_changeHandler(event:TextOperationEvent):void
+			{
+				var input2:int = int((event.target as TextInput).text);
+				if (input2 < 1 || input2 > 24)
+				{
+					Alert.show("请输入1-24之间合法时间！", "提示");
+					TextInput(event.target).text = data.beginhour;
+				}
+				else
+				{
+					data.beginhour = input2;
+				}
+			}
+
+			protected function textinput3_changeHandler(event:TextOperationEvent):void
+			{
+				var input3:int = int((event.target as TextInput).text);
+				if (input3 < 1 || input3 > 24)
+				{
+					Alert.show("请输入1-24之间合法时间！", "提示");
+					TextInput(event.target).text = data.endhour;
+				}
+				else
+				{
+					data.endhour = input3;
+				}
+			}
+
+			protected function countDropDownList_changeHandler(event:IndexChangeEvent):void
+			{
+				data.iscontinue = DropDownList(event.target).selectedItem['iscontinue'];
+			}
+
+
+			protected function textinput4_changeHandler(event:TextOperationEvent):void
+			{
+				var input4:int = int((event.target as TextInput).text);
+				if (input4 < 1 || input4 > 24)
+				{
+					Alert.show("请输入1-24之间合法时间！", "提示");
+					TextInput(event.target).text = data.hours;
+				}
+				else
+				{
+					data.hours = input4;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup horizontalAlign="center"
+			  verticalAlign="middle"
+			  width="100%">
+		<s:DropDownList id="relationDropDownList"
+						dataProvider="{relationShipStr}"
+						labelField="opername"
+						requireSelection="true"
+						selectedIndex="{getSelectedIndexByResult(relationShipStr, 'operid', data['oper'])}"
+						width="60"
+						change="relationDropDownList_changeHandler(event)">
+		</s:DropDownList>
+
+		<s:TextInput text="{data.threshold}"
+					 restrict="0-9"
+					 change="textinput1_changeHandler(event)"
+					 width="60"/>
+
+		<s:Label text="%(24小时内"/>
+
+		<s:TextInput text="{data.beginhour}"
+					 restrict="0-9"
+					 width="60"
+					 change="textinput2_changeHandler(event)"/>
+
+		<s:Label text="点至"/>
+
+		<s:TextInput text="{data.endhour}"
+					 restrict="0-9"
+					 width="60"
+					 change="textinput3_changeHandler(event)"/>
+
+		<s:Label text="点"/>
+
+		<s:DropDownList id="countDropDownList"
+						dataProvider="{countTypeStr}"
+						labelField="countTypeName"
+						selectedIndex="{getSelectedIndexByResult(countTypeStr, 'iscontinue', data['iscontinue'])}"
+						requireSelection="true"
+						width="70"
+						change="countDropDownList_changeHandler(event)">
+		</s:DropDownList>
+
+
+		<s:TextInput text="{data.hours}"
+					 restrict="0-9"
+					 width="60"
+					 change="textinput4_changeHandler(event)"/>
+
+		<s:Label text="小时越限）"/>
+
+	</s:HGroup>
+</s:MXAdvancedDataGridItemRenderer>

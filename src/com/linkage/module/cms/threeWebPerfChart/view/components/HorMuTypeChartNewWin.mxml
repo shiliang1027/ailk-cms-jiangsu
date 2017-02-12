@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          width="100%"
+          height="100%" xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			private var log:ILogger = Log.getLoggerByClass(HorMuTypeChartNewWin);
+			[Bindable]
+			private var title:String;
+			[Bindable]
+			private var isBing:Boolean=false;
+			
+			[Bindable]
+			private var lineChartState:Boolean=true;
+			
+			private var next:int = 0;
+			private var _kpiName:String;
+			private var _kpiName_2G:String;
+			private var _kpiName_3G:String;
+			private var _kpiName_4G:String;
+			private var unit:String;
+			private var p:SerialParam;
+			//			[Bindable]
+			private var pieChartLabel:String = "基站数";
+			
+			private var chartDatas:ArrayCollection;
+			private var klist:ArrayCollection = new ArrayCollection;
+			private var gmslist:ArrayCollection = new ArrayCollection;
+			private var tdlist:ArrayCollection = new ArrayCollection;
+			private var ltelist:ArrayCollection = new ArrayCollection;
+			private var lastData:Object;
+			[Bindable]
+			private var firstData:Object;
+			
+			[Embed(source="../img/line.png")]
+			private var lineIcon:Class;
+			[Embed(source="../img/column.png")]
+			private var columnIcon:Class;
+			
+			
+			protected function checkbox_changeHandler(event:Event):void
+			{
+				log.info("Cbox_clickHandler end");
+				lineChart();
+			}
+			
+			private function lineChart():void{
+				
+				_kpiName = lastData["kpi_name"];
+				_kpiName_2G = lastData["kpi_name_2G"];
+				_kpiName_3G = lastData["kpi_name_3G"];
+				_kpiName_4G = lastData["kpi_name_4G"];
+				
+				unit = lastData["unit"];
+				
+				title = _kpiName + " [" + unit + "]";
+				
+				/* 	if (this.parentApplication.parameters.type == "2" || this.parentApplication.parameters.type == "3")
+				title += " 粒度：[" + lastData["time_interval"] + "]";
+				title += " - " + lastData['gather_time']; */
+				
+				var serArray:ArrayCollection = new ArrayCollection();
+				if(GMSCbox.selected)
+				{
+					p = new SerialParam('perf_2G_value', _kpiName_2G);
+					if(lineChartState == true)
+						p.chartType = PrettyChartType.CHART_TYPE_LINE;
+					else   
+						p.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+					
+					p.lineStrokeColor = 0X00FF00;
+					serArray.addItem(p);
+				}
+				
+				if(TDCbox.selected)
+				{
+					p = new SerialParam('perf_3G_value', _kpiName_3G);
+					if(lineChartState == true)
+						p.chartType = PrettyChartType.CHART_TYPE_LINE;
+					else   
+						p.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+					p.lineStrokeColor = 0X0000FF;
+					serArray.addItem(p);
+				}
+				
+				if(LTECbox.selected)
+				{
+					p = new SerialParam('perf_4G_value', _kpiName_4G);
+					if(lineChartState == true)
+						p.chartType = PrettyChartType.CHART_TYPE_LINE;
+					else   
+						p.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+					p.lineStrokeColor = 0XFF0000;
+					serArray.addItem(p);
+				}
+				
+				klist.removeAll();
+				var kObj:Object = {};
+				for each (var d:Object in chartDatas)
+				for (var k:Object in d)
+					if (k == "perf_2G_value" || k == "perf_3G_value" || k == "perf_4G_value" || k == "gather_time")
+						if (!kObj.hasOwnProperty(k))
+						{
+							klist.addItem(k);
+							kObj[k] = "";
+						}
+				
+				log.info("序列：");
+				log.info(klist);
+				
+				chart.showXaxisTitle = true;
+				chart.showYaxisTitle = false;
+				chart.maxColumnWidth = 100;
+				
+				var charParam:ChartParam = new ChartParam();
+				//设置横坐标参数
+				charParam.xAxisProperty = "gather_time";
+				charParam.useShowDataEffect = true;
+				charParam.showLegend = false;
+				charParam.padding = 5;
+				
+				//				log.info("9");
+				if (this.parentApplication.parameters.type == "2" && _kpiName.indexOf("无线接通率") >= 0)
+				{
+					charParam.leftYaxisMinimum = 80;
+					chart.justifyMaxValue = false;
+				}
+				else
+					chart.justifyMaxValue = true;
+				
+				chart.noDataMsg = "";
+				chart.canDropLabels = true;
+				chart.chartParam = charParam;
+				chart.series = serArray;
+				
+				chart.chartData(serArray.length>0?chartDatas:new ArrayCollection(), true);
+				log.info("加入图表kpi_name:{0} 结束", _kpiName);
+			}
+			
+			
+			private function pieChart():void
+			{
+				
+				log.info("加入饼状图表kpi_name:{0} 开始", _kpiName);
+				_kpiName = lastData["kpi_name"];
+				_kpiName_2G = lastData["kpi_name_2G"];
+				_kpiName_3G = lastData["kpi_name_3G"];
+				_kpiName_4G = lastData["kpi_name_4G"];
+				//                kpiName_23G = obj["kpi_name_23G"];
+				unit = lastData["unit"];
+				
+				//				if (flag)
+				//					label.text = "2G/3G用户数及" + kpiName + "[" + unit + "]";
+				//				else
+				title = _kpiName + " [" + unit + "]";
+				
+				
+				klist.removeAll();
+				var kObj:Object = {};
+				for each (var d:Object in chartDatas)
+				for (var k:Object in d)
+					if (k == "mo_type_name" || k == "value")
+						if (!kObj.hasOwnProperty(k))
+						{
+							//								  
+							klist.addItem(k);
+							kObj[k] = "";
+						}
+				
+				log.info("序列：");
+				log.info(klist);	
+				
+				chart.showXaxisTitle = false;
+				chart.showYaxisTitle = false;
+				chart.maxColumnWidth = 100;
+				
+				chart.xAxisFontSize = 13;
+				chart.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				var sp:SerialParam = new SerialParam("value", pieChartLabel);
+				sp.chartType = "pie";
+				series.addItem(sp);
+				
+				chart.series = series;
+				chart.canDropLabels = true;
+				chart.xAxisFontSize = 12;
+				var chartparam:ChartParam = new ChartParam();
+				chartparam.labelStep = 1;
+				chartparam.itemClickEnable = true;
+				chartparam.xAxisProperty = 'mo_type_name';
+				chartparam.use3DColumn = true;
+				chartparam.showLegend = true;
+				chart.chartParam = chartparam;
+				
+				chart.chartData(chartDatas, true);
+				
+				log.info("加入饼状图表kpi_name:{0} 结束", _kpiName);
+				
+			}
+			
+			
+			protected function chart_creationCompleteHandler(event:FlexEvent):void
+			{
+				/* if(data.length>0){
+					firstData = ArrayCollection(data).getItemAt(0);
+					lastData = ArrayCollection(data).getItemAt(ArrayCollection(data).length-1);
+					chartDatas = new ArrayCollection(ArrayCollection(data).source.slice(0,ArrayCollection(data).length-1));
+					log.debug(firstData);
+					log.debug(lastData);
+					log.debug(chartDatas);
+					
+					if(!isBing){
+						for each(var obj:Object in chartDatas)
+						{
+							if(obj["perf_2G_value"] != "abc")
+								gmslist.addItem(obj["perf_2G_value"]);
+							if(obj["perf_3G_value"] != "abc")
+								tdlist.addItem(obj["perf_3G_value"]);
+							if(obj["perf_4G_value"] != "abc")
+								ltelist.addItem(obj["perf_4G_value"]);
+						}
+						
+						log.info(gmslist.length +"--"+tdlist.length+"---"+ltelist.length);
+						if(gmslist.length >0)
+							GMSCbox.selected = true;
+						else
+							GMSCbox.enabled = false;
+						if(tdlist.length >0)
+							TDCbox.selected = true;
+						else
+							TDCbox.enabled = false;
+						if(ltelist.length >0)
+							LTECbox.selected = true;
+						else
+							LTECbox.enabled = false;
+					} */
+					
+				}
+				var temp:String = lastData["isBing"];
+				if(temp=="true"){
+					isBing=true;
+				}else{
+					isBing=false;
+				}
+				log.info("isBing:"+isBing);
+				if(!isBing){
+					lineChart();
+				}else
+				{
+					pieChart();
+				}
+			}
+			
+			protected function exportDatas():void
+			{
+				/* var heads:Array = [];
+				
+				for each (var key:String in klist)
+				heads.push({"id": key, "name": key});
+				if(isBing == false)
+				{
+					heads.push({"id": "perf_2G_value", "name": "2G流量"});
+					heads.push({"id": "perf_3G_value", "name": "3G流量"});
+					heads.push({"id": "perf_4G_value", "name": "4G流量"});
+					heads.push({"id": "gather_time", "name": "时间"});
+					
+				}else{
+					heads.push({"id": "mo_type_name", "name": "基站种类"});
+					heads.push({"id": "value", "name": "基站数值"});
+				}
+				log.info(chartDatas);
+				ExcelUtil.exportSimpleExcel(title, heads, chartDatas); */
+			}
+			
+			protected function lRcImg_clickHandler():void
+			{
+				// TODO Auto-generated method stub
+				/* if(lineChartState == true)
+				{
+					lRcImg.source = columnIcon;
+					lineChartState = false;
+					lineChart();
+					
+				}else{
+					lRcImg.source = lineIcon;
+					lineChartState = true;
+					lineChart();
+					
+				} */
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	<s:VGroup width="100%" height="100%">
+		<s:HGroup width="100%" horizontalAlign="center">
+			<s:Label text="{title}" fontSize="16"/>
+		</s:HGroup>
+		<s:HGroup horizontalCenter="center" width="100%">
+			<s:HGroup width="100%" horizontalAlign="center" visible="{!isBing}" includeInLayout="{!isBing}">
+				<s:CheckBox id="GMSCbox" selected="false" label="GMS" change="checkbox_changeHandler(event)"/>
+				<s:CheckBox id="TDCbox" selected="false" label="TD" change="checkbox_changeHandler(event)"/>
+				<s:CheckBox id="LTECbox" selected="false" label="LTE" change="checkbox_changeHandler(event)"/>
+			</s:HGroup>
+			<s:HGroup horizontalAlign="right" width="100%">
+				<mx:Image buttonMode="true"
+						  id="lRcImg"
+						  click="lRcImg_clickHandler()"
+						  toolTip="曲线图"
+						  source="@Embed('../img/line.png')"/>
+				<mx:Image buttonMode="true"
+						  click="exportDatas()"
+						  toolTip="导出"
+						  source="@Embed('../img/export.png')"/>
+			</s:HGroup>
+		</s:HGroup>
+		<s:VGroup width="100%" height="100%">
+			<ailk_chart:PrettyChart id="chart" width="100%" height="100%"/>
+		</s:VGroup>
+	</s:VGroup>
+</s:HGroup>

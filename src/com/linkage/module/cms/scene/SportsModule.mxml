@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   maxWidth="{Number.MAX_VALUE}"
+		   xmlns:view="com.linkage.module.cms.scene.view.*"
+		   xmlns:sportsvenuesview="com.linkage.module.cms.scene.view.components.sportsvenuesview.*"
+		   creationComplete="creat_creationCompleteHandler(event)"
+		   layout="absolute"
+		   width="100%"
+		   height="100%">
+	<fx:Declarations>
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{SportsModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+
+			import mx.events.FlexEvent;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			public var parameters:Object;
+
+			private var log:ILogger = Log.getLoggerByClass(SportsModule);
+
+			//定时刷新指标数据的定时器
+			protected var loadSportsViewTimer:Timer = new Timer(10000);
+
+			[Init]
+			public function moduleInit():void
+			{
+				if(log.infoEnabled)
+					log.info("--开始初始化用户信息！");
+
+				this.parameters = this.parentApplication.parameters;
+
+				user.context = this.parameters['context'];
+				user.sceneId = this.parameters['sceneId'];
+				user.level = this.parameters['level'];
+
+				if(log.infoEnabled)
+				{
+					log.info(user);
+					log.info("--初始化用户信息完成！");
+				}
+
+				loadSportsViewTimer.addEventListener(TimerEvent.TIMER, refushSportsData);
+				loadSportsViewTimer.start();
+			}
+
+			private function refushSportsData(event:TimerEvent):void
+			{
+				//sportsVenues.loadData();
+			}
+
+			protected function creat_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(log.infoEnabled)
+					log.info("--开始加载样式！");
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//test
+				//styleManager.loadStyleDeclarations2("/cms/flex-release/css/common/show/ui.swf");
+				if(log.infoEnabled)
+					log.info("--加载样式完成！");
+
+			}
+		]]>
+	</fx:Script>
+
+	<sportsvenuesview:SportsVenuesView id="sportsVenues">
+
+	</sportsvenuesview:SportsVenuesView>
+
+</mx:Module>

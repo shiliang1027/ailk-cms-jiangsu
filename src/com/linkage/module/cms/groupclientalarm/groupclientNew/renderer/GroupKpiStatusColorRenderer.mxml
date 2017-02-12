@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true" buttonMode="true"
+								  creationComplete="colorchange()"
+								  dataChange="colorchange()">
+	<fx:Script>
+		<![CDATA[
+			
+			[Embed(source="../assets/wave_down.png")]
+			[Bindable]
+			private static var _wave_down:Class;
+			[Embed(source="../assets/wave_up.png")]
+			[Bindable]
+			private static var _wave_up:Class;
+			protected function colorchange():void
+			{
+				try
+				{
+					var dataField:String = listData["dataField"];
+					if (data && data[dataField+"AlarmStatus"])//数据告警状态（正常，劣化）
+					{
+						var alarmStatus:String = data[dataField+"AlarmStatus"];
+						if (alarmStatus.indexOf("劣化") != -1)
+							lblData.setStyle("color", "#ff0000");
+					}
+					
+					if (data && data[dataField+"LastStatus"])//数据波动状态（上升，下降）
+					{
+						var lastStatus:String = data[dataField+"LastStatus"];
+						if (lastStatus.indexOf("上升") != -1){
+							waveImg.source = _wave_up;
+							waveImg.visible = true;
+						}else if(lastStatus.indexOf("下降") != -1){
+							waveImg.source = _wave_down;
+							waveImg.visible = true;
+						}
+					}
+					if ("kpiEffectSetOff"==dataField)//影响集客
+					{
+						lblData.setStyle("color","0x0000ff");
+						lblData.percentWidth = 100;
+					}
+					
+				}
+				catch (e:Error)
+				{
+				}
+			}
+//			
+		]]>
+	</fx:Script>
+	<s:HGroup id="colorHg" width="100%" height="100%" minHeight="20" verticalAlign="middle" horizontalAlign="center"
+			  buttonMode="true" useHandCursor="true" gap="20">
+		<s:Label id="lblData"
+				 textAlign="center"
+				 verticalAlign="middle"
+				 maxDisplayedLines="1"
+				 toolTip="{listData.label}"
+				 text="{listData.label}" width="50"/>
+		<s:Group width="30">
+			<mx:Image id="waveImg" visible="false"/>
+		</s:Group>
+	</s:HGroup>
+</s:MXAdvancedDataGridItemRenderer>

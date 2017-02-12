@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%"
+		 horizontalAlign="center" verticalAlign="middle"
+		 creationComplete="filterForm_creationCompleteHandler(event)" gap="0">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="query", type="com.linkage.module.cms.groupclient.event.FilterFormEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclient.event.FilterFormEvent;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Label;
+			import mx.events.FlexEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			
+			private var _dataProvider:ArrayCollection;
+			private var _moId:String = "";
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.components.queryKPIForm");
+			
+			protected function filterForm_creationCompleteHandler(event:FlexEvent):void
+			{
+//				this.dispatchEvent(new FilterFormEvent(FilterFormEvent.INIT));//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient.components*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+			}
+			protected function servName_keyUpHandler(event:KeyboardEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (event.keyCode == 13)
+				{
+					queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+			public function set dataProvider(value:ArrayCollection):void{
+				_dataProvider = value;
+				initKpiSelect();
+			}
+			private var realServTargetCompArray:Array;
+			private function initKpiSelect():void{
+					realKPISelectGroup.removeAllElements();
+					realServTargetCompArray = [];
+					if(_dataProvider && _dataProvider.length==0){
+						var promp:Label = new Label();
+						promp.text = "无指标";
+						realKPISelectGroup.addElement(promp);
+						selectBtnGroup.visible=false;
+						return;
+					}
+//					var bussType:String = String(servTypeList[realServTypeBar.selectedIndex].serv_type_id);
+					for each(var data:Object in _dataProvider){
+						var servTargetComp:PerServerTargetSelectComp = new PerServerTargetSelectComp();
+//						data.bussType = bussType;
+						servTargetComp.serverTarget = data;
+						if(data&&"true"==data.selectFlag){
+							servTargetComp.checkbox.selected = true;
+						}
+						if(""==_moId&&""!=data.moId){
+							_moId = String(data.moId);
+						}
+						trace(data.showName);
+						realKPISelectGroup.addElement(servTargetComp);
+						realServTargetCompArray.push(servTargetComp);
+					}
+					selectBtnGroup.visible=true;
+			}
+			protected function queryBtn_clickHandler(event:MouseEvent):void
+			{
+				if(""==_moId){
+					Alert.show("设备Id丢失，请重新进入！");
+					return;
+				}
+				var kpiIds:String = "";
+				var queryParam:Object = {};
+				for each(var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray){
+					if(servTargetComp.checkbox.selected){
+						kpiIds = kpiIds + servTargetComp.serverTarget["kpiId"] + ",";
+					}
+				}
+				if(""==kpiIds){
+					Alert.show("请至少选中一个指标！");
+					return;
+				}
+				queryParam.kpiIds = kpiIds;
+				var evt:FilterFormEvent = new FilterFormEvent(FilterFormEvent.QUERY);
+				evt.param = queryParam;
+				this.dispatchEvent(evt);
+			}
+			protected function selectAllBtn_clickHandler(event:MouseEvent):void
+			{
+				for each(var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray){
+					servTargetComp.checkbox.selected=true;
+				}
+			}
+			
+			protected function selectOtherBtn_clickHandler(event:MouseEvent):void
+			{
+				for each(var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray){
+					servTargetComp.checkbox.selected = !servTargetComp.checkbox.selected;
+				}
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+		<s:TileGroup id="realKPISelectGroup" width="98%" minHeight="30" rowHeight="20" verticalGap="1" horizontalGap="1" 
+					 requestedColumnCount="4" horizontalAlign="left" verticalAlign="middle" columnAlign="justifyUsingGap">
+		</s:TileGroup>
+		<s:HGroup id="selectBtnGroup" width="98%" height="30"  horizontalAlign="right" verticalAlign="middle">
+			<s:Button label="全选" width="70"
+					  id="selectAllBtn"
+					  click="selectAllBtn_clickHandler(event)"/>
+			<s:Button label="反选" width="70"
+					  id="selectOtherBtn"
+					  click="selectOtherBtn_clickHandler(event)"/>
+			<s:Button label="查 询" width="70"
+					  id="queryBtn"
+					  click="queryBtn_clickHandler(event)"/>
+		</s:HGroup>
+</s:VGroup>

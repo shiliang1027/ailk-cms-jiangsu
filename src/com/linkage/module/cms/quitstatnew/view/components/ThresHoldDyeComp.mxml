@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  height="100%"
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hrw (Ailk No.)
+		 @version 1.0
+		 @date 2012-8-28
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(ThresHoldDyeComp);
+
+			[Inject("thresHoldDyeCompPM")]
+			[Bindable]
+			public var pm:ThresHoldDyeCompPM;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			//渲染颜色	
+			public var _levelColorMap:Object={'0': 0XFF0000, '1': 0XEE9800, '2': 0XFED701, '3': 0X00FF00};
+
+			//保存每个SmallThresHold
+			private var sthArr:ArrayCollection=new ArrayCollection();
+
+			[MessageHandler(selector="QUITSTAT_CONFIG_WINDOW_SHOW")]
+			public function quitStatConfigWindowShow(e:QuitStatEvent):void
+			{
+				tree.selectedIndex=0;
+			}
+
+			private function saveConfig_clickHandler(event:MouseEvent):void
+			{
+				var data:ArrayCollection=new ArrayCollection();
+
+				for each (var szx:Object in tree.selectedItem.is_szx)
+				{
+					data.addItem({"index": szx.index, "upThresHold": szx.upThresHold, "downThresHold": szx.downThresHold, "isSzx": "1"});
+				}
+
+				for each (var notszx:Object in tree.selectedItem.not_szx)
+				{
+					data.addItem({"index": notszx.index, "upThresHold": notszx.upThresHold, "downThresHold": notszx.downThresHold, "isSzx": "0"});
+				}
+				var evt:QuitStatEvent=new QuitStatEvent(QuitStatEvent.SAVE_THRESHOLD_DATA);
+				evt.param=new Object;
+				evt.param.name=tree.selectedItem.name;
+				evt.param.dataList=data;
+				dispatchMsg(evt);
+			}
+
+			private function cancelConfig_clickHandler(event:MouseEvent):void
+			{
+
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto">
+		<s:HGroup width="100%">
+			<s:BorderContainer height="100%"
+							   width="180">
+				<mx:Tree id="tree"
+						 selectedIndex="0"
+						 styleName="sceneTree"
+						 dataProvider="{pm.dm.thresHoldDyes}"
+						 height="100%"
+						 width="100%"
+						 borderAlpha="0"
+						 verticalAlign="middle"
+						 contentBackgroundAlpha="0"
+						 showRoot="true"
+						 showScrollTips="true"
+						 wordWrap="false"
+						 variableRowHeight="true"
+						 labelField="desc"
+						 editorHeightOffset="0"
+						 indentation="12"
+						 openDuration="250"
+						 paddingLeft="10"
+						 folderClosedIcon="{null}"
+						 folderOpenIcon="{null}"
+						 defaultLeafIcon="{null}"
+						 disclosureClosedIcon="@Embed('../../assets/+.png')"
+						 disclosureOpenIcon="@Embed('../../assets/-.png')"/>
+			</s:BorderContainer>
+			<s:BorderContainer width="100%"
+							   height="100%">
+				<s:Scroller width="100%"
+							height="100%"
+							styleName="quitScroller">
+					<s:VGroup width="100%"
+							  paddingLeft="5"
+							  paddingRight="5">
+						<s:HGroup width="100%"
+								  horizontalAlign="center"
+								  verticalAlign="middle"
+								  paddingTop="5"
+								  paddingBottom="5">
+							<s:Label text="{tree.selectedItem.desc}阈值渲染配置"
+									 fontWeight="bold"
+									 styleName="label"/>
+						</s:HGroup>
+						<s:HGroup width="100%">
+							<s:Label text="省阈值配置"
+									 styleName="label"/>
+						</s:HGroup>
+						<s:DataGroup width="100%"
+									 dataProvider="{tree.selectedItem.is_szx}"
+									 itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeItemRenderer">
+							<s:layout>
+								<s:VerticalLayout gap="1"
+												  paddingLeft="5"
+												  paddingRight="5"/>
+							</s:layout>
+						</s:DataGroup>
+						<s:HGroup width="100%">
+							<s:Label text="地市阈值配置"
+									 styleName="label"/>
+						</s:HGroup>
+						<s:DataGroup width="100%"
+									 dataProvider="{tree.selectedItem.not_szx}"
+									 itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeItemRenderer">
+							<s:layout>
+								<s:VerticalLayout gap="1"
+												  paddingLeft="5"
+												  paddingRight="5"/>
+							</s:layout>
+						</s:DataGroup>
+						<s:HGroup width="100%"
+								  horizontalAlign="center">
+							<s:Button label="保存"
+									  id="saveConfig"
+									  buttonMode="true"
+									  click="saveConfig_clickHandler(event)"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:Scroller>
+			</s:BorderContainer>
+		</s:HGroup>
+	</s:Scroller>
+</s:VGroup>

@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute"
+		   xmlns:panel="com.linkage.system.component.panel.*"  
+		   xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   xmlns:local="com.linkage.module.cms.groupclient.components.*" 
+		   backgroundColor="0xD7E0E7"
+		   width="100%" 
+		   height="100%" 
+		   creationComplete="module_creationCompleteHandler()">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.data.DemoDatas;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManager;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManagerBS;
+			import com.linkage.module.cms.groupclient.data.GroupMonitorDataManager;
+			import com.linkage.module.cms.groupclient.data.GroupMonitorDataManagerBS;
+			import com.linkage.module.cms.groupclient.event.CustWindowEvent;
+			import com.linkage.module.cms.groupclient.event.FilterFormEvent;
+			import com.linkage.module.cms.groupclient.renderer.GroupKpiStatusColorRenderer;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.EffectEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.GroupEquipmentPerformanceModule");
+			public var parameters:Object;	
+			[Embed(source="./assets/up_gray.png")]
+			[Bindable]
+			private static var _up_gray:Class;
+			
+			[Embed(source="./assets/up_blue.png")]
+			[Bindable]
+			private static var _up_blue:Class;
+			
+			[Embed(source="./assets/down_gray.png")]
+			[Bindable]
+			private static var _down_gray:Class;
+			
+			[Embed(source="./assets/down_blue.png")]
+			[Bindable]
+			private static var _down_blue:Class;
+			
+			[Embed(source="./assets/config_link.png")]
+			[Bindable]
+			private static var _config_link:Class;
+			
+			
+			private var alarmWindowHeight:Number=200;
+			
+			[Bindable]
+			public var datas:ArrayCollection;
+			private var defaultFilter:String = 'ismetropolis!=&businesslevel!=';//暂时模拟的集客告警
+			public var lm:LoadManager = null;
+			private var queryParam:Object;//查询参数。
+			protected function module_creationCompleteHandler():void
+			{
+				parameters = parentApplication.parameters;
+				lm = new LoadManager(this);
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//初始化manager
+				initServerClass();
+				
+				this.queryForm.dispatchEvent(new FilterFormEvent(FilterFormEvent.INIT));
+				log.info("抛出事件,初始化queryForm");
+				
+				//获取最新的左边对象树
+				loadTreeInfo();
+				//初始化告警流水
+				initAlarms();
+				
+				//模拟用例，2013-10-22，汪炜
+//				initDemo();
+				//隐藏告警窗口
+//				this.img.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				log.info("初始化完成！");
+				
+			}
+			//模拟用例
+			private function initDemo():void
+			{
+				//1.设置列表显示列
+				initGridColumns(DemoDatas.columns);
+				//2.设置分页参数
+				districtCustPager.totalRowCount = DemoDatas.datas.length;
+				//3.设置数据
+				datas = DemoDatas.datas;
+			}
+			private var groupEqPerfDataManager:GroupEqPerfDataManager;
+			private var dataManager:GroupMonitorDataManager = null;
+			//初始化groupEqPerfDataManager，并给数据类注入context
+			private function initServerClass():void
+			{
+				if(null==groupEqPerfDataManager)
+				groupEqPerfDataManager = new GroupEqPerfDataManagerBS(this.parameters['context']);
+				if(null==dataManager)
+				dataManager = new GroupMonitorDataManagerBS(String(this.parameters["context"]));
+			}
+
+			private function initAlarms():void
+			{
+				log.info('初始化告警流水：');
+				log.info(this.parameters['mapInfo']);
+				//初始化告警流水
+				var alarmParams:Object = {};
+				alarmParams.mapInfo=this.parameters['mapInfo'];
+				alarmParams.defaultDisplay="alarmstatus";
+				alarmFlow.params = alarmParams;
+				//设置过滤规则
+				alarmFlow.ruleContent = defaultFilter;
+				alarmFlow.initInfo();
+			}
+			
+			private function loadTreeInfo():void
+			{
+				lm.showLoading();
+				groupEqPerfDataManager.loadEqTrees({},
+					function(result:Object):void
+					{
+						if(result.datas){
+							log.info('加载左侧tree成功，xml:'+result.datas);
+						}
+						initTree(result.datas);
+						
+						//模拟点击左侧tree事件
+						initFaultDispatchEvent();
+						
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('加载左侧tree失败！');
+						lm.hideLoading();
+					});
+			}
+			
+			private var xmlData:XML;//默认显示第一层
+			private function initTree(xml:Object):void{
+				tree.dataProvider = XML(xml);
+				xmlData  = tree.dataProvider[0];
+				tree.callLater(expandTree);
+			}
+			/**
+			 * 
+			 * 默认打开第一层
+			 **/
+			private function expandTree():void{
+				tree.expandChildrenOf(xmlData , true);
+				for each (var item:XML in xmlData.node) 
+				{
+//					log.info("father xml -->" + item);
+					for each (var itemChild:XML in item.node)
+					{
+//						log.info("child xml -->" + itemChild);
+					    tree.expandChildrenOf(itemChild , false);
+					}
+				}
+				
+			}
+			/**
+			 * 模拟点击tree设备类型为PBX的设备。
+			 **/ 
+			private function initFaultDispatchEvent():void
+			{
+				forEachTree(XML(tree.dataProvider),"PBX");
+				initTreeDispatchEvent();
+//				tree.callLater(initTreeDispatchEvent);
+			}
+			private function initTreeDispatchEvent():void{
+				tree.dispatchEvent(new ListEvent(ListEvent.ITEM_CLICK));
+			}
+			//模拟用户tree选中
+			private function forEachTree(node:XML,moTypeName:String):void
+			{
+				for each(var child:XML in node.children())
+				{
+					log.info("tree item--->moTypeName:"+ String(child.@moTypeName));
+					//pbx模拟点击
+					if(moTypeName==String(child.@moTypeName)&&child.hasComplexContent())
+					{
+						log.info("找到pbx设备类型！");
+						log.info(child);
+						tree.selectedItem = child;
+						break;
+					}
+					if(child.hasComplexContent())
+					{
+						forEachTree(child,moTypeName);
+					}
+				}
+			}
+			 private function resizeWindow():void
+			{
+				 imgHGroup.visible = false;
+				 imgHGroup.includeInLayout = false;
+				 
+				 alarmWindow.visible = true;
+				 alarmWindow.includeInLayout = true;
+				 alarmWindow.contentGroup.visible=true;
+				 alarmWindow.contentGroup.includeInLayout=true;
+				 //				rightTopGroup.visible=true;
+				 //				rightTopGroup.includeInLayout=true;
+				 alarmWindow.height = 200;
+				 alarmWindow.percentWidth = 100;
+				 
+				 alarmWindow.restoreButton.visible=false;
+				 alarmWindow.restoreButton.includeInLayout=false;
+				 alarmWindow.maximizeButton.visible=true;
+				 alarmWindow.maximizeButton.includeInLayout=true;
+				 
+				/* if(img.name == "down")
+				{
+					hideAlarm();
+				}
+				else if(img.name == "up")
+				{
+					showAlarm();
+				} */
+			}	 		
+			 private function changeImg(type:Object):void
+			{
+				img.source = getImg(type);
+			} 			
+			 private function getImg(type:Object):Object
+			{
+				if(img.name == "down")
+				{
+					if(type == 1)
+						return _down_blue;
+					else
+						return _down_gray;
+				}
+				 else if(img.name == "up")
+				{
+					if(type == 1)
+						return _up_blue;
+					else
+						return _up_gray;
+				} 
+				
+				return _up_gray;
+			} 
+			/* private function hideAlarm(dura:Number=400):void
+			{
+				 alarmFlow.visible = false;
+				alarmFlow.includeInLayout = false; 
+				
+				resize.duration = dura;
+				resize.heightTo = 20;
+				resize.play();
+				
+				img.source = _up_gray;
+				img.name = "up";
+			} */
+			/* private function showAlarm(dura:Number=400):void
+			{
+			 	alarmFlow.visible = false;
+				alarmFlow.includeInLayout = false; 
+				
+				alarmVgroup.percentWidth = 100;
+				
+				resize.duration = dura;
+				resize.heightTo = 210;
+				resize.play();
+				
+				img.source = _down_gray;
+				img.name = "down";
+			}	 */		
+			private function resize_effectEndHandler(event:EffectEvent):void
+			{
+				 alarmFlow.includeInLayout = true;
+				alarmFlow.visible = true; 
+//				alarmWindow.percentWidth = 100;
+			}
+			protected function districtCustPager_pageChangeHandler(event:PagerEvent):void
+			{
+				queryParam.curPage_splitPage=districtCustPager.currentPage;
+				queryParam.num_splitPage=districtCustPager.pageSize;
+				queryEqPerform(queryParam);
+			}
+			private var selectServTypeId:String = "";//选中的业务类型
+			private var selectMoTypeId:String = "";//选中的设备类型
+			protected function tree_itemClickHandler(event:ListEvent):void
+			{
+				var data:XML = XML(tree.selectedItem);
+				log.info("触发设备tree点击事件！选中的xml："+data);
+				if(null!=data.@moTypeId&&""!=String(data.@moTypeId)
+					&&data.hasComplexContent()){//选中的是设备类型(有子节点)
+ 					var param:Object = {};
+					param.moTypeId = String(data.@moTypeId);
+					param.servTypeId = String(data.@servTypeId);
+					param.moTypeName = String(data.@moTypeName);
+					param.servTypeName = String(data.@servTypeName);
+					
+					log.info("data.@mo_id_group+"+String(data.@mo_id_group));
+					var arr:Array =   String(data.@mo_id_group).split(",");
+					log.info(arr);
+					param.arr = arr;
+					
+					//分页参数
+					param.curPage_splitPage=1;
+					param.num_splitPage=districtCustPager.pageSize;
+					//1.查询列表
+					queryParam = param;
+					log.info("param参数：moTypeId->" + param.moTypeId +",servTypeId->" + param.servTypeId);
+					log.info(queryParam);
+					queryEqPerform(queryParam);
+					//2.设置告警流水
+					filterAlarmGroup(param);
+					//3.级联查询条件
+					log.info("选中的是设备类型！");
+					
+					selectServTypeId = param.servTypeId;
+					selectMoTypeId = param.moTypeId;
+					dispatchTypeChangeEvent(FilterFormEvent.SELECTSERVTYPECHANGE);
+					
+				}else if(null!=data.@moTypeId&&""!=String(data.@moTypeId)
+					&&null!=data.@moId&&""!=String(data.@moId)){//选中的是设备
+					var param:Object = {};
+					param.moTypeId = String(data.@moTypeId);
+					param.servTypeId = String(data.@servTypeId);
+					param.moTypeName = String(data.@moTypeName);
+					param.servTypeName = String(data.@servTypeName);
+					param.moId = String(data.@moId);
+					
+					log.info("data.@mo_id_group+"+String(data.@mo_id_group));
+					var arr:Array =   String(data.@mo_id_group).split(",");
+					log.info(arr);
+					param.arr = arr;
+					//分页参数
+					param.curPage_splitPage=1;
+					param.num_splitPage=districtCustPager.pageSize;
+					//1.查询列表
+					queryParam = param;
+					log.info(param);
+					queryEqPerform(queryParam);
+					//2.设置告警流水
+					filterAlarm(param);
+					//3.级联查询条件
+					log.info("选中的是设备！");
+					
+					selectServTypeId = param.servTypeId;
+					selectMoTypeId = param.moTypeId;
+					dispatchTypeChangeEvent(FilterFormEvent.SELECTSERVTYPECHANGE);
+					
+				}else if(null!=data.@servTypeId&&""!=String(data.@servTypeId))//选中的是业务类型
+				{
+					var servTypeId:String = String(data.@servTypeId);
+					
+					var param:Object = {};
+					param.servTypeId = servTypeId;
+					param.servTypeName = String(data.@servTypeName);
+					
+					log.info("data.@mo_id_group="+String(data.@mo_id_group));
+					var arr:Array =  String(data.@mo_id_group).split(",");
+					log.info(arr);
+					param.arr = arr;
+					
+					//2.设置告警流水
+//					filterAlarm(param);
+					filterAlarmGroup(param);
+					//3.级联查询条件
+					log.info("选中的是业务类型！");
+					
+					selectServTypeId = servTypeId;
+					selectMoTypeId = "";
+					dispatchTypeChangeEvent(FilterFormEvent.SELECTSERVTYPECHANGE);
+				}
+			}
+			/**
+			 * 
+			 * 业务类型或者设备类型change事件
+			 **/ 
+			private function dispatchTypeChangeEvent(type:String):void{
+				var evt:FilterFormEvent = new FilterFormEvent(type);
+				var selectParams:Object = {};
+				selectParams.selectServTypeId = selectServTypeId;
+				selectParams.selectMoTypeId = selectMoTypeId;
+				log.info("业务类型或者设备类型change事件,类型eventType:"+type + ",param:selectServTypeId:"
+					+selectServTypeId + "selectMoTypeId:"+selectMoTypeId);
+				evt.param = selectParams;
+				this.queryForm.dispatchEvent(evt);
+			}
+			
+			protected function queryForm_queryHandler(event:FilterFormEvent):void
+			{
+				//1.查询列表
+				//分页参数
+				event.param.curPage_splitPage=1;
+				event.param.num_splitPage=districtCustPager.pageSize;
+				queryParam = event.param;
+				queryEqPerform(queryParam);
+				//2.设置告警流水
+				filterAlarm(queryParam);
+			}
+			protected function queryForm_queryMoTypeListHandler(event:FilterFormEvent):void
+			{
+				log.info("触发查询条件中业务类型change事件！");
+				log.info(event.param);
+				dataManager.getMoTypeList(event.param,queryMoTypeListHandler);
+			}			
+			private function queryMoTypeListHandler(result:Object):void{
+				log.info("根据业务类型查询设备类型success！");
+				var evt:FilterFormEvent = new FilterFormEvent(FilterFormEvent.MOTYPECHANGE);
+				var params:Object = {};
+				params.result = result;
+				params.selectMoTypeId = selectMoTypeId;
+				evt.param = params;
+				this.queryForm.dispatchEvent(evt);
+			}
+			//查询设备列表。
+			private function queryEqPerform(param:Object):void{
+				lm.showLoading();
+				groupEqPerfDataManager.loadEqKPIList(param,
+					function(result:Object):void
+					{
+						kpiDataGrid.visible = true;
+						if(result.datas){
+							log.info('查询集客设备性能指标成功，xml:');
+						}
+						//1.设置列表显示列
+						initGridColumns(result.columns);
+						//2.设置分页参数
+						districtCustPager.totalRowCount = result.totalRowCount;
+						//3.设置数据
+						datas = result.datas;
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('查询集客设备性能指标失败！');
+						lm.hideLoading();
+					});
+			}
+			//动态刷新告警流水 
+			private function initGridColumns(columns:ArrayCollection):void
+			{
+				log.info("grid显示列参数：");
+				log.info(columns);
+				var arrs:Array = [];
+				if(null!=columns){
+					for each (var item:Object in columns) 
+					{
+						var advancedDataGridColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						advancedDataGridColumn.dataField = item.dataField;
+						advancedDataGridColumn.dataTipField = item.dataField;
+						advancedDataGridColumn.headerText = item.headerText;
+						advancedDataGridColumn.showDataTips = true;
+						advancedDataGridColumn.setStyle("textAlign","center");
+						var dataGridItemRenderer:ClassFactory;
+						if(String(item.dataField).indexOf("kpi")>-1){
+							dataGridItemRenderer = new ClassFactory(GroupKpiStatusColorRenderer);
+							advancedDataGridColumn.width = 180;
+						}else{
+							dataGridItemRenderer = new ClassFactory(mx.controls.Label);
+							advancedDataGridColumn.width = 120;
+						}
+						advancedDataGridColumn.itemRenderer = dataGridItemRenderer;
+						arrs.push(advancedDataGridColumn);
+					}
+				}
+				kpiDataGrid.columns = arrs;
+			}
+			//动态刷新告警流水 
+			private function filterAlarm(param:Object):void
+			{
+				var moTypeName:String = param.moTypeName;
+				var moId:String = param.moId;
+				var servTypeName:String = param.servTypeName;
+				var currentFilter:String = defaultFilter ;
+				if(null!=moTypeName&&""!=moTypeName){
+					currentFilter += "&alarmnetype=\"" + moTypeName + "\"";
+				}
+				if(null!=moId&&""!=moId){
+
+					currentFilter += "&alarmneid=\"" + moId + "\"";
+				}
+				
+				if(null!=servTypeName&&""!=servTypeName){
+					currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+				}
+				log.info("过滤页面reload告警：filter：" + currentFilter);
+				alarmFlow.reload(currentFilter);
+			}
+			
+			private function filterAlarmGroup(param:Object):void
+			{
+				var moTypeName:String = param.moTypeName;
+				var moId:String = param.moId;
+				var servTypeName:String = param.servTypeName;
+				var arr:Array = param.arr;
+				var currentFilter:String = defaultFilter ;
+				if(null!=moTypeName&&""!=moTypeName){
+					currentFilter += "&alarmnetype=\"" + moTypeName + "\"";
+				}
+				
+				if(arr.length>1)
+				{
+					var objStr:String = "";
+					var i:int = 0;
+					//(alarmregion="南京"|alarmregion="苏州")&(alarmseverity=1|alarmseverity=2)
+					for each(var obj:String in arr)
+					{
+						if(i == 0)
+						{
+							objStr += obj;
+						}else{
+							objStr += "\"|alarmneid=\""+obj;
+						}
+						i++;
+					}
+					currentFilter += "&(alarmneid=\"" + objStr + "\")";
+				}else if(arr.length == 1)
+				{
+					currentFilter += "&alarmneid=\"" + arr[0] + "\"";
+				}
+				
+				if(null!=servTypeName&&""!=servTypeName){
+					currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+				}
+				log.info("过滤页面reload告警：filter：" + currentFilter);
+				alarmFlow.reload(currentFilter);
+				
+			}
+			
+			protected function queryForm_formInitHandler(event:FilterFormEvent):void
+			{
+				log.info("查询地市和业务类型");
+				var param:Object = new Object;
+				param.areaId=this.parameters['areaId'];
+				log.info("查询地市和业务类型参数param.areaId："+param.areaId);
+				dataManager.getCityList(param,getCityListHandler);
+				dataManager.getAllServ(param,getAllServHandler);
+			}
+			private function getCityListHandler(result:Object):void{
+				log.info("查询地市success！");
+				var evt:FilterFormEvent = new FilterFormEvent(FilterFormEvent.CITYCHANGE);
+				evt.param = result;
+				this.queryForm.dispatchEvent(evt);
+			}
+			private function getAllServHandler(result:Object):void{
+				log.info("查询业务类型success！");
+				var evt:FilterFormEvent = new FilterFormEvent(FilterFormEvent.SERVTYPECHANGE);
+				evt.param = result;
+				this.queryForm.dispatchEvent(evt);
+			}	
+			
+			private function linkConfigWindow():void
+			{
+				log.info("跳转配置页面");
+				var urlParam:String="";
+				var data:XML = XML(tree.selectedItem);
+				if(null!=data.@moTypeId&&""!=String(data.@moTypeId)){
+					urlParam = "equipmentFO.moTypeId="+String(data.@moTypeId);
+				}
+				if(null!=data.@servTypeId&&""!=String(data.@servTypeId)){
+					if(""!=urlParam){
+						urlParam = urlParam + "&equipmentFO.servTypeId="+String(data.@servTypeId);
+					}else{
+						urlParam = "equipmentFO.servTypeId="+String(data.@servTypeId);
+					}
+				}
+				var url:String = this.parameters['context'] 
+								+"groupsupport/performance/eqptperfor/action/equipmentAction!getCustServName.action?" 
+								+ urlParam;
+//				navigateToURL(new URLRequest(url));
+				ExternalInterface.call("openJsp", url);
+			}
+			
+			
+			protected function kpiDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object = AdvancedDataGrid(event.currentTarget).selectedItem;
+				var columnIndex:int  = 	event.columnIndex;
+				var col:AdvancedDataGridColumn = AdvancedDataGrid(event.currentTarget).columns[columnIndex];
+				trace(col.dataField);
+				var moId:String = data.moId;
+				var moName:String = data.moName;
+				var moTypeId:String = data.moTypeId;
+				var servTypeId:String = data.servTypeId;
+				var urlParam:String = "equipmentFO.moId="+moId+"&equipmentFO.moName="+moName
+					+"&equipmentFO.moTypeId="+moTypeId+"&equipmentFO.servTypeId="+servTypeId;
+				if(String(col.dataField).indexOf("kpi")>-1){
+					switch (col.dataField)
+					{
+						case "kpiEffectSetOff":
+							//影响集客
+							linkGroupClientInfoWindow(urlParam);
+							break;
+						default://行业网关上行成功率//行业网关系统容量占用率//短信下发平均时延 （等等指标信息，查询指标详情）
+							urlParam = urlParam + "&equipmentFO.kpiIds="+col.dataField;
+							linkMoKpiInfoWindow(urlParam);
+							break;
+					}
+				}
+				
+			}
+			//查看趋势
+			private function linkMoKpiInfoWindow(urlParam:String):void
+			{
+				var url:String = this.parameters['context'] + "groupsupport/performance/eqptperfor/action/equipmentAction!loadMoKPIInfo.action?"+urlParam;
+				navigateToURL(new URLRequest(url));
+			}
+			//设备关联集客列表
+			private function linkGroupClientInfoWindow(urlParam:String):void
+			{
+				var url:String = this.parameters['context'] + "groupsupport/performance/eqptperfor/action/equipmentAction!loadRelatedCustInfo.action?"+urlParam;
+				navigateToURL(new URLRequest(url));
+			}
+			
+			
+		 	
+			protected function alarmWindow_minimizeHandler(event:WindowEvent):void
+			{
+				imgHGroup.visible = true;
+				imgHGroup.includeInLayout = true;
+			
+				rightQueryGroup.visible = true;
+				rightQueryGroup.includeInLayout = true;
+				rightQueryGroup.percentHeight = 20;
+				rightDataGroup.percentHeight = 80;
+				alarmWindow.height = 200;
+				dataGroup.visible = true;
+				dataGroup.includeInLayout = true;
+				dataGroup.percentHeight = 100;
+				
+				alarmWindow.restoreButton.visible=false;
+				alarmWindow.restoreButton.includeInLayout=false;
+				alarmWindow.maximizeButton.visible=true;
+				alarmWindow.maximizeButton.includeInLayout=true;
+				
+				alarmWindow.visible = false;
+				alarmWindow.includeInLayout = false;
+				alarmWindow.contentGroup.visible=false;
+				alarmWindow.contentGroup.includeInLayout=false;
+				
+			} 
+			
+			protected function alarmWindow_maximizeHandler(event:WindowEvent):void
+			{
+//				if (alarmWindowHeight == 200)
+//				{
+//					alarmWindowHeight=alarmWindow.height;
+//				}
+//				rightTopGroup.visible=false;
+//				rightTopGroup.includeInLayout=false;
+				rightQueryGroup.visible = false;
+				rightQueryGroup.includeInLayout = false;
+				rightDataGroup.percentHeight = 100;
+				dataGroup.visible = false;
+				dataGroup.includeInLayout = false;
+				
+				alarmWindow.restoreButton.visible=true;
+				alarmWindow.restoreButton.includeInLayout=true;
+				alarmWindow.maximizeButton.visible=false;
+				alarmWindow.maximizeButton.includeInLayout=false;
+				alarmWindow.percentHeight=100;
+				alarmWindow.contentGroup.visible=true;
+				alarmWindow.contentGroup.includeInLayout=true;
+			}
+			
+			protected function alarmWindow_restoreHandler(event:WindowEvent):void
+			{
+				/* if (alarmWindowHeight == 200)
+				{
+					return;
+				} */
+//				alarmWindow.height=alarmWindowHeight;
+				alarmWindow.contentGroup.visible=true;
+				alarmWindow.contentGroup.includeInLayout=true;
+//				rightTopGroup.visible=true;
+//				rightTopGroup.includeInLayout=true;
+				rightQueryGroup.visible = true;
+				rightQueryGroup.includeInLayout = true;
+				rightQueryGroup.percentHeight = 20;
+				rightDataGroup.percentHeight = 80;
+				alarmWindow.height = 200;
+				dataGroup.visible = true;
+				dataGroup.includeInLayout = true;
+				
+				alarmWindow.restoreButton.visible=false;
+				alarmWindow.restoreButton.includeInLayout=false;
+				alarmWindow.maximizeButton.visible=true;
+				alarmWindow.maximizeButton.includeInLayout=true;
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	<!--	<s:Resize heightTo="0" id="resize" target="{alarmVgroup}" effectEnd="resize_effectEndHandler(event)"/>-->
+	</fx:Declarations>
+	<s:HGroup width="100%" height="100%" gap="4" right="4" left="4" top="4" bottom="10">
+		<s:Group width="20%" height="100%" >
+			<mx:Tree id="tree"
+					 height="100%"
+					 width="100%"
+					 borderColor="0x888888"
+					 borderAlpha="0.9" 
+					 contentBackgroundColor="0xEEF6FC"
+					 verticalAlign="middle"
+					 showRoot="true"
+					 showScrollTips="true"
+					 wordWrap="false"
+					 variableRowHeight="true"
+					 labelField="@label"
+					 editorHeightOffset="0"
+					 indentation="12"
+					 openDuration="250"
+					 paddingLeft="10"
+					 folderClosedIcon="{null}"
+					 folderOpenIcon="{null}"
+					 defaultLeafIcon="{null}"
+					 itemRenderer="com.linkage.module.cms.groupclient.renderer.TreeDataItemRenderer"
+					 disclosureClosedIcon="@Embed('assets/+.png')"
+					 disclosureOpenIcon="@Embed('assets/-.png')"
+					 itemClick="tree_itemClickHandler(event)"
+					 />
+			<mx:Image id="configLinkImg" right="12" top="12" source="{_config_link}" click="linkConfigWindow()" buttonMode="true"/>
+		</s:Group>
+		<s:VGroup width="80%" height="100%" horizontalAlign="center" id="rightTopGroup">
+			<!--<s:Group height="1" width="100%"/>-->
+			<s:Group width="100%" height="20%" id="rightQueryGroup">
+				<s:Rect alpha="1" width="100%" height="100%">
+					<s:fill>
+						<s:LinearGradient>
+							<s:GradientEntry color="0xEEF6FC" ratio="0"/> 
+						</s:LinearGradient>
+					</s:fill>
+					<s:stroke>
+						<s:LinearGradientStroke weight="1">
+							<s:GradientEntry color="0x888888" alpha="0.9"/>
+						</s:LinearGradientStroke>
+					</s:stroke>
+				</s:Rect>
+				<local:EquipmentKPITable id="queryForm" width="90%" height="90%" verticalCenter="5" horizontalCenter="0"
+										 formInit="queryForm_formInitHandler(event)"
+										 query="queryForm_queryHandler(event)"
+										 queryMoTypeList="queryForm_queryMoTypeListHandler(event)"
+										 />
+			</s:Group>
+			<s:Group width="100%" height="80%" id="rightDataGroup">
+				<s:Rect alpha="1" width="100%" height="100%" top="5" >
+					<s:fill>
+						<s:LinearGradient>
+							<s:GradientEntry color="0xEEF6FC" ratio="0"/> 
+						</s:LinearGradient>
+					</s:fill>
+					<s:stroke>
+						<s:LinearGradientStroke weight="1">
+							<s:GradientEntry color="0x888888" alpha="0.9"/>
+						</s:LinearGradientStroke>
+					</s:stroke>
+				</s:Rect>
+				<!--<mx:VDividedBox id="mainDivBox" width="100%" height="100%">-->
+				<s:VGroup width="100%" height="100%">
+					<s:Group width="100%" height="100%" id="dataGroup">
+						<s:Scroller width="100%" height="98%" id="mainScroller" verticalScrollPolicy="auto"
+									left="5" top="15" bottom="5" right="5">
+							<s:VGroup width="100%" height="100%">
+								<mx:AdvancedDataGrid width="100%"
+													 height="100%"
+													 horizontalScrollPolicy="auto"
+													 verticalScrollPolicy="auto"
+													 dataProvider="{datas}"
+													 verticalAlign="middle"
+													 id="kpiDataGrid"
+													 visible="false"
+													 itemClick="kpiDataGrid_itemClickHandler(event)">
+								</mx:AdvancedDataGrid>
+								<s:HGroup width="100%" horizontalAlign="right">
+									<pager:Pager id="districtCustPager"
+												 pageSize="20"
+												 pageChange="districtCustPager_pageChangeHandler(event)">
+									</pager:Pager>
+								</s:HGroup>
+							</s:VGroup>
+						</s:Scroller>
+					</s:Group>
+					<panel:Window id="alarmWindow" 
+								  width="100%"
+								  minHeight="200"
+								  minimize="alarmWindow_minimizeHandler(event)"
+								  maximize="alarmWindow_maximizeHandler(event)"
+								  restore="alarmWindow_restoreHandler(event)" 
+								  closable="false"
+								  title="设备告警">
+						<pubflow:custalarm id="alarmFlow" moduleKey="groupbuss_p2pdevice" width="100%" height="100%"/>
+					</panel:Window>
+					<s:HGroup id="imgHGroup" width="100%" height="5" horizontalAlign="center" gap="0" y="{dataGroup.y + 1}" visible="false" includeInLayout="false">
+						<mx:Image id="img" source="{_up_gray}" name="up" 
+								  click="resizeWindow()"
+								  mouseOver="changeImg(1)"
+								  mouseOut="changeImg(2)"
+								  buttonMode="true"/>
+					</s:HGroup>
+				</s:VGroup>
+					
+				<!--<s:VGroup id="alarmVgroup" width="100%"  gap="0" bottom="0" >
+					<s:Group width="100%">
+						<panel:Window id="alarmWin" 
+									  width="100%"
+									  minimizable="false"
+									  maximizable="false"
+									  closable="false"
+									  title="设备告警">
+							<pubflow:custalarm id="alarmFlow" moduleKey="groupbuss_p2pdevice" width="100%" height="100%"/>
+						</panel:Window>
+						<s:HGroup width="100%" height="5" horizontalAlign="center" gap="0" y="{alarmWin.y + 1}">
+							<mx:Image id="img" source="{_down_gray}" name="down" 
+									  click="resizeWindow()"
+									  mouseOver="changeImg(1)"
+									  mouseOut="changeImg(2)"
+									  buttonMode="true"/>
+						</s:HGroup>
+					</s:Group>
+				</s:VGroup>-->
+			<!--</mx:VDividedBox>-->
+		  </s:Group>
+		</s:VGroup>
+	</s:HGroup>
+</mx:Module>

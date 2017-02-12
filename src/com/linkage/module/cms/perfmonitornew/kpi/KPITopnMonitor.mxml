@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+           xmlns:s="library://ns.adobe.com/flex/spark"
+           xmlns:mx="library://ns.adobe.com/flex/mx"
+           layout="absolute"
+           width="100%"
+           height="100%"
+           xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+           xmlns:common="com.linkage.module.cms.perfmonitornew.common.*"
+           xmlns:kpi="com.linkage.module.cms.perfmonitornew.kpi.*"
+           creationComplete="creationCompleteHandler()">
+
+    <mx:states>
+        <s:State name="monitor"/>
+        <s:State name="config"/>
+    </mx:states>
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.common.CommonUtil;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+
+            private var parameters:Object;
+
+            [Bindable]
+            public var schemeTreeXml:XML;
+
+            private var initFlag:Boolean = true;
+
+            private var pmDAO:PerfMonitorDAO = PerfMonitorDAO.getInstance();
+
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.kpi.KPITopnMonitor");
+            protected function creationCompleteHandler():void
+            {
+                parameters = this.parentApplication.parameters;
+				
+				log.info(parameters);
+				var param:Object = new Object();
+				/* event.param.sceneId = user.sceneId;
+				event.param.cityId = user.cityId;
+				event.param.userName = user.account;
+				event.param.level = user.level;
+				event.param.initSceneId = user.initSceneId; */
+
+                loadTopnKpiData();
+            }
+			
+			protected function loadTopnKpiData():void
+			{
+				
+			}
+
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <s:Fade id="fade"
+                alphaFrom="0"
+                alphaTo="1"
+                duration="400"/>
+    </fx:Declarations>
+    <ailk_compts:Window id="monitorWindow"
+                        left="200"
+                        right="6"
+                        top="6"
+                        bottom="6"
+                        maximize="hideSideBar()"
+                        restore="showSideBar()"
+                        title.monitor="指标监控"
+                        title.config="方案配置"
+                        styleName="windowPerf"
+                        closable="false"
+                        minimizable="false"
+                        width="100%"
+                        height="100%">
+        <kpi:SchemeMonitor id="schemeMonitor"
+                           left="0"
+                           right="0"
+                           width="100%"
+                           height="100%"
+                           showEffect="{fade}"
+                           includeInLayout.config="false"
+                           visible.config="false"/>
+    </ailk_compts:Window>
+</mx:Module>

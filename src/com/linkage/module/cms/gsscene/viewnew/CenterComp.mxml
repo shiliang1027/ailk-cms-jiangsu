@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		 xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley" creationComplete="vgroup_creationCompleteHandler(event)" 
+		 xmlns:components="com.linkage.module.cms.gsscene.view.components.*" 
+		 xmlns:components1="com.linkage.module.cms.gsscene.view.components.mapvector.components.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Bindable]
+			[Embed(source = "../img/refresh.png")]
+			private var refresh:Class;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			[Bindable]
+			private var isMax:Boolean=false;
+			[Bindable]
+			private var zxsz:Boolean=true;
+			[Bindable]
+			private var qhgis:Boolean=true;
+			[Bindable]
+			private var qyst:Boolean=true;
+			[Bindable]
+			private var max:Boolean=true;
+			[Bindable]
+			private var _isdd:Boolean=false;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			protected function maxmin_clickHandler(event:MouseEvent):void
+			{
+				isMax=!isMax;
+				var evt:SceneEvent = new SceneEvent("MAIN_STATE_CHANGE");
+				evt.param = new Object();
+				evt.param.currentState = isMax?"centerMax":"centerNormal";
+				dispatcher(evt);
+				event.target.toolTip=isMax?"最大化":"还原";
+			}
+			
+			protected function gisChange_clickHandler(event:MouseEvent):void
+			{
+				isMax=!isMax;
+				var evt:SceneEvent = new SceneEvent("MAIN_STATE_CHANGE");
+				evt.param = new Object();
+				evt.param.currentState = isMax?"centerMax":"centerNormal";
+				dispatcher(evt);
+				
+				var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+				e.param = new Object();
+				e.param.currentState = isMax?"gisMap":"vectorMap";
+				e.param.isdd=isMax;//是否打点图
+				dispatcher(e);
+				event.target.toolTip=isMax?"切换至矢量图":"切换至GIS打点图";
+				zxsz=qyst=max=!isMax;
+			}
+			
+			protected function vgroup_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+//				qhgis = user.mapType=="1";
+				qhgis = user.mapType=="1"&&user.level!='4'&&user.level!='2'?true:false;
+			}
+			[MessageHandler(selector = "VIEW_CHANGE")]
+			public function VIEW_CHANGE(e:SceneEvent):void
+			{
+				qhgis = user.mapType=="1"&&e.param.level!='4'&&e.param.level!='2'?true:false;
+				if(e.param.isdd){
+					_isdd= e.param.isdd;
+				}else{
+					_isdd=false;
+				}
+				stw=stw&&!_isdd?true:false;
+				mscw=mscw&&!_isdd?true:false;
+			}
+			
+			[Bindable]
+			private var stw:Boolean=false;
+			protected function qyst_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+//				PopUpManager.addPopUp(sceneTreeWin, this.scenetreeGroup);
+				stw=!stw;
+			}
+			
+			protected function scenetreewin_closeHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				stw=false;
+			}
+			[Bindable]
+			private var mscw:Boolean=false;
+			protected function mapshowcfgwin_closeHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				mscw=false;
+			}
+			
+			protected function zxsz_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				mscw=!mscw;
+			}
+			
+			protected function mouseOverHandler(event:MouseEvent):void
+			{
+				event.target.alpha=0.5;
+			}
+			
+			protected function mouseOutHandler(event:MouseEvent):void
+			{
+				event.target.alpha=1;
+			}
+			
+			protected function refresh_clickHandler(event:MouseEvent):void
+			{
+				dispatcher(new SceneEvent("SCENENEW_REFRESH"));
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup width="100%" height="100%"  horizontalAlign="center">
+		<s:BorderContainer width="100%" minHeight="0" borderColor="0x8aa9b7" cornerRadius="5">
+			<s:layout>
+				<s:HorizontalLayout paddingTop="10" paddingBottom="10" paddingLeft="10" paddingRight="10"/>
+			</s:layout>
+			<s:Group width="100%">
+				<s:HGroup width="100%" horizontalAlign="center" verticalAlign="middle">
+					<s:Label text="{scenePM.sceneIntroDM.sceneInfo}" fontSize="24"/>
+					<!--<s:Label text="距下次刷新 {scenePM.refreshCount} 秒"/>
+					<mx:Image width="16" height="16" buttonMode="true" click="refresh_clickHandler(event)"
+							  mouseOut="mouseOutHandler(event)" mouseOver="mouseOverHandler(event)"
+							  source="{refresh}" toolTip="刷新"/>-->
+				</s:HGroup>
+				<s:HGroup right="0" height="100%" verticalAlign="middle">
+					<mx:Image source="@Embed('../img/u67_normal.png')"
+							  buttonMode="true"
+							  toolTip="轮巡设置" visible="{zxsz}" click="zxsz_clickHandler(event)"/>
+					
+					<mx:Image source="@Embed('../img/u69_normal.png')"
+							  buttonMode="true" enabled="{qhgis}"
+							  toolTip="切换至GIS打点图"  click="gisChange_clickHandler(event)"/>
+					
+					<mx:Image source="@Embed('../img/u49_normal.png')"
+							  buttonMode="true" enabled="{qyst}"
+							  toolTip="区域树图" click="qyst_clickHandler(event)"/>
+					
+					
+					<mx:Image source="@Embed('../img/u51_normal.png')"
+							  buttonMode="true" enabled="{max}"
+							  toolTip="最大化"  click="maxmin_clickHandler(event)"/>
+				</s:HGroup>
+			</s:Group>
+		</s:BorderContainer>
+		<viewnew:MapView id="mapView"/>
+	</s:VGroup>
+	<s:HGroup id="scenetreeGroup" width="100%" height="100%" horizontalAlign="right" top="80">
+		<components1:MapShowCfgWin visible="{mscw}" close="mapshowcfgwin_closeHandler(event)"/>
+		<viewnew:SceneTreeWinNew visible="{stw}" close="scenetreewin_closeHandler(event)"/>
+	</s:HGroup>
+</s:Group>

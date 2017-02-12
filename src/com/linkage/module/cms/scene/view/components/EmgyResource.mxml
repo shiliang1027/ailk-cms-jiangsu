@@ -1,0 +1,1375 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window width="100%"
+                    title="资源矩阵"
+                    close="closeWindow(1)"
+                    maximize="window2_resize(true)"
+                    restore="window2_resize(false)"
+                    height="100%"
+                    minimizable="false"
+                    styleName="windowScene"
+                    titleIcon="@Embed(source='../../img/title_ico03.png')"
+                    creationComplete="window2_creationCompleteHandler(event)"
+                    xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+
+
+    <!--
+         ***************************************
+         This is Content
+         @author 张传存 (69207)
+         @version 1.0
+         @date 2012-8-1
+         @langversion 3.0
+         @playerversion Flash 11
+         @productversion Flex 4
+         @copyright Ailk NBS-Network Mgt. RD Dept.
+         ***************************************
+    -->
+    <fx:Declarations>
+        <parsley:Configure/>
+
+        <mx:ProgressBar id="progressBar"
+                        visible="false"
+                        width="200"
+                        labelPlacement="center"
+                        mode="manual"/>
+
+        <s:Move id="emgyDescMov"
+                xFrom="{emgyDescInput.width}"
+                xTo="{0 - emgyDescLabel.width}"
+                target="{this.emgyDescLabel}"/>
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.domain.common.User;
+			import com.linkage.module.cms.scene.event.EmpyEvent;
+			import com.linkage.module.cms.scene.event.KPISituationEvent;
+			import com.linkage.module.cms.scene.event.ResMatrixEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+			import com.linkage.module.cms.scene.view.SceneView;
+			import com.linkage.module.cms.scene.view.components.EmgyResourcePM;
+			
+			import flash.net.navigateToURL;
+			import flash.utils.getQualifiedClassName;
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			
+			import spark.components.Group;
+			import spark.events.IndexChangeEvent;
+
+            private var log:ILogger = Log.getLoggerByClass(EmgyResource);
+            public var location:String;
+            public var index:String;
+            private var maxFlag:Boolean = false;
+
+            [Inject("user")]
+            public var user:IUser;
+
+            [Inject("emgyResourcePM")]
+            [Bindable]
+            public var emgyResourcePM:EmgyResourcePM;
+
+            [Inject("resMatrixCompPM")]
+            [Bindable]
+            public var pm:ResMatrixCompPM;
+            [Bindable]
+            private var cm:ContextMenu = new ContextMenu;
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            [Inject("sceneIntroPM")]
+            [Bindable]
+            public var sceneIntroPM:SceneIntroPM;
+
+            [Bindable]
+            private var showFlag:Boolean = true;
+
+            [Bindable]
+            private var objLabelId:String = "";
+
+            private var mx:Number = -100;
+            private var my:Number = -100;
+
+            [Bindable]
+            public var yuanArr:ArrayCollection = new ArrayCollection([{"emgyname": "重点通信目标瘫痪通信保障专项预案", "modifyuser": "", "modifytime": "", "loadUrl": "cms/scene/emergency/重点通信目标瘫痪通信保障专项预案.doc "}, {"emgyname": "重大体育赛事通信保障专项预案", "modifyuser": "", "modifytime": "", "loadUrl": "cms/scene/emergency/重大体育赛事通信保障专项预案.doc "}, {"emgyname": "中国移动江苏公司防汛抗台通信保障专项预案", "modifyuser": "", "modifytime": "", "loadUrl": "cms/scene/emergency/中国移动江苏公司防汛抗台通信保障专项预案.doc "}]);
+
+            [MessageDispatcher]
+            public var dispatchMsg:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+            [MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+            public function loadData(event:SceneEvent = null):void
+            {
+//                setTimeout(loadA, 30);
+				loadA();
+//                loadEmgyDesc();
+            }
+//			[MessageHandler(selector = "SHOW_TOPN_DATA")]
+//			public function showTOPNChart(event:KPISituationEvent):void
+//			{
+//				loadA();
+//				loadEmgyDesc();
+//			}
+			
+            private function loadA():void
+            {
+                log.info("应急资源 加载数据！");
+                emgyResourcePM.getSceneEmgyInfo();
+				loadEmgyDesc();
+            }
+
+            //点击事件进入事件详情查询页面
+            protected function emgyDataGrid_itemClickHandler(event:ListEvent):void
+            {
+                log.debug("当前列：" + event.columnIndex);
+                var isUsed:String;
+
+                if (event.columnIndex == 1)
+                {
+                    isUsed = "0";
+                }
+                else if (event.columnIndex == 2)
+                {
+                    isUsed = "1";
+                }
+                var emergrestype:String = this.emgyDataGrid.selectedItem['emergrestype'];
+                log.debug("-------------->emergrestype=" + emergrestype);
+
+                var param:Object = new Object;
+                param.emergrestype = emergrestype;
+                param.isUsed = isUsed;
+                emgyResourcePM.getSceneEmgyDetail(param);
+
+                PopUpManager.addPopUp(emgyDetailDow, this.parent as DisplayObject);
+                emgyDetailDow.x = (this.stage.width - emgyDetailDow.width) / 2 - 150;
+                emgyDetailDow.y = (this.stage.height - emgyDetailDow.height) / 2 - 50;
+                emgyDetailDow.visible = true;
+
+                log.debug("加载全选");
+                isUsedColumn.headerRenderer = new ClassFactory(EmgyHeaderCheckRenderer);
+                log.debug("加载全选完成");
+            }
+
+            //点击详情派发应急轨迹
+            private var currentEmgyResId:Object;
+
+            protected function emgyDetailDataGrid_itemClickHandler(event:ListEvent):void
+            {
+
+                if (event.columnIndex != 0)
+                {
+                    log.debug("应急资源，定位经纬度...");
+                    var ev:EmpyEvent = new EmpyEvent(EmpyEvent.SHOW_EMPY_JW_INFO);
+                    ev.emgyTypeId = emgyDetailDataGrid.selectedItem['emergrestype'];
+                    ev.emgyResId = emgyDetailDataGrid.selectedItem['emergresid'];
+                    ev.emergresName = emgyDetailDataGrid.selectedItem['emergresname'];
+                    ev.latitude = emgyDetailDataGrid.selectedItem['latitude'];
+                    ev.longitude = emgyDetailDataGrid.selectedItem['longitude'];
+                    msgDispatcher(ev);
+                }
+            }
+
+            public function closeWindow(type:int = 0):void
+            {
+                PopUpManager.removePopUp(emgyDetailDow);
+
+                //移除设备资源弹出窗口
+                PopUpManager.removePopUp(equipmentDetail);
+
+                if (type == 1)
+                {
+                    if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+                    {
+                        this.visible = false;
+                        this.includeInLayout = false;
+                    }
+                }
+                else
+                    (this.parent as Group).removeElement(this);
+
+                if (type == 1)
+                {
+                    var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+                    e.panelName = this.name;
+                    e.param.index = this.index;
+                    e.param.pid = this.parent['id'];
+                    msgDispatcher(e);
+                }
+            }
+
+            protected function window2_resize(flag:Boolean):void
+            {
+                log.info("应急资源最大化、恢复窗口：" + flag + "_" + maxFlag);
+                var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+                e.panelName = this.name;
+                e.panelIndex = this.index;
+                e.panellocation = this.location;
+                e.panelMaxFlag = this.maxFlag;
+                msgDispatcher(e);
+                log.info("应急资源 最大化、恢复窗口：派发事件！");
+
+                this.maxFlag = flag;
+
+                this.closeButton.visible = !flag;
+                this.closeButton.includeInLayout = !flag;
+            }
+
+            public function closeWindowDetail(type:String = null):void
+            { //判断是设备资源 还是应急资源
+                if ("equipmentDetail" == type)
+                {
+                    PopUpManager.removePopUp(equipmentDetail);
+                }
+                else
+                    PopUpManager.removePopUp(emgyDetailDow);
+
+            }
+
+            public function loadFile(url:String):void
+            {
+                log.debug("下载连接地址：" + user.context + url);
+                navigateToURL(new URLRequest(user.context + url));
+            }
+
+            protected function maximizeHandler(type:String = null):void
+            {
+                //判断是设备资源 还是应急资源
+                if ("equipmentDetail" == type)
+                {
+                    this.equipmentDetail.width = this.parentApplication.width;
+                    this.equipmentDetail.height = this.parentApplication.height;
+                }
+                else
+                {
+                    this.emgyDetailDow.width = this.parentApplication.width;
+                    this.emgyDetailDow.height = this.parentApplication.height;
+                }
+            }
+
+            //点击资源矩阵，显示对应资源详细信息
+            protected function resourceDetailHandler(evt:ListEvent):void
+            {
+                log.info("显示资源详情信息:{0},", evt);
+                equipmentDetailDg.dataProvider = null;
+                var data:Object = evt.itemRenderer.data;
+                var colIndex:int = evt.columnIndex;
+                var rme:ResMatrixEvent;
+
+                //equipmentDetailDg
+                //如果点的是一级或者二级告警 那么直接显示数据集中的结果
+                if (colIndex == 3)
+                {
+                    //数据集 moId  moName  moTypeName alarmLevel
+                    log.info("一级告警");
+                    equipmentDetailDg.dataProvider = data["neInfo1"];
+                }
+                else if (colIndex == 4)
+                {
+                    log.info("二级告警");
+                    equipmentDetailDg.dataProvider = data["neInfo2"];
+                }
+                else if (colIndex == 2)
+                {
+                    log.info("一二三级告警");
+                    //如果是第一第二列，那么显示全部
+                    var arr:ArrayCollection = new ArrayCollection();
+                    equipmentDetailDg.dataProvider = arr;
+//					for each(var obj:Object in pm.dm.badData)
+//					{
+//						if(obj["moTypeName"] == data["moType"])
+//						{
+//							log.info("从重点关注网元中找到对应告警信息");
+//							equipmentDetailDg.dataProvider = obj.datas;
+//							break;
+//						}
+//					}
+                    rme = new ResMatrixEvent(ResMatrixEvent.CMS_SCENE_EMGYRESOURCE_SEARCHDETAILBYMOTYPENAME);
+                    rme.data = new Object;
+                    rme.data.sceneId = user.sceneId;
+                    rme.data.level = user.level;
+                    rme.data.moTypeName = data["moType"];
+                    rme.data.cityId = user.cityId;
+                    rme.data.isImpMo = "0";
+                    log.info(user);
+                    log.info(rme.data);
+//                    msgDispatcher(rme);
+					requestServerUtil.addRequest(rme);
+                }
+                else
+                {
+                    //网元信息
+                    rme = new ResMatrixEvent(ResMatrixEvent.CMS_SCENE_EMGYRESOURCE_GETMOINFOLIST);
+                    rme.data = new Object;
+                    rme.data.sceneId = user.sceneId;
+                    rme.data.level = user.level;
+                    rme.data.moTypeId = data["moTypeId"];
+                    rme.data.cityId = user.cityId;
+                    log.info(user);
+                    log.info("moTypeId:{0}", data["moTypeId"]);
+                    log.info(rme.data);
+//                    msgDispatcher(rme);
+					requestServerUtil.addRequest(rme);
+//					return;
+                }
+                equipmentDetailDg.contextMenu = new ContextMenu();
+                equipmentDetailDg.contextMenu.hideBuiltInItems();
+                var item:ContextMenuItem;
+
+//				var item:ContextMenuItem = new ContextMenuItem("告警信息");
+//				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+//					{
+//						//挂牌网元详情 传递参数 网元id
+//						var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+//						if (obj == null)
+//							obj = evt.mouseTarget as IListItemRenderer;
+//
+//						log.info(obj["data"]);
+//						//						log.info("ceshi:{0};", getQualifiedClassName(evt.mouseTarget));
+//
+//						var e:ResMatrixEvent = new ResMatrixEvent(ResMatrixEvent.EQU_ALARMINFO);
+//						e.data = new Object();
+//						if (obj["data"]["moTypeName"] == "机房")
+//						{
+//							e.data.neroom = obj["data"]["moId"];
+//							e.data.moTypeName = "机房";
+//						}
+//						else if (obj["data"]["moTypeName"] == "电路")
+//						{
+//							e.data.circ_name = obj["data"]["moName"];
+//							e.data.moTypeName = "电路";
+//						}
+//						else
+//							e.data.moId = obj["data"]["moId"];
+//						log.info("抛出事件EQU_ALARMINFO，告警信息：");
+//						log.info(e.data);
+//						msgDispatcher(e);
+//					});
+//				equipmentDetailDg.contextMenu.customItems.push(item);
+
+                if (colIndex == 3 || colIndex == 4)
+                {
+                    //TODO  rrr告警查询
+                    item = new ContextMenuItem("告警查询");
+                    item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+                    {
+                        //挂牌网元详情 传递参数 网元id
+                        var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+                        if (obj == null)
+                            obj = evt.mouseTarget as IListItemRenderer;
+
+                        log.info(obj["data"]);
+                        var id:String = "neId=" + obj["data"]["moId"];
+                        if (data["moType"] == "机房")
+                            id = "neroom=" + obj["data"]["moId"];
+                        var openUrl:String = user.context + "/cms/warn/report/query/ShowAlarmList.jsp?alarmStatus=1&" + id + "&alarmseverity=" + obj["data"]["alarmLevel"];
+//							ExternalInterface.call("openUrl(\"" + openUrl + "\")");
+                        log.info(openUrl);
+                        navigateToURL(new URLRequest(openUrl), "_blank");
+                    });
+                    equipmentDetailDg.contextMenu.customItems.push(item);
+
+                }
+
+                if (data["moType"] != "电路")
+                {
+//					equipmentDetailDg.contextMenu = new ContextMenu();
+//					equipmentDetailDg.contextMenu.hideBuiltInItems();
+                    item = new ContextMenuItem("GIS定位");
+                    item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+                    {
+                        //挂牌网元详情 传递参数 网元id
+                        var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+                        if (obj == null)
+                            obj = evt.mouseTarget as IListItemRenderer;
+
+                        log.info(obj["data"]);
+//						log.info("ceshi:{0};", getQualifiedClassName(evt.mouseTarget));
+
+                        var e:SceneEvent = new SceneEvent(SceneEvent.SHOWMO2GIS);
+                        e.param = new Object();
+                        e.param.moId = obj["data"]["moId"];
+                        e.param.moTypeId = obj["data"]["moTypeId"];
+                        if (obj["data"].hasOwnProperty("alarmLevel"))
+                            e.param.alarmLevel = obj["data"]["alarmLevel"];
+//                        msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+                    });
+                    equipmentDetailDg.contextMenu.customItems.push(item);
+
+                }
+
+                log.info(equipmentDetailDg.dataProvider);
+
+                alarmLevelCol.visible = true;
+                alarmLevelCol.width = 100;
+
+                log.info("弹出窗口……");
+                PopUpManager.addPopUp(equipmentDetail, this.parent as DisplayObject);
+                equipmentDetail.x = (this.parentApplication.width - equipmentDetail.width) / 2 - 150;
+                equipmentDetail.y = (this.parentApplication.height - equipmentDetail.height) / 2 - 50;
+
+                if (equipmentDetail.x < 0)
+                    equipmentDetail.x = 0;
+
+                if (equipmentDetail.y < 0)
+                    equipmentDetail.y = 0;
+                equipmentDetail.visible = true;
+
+                log.info("显示资源详情 end!");
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_EMGYRESOURCE_SHOWMOINFOLIST")]
+            public function showMoInfoList(e:ResMatrixEvent):void
+            {
+                equipmentDetailDg.dataProvider = pm.dm.moInfoList;
+                log.info("弹出窗口……");
+                alarmLevelCol.visible = false;
+//				PopUpManager.addPopUp(equipmentDetail, this.parent as DisplayObject);
+//				equipmentDetail.x = (this.parentApplication.width - equipmentDetail.width) / 2 - 150;
+//				equipmentDetail.y = (this.parentApplication.height - equipmentDetail.height) / 2 - 50;
+//				equipmentDetail.visible = true;
+
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_EMGYRESOURCE_SHOWDETAILBYMOTYPENAME")]
+            public function showDetailByMoTypeName(e:ResMatrixEvent):void
+            {
+                log.info(e.data);
+
+                for each (var obj:Object in e.data)
+                {
+                    equipmentDetailDg.dataProvider = obj['datas'];
+                    log.info("弹出窗口CMS_SCENE_EMGYRESOURCE_SHOWDETAILBYMOTYPENAME……");
+                    alarmLevelCol.visible = true;
+                    break;
+                }
+//				PopUpManager.addPopUp(equipmentDetail, this.parent as DisplayObject);
+//				equipmentDetail.x = (this.parentApplication.width - equipmentDetail.width) / 2 - 150;
+//				equipmentDetail.y = (this.parentApplication.height - equipmentDetail.height) / 2 - 50;
+//				equipmentDetail.visible = true;
+
+            }
+
+            //更改告警等级数字变成汉字
+            private function alarmLevelLabel(item:Object, adg:AdvancedDataGridColumn):String
+            {
+                if (item.alarmLevel == "1")
+                {
+                    return "一级";
+                }
+                else if (item.alarmLevel == "2")
+                {
+                    return "二级";
+                }
+                else if (item.alarmLevel == "3")
+                {
+                    return "三级";
+                }
+                else if (item.alarmLevel == "4")
+                {
+                    return "四级";
+                }
+                else
+                {
+                    return "";
+                }
+            }
+            /**
+             * 时间格式
+             */
+            public static const dateFormatter:DateFormatter = new DateFormatter();
+            dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+
+            //创建时间
+            protected function createTime(event:FlexEvent, remote:int):void
+            {
+                var date:Date = new Date();
+                date = new Date(date.getTime() + remote * 1000);
+                event.currentTarget.text = dateFormatter.format(date);
+            }
+
+            //格式化时间
+            public function formatDate(date:Date):String
+            {
+                return dateFormatter.format(date);
+            }
+
+            protected function button1_clickHandler(event:MouseEvent):void
+            {
+                log.debug("[应急资源]:撒点应急资源事件:LOAD_KPI_PLAN");
+
+
+                var startTime:String = startTimeField.text;
+                var endTime:String = endTimeField.text;
+                log.debug("startTime=" + startTime);
+                log.debug("endTime=" + endTime);
+
+                var planEvent:KPISituationEvent = new KPISituationEvent(KPISituationEvent.LOAD_KPI_PLAN);
+                log.debug("currentEmgyResId=" + currentEmgyResId.toString());
+                planEvent.param.emgyResId = currentEmgyResId;
+                planEvent.param.beginTime = startTime;
+                planEvent.param.endTime = endTime;
+//                msgDispatcher(planEvent);
+                PopUpManager.removePopUp(this.selectTimeWindow);
+				requestServerUtil.addRequest(planEvent);
+
+            }
+
+            public function setAllSelected(flag:Boolean):void
+            {
+                log.debug("全选。。。" + flag);
+
+                for each (var data:Object in emgyResourcePM.emgyResourceDM.emgyResourceDetail)
+                {
+                    data.isused = flag ? 1 : 0;
+                }
+                emgyResourcePM.emgyResourceDM.emgyResourceDetail.refresh();
+                log.debug(emgyResourcePM.emgyResourceDM.emgyResourceDetail);
+
+            }
+
+            protected function button2_clickHandler(event:MouseEvent):void
+            {
+                log.debug("保存开始");
+                var param:Object = new Object;
+                param.updateDatas = this.emgyResourcePM.emgyResourceDM.emgyResourceDetail;
+                log.debug(param.updateDatas);
+                this.emgyResourcePM.saveEmgyDetail(param);
+            }
+
+            [MessageHandler(selector = "RETURN_SAVE_EMGY_DETAIL")]
+            public function saveReturnFlag(event:EmpyEvent):void
+            {
+                var returnFlag:String;
+
+                if (event.param as String == "success")
+                {
+                    returnFlag = "保存成功！";
+                }
+                else
+                {
+                    returnFlag = "保存失败！";
+                }
+                Alert.show(returnFlag, "提示");
+                log.debug("重新加载预计资源");
+                loadA();
+            }
+
+            protected function window2_creationCompleteHandler(event:FlexEvent):void
+            {
+				//emgyDetailDataGrid.contextMenu = cm;
+                log.debug("加载菜单....");
+                cm.hideBuiltInItems();
+                cm.addEventListener(ContextMenuEvent.MENU_SELECT, contextMenu_menuSelect);
+            }
+            private var lastRollOverIndex:int;
+
+            private function contextMenu_menuSelect(evt:ContextMenuEvent):void
+            {
+                emgyDetailDataGrid.selectedIndex = lastRollOverIndex;
+                log.debug("右键菜单开始...");
+                cm.customItems = [];
+                log.debug("-----------------" + this.emgyDetailDataGrid.selectedItem['isChg']);
+                currentEmgyResId = this.emgyDetailDataGrid.selectedItem['emergresid'];
+
+                var cmiArr:Array = [];
+
+                if (this.emgyDetailDataGrid.selectedItem['isChg'] == "1")
+                {
+                    var cmi:ContextMenuItem = new ContextMenuItem("查询历史轨迹", true);
+                    cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+                    {
+                        log.debug("抛出事件...SHOW_EMGY_SELECT_TIME");
+                        var e:EmpyEvent = new EmpyEvent(EmpyEvent.SHOW_EMGY_SELECT_TIME);
+                        msgDispatcher(e);
+                    });
+                    cmiArr.push(cmi);
+                }
+
+                var delCmi:ContextMenuItem = new ContextMenuItem("删除应急资源", true);
+                delCmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+                {
+                    log.debug("删除应急资源：" + currentEmgyResId);
+                    var rmtobj:RemoteObject = BlazeDSUtil.newService(
+                        "flexdestination_cms_scene_panels", "com.linkage.module.cms.scene.panels.serv.ScenePanelsServImpl", "/cms/messagebroker/amf",
+                        function(data:Object):void
+                        {
+                            Alert.show(data.toString());
+
+                            if (data.toString().indexOf("成功") > 0)
+                                emgyResourcePM.emgyResourceDM.emgyResourceDetail.removeItemAt(emgyResourcePM.emgyResourceDM.emgyResourceDetail.getItemIndex(emgyDetailDataGrid.selectedItem));
+
+                        }
+                        ,
+                        function(e:FaultEvent):void
+                        {
+                            Alert.show("删除失败！");
+                            log.error("删除应急资源失败：" + e.fault.faultDetail);
+                        });
+
+                    log.info("删除应急资源");
+                    log.debug(currentEmgyResId);
+
+                    rmtobj.deleteEmgy({"emergresid": currentEmgyResId});
+                });
+
+                cmiArr.push(delCmi);
+
+                var editCmi:ContextMenuItem = new ContextMenuItem("编辑应急资源", true);
+                editCmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+                {
+                    log.debug("编辑应急资源：" + currentEmgyResId);
+                    var rmtobj:RemoteObject = BlazeDSUtil.newService(
+                        "flexdestination_cms_scene_panels", "com.linkage.module.cms.scene.panels.serv.ScenePanelsServImpl", "/cms/messagebroker/amf",
+                        function(data:Object):void
+                        {
+                            if (data == null)
+                                Alert.show(data.toString());
+                            else
+                            {
+                                log.debug("查询应急资源详情 成功, 弹出编辑窗口");
+                                log.debug(data);
+
+                                if (emgyAddWin == null)
+                                {
+                                    emgyAddWin = new EmgyAddWin;
+                                    emgyAddWin.pm = pm;
+                                    emgyAddWin.context = user.context;
+                                    emgyAddWin.cityId = user.cityId;
+                                    emgyAddWin.msgDispatcher = msgDispatcher;
+                                    emgyAddWin.addCallBack = addEmgyCallBack;
+                                }
+
+                                emgyAddWin.editData = data;
+                                emgyAddWin.title = "编辑应急资源";
+
+                                if (emgyDataGrid.selectedItem != null)
+                                    emgyAddWin.resTypeId = emgyDataGrid.selectedItem['emergrestype'];
+
+                                if (user.level == "2")
+                                    emgyAddWin.areaId = user.sceneId;
+
+                                PopUpManager.addPopUp(emgyAddWin, parent as DisplayObject);
+                                emgyAddWin.x = 100;
+                                emgyAddWin.y = 50;
+                                emgyAddWin.init();
+                            }
+                        }
+                        ,
+                        function(e:FaultEvent):void
+                        {
+                            Alert.show("编辑失败！");
+                            log.error("编辑应急资源失败：" + e.fault.faultDetail);
+                        });
+
+                    log.info("编辑应急资源");
+
+                    rmtobj.queryEmgy({"emergresid": currentEmgyResId});
+                });
+
+                cmiArr.push(editCmi);
+
+                cm.customItems = cmiArr;
+            }
+
+            [MessageHandler(selector = "SHOW_EMGY_SELECT_TIME")]
+            public function showSelectTime(event:EmpyEvent):void
+            {
+                log.debug("展示时间控件...");
+                PopUpManager.addPopUp(selectTimeWindow, this.parent as DisplayObject);
+                selectTimeWindow.x = (this.stage.width - selectTimeWindow.width) / 2 - 150;
+                selectTimeWindow.y = (this.stage.height - selectTimeWindow.height) / 2 - 50;
+                selectTimeWindow.visible = true;
+            }
+
+            protected function emgyDetailTabBar_changeHandler(event:IndexChangeEvent):void
+            {
+                showFlag = emgyDetailTabBar.selectedIndex != 2;
+
+                if (emgyDetailTabBar.selectedIndex == 1)
+                    emgyDescMov.play();
+                else
+                    emgyDescMov.stop();
+            }
+
+
+
+            private var fileRefer:FileReference = new FileReference();
+            private var fileUpDownLoad:FileUpDownLoad;
+            private var douc:FileFilter = new FileFilter("Excel", "*.xls");
+
+            protected function import_clickHandler(event:MouseEvent):void
+            {
+                log.info("level{0}", user.level);
+
+                if ("1" == user.level || "3" == user.level)
+                {
+//                    msgDispatcher(new EmpyEvent(EmpyEvent.LOAD_AREA_ID));
+                    PopUpManager.addPopUp(areaChooseWindow, this.parent as DisplayObject);
+                    areaChooseWindow.x = (this.stage.width - areaChooseWindow.width) / 2 - 150;
+                    areaChooseWindow.y = (this.stage.height - areaChooseWindow.height) / 2 - 50;
+                    areaChooseWindow.visible = true;
+					requestServerUtil.addRequest(new EmpyEvent(EmpyEvent.LOAD_AREA_ID));
+
+                }
+                else if ("2" == user.level)
+                {
+                    importData();
+                }
+            }
+
+            private function importData():void
+            {
+                fileUpDownLoad = new FileUpDownLoad();
+                fileUpDownLoad.fileFilters = new Array();
+                fileUpDownLoad.fileFilters.push(douc);
+
+                var upLoadUrl:URLRequest = new URLRequest("/cms/scene/panels/exportResMatrixAction!impResMatrix.action");
+                var upLoadData:URLVariables = new URLVariables();
+                upLoadData.type = emgyDetailTabBar.selectedIndex;
+                upLoadData.level = user.level;
+
+                if ("1" == user.level || "3" == user.level)
+                {
+                    upLoadData.id = user.sceneId;
+                    upLoadData.areaId = areaChooseList.selectedItem.AREAID;
+                }
+                else if ("2" == user.level)
+                {
+                    upLoadData.id = user.sceneId;
+                }
+                upLoadData.cityId = user.cityId;
+
+                upLoadUrl.method = "POST";
+                upLoadUrl.data = upLoadData;
+                upLoadUrl.contentType = "multipart/form-data";
+                fileUpDownLoad.upLoadURLRequest = upLoadUrl;
+                fileUpDownLoad.upLoad();
+                fileUpDownLoad.fileRefer.addEventListener(ProgressEvent.PROGRESS, progressHandler);
+                fileUpDownLoad.fileRefer.addEventListener(IOErrorEvent.IO_ERROR, onIOErrorHandler);
+            }
+
+            private function onIOErrorHandler(event:IOErrorEvent):void
+            {
+                Alert.show("导入失败", "失败");
+            }
+
+            private function progressHandler(event:ProgressEvent):void
+            {
+                progressBar.setProgress(event.bytesLoaded, event.bytesTotal);
+            }
+
+            protected function export_clickHandler(event:MouseEvent):void
+            {
+                fileRefer = new FileReference();
+                var fileType:FileFilter = new FileFilter("Excel", "*.xls");
+                var fileTypes:Array = new Array(fileType);
+                fileUpDownLoad = new FileUpDownLoad();
+                var downLoadUrl:URLRequest = new URLRequest("/cms/scene/panels/exportResMatrixAction!expResMatrix.action");
+                var downLoadData:URLVariables = new URLVariables();
+                downLoadData.type = emgyDetailTabBar.selectedIndex;
+                downLoadData.level = user.level;
+                downLoadData.id = user.sceneId;
+                log.info(downLoadData.id);
+                downLoadData.cityId = user.cityId;
+                downLoadUrl.data = downLoadData;
+                fileUpDownLoad.downLoadURLRequest = downLoadUrl;
+                fileUpDownLoad.fileFilters = fileTypes;
+                fileUpDownLoad.downLoad();
+            }
+
+            protected function button3_clickHandler(event:MouseEvent):void
+            {
+                // TODO Auto-generated method stub
+                if (areaChooseList.selectedItem)
+                {
+                    importData();
+                }
+                else
+                {
+                    Alert.show("请选择区域");
+                }
+            }
+
+            protected function showSignInfo(oldX:Number, oldY:Number, labelId:String, labelIdStr:String):void
+            {
+                var obj:Object = {};
+                log.info("ttt");
+                log.info("mx+" + mx + "  my+" + my + " oldX+" + oldX + "  oldY+ " + oldY);
+
+                if (mx != oldX || my != oldY)
+                {
+                    return;
+                }
+                user.labelTypeId = obj.labelId;
+                obj.sceneId = user.sceneId;
+                obj.level = user.level;
+                obj.cityId = user.cityId;
+                obj.labelId = labelId;
+                obj.labelIdStr = labelIdStr;
+
+                var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                e.obj = obj;
+                log.info("sceneIntroduction  showSignInfo");
+                log.info(e.obj);
+//                dispatchMsg(e);
+				requestServerUtil.addRequest(e);
+            }
+
+
+            protected function resMatrixGrid_itemRollOverHandler(event:ListEvent):void
+            {
+                if (user.isNew == "1")
+                {
+                    mx = event.rowIndex;
+
+                    my = event.columnIndex;
+
+                    objLabelId = "201";
+                    setTimeout(function():void
+                    {
+                        var objLabelIdStr:String = pm.dm.resData.getItemAt(event.rowIndex)['moType'].toString();
+                        log.info("mx+" + mx + "  my+" + my + " event.rowIndex+" + event.rowIndex + "  event.columnIndex+ " + event.columnIndex);
+                        showSignInfo(event.rowIndex, event.columnIndex, objLabelId, objLabelIdStr);
+                    }, 3000);
+                }
+            }
+
+            protected function emgyYuanNavi_mouseOverHandler(event:MouseEvent):void
+            {
+                log.info("emgyYuanNavi_mouseOverHandler");
+
+                if (user.isNew == "1")
+                {
+                    //madePrompt.label =="取消提示";
+
+                    mx = event.stageX;
+                    my = event.stageY;
+                    objLabelId = "203";
+                    setTimeout(function():void
+                    {
+
+                        showSignInfo(event.stageX, event.stageY, objLabelId, " ");
+                    }, 3000);
+
+                }
+                else
+                {
+                    //madePrompt.label =="定制提示";
+                }
+            }
+
+            private var emgyAddWin:EmgyAddWin;
+
+            public function image1_clickHandler(event:MouseEvent):void
+            {
+                if (emgyAddWin == null)
+                {
+                    emgyAddWin = new EmgyAddWin;
+                    emgyAddWin.pm = pm;
+                    emgyAddWin.context = user.context;
+                    emgyAddWin.cityId = user.cityId;
+                    emgyAddWin.msgDispatcher = msgDispatcher;
+                    emgyAddWin.addCallBack = addEmgyCallBack;
+                }
+
+                emgyAddWin.editData = null;
+                emgyAddWin.cityId = user.cityId;
+                emgyAddWin.title = "新增应急资源";
+
+                if (this.emgyDataGrid.selectedItem != null)
+                    emgyAddWin.resTypeId = this.emgyDataGrid.selectedItem['emergrestype'];
+
+                if (user.level == "2")
+                    emgyAddWin.areaId = user.sceneId;
+                else
+                    emgyAddWin.areaId = null;
+
+                PopUpManager.addPopUp(emgyAddWin, this.parent as DisplayObject);
+                emgyAddWin.x = 100;
+                emgyAddWin.y = 50;
+                emgyAddWin.init();
+            }
+
+            private function addEmgyCallBack(data:Object)
+            {
+                for each (var d:Object in emgyResourcePM.emgyResourceDM.emgyResourceTotal)
+                {
+                    if (data.emergrestype == d.emergrestype)
+                    {
+                        if (data.isused == "1")
+                            d.isUsedCount = int(d.isUsedCount) + 1;
+
+                        d.count = int(d.count) + 1;
+                    }
+                }
+
+                emgyResourcePM.emgyResourceDM.emgyResourceTotal.refresh();
+
+                if (emgyDataGrid.selectedItem['emergrestype'] == data.emergrestype)
+                {
+                    emgyResourcePM.emgyResourceDM.emgyResourceDetail.addItemAt(data, 0);
+                    emgyResourcePM.emgyResourceDM.emgyResourceDetail.refresh();
+                }
+            }
+
+            private function loadEmgyDesc():void
+            {
+                var rmtobj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_panels", "com.linkage.module.cms.scene.panels.serv.ScenePanelsServImpl", "/cms/messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        emgyDescLabel.text = data.toString();
+
+                        setTimeout(function():void
+                        {
+                            emgyDescMov.repeatCount = 0;
+                            emgyDescMov.xTo = 0 - emgyDescLabel.width;
+                            emgyDescMov.duration = emgyDescLabel.text.length / 2 * 1000;
+                            emgyDescMov.play();
+                        }, 1500);
+                    }
+                    ,
+                    function(e:FaultEvent):void
+                    {
+                        log.error("加载应急资源滚动信息失败：" + e.fault.faultDetail);
+                    });
+
+                log.info("加载应急资源滚动信息.");
+                rmtobj.loadEmgyDesc();
+            }
+
+            protected function emgyDescInput_keyUpHandler(event:KeyboardEvent):void
+            {
+                if (event.keyCode == 13)
+                {
+                    saveEmgyDesc();
+                }
+            }
+
+            protected function saveEmgyDesc():void
+            {
+                emgyDescWin.visible = false;
+                emgyDescLabel.visible = true;
+
+                //saveEmgyDesc
+                var rmtobj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_panels", "com.linkage.module.cms.scene.panels.serv.ScenePanelsServImpl", user.context + "messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        Alert.show(data.toString());
+                        emgyDescLabel.text = emgyDescInput.text;
+
+                        setTimeout(function():void
+                        {
+                            emgyDescMov.xTo = 0 - emgyDescLabel.width;
+                            emgyDescMov.duration = emgyDescLabel.text.length / 2 * 1000;
+                            emgyDescMov.play();
+                        }, 1500);
+                    }
+                    ,
+                    function(e:FaultEvent):void
+                    {
+                        log.error("保存应急资源滚动信息失败：" + e.fault.faultDetail);
+                    });
+
+                log.info("保存应急资源滚动信息.");
+                rmtobj.saveEmgyDesc({"emergresdesc": emgyDescInput.text});
+            }
+
+            protected function group1_doubleClickHandler(event:MouseEvent):void
+            {
+                emgyDescMov.stop();
+                emgyDescLabel.visible = false;
+                PopUpManager.addPopUp(emgyDescWin, this.parent as DisplayObject);
+                PopUpManager.centerPopUp(emgyDescWin);
+                emgyDescInput.text = emgyDescLabel.text
+            }
+        ]]>
+    </fx:Script>
+    <s:VGroup gap="0"
+              width="100%"
+              height="100%">
+        <s:TabBar id="emgyDetailTabBar"
+                  styleName="sceneTabBar"
+                  width="100%"
+                  change="emgyDetailTabBar_changeHandler(event)"
+                  dataProvider="{emgyDetailViewStack}"/>
+        <mx:ViewStack id="emgyDetailViewStack"
+                      creationPolicy="all"
+                      styleName="sceneViewStack"
+                      height="100%"
+                      width="100%"
+                      backgroundAlpha="0">
+            <s:NavigatorContent id="resMatrixNavi"
+                                label="设备资源"
+                                height="100%"
+                                width="100%"
+                                creationPolicy="all">
+                <mx:AdvancedDataGrid id="resMatrixGrid"
+                                     styleName="sceneDG"
+                                     verticalAlign="middle"
+                                     horizontalScrollPolicy="auto"
+                                     dataProvider="{pm.dm.resData}"
+                                     itemClick="resourceDetailHandler(event)"
+                                     itemRollOver="resMatrixGrid_itemRollOverHandler(event)"
+                                     width="100%"
+                                     height="100%">
+                    <mx:columns>
+                        <mx:AdvancedDataGridColumn headerText="类型"
+                                                   width="56"
+                                                   dataField="moType"/>
+                        <mx:AdvancedDataGridColumn headerText="网元数"
+                                                   width="71"
+                                                   dataField="moNum"/>
+                        <mx:AdvancedDataGridColumn headerText="告警网元数"
+                                                   width="100"
+                                                   dataField="alarmMoNum"/>
+                        <mx:AdvancedDataGridColumn headerText="一级"
+                                                   width="56"
+                                                   dataField="oneLevelAlarm"/>
+                        <mx:AdvancedDataGridColumn headerText="二级"
+                                                   width="56"
+                                                   dataField="twoLevelAlarm"/>
+                    </mx:columns>
+                </mx:AdvancedDataGrid>
+            </s:NavigatorContent>
+            <s:NavigatorContent id="emgySourceNavi"
+                                label="应急资源"
+                                height="100%"
+                                width="100%"
+                                creationPolicy="all">
+                <s:Group height="21"
+                         width="2000"
+                         doubleClickEnabled="true"
+                         doubleClick="group1_doubleClickHandler(event)">
+                    <s:Label id="emgyDescLabel"
+                             verticalCenter="0"
+                             toolTip="双击修改信息。"/>
+                </s:Group>
+
+                <mx:AdvancedDataGrid id="emgyDataGrid"
+                                     width="100%"
+                                     height="100%"
+                                     top="22"
+                                     styleName="sceneDG"
+                                     verticalAlign="middle"
+                                     dataProvider="{emgyResourcePM.emgyResourceDM.emgyResourceTotal}"
+                                     itemClick="emgyDataGrid_itemClickHandler(event)">
+                    <mx:columns>
+
+                        <mx:AdvancedDataGridColumn dataField="emergrestypename"
+                                                   headerText="资源类型"/>
+                        <mx:AdvancedDataGridColumn dataField="count"
+                                                   headerText="总数量"/>
+                        <mx:AdvancedDataGridColumn dataField="isUsedCount"
+                                                   headerText="正在使用"/>
+                    </mx:columns>
+                </mx:AdvancedDataGrid>
+            </s:NavigatorContent>
+            <s:NavigatorContent id="emgyYuanNavi"
+                                label="应急预案"
+                                height="100%"
+                                width="100%"
+                                creationPolicy="all"
+                                mouseOver="emgyYuanNavi_mouseOverHandler(event)">
+                <mx:AdvancedDataGrid id="emgyYuanDataGrid"
+                                     width="100%"
+                                     height="100%"
+                                     styleName="sceneDG"
+                                     horizontalScrollPolicy="auto"
+                                     verticalAlign="middle"
+                                     dataProvider="{yuanArr}">
+                    <mx:columns>
+                        <mx:AdvancedDataGridColumn dataField="emgyname"
+                                                   width="297"
+                                                   headerText="应急预案名称"/>
+                        <mx:AdvancedDataGridColumn headerText="操作"
+                                                   width="60">
+                            <mx:itemRenderer>
+                                <fx:Component>
+                                    <mx:Label text="下载"
+                                              buttonMode="true"
+                                              click="label1_clickHandler(event)"
+                                              width="100%">
+                                        <fx:Script>
+                                            <![CDATA[
+                                                import flash.net.navigateToURL;
+
+                                                import org.spicefactory.parsley.view.ParentContext;
+
+                                                protected function label1_clickHandler(event:MouseEvent):void
+                                                {
+                                                    parentDocument.loadFile(data.loadUrl);
+                                                }
+                                            ]]>
+                                        </fx:Script>
+                                    </mx:Label>
+
+                                </fx:Component>
+                            </mx:itemRenderer>
+                        </mx:AdvancedDataGridColumn>
+                    </mx:columns>
+                </mx:AdvancedDataGrid>
+            </s:NavigatorContent>
+        </mx:ViewStack>
+    </s:VGroup>
+    <!--应急详细-->
+    <mx:Box width="300"
+            height="200"
+            visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="emgyDetailDow"
+                            close="closeWindowDetail()"
+                            minimizableBottom="10"
+                            minimizable="false"
+                            dragable="true"
+                            styleName="windowScene"
+                            maximize="maximizeHandler();"
+                            titleIcon="@Embed(source='../../img/title_ico03.png')"
+                            title="应急资源详情"
+                            width="720"
+                            height="260"
+                            resizable="true"
+                            minimizableLeft="10"
+                            minWidth="200"
+                            visible="false">
+            <s:VGroup width="100%"
+                      height="100%">
+                <mx:AdvancedDataGrid id="emgyDetailDataGrid"
+                                     styleName="sceneDG"
+                                     verticalAlign="middle"
+                                     itemClick="emgyDetailDataGrid_itemClickHandler(event)"
+                                     width="100%"
+                                     height="100%"
+                                     horizontalScrollPolicy="auto"
+                                     textAlign="left"
+                                     dataProvider="{emgyResourcePM.emgyResourceDM.emgyResourceDetail}"
+                                     contextMenu="{cm}"
+                                     itemRollOver="lastRollOverIndex = event.rowIndex">
+                    <mx:columns>
+                        <mx:AdvancedDataGridColumn id="isUsedColumn"
+                                                   headerText="   全选">
+                            <mx:itemRenderer>
+                                <fx:Component>
+                                    <mx:CheckBox width="50"
+                                                 label="是否使用"
+                                                 selected="{data.isused==1?true:false}"
+                                                 change="checkbox1_changeHandler(event)">
+                                        <fx:Script>
+                                            <![CDATA[
+                                                protected function checkbox1_changeHandler(event:Event):void
+                                                {
+                                                    data.isused = CheckBox(event.target).selected ? 1 : 0;
+                                                }
+                                            ]]>
+                                        </fx:Script>
+                                    </mx:CheckBox>
+                                </fx:Component>
+                            </mx:itemRenderer>
+                        </mx:AdvancedDataGridColumn>
+                        <mx:AdvancedDataGridColumn dataField="emergresname"
+                                                   headerText="资源名称"
+                                                   minWidth="200">
+                            <mx:itemRenderer>
+                                <fx:Component>
+                                    <mx:HBox horizontalScrollPolicy="off">
+                                        <mx:Image visible="{data.isChg == '1'}"
+                                                  source="@Embed('../../img/emg_chg.png')"/>
+                                        <mx:Label text="{data.emergresname}"/>
+                                    </mx:HBox>
+                                </fx:Component>
+                            </mx:itemRenderer>
+                        </mx:AdvancedDataGridColumn>
+                        <mx:AdvancedDataGridColumn dataField="emergresdesc"
+                                                   headerText="描述"
+                                                   width="610"/>
+                    </mx:columns>
+                </mx:AdvancedDataGrid>
+                <s:Button label="保存"
+                          click="button2_clickHandler(event)"
+                          buttonMode="true"/>
+            </s:VGroup>
+
+            <mx:Image source="@Embed('../../img/add.png')"
+                      buttonMode="true"
+                      right="60"
+                      top="-22"
+                      toolTip="新增应急资源"
+                      click="image1_clickHandler(event)"/>
+        </ailk_compts:Window>
+    </mx:Box>
+    <!-- 时间选择弹出框-->
+    <mx:Box width="280"
+            height="120"
+            visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="selectTimeWindow"
+                            close="PopUpManager.removePopUp(this.selectTimeWindow);"
+                            closable="true"
+                            maximizable="false"
+                            minimizable="false"
+                            dragable="true"
+                            styleName="windowScene"
+                            title="选择时间"
+                            width="100%"
+                            height="100%">
+            <s:VGroup width="100%"
+                      height="100%"
+                      verticalAlign="middle"
+                      horizontalAlign="center">
+                <s:HGroup width="100%"
+                          horizontalAlign="center"
+                          verticalAlign="middle">
+                    <s:Label text="开始时间"/>
+                    <ailk_compts:UXDateField id="startTimeField"
+                                             color="0x000000"
+                                             creationComplete="createTime(event,-3600*6)"
+                                             labelFunction="formatDate"
+                                             yearNavigationEnabled="true"
+                                             width="190"/>
+                </s:HGroup>
+                <s:HGroup width="100%"
+                          horizontalAlign="center"
+                          verticalAlign="middle">
+                    <s:Label text="结束时间"/>
+                    <ailk_compts:UXDateField id="endTimeField"
+                                             color="0x000000"
+                                             creationComplete="createTime(event,0)"
+                                             labelFunction="formatDate"
+                                             yearNavigationEnabled="true"
+                                             width="190"/>
+                </s:HGroup>
+                <s:HGroup width="100%"
+                          horizontalAlign="center"
+                          verticalAlign="middle">
+                    <s:Button label="确定"
+                              click="button1_clickHandler(event)"/>
+                </s:HGroup>
+            </s:VGroup>
+        </ailk_compts:Window>
+    </mx:Box>
+
+    <mx:Box width="280"
+            height="120"
+            visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="areaChooseWindow"
+                            close="PopUpManager.removePopUp(this.areaChooseWindow);"
+                            closable="true"
+                            maximizable="false"
+                            minimizable="false"
+                            dragable="true"
+                            styleName="windowScene"
+                            title="选择区域"
+                            width="290"
+                            height="100">
+            <s:VGroup width="100%"
+                      height="100%"
+                      verticalAlign="middle"
+                      horizontalAlign="center">
+                <s:HGroup width="100%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="center">
+                    <s:Label text="选择区域:"/>
+                    <s:DropDownList id="areaChooseList"
+                                    dataProvider="{pm.dm.areaList}"
+                                    labelField="AREANAME"
+                                    selectedIndex="0"
+                                    requireSelection="true"
+                                    width="160"/>
+                    <s:Button label="导入"
+                              buttonMode="true"
+                              click="button3_clickHandler(event)"/>
+                </s:HGroup>
+                <!--<s:Button label="导入"
+                     buttonMode="true"
+                     click="button3_clickHandler(event)"/>-->
+            </s:VGroup>
+        </ailk_compts:Window>
+    </mx:Box>
+    <mx:Box visible="false"
+            width="400"
+            height="200"
+            includeInLayout="false">
+        <ailk_compts:Window id="equipmentDetail"
+                            close="closeWindowDetail('equipmentDetail')"
+                            minimizable="false"
+                            dragable="true"
+                            styleName="windowScene"
+                            maximize="maximizeHandler('equipmentDetail');"
+                            titleIcon="@Embed(source='../../img/title_ico03.png')"
+                            title="设备资源详情"
+                            width="515"
+                            height="250"
+                            resizable="true"
+                            visible="false">
+            <mx:AdvancedDataGrid id="equipmentDetailDg"
+                                 styleName="sceneDG"
+                                 width="100%"
+                                 height="100%">
+                <mx:columns>
+                    <mx:AdvancedDataGridColumn dataField="moName"
+                                               headerText="网元名称"
+                                               minWidth="200"/>
+                    <mx:AdvancedDataGridColumn dataField="moTypeName"
+                                               headerText="网元类型"
+                                               minWidth="98"/>
+                    <mx:AdvancedDataGridColumn dataField="alarmLevel"
+                                               id="alarmLevelCol"
+                                               headerText="告警等级"
+                                               width="100"
+                                               labelFunction="alarmLevelLabel"
+                                               itemRenderer="com.linkage.module.cms.scene.view.components.renderer.ColumnColorDyeRenderer"/>
+                </mx:columns>
+            </mx:AdvancedDataGrid>
+        </ailk_compts:Window>
+    </mx:Box>
+
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="emgyDescWin"
+                            width="350"
+                            styleName="window"
+                            minimizable="false"
+                            maximizable="false"
+                            closable="true"
+                            dragable="true"
+                            close="{PopUpManager.removePopUp(emgyDescWin);}"
+                            height="100">
+            <s:TextArea id="emgyDescInput"
+                        top="0"
+                        height="50"
+                        keyUp="emgyDescInput_keyUpHandler(event)"
+                        width="100%"/>
+            <s:Button label="保存"
+                      bottom="-7"
+                      click="saveEmgyDesc()"/>
+        </ailk_compts:Window>
+    </mx:Box>
+</ailk_compts:Window>

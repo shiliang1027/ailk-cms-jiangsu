@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="200"
+					height="300"
+					styleName="windowSceneGisBottom"
+					minimizable="false"
+					maximizable="false"
+					resizable="false"
+					dragable="true"
+					close="window1_closeHandler()" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.SceneTreeCompPM;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.event.SceneTreeEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneTreeWinNew);
+			
+//			[Inject("sceneTreeCompPM")]
+//			[Bindable]
+//			public var stcpm:SceneTreeCompPM;
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			private var initFlag:Boolean = false;
+			//初始化区域导航tree数据
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				if (initFlag){
+					return;
+				}
+				log.info("into SceneTreeWin");
+				requestServerUtil.addRequest(new SceneTreeEvent(SceneTreeEvent.SCENE_TREE_XML));
+				initFlag = true;
+			}
+			protected function window1_closeHandler():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			//点击节点触发事件获取节点信息并且抛出事件
+			public function getSceneInfo(event:ListEvent):void
+			{
+				var obj:XML = Tree(event.currentTarget).selectedItem as XML;
+				var params:Object = scenePM.dealParams(obj);
+				log.info(params);
+				log.info("getSceneInfo--------1");
+				var evt:SceneEvent = new SceneEvent("DEAL_SCENE_CHANGE");
+				evt.param = params;
+				dispatchMsg(evt);
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="0"
+			  top="-22">
+		<s:TabBar id="chartTabBar"
+				  dataProvider="{chartViewStack}"
+				  buttonMode="true"
+				  styleName="sceneTabBar1"/>
+		<mx:ViewStack width="100%"
+					  height="100%"
+					  styleName="sceneViewStack"
+					  id="chartViewStack"
+					  creationPolicy="all">
+			<s:NavigatorContent width="100%" height="100%" 
+								creationPolicy="all"
+								label="行政区域">
+				<mx:Tree id="adminTree"
+						 width="100%"
+						 height="100%"
+						 borderAlpha="0" styleName="sceneTree"
+						 openItems="{scenePM.stdm.adminTreeData}"
+						 contentBackgroundAlpha="0"
+						 dataProvider="{scenePM.stdm.adminTreeData}"
+						 labelField="@name"
+						 itemClick="{getSceneInfo(event)}"/>
+			</s:NavigatorContent>
+			<s:NavigatorContent width="100%" height="100%" 
+								creationPolicy="all"
+								label="特定区域">
+				<mx:Tree id="specialTree" styleName="sceneTree"
+						 width="100%"
+						 height="100%"
+						 borderAlpha="0"
+						 openItems="{scenePM.stdm.specialTreeData}"
+						 contentBackgroundAlpha="0"
+						 dataProvider="{scenePM.stdm.specialTreeData}"
+						 labelField="@name"
+						 itemClick="{getSceneInfo(event)}"/>
+			</s:NavigatorContent>
+			
+		</mx:ViewStack>
+	</s:VGroup>
+</ailk_compts:Window>

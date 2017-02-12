@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 width="100%" height="100%">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.linkage.module.cms.viewperformance.event.ViewPerformanceEvent;
+			import com.linkage.module.cms.viewperformance.view.ViewPerformancePM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			/**
+			 * 是否显示导出按钮
+			 * */
+			[Bindable]
+			private var _exportFlag:Boolean = false; //导出按钮
+			
+			[Bindable]
+			[Embed(source="../resource/images/icon_export.png")]
+			public static var export:Class;
+			
+			[Inject("viewPerformancePM")]
+			[Bindable]
+			public var pm:ViewPerformancePM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			//动态生成表格
+			[MessageHandler(selector="VIEWPERF_QUERYPERFDATA_SUCC")]
+			public function group1_creationCompleteHandler(event:ViewPerformanceEvent):void
+			{
+				// TODO Auto-generated method stub
+				viewPerfData.columns = [];
+				var viewPerfArr:Array = new Array();
+				var arrcollction:ArrayCollection = pm.dm.viewPerfConfidData;
+				for(var i:int=0;i<arrcollction.length;i++)
+				{
+					var dc:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dc.headerText = arrcollction[i].show_name;
+					dc.dataField = arrcollction[i].kpi_id;
+					dc.headerWordWrap = true;
+					dc.draggable = false;
+					dc.width = dc.headerText.length * 15;
+					viewPerfArr.push(dc);
+				}
+				viewPerfData.columns = viewPerfArr;
+				viewPerfData.dataProvider = pm.dm.viewPerfData;
+				viewPerfData.showDataTips = true;
+			}
+			
+			//导出表格数据
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				var data:ArrayCollection = viewPerfData.dataProvider as ArrayCollection;
+				if (data == null || data.length < 1)
+				{
+					Alert.show("没有数据需要导出");
+					return;
+				}
+				
+				var dataArr:ArrayCollection = new ArrayCollection();
+				for each (var obj:Object in data)
+				{
+					dataArr.addItem(obj);
+				}
+				
+				var headerArr:Array = new Array();
+				for each (var col:AdvancedDataGridColumn in viewPerfData.columns)
+				{
+					if (col.dataField != "" && col.headerText != "")
+						headerArr.push({"id": col.dataField, "name": col.headerText});
+				}
+				
+				ExcelUtil.exportSimpleExcel("" + (new Date()).getTime(), headerArr, dataArr);
+			}
+			
+			//日期选取之后更新表格数据
+			public function startDate_dataChangeHandler(dateStr:Date):void
+			{
+				// TODO Auto-generated method stub
+				var newDateTime:String = DateField.dateToString(dateStr,"YYYY年MM月DD日");
+				if (pm.dm.gatherTime != newDateTime)
+				{
+					pm.dm.gatherTime = newDateTime;
+					pm.dm.queryParam.gather_time = DateField.dateToString(dateStr,"YYYY-MM-DD");
+					dispatchMsg(new ViewPerformanceEvent(ViewPerformanceEvent.VIEWPERF_QUERYPERFDATA));
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<mx:AdvancedDataGrid id="viewPerfData"  width="100%" horizontalScrollPolicy="on" styleName="sceneDG"
+						 height="100%" headerSortSeparatorSkin="mx.skins.ProgrammaticSkin"
+						 resizableColumns="true" sortableColumns="false" sortExpertMode="true">
+		<mx:columns>
+			
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	<s:HGroup right="20"
+			  top="-19" verticalAlign="middle">
+		<mx:DateField id="startDate" width="140" height="20" text="{pm.dm.gatherTime}" change="startDate_dataChangeHandler(startDate.selectedDate)" selectedDate="{startDate.selectedDate}"  formatString="YYYY年MM月DD日" color="0x000000"/>
+		<mx:Image source="{export}"
+				  click="image1_clickHandler(event)"/>
+	</s:HGroup>
+</s:Group>

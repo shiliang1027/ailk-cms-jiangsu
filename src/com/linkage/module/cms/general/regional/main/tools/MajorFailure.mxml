@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="400" height="300" closable="true" close="window1_closeHandler(event)" title="业务影响范围" dragable="true">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.data.MajorFailureServ;
+			import com.linkage.module.cms.general.regional.data.MajorFailureServImp;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			//参数
+			private var _params:Object = null;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.main.tools.MajorFailure");
+			
+			//数据接口
+			private var majorServer:MajorFailureServ = null;
+			
+			//场景ID
+			private var monitorId:String = null;
+			
+			public function get params():Object
+			{
+				return _params;
+			}
+
+			public function set params(value:Object):void
+			{
+				_params = value;
+			}
+
+			public function initData(param:Object,id:String):void
+			{
+				//默认展开
+				this.win1.maximizeButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				this.win2.maximizeButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				
+				this._params = param;
+				this.monitorId = id;
+				majorServer = new MajorFailureServImp(param["context"]);
+				
+				var param:Object = new Object();
+				param.monitor_id = id;
+				
+				log.info("查询业务影响范围参数 monitor_id=" + id);
+				majorServer.getServScopeData(param,loadServScopeData,null,loadServScopeDataErr);
+			}
+			
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				this.visible = false;
+			}
+
+			private function loadServScopeData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询业务影响范围成功！");
+					if (obj.vip_num != null && obj.vip_num != "")
+					{
+						this.vipBtsNum.text = obj.vip_num;
+					}
+					else
+					{
+						this.vipBtsNum.text = "0";
+					}
+					if (obj.not_vip_num != null && obj.not_vip_num != "")
+					{
+						this.nvipBtsNum.text = obj.not_vip_num;
+					}
+					else
+					{
+						this.nvipBtsNum.text = "0";
+					}
+					if (obj.supper_vip_num != null && obj.supper_vip_num != "")
+					{
+						this.superBtsNum.text = obj.supper_vip_num;
+					}
+					else
+					{
+						this.superBtsNum.text = "0";
+					}
+				}
+				else
+				{
+					log.info("查询业务影响范围为空！");
+				}
+			}
+			
+			private function loadServScopeDataErr(obj:Object):void
+			{
+				log.info("查询业务影响范围失败！");
+			}
+
+			protected function query_clickHandler(event:MouseEvent):void
+			{
+				if (this.compareRate.text == "")
+				{
+					Alert.show("请输入系数比！");
+					return;
+				}
+				if (this.avgCall.text == "")
+				{
+					Alert.show("请输入平均通话数！");
+					return;
+				}
+				
+				var param:Object = new Object();
+				param.monitor_id = monitorId;
+				param.rate = this.compareRate.text;
+				param.avg_tel_num = this.avgCall.text;
+				
+				log.info("查询影响通讯能力数据参数 monitor_id=" + param.monitor_id + " rate=" + param.rate + " avg_tel_num=" + param.avg_tel_num);
+				majorServer.getAbilityData(param,loadAbilityData,null,loadAbilityDataErr);
+			}
+
+			private function loadAbilityData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询影响通讯能力数据成功");
+					this.faultCall.text = obj.ability_num;
+					this.faultUser.text = obj.user_num;
+				}
+				else
+				{
+					log.info("查询影响通讯能力数据为空！");
+				}
+			}
+			
+			private function loadAbilityDataErr(obj:Object):void
+			{
+				log.info("查询影响通讯能力数据失败！");
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:VBox width="100%" height="100%">
+		<panel:Window id="win1" width="80%" title="业务影响范围" closable="false">
+			<mx:Grid id="btsFailure" width="100%" height="100%" horizontalGap="-1" verticalGap="-1">
+				<mx:GridRow width="100%" height="20">
+					<mx:GridItem width="30%" borderStyle="solid">
+						<s:Label text="vip基站：">
+						</s:Label>
+					</mx:GridItem>
+					<mx:GridItem width="70%" borderStyle="solid">
+						<s:Label id="vipBtsNum">
+						</s:Label>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%" height="20">
+					<mx:GridItem width="30%" borderStyle="solid">
+						<s:Label text="非vip基站：">
+						</s:Label>
+					</mx:GridItem>
+					<mx:GridItem width="70%" borderStyle="solid">
+						<s:Label id="nvipBtsNum">
+						</s:Label>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%" height="20">
+					<mx:GridItem width="30%" borderStyle="solid">
+						<s:Label text="超级基站：">
+						</s:Label>
+					</mx:GridItem>
+					<mx:GridItem width="70%" borderStyle="solid">
+						<s:Label id="superBtsNum">
+						</s:Label>
+					</mx:GridItem>
+				</mx:GridRow>
+			</mx:Grid>
+		</panel:Window>
+		<panel:Window id="win2" width="80%" title="业务通信能力影响" closable="false">
+			<mx:Grid id="failureInfo" width="100%" height="100%" horizontalGap="-1" verticalGap="-1">
+				<mx:GridRow width="100%" height="20">
+					<mx:GridItem width="30%" borderStyle="solid">
+						<s:Label text="系数比：">
+						</s:Label>
+					</mx:GridItem>
+					<mx:GridItem width="70%" borderStyle="solid">
+						<s:TextInput id="compareRate">
+						</s:TextInput>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%" height="20">
+					<mx:GridItem width="30%" borderStyle="solid">
+						<s:Label text="平均通话数：">
+						</s:Label>
+					</mx:GridItem>
+					<mx:GridItem width="70%" borderStyle="solid">
+						<s:TextInput id="avgCall">
+						</s:TextInput>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%" height="20">
+					<mx:GridItem colSpan="2" width="100%" horizontalAlign="right">
+						<s:Button id="query" label="查询" click="query_clickHandler(event)">
+						</s:Button>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%" height="20">
+					<mx:GridItem width="30%" borderStyle="solid">
+						<s:Label text="影响的通讯能力：">
+						</s:Label>
+					</mx:GridItem>
+					<mx:GridItem width="70%" borderStyle="solid">
+						<s:Label id="faultCall">
+						</s:Label>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%" height="20">
+					<mx:GridItem width="30%" borderStyle="solid">
+						<s:Label text="影响的用户数：">
+						</s:Label>
+					</mx:GridItem>
+					<mx:GridItem width="70%" borderStyle="solid">
+						<s:Label id="faultUser">
+						</s:Label>
+					</mx:GridItem>
+				</mx:GridRow>
+			</mx:Grid>
+		</panel:Window>
+	</mx:VBox>
+</panel:Window>

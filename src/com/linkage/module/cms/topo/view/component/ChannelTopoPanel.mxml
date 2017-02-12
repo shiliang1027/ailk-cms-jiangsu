@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+						 xmlns:component="com.linkage.module.cms.topo.view.component.*"
+						 minimize="abstractcepwindow1_minirestoHandler(event)"
+						 restore="abstractcepwindow1_minirestoHandler(event)"
+						 maximize="abstractcepwindow1_maximizeHandler(event)"
+						 creationComplete="window_creationCompleteHandler()"
+						 title="通道路由拓扑"
+						 close="closePanel()"
+						 dragable="true"
+						 width="1000"
+						 height="260">
+	<panel:layout>
+		<s:HorizontalLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.event.TopoEventTypes;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.service.ServiceContainer;
+			import com.linkage.module.topo.framework.util.TopoUtil;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.events.ResizeEvent;
+
+			// log
+			private var log:ILogger=Log.getLogger("com.linkage.module.topo.framework.view.component.ChannelTopoPanel");
+			// 业务逻辑容器
+			[Bindable]
+			private var serviceContainer:ServiceContainer=null;
+			// loading
+			private var _loading:ILoadingInfo=null;
+			//是否启动拓扑
+			private var isStartTopo:Boolean=false;
+			//参数
+			public var parameters:Object=null;
+			//是否最大化
+			private var isMax:Boolean=false;
+
+			private function window_creationCompleteHandler():void
+			{
+				initLoadingInfo();
+			}
+
+			private function initLoadingInfo():void
+			{
+				_loading=LoadingManager.getInstance().loadingInfo;
+			}
+
+
+			//启动拓扑
+			private function startTopo():void
+			{
+				//1.设置参数
+				parameters=parentApplication.parameters;
+				var iconContext:String=parameters[Constants.PARAM_ICON_CONTEXT];
+				var iconFillContext:String=parameters[Constants.PARAM_ICONFILL_CONTEXT];
+				var urlContext:String=parameters[Constants.PARAM_URL_CONTEXT];
+				var sessionId:String=parameters[Constants.PARAM_SESSIONID];
+				var user:Object=TopoUtil.jsonDecode(parameters[Constants.PARAM_USER]);
+				var jkTopoNamesRegex:String=parameters[CmsTopoConstants.PARAM_JK_TOPONAMES_REGEX];
+				var isHttpDS:Boolean=(parameters.isHttpDS == "true");
+				var menuUrl:String=parameters[CmsTopoConstants.PARAM_MENUURL];
+
+				channelTopo.iconContext=iconContext;
+				channelTopo.iconFillContext=iconFillContext;
+				channelTopo.urlContext=urlContext;
+				channelTopo.sessionId=sessionId;
+				channelTopo.user=user;
+				channelTopo.isHttpDS=isHttpDS;
+				channelTopo.menuUrl=menuUrl;
+
+				channelTopo.jkTopoNamesRegex=jkTopoNamesRegex;
+				channelTopo.workStatRefreshEnable=true;
+				channelTopo.oldTopoCanvas=_topoCanvas;
+				channelTopo.resStatEnabled=true;
+				channelTopo.resStatDefaultShow=false;
+				channelTopo.isGroupTopo=false;
+
+				//2.启动拓扑
+				channelTopo.startTopo();
+			}
+
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				super.topoCanvas=value;
+				//监听通道路由详情信息
+				_topoCanvas.addEventListener(TopoEventTypes.CHANNEL_VIEW, function(event:TopoEvent):void
+					{
+						// 如果面板隐藏了,需要显示出来
+						if (!showStatus)
+						{
+							showPanel();
+						}
+						//显示拓扑信息
+						showChannelTopo(event.getProperty("modelId"), event.getProperty("params"), event.getProperty("topoName"));
+					});
+				//监听窗口变化事件
+				_topoCanvas.addEventListener(ResizeEvent.RESIZE, function(event:ResizeEvent):void
+					{
+						if (isMax)
+						{
+							width=parentApplication.width;
+							height=parentApplication.height;
+						}
+					});
+			}
+
+			/**
+			 * 根据视图模板和参数加载拓扑
+			 * @param modelId 模板id
+			 * @param modelParams 模板参数,格式为:  key:value#key:value#key:value
+			 * @param topoName
+			 *
+			 */
+			public function showChannelTopo(modelId:String, modelParams:String, topoName:String=null):void
+			{
+				if (StringUtils.isNullStr(topoName))
+				{
+					topoName=_topoCanvas.topoName;
+				}
+				loadingStart();
+				//未启动，先启动拓扑
+				if (!isStartTopo)
+				{
+					startTopo();
+					isStartTopo=true;
+				}
+				channelTopo.loadViewModelTopo(modelId, modelParams, topoName);
+			}
+
+			/**
+			 * 加载中提示开始
+			 *
+			 */
+			private function loadingStart():void
+			{
+				if (_loading == null)
+				{
+					initLoadingInfo();
+				}
+				_loading.loadingStart();
+			}
+
+			/**
+			 * 加载中提示结束
+			 *
+			 */
+			private function loadingEnd():void
+			{
+				if (_loading == null)
+				{
+					initLoadingInfo();
+				}
+				_loading.loadingEnd();
+			}
+
+			/**
+			 * 显示
+			 */
+			private function showPanel():void
+			{
+				show();
+				restoreWindow();
+			}
+
+			/**
+			 * 隐藏
+			 */
+			private function closePanel():void
+			{
+				hide();
+			}
+
+			protected function abstractcepwindow1_maximizeHandler(event:WindowEvent):void
+			{
+				isMax=true;
+				width=parentApplication.width;
+				height=parentApplication.height;
+			}
+
+			protected function abstractcepwindow1_minirestoHandler(event:WindowEvent):void
+			{
+				isMax=false;
+			}
+		]]>
+	</fx:Script>
+	<component:ChannelTopo id="channelTopo"/>
+</panel:AbstractCEPWindow>

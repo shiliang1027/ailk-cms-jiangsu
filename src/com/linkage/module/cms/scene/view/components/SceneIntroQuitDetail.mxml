@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+                    xmlns:ailk="http://www.ailk.com/2011/ailk"
+                    minimizable="false"
+                    maximizable="false"
+                    dragable="true"
+                    styleName="windowScene"
+                    width="600"
+                    height="350"
+                    close="{PopUpManager.removePopUp(this);this.visible = false;}"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+            import com.linkage.module.cms.scene.domain.common.IUser;
+            import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.controls.Alert;
+            import mx.events.ListEvent;
+            import mx.managers.PopUpManager;
+            import mx.rpc.events.FaultEvent;
+            import mx.rpc.remoting.RemoteObject;
+
+            [Bindable]
+            public var pieChartLabel:String;
+            [Bindable]
+            public var historyChartLabel:String;
+
+            private var log:ILogger = Log.getLoggerByClass(SceneIntroQuitDetail);
+
+            [Bindable]
+            private var currentPage:int = 1;
+
+            [Inject("user")]
+            [Bindable]
+            public var user:IUser;
+
+            [Bindable]
+            private var pageSize:int = 10;
+            /*查询参数 */
+            public var queryParams:Object = {};
+
+            [Bindable]
+            public var ac:ArrayCollection = new ArrayCollection;
+
+            private var moTypeId:String;
+            private var moTypeRuleMap:Object = {"16": "69", "28": "71", "320": "72"};
+
+            /***
+             * 查询数据
+             **/
+            public function queryFirstPageData(params:Object):void
+            {
+                log.info("加载场景介绍-退服详情--queryFirstPageData");
+                log.debug(params);
+
+                var rmtObj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_locServ", "com.linkage.module.cms.scene.loc.serv.impl.LocServImpl", "/cms/messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        log.info("加载场景介绍-退服详情成功：");
+                        log.debug(data);
+
+                        ac.removeAll();
+                        ac.addAll(data as IList);
+                    },
+                    function(e:FaultEvent):void
+                    {
+                        log.info("加载场景介绍-退服详情失败：" + e.fault.faultDetail);
+                    });
+
+                var param:Object = {"level": user.level, "sceneId": user.sceneId, "probablecausetxt": "2G基站退服"};
+
+                if (user.level == "3")
+                    param.sceneId = user.initSceneId;
+
+                if (params.moTypeId == "28")
+                    param.probablecausetxt = "TD基站退服";
+                else if (params.moTypeId == "320")
+                    param.probablecausetxt = "LTE基站退服";
+
+                moTypeId = params.moTypeId;
+
+                log.info("加载场景介绍-退服详情");
+                log.debug(param);
+                rmtObj.getCakyDetails(param);
+            }
+
+            [Bindable]
+            public var filterAlarm:Function;
+
+            //* 级联告警流水 */
+            protected function quitServiceDG_itemClickHandler(event:ListEvent):void
+            {
+                var data:Object = AdvancedDataGrid(event.currentTarget).selectedItem;
+                var ruleContent:String = 'alarmneid="' + data.neid + '"&alarmsubtype=' + moTypeRuleMap[moTypeId];
+
+                var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_REFRESH_ALARM_FLOW);
+                var param:Object = {};
+                param.ruleContent = ruleContent;
+                e.params = param;
+                log.info("加载告警！ruleContent:" + ruleContent);
+
+
+                if (filterAlarm != null)
+                    filterAlarm.call(this, e);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+    <mx:AdvancedDataGrid id="quitServiceDG"
+                         width="100%"
+                         dataProvider="{ac}"
+                         height="100%"
+                         itemClick="quitServiceDG_itemClickHandler(event)"
+                         styleName="sceneDG"
+                         verticalAlign="middle"
+                         horizontalScrollPolicy="auto">
+        <mx:columns>
+            <mx:AdvancedDataGridColumn dataField="nename"
+                                       width="283"
+                                       headerText="基站名称"/>
+            <mx:AdvancedDataGridColumn dataField="equipmentclass"
+                                       headerText="基站类型"/>
+            <mx:AdvancedDataGridColumn dataField="probablecausetxt"
+                                       headerText="退服原因"/>
+            <mx:AdvancedDataGridColumn dataField="num"
+                                       headerText="退服告警数"/>
+        </mx:columns>
+    </mx:AdvancedDataGrid>
+</ailk_compts:Window>

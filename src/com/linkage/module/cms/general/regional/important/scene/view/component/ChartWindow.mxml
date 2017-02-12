@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+			  xmlns:component="com.linkage.module.cms.general.regional.main.multiview.component.*"
+			  minWidth="376"
+			  width="100%"
+			  height="100%"
+			  closable="false"
+			  maximizable="false"
+			  minimizable="false">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+			import com.linkage.module.cms.general.regional.important.scene.controller.fo.MonitorFO;
+			import com.linkage.system.structure.map.Map;
+
+			import mx.collections.ArrayCollection;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import nl.demonsters.debugger.MonsterDebugger;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.multiview.component.ChartWindow");
+			[Bindable]
+			/**
+			 *数据源
+			 */
+			private var comboBoxArray:ArrayCollection=new ArrayCollection();
+			/**
+			 *指标ID和名称对应关系
+			 */
+			private var comboIdNameMap:Map=new Map();
+			/**
+			 *指标ID和图形数据对应关系
+			 */
+			private var chartArrayMap:Map=new Map();
+			/**
+			 *场馆监控控制器
+			 */
+			private var _monitorAction:MonitorAction=null;
+			/**
+			 * 图表类型 Column3D:柱状图 Line:趋势图
+			 */
+			private var _chartType:String=null;
+			/**
+			 * 指标类型 1:代表性能指标 2:代表业务指标
+			 */
+			private var _segmentType:int=1;
+
+			//加载图表数据
+			public function loadChartData(viewId:String, queryTime:String):void
+			{
+				//加载下拉框列表信息
+				loadComboBoxInfo(viewId, queryTime);
+			}
+
+			//加载下拉框列表信息
+			private function loadComboBoxInfo(viewId:String, queryTime:String):void
+			{
+				monitorAction.getVenueSegmentList(viewId, segmentType, function(result:Object):void
+					{
+						//1.初始化下拉框值
+						initComboBoxInfo(result);
+
+						//2.加载图表信息
+						loadChartInfo(viewId, queryTime);
+					});
+			}
+
+			//初始化下拉框信息
+			private function initComboBoxInfo(data:Object):void
+			{
+				//遍历列表处理数据
+				comboIdNameMap.clear();
+				comboBoxArray.removeAll();
+				for each (var obj:Object in data)
+				{
+					var cid:String=obj["mo_type_id"] + "_" + obj["perf_type_id"];
+					var cname:String=obj["show_name"];
+					comboIdNameMap.put(cid, cname);
+					comboBoxArray.addItem({id: cid, name: cname});
+				}
+				
+				if (_segmentType == 1)
+				{
+					comboBox.selectedIndex=7;
+				}
+				else
+				{
+					comboBox.selectedIndex=2;
+				}
+			}
+
+			public function loadChartInfo(viewId:String, queryTime:String):void
+			{
+				monitorAction.getSegmentData(viewId, segmentType, queryTime, function(result:Object):void
+					{
+						initChartImageList(result);
+					});
+			}
+
+			//初始化图标信息 chartType 1:柱状图 2:趋势图
+			public function initChartImageList(data:Object):void
+			{
+				log.info("[初始化图表信息]chartType=" + chartType + ",data=" + data);
+
+				//获取画图数据
+				chartArrayMap.clear();
+				var chartArray:ArrayCollection=null;
+				for (var key:String in data)
+				{
+					chartArray=new ArrayCollection();
+					for each (var obj:Object in data[key])
+					{
+						chartArray.addItem({label: obj["perf_time"], value: obj["perf_value"]});
+					}
+					chartArrayMap.put(key, chartArray);
+				}
+
+				//设置显示图表
+				comboBoxChangeHandler();
+			}
+
+			//设置显示图标
+			public function comboBoxChangeHandler():void
+			{
+				if (comboBox.selectedIndex < 0)
+				{
+					return;
+				}
+				var cid:String=comboBox.selectedItem.id;
+				//1.获取选中项指标名称
+				var paramsArray:ArrayCollection=new ArrayCollection();
+				var captionStr:String=comboIdNameMap.get(cid);
+				paramsArray.addItem({caption: captionStr});
+				paramsArray.addItem({anchorRadius: '0'});
+				paramsArray.addItem({slantLabels: '1'});
+				paramsArray.addItem({labelDisplay: 'Rotate'});
+				paramsArray.addItem({chartLeftMargin: '0'});
+				paramsArray.addItem({chartRightMargin: '0'});
+				paramsArray.addItem({chartBottomMargin: '0'});
+				fusionHgroup.removeAllElements();
+				var fusionChart:FusionChartsLK=new FusionChartsLK();
+				fusionChart.width=360;
+				fusionChart.height=160;
+				fusionChart.FCChartType=_chartType;
+				//2.设置数据源画图
+				var chartArray:ArrayCollection=chartArrayMap.get(cid);
+				if (chartArray != null)
+				{
+					fusionChart.FCParams=paramsArray;
+					fusionChart.FCData=chartArray;
+				}
+				fusionHgroup.addElement(fusionChart);
+			}
+
+			public function set monitorAction(value:MonitorAction):void
+			{
+				_monitorAction=value;
+			}
+
+			public function get monitorAction():MonitorAction
+			{
+				return _monitorAction;
+			}
+
+			public function set chartType(value:String):void
+			{
+				_chartType=value;
+			}
+
+			public function get chartType():String
+			{
+				return _chartType;
+			}
+
+			public function set segmentType(value:int):void
+			{
+				_segmentType=value;
+			}
+
+			public function get segmentType():int
+			{
+				return _segmentType;
+			}
+		]]>
+	</fx:Script>
+	<s:DropDownList id="comboBox"
+					top="-26"
+					width="125"
+					labelField="name"
+					selectedIndex="0"
+					color="0x000000"
+					contentBackgroundAlpha="1"
+					change="comboBoxChangeHandler()"
+					dataProvider="{comboBoxArray}"/>
+	<s:HGroup id="fusionHgroup"
+			  width="360"
+			  height="166"
+			  verticalAlign="middle"
+			  horizontalAlign="center">
+	</s:HGroup>
+</panel:Window>

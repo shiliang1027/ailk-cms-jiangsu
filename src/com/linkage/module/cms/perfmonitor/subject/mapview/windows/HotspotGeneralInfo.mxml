@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="320" height="237" dragable="true" closable="false" 
+			  title="概况信息">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.demonsters.debugger.MonsterDebugger;
+			import com.esri.ags.tasks.supportClasses.DataFile;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			
+			import org.osmf.layout.AbsoluteLayoutFacet;
+			
+            //日志
+            public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subject.mapview.windows.HotspotGeneralinfo");
+            
+            [Bindable]
+			private var testData:ArrayCollection = new ArrayCollection();
+			
+			private var btsQuitNum:int = 0;
+			private var cellQuitNum:int = 0;
+			
+			public function initData(obj:Object):void
+			{
+				if (obj == null)
+				{
+					log.info("热点概况数据为空！");
+					return;
+				}
+				
+				//初始化
+				var dataObj:Object = obj[0];
+				
+				var arr:Array = new Array();
+				for (var index:String in dataObj.column)
+				{
+					var column:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					column.dataField = dataObj.column[index];
+					column.headerText = dataObj.name[index];
+					column.width = column.headerText.length*15 + 30;
+					arr = arr.concat(column);
+				}
+                
+				this.grid.columns = arr;
+                
+                testData.removeAll();
+                testData.addAll(dataObj.datalist as ArrayCollection);
+                testData.addItem({type:'基站退服数', value:'0个'});
+                testData.addItem({type:'小区退服数', value:'0个'});
+				testData.refresh();
+			}
+            
+            //追加退服基站数量
+            public function appenData(btsNum:int, cellNum:int):void
+            {
+				for each(var item:Object in testData)
+				{
+					if(item.type == '基站退服数')
+						item.value = btsNum + '个';
+					else if(item.type == '小区退服数')
+						item.value = cellNum + '个';
+						
+				}
+				
+                testData.refresh();
+
+				btsQuitNum = btsNum;
+				cellQuitNum = cellNum;
+            }
+			
+			public function setQuitNum(btsNum:int, cellNum:int):void
+			{
+				btsQuitNum = btsNum;
+				cellQuitNum = cellNum;
+			}
+			
+			public function reloadData(obj:Object):void
+			{
+				testData.removeAll();
+				var dataObj:Object = obj[0];
+				testData.addAll(dataObj.datalist as ArrayCollection);
+				
+				testData.addItem({'type':'基站退服数', 'value':btsQuitNum + '个'});
+				testData.addItem({'type':'小区退服数', 'value':cellQuitNum + '个'});
+				testData.refresh();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:AdvancedDataGrid width="100%" height="100%" id="grid" dataProvider="{testData}"/>
+</panel:Window>

@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="window1_creationCompleteHandler(event)"
+					width="100%"
+					closable="false"
+					minimizable="false"
+					maximizable="false"
+					title="领导关注"
+					styleName="windowDaily"
+					titleIcon="@Embed(source='../../../img/title_ico02.png')"
+					height="100%"
+					xmlns:ailk="http://www.ailk.com/2011/ailk"
+					xmlns:pager="com.linkage.module.cms.components.pager.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 * @author xudx (69291)
+		 @version 1.0
+		 @date 2012-8-17
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.event.PrettyChartEvent;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+			import com.linkage.module.cms.scenedaily.event.leaderattention.LeaderAttentionPanelEvent;
+			import com.linkage.module.cms.scenedaily.view.components.leaderattention.LeaderAttentionPanelPM;
+			import com.linkage.module.cms.scenedaily.view.components.util.FileUpDownLoad;
+
+			import flashx.textLayout.debug.assert;
+
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.components.PopUpAnchor;
+
+			private var log:ILogger = Log.getLoggerByClass(LeaderAttentionPanel);
+
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+
+			[Inject("leaderAttentionPanelPM")]
+			[Bindable]
+			public var leaderAttentionPanelPM:LeaderAttentionPanelPM;
+			[Inject("impDetailWin")]
+			public var impDetailWin:ImpDetailWin;
+			[Inject("enUnheathWin")]
+			public var enUnheathWin:EnUnheathWin;
+			[Inject("enSubheathWin")]
+			public var enSubheathWin:EnSubheathWin;
+			[Embed(source="../../../img/icon_export.png")]
+			public static var export:Class;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var param:Object = {};
+
+			[MessageHandler(selector="LOADVIEW_KPIDATA")]
+			public function loadData(e:SceneDailyEvent):void
+			{
+				log.info("领导关注 加载数据！");
+				log.debug(user);
+
+				param.cityId = user.cityId;
+				param.resId = user.resId;
+				param.interval = user.interval;
+				param.isHealthOrThreshold = user.isHealthOrThreshold;
+				param.gatherTime = user.gatherTime;
+				param.viewType = user.viewType;
+				param.resType = user.resType;
+
+				leaderAttentionPanelPM.loadData(param);
+			}
+
+			//无用方法
+			private function dealClick(e:PrettyChartEvent):void
+			{
+				log.info("---dealClick要开始" + LeaderAttentionPanel);
+				log.info(e.data);
+
+				param.city = e.data.city;
+			}
+
+			private function JumpImportantIndex():void
+			{
+				log.info("先移除其他详情弹出窗口！");
+				PopUpManager.removePopUp(enUnheathWin);
+				PopUpManager.removePopUp(enSubheathWin);
+
+				log.debug("[领导关注：重要性能指标窗口]: 开始！");
+
+
+//				this.leaderAttentionPanelPM.loadData(param);
+
+				enSubheathReport.visible = false;
+				enUnheathReport.visible = false;
+
+				improtantIndex.x = 200;
+				improtantIndex.y = 100;
+				improtantIndex.width = 800;
+				improtantIndex.height = 350;
+				improtantIndex.visible = true;
+
+			}
+
+			private function JumpENUnhealthy():void
+			{
+				log.info("先移除其他详情弹出窗口！");
+				PopUpManager.removePopUp(impDetailWin);
+				PopUpManager.removePopUp(enSubheathWin);
+
+				enSubheathReport.visible = false;
+				improtantIndex.visible = false;
+
+				enUnheathReport.x = 200;
+				enUnheathReport.y = 100;
+				enUnheathReport.width = 800;
+				enUnheathReport.height = 350;
+				enUnheathReport.visible = true;
+			}
+
+			private function JumpENSubhealthy():void
+			{
+				log.info("先移除其他详情弹出窗口！");
+				PopUpManager.removePopUp(impDetailWin);
+				PopUpManager.removePopUp(enUnheathWin);
+
+				enUnheathReport.visible = false;
+				improtantIndex.visible = false;
+
+				enSubheathReport.x = 200;
+				enSubheathReport.y = 100;
+				enSubheathReport.width = 800;
+				enSubheathReport.height = 350;
+				enSubheathReport.visible = true;
+			}
+
+			protected function closeHandler(event:WindowEvent):void
+			{
+				(event.currentTarget as Window).visible = false;
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				PopUpManager.addPopUp(improtantIndex, this.parent as DisplayObject);
+				PopUpManager.addPopUp(enUnheathReport, this.parent as DisplayObject);
+				PopUpManager.addPopUp(enSubheathReport, this.parent as DisplayObject);
+			}
+
+			protected function maximizeHandler(event:WindowEvent):void
+			{
+				var w:Window = event.currentTarget as Window;
+				w.x = 0;
+				w.y = 0;
+				w.width = parentApplication.width;
+				w.height = parentApplication.height;
+
+				w.closeButton.visible = false;
+			}
+
+			protected function restoreHandler(event:WindowEvent):void
+			{
+				var w:Window = event.currentTarget as Window;
+				w.x = 200;
+				w.y = 100;
+				w.width = 800;
+				w.height = 350;
+
+				w.closeButton.visible = true;
+			}
+
+			protected function improtantIndexDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				var param:Object = new Object;
+				log.debug("重点性能指标弹出窗口begin....");
+				log.debug(user);
+				var item:Object = improtantIndexDataGrid.selectedItem;
+				param = item;
+				param.interval = user.interval;
+				param.gatherTime = user.gatherTime;
+//				param.kpiId = improtantIndexDataGrid.selectedItem['kpiId'];
+//				param.resId = improtantIndexDataGrid.selectedItem['resId'];
+//				param.resType = improtantIndexDataGrid.selectedItem['resType'];
+//				param.moTypeId = improtantIndexDataGrid.selectedItem['moTypeId'];
+//				param.cityName = improtantIndexDataGrid.selectedItem['cityName'];
+//				param.kpiName = improtantIndexDataGrid.selectedItem['perfGroupName'];
+//				param.kpiValue = improtantIndexDataGrid.selectedItem['kpiValue'];
+//				param.unit = improtantIndexDataGrid.selectedItem['UNIT'];
+				param.kpiName = item["perfGroupName"];
+				param.unit = item["UNIT"];
+				log.debug(param);
+				leaderAttentionPanelPM.showLeaderInfoDetail(param);
+				PopUpManager.addPopUp(impDetailWin, this.parent as DisplayObject);
+				impDetailWin.x = 230;
+				impDetailWin.y = 130;
+			}
+
+			protected function enUnheathReportDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				var param:Object = new Object;
+				log.debug("不健康状态弹出窗口begin....");
+				log.debug(user);
+				var item:Object = enUnheathReportDataGrid.selectedItem;
+				param = item;
+				param.interval = user.interval;
+				param.gatherTime = user.gatherTime;
+//				param.kpiId = enUnheathReportDataGrid.selectedItem['kpiId'];
+//				param.resId = enUnheathReportDataGrid.selectedItem['resId'];
+//				param.resType = enUnheathReportDataGrid.selectedItem['resType'];
+//				param.moTypeId = enUnheathReportDataGrid.selectedItem['moTypeId'];
+//				param.moName = enUnheathReportDataGrid.selectedItem['moName'];
+//				param.moTypeName = enUnheathReportDataGrid.selectedItem['moTypeName'];
+//				param.kpiName = enUnheathReportDataGrid.selectedItem['perfGroupName'];
+//				param.kpiValue = enUnheathReportDataGrid.selectedItem['kpiValue'];
+				param.kpiName = item["perfGroupName"];
+				param.unit = item['UNIT'];
+				log.debug(param);
+				leaderAttentionPanelPM.showLeaderInfoDetail(param);
+				PopUpManager.addPopUp(enUnheathWin, this.parent as DisplayObject);
+				enUnheathWin.x = 230;
+				enUnheathWin.y = 130;
+
+			}
+
+			protected function enSubheathReportDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				var param:Object = new Object;
+				log.debug("亚健康状态弹出窗口begin....");
+				log.debug(user);
+				var item:Object = enSubheathReportDataGrid.selectedItem;
+				param = item;
+				param.interval = user.interval;
+				param.gatherTime = user.gatherTime;
+//				param.kpiId = enSubheathReportDataGrid.selectedItem['kpiId'];
+//				param.resId = enSubheathReportDataGrid.selectedItem['resId'];
+//				param.resType = enSubheathReportDataGrid.selectedItem['resType'];
+//				param.moTypeId = enSubheathReportDataGrid.selectedItem['moTypeId'];
+//				param.moName = enSubheathReportDataGrid.selectedItem['moName'];
+//				param.moTypeName = enSubheathReportDataGrid.selectedItem['moTypeName'];
+//				param.kpiName = enSubheathReportDataGrid.selectedItem['perfGroupName'];
+				param.kpiName = item["perfGroupName"];
+				param.unit = item['UNIT'];
+				log.debug(param);
+				leaderAttentionPanelPM.showLeaderInfoDetail(param);
+				PopUpManager.addPopUp(enSubheathWin, this.parent as DisplayObject);
+				enSubheathWin.x = 230;
+				enSubheathWin.y = 130;
+
+			}
+
+			//type 类型 1：重要性能指标  2：不健康网元 3：亚健康网元
+			private function leaderAttentionDetailClickHandler(type:String):void
+			{
+				var param:Object = new Object();
+				param.type = type;
+				param.pageSize = "10";
+				param.currentPage = "1";
+
+				if (type == "1")
+				{
+
+					importantIndexPager.currentPage = 1;
+
+					log.info("先移除其他详情弹出窗口！");
+					PopUpManager.removePopUp(enUnheathWin);
+					PopUpManager.removePopUp(enSubheathWin);
+
+					log.debug("[领导关注：重要性能指标窗口]: 开始！");
+
+					enSubheathReport.visible = false;
+					enUnheathReport.visible = false;
+
+					improtantIndex.x = 200;
+					improtantIndex.y = 100;
+					improtantIndex.width = 800;
+					improtantIndex.height = 350;
+					improtantIndex.visible = true;
+				}
+				else if (type == "2")
+				{
+					enUnhealthyPager.currentPage = 1;
+
+					log.info("先移除其他详情弹出窗口！");
+					PopUpManager.removePopUp(impDetailWin);
+					PopUpManager.removePopUp(enSubheathWin);
+
+					enSubheathReport.visible = false;
+					improtantIndex.visible = false;
+
+					enUnheathReport.x = 200;
+					enUnheathReport.y = 100;
+					enUnheathReport.width = 800;
+					enUnheathReport.height = 350;
+					enUnheathReport.visible = true;
+				}
+				else if (type == "3")
+				{
+					enSubhealthyPager.currentPage = 1;
+
+					log.info("先移除其他详情弹出窗口！");
+					PopUpManager.removePopUp(impDetailWin);
+					PopUpManager.removePopUp(enUnheathWin);
+
+					enUnheathReport.visible = false;
+					improtantIndex.visible = false;
+
+					enSubheathReport.x = 200;
+					enSubheathReport.y = 100;
+					enSubheathReport.width = 800;
+					enSubheathReport.height = 350;
+					enSubheathReport.visible = true;
+				}
+
+				leaderAttentionPanelPM.leaderAttentionDetailClickHandler(param);
+
+			}
+
+			//性能指标
+			private function queryImportantIndexPage():void
+			{
+				var param:Object = new Object();
+				param.type = "1";
+				param.pageSize = importantIndexPager.pageSize;
+				param.currentPage = importantIndexPager.currentPage;
+
+				leaderAttentionPanelPM.leaderAttentionDetailClickHandler(param);
+			}
+
+			//不健康网元
+			private function queryEnUnhealthyPage():void
+			{
+				var param:Object = new Object();
+				param.type = "2";
+				param.pageSize = enUnhealthyPager.pageSize;
+				param.currentPage = enUnhealthyPager.currentPage;
+
+				leaderAttentionPanelPM.leaderAttentionDetailClickHandler(param);
+			}
+
+			//亚健康网元
+			private function queryEnSubhealthyPage():void
+			{
+				var param:Object = new Object();
+				param.type = "3";
+				param.pageSize = enSubhealthyPager.pageSize;
+				param.currentPage = enSubhealthyPager.currentPage;
+
+				leaderAttentionPanelPM.leaderAttentionDetailClickHandler(param);
+			}
+
+			[MessageHandler(selector="CMS_SCENEDAILY_LEADERATTENTIONPANEL_LEADERATTENTIONDETAILCMD")]
+			public function loadPagerData(e:LeaderAttentionPanelEvent):void
+			{
+				log.info("分页总条数：{0}.", e.param.totalRowCount);
+				if (e.param)
+				{
+					if (e.param.type == "1")
+					{
+
+						importantIndexPager.totalRowCount = parseInt(e.param.totalRowCount);
+						importantIndexPager.maxPage = Math.ceil(importantIndexPager.totalRowCount / importantIndexPager.pageSize);
+					}
+					else if (e.param.type == "2")
+					{
+						enUnhealthyPager.totalRowCount = parseInt(e.param.totalRowCount);
+						enUnhealthyPager.maxPage = Math.ceil(enUnhealthyPager.totalRowCount / enUnhealthyPager.pageSize);
+					}
+					else if (e.param.type == "3")
+					{
+						enSubhealthyPager.totalRowCount = parseInt(e.param.totalRowCount);
+						enSubhealthyPager.maxPage = Math.ceil(enSubhealthyPager.totalRowCount / enSubhealthyPager.pageSize);
+					}
+				}
+			}
+
+			protected function image5_clickHandler(event:MouseEvent):void
+			{
+				log.info("export param");
+				var fileType:FileFilter = new FileFilter("Excel", "*.xls");
+				var fileTypes:Array = new Array(fileType);
+				var fileUpDownLoad:FileUpDownLoad = new FileUpDownLoad();
+				var downLoadUrl:URLRequest = new URLRequest(user.context + "/scenedaily/delist/delistAction!leaderReportExcel.action");
+				var downLoadData:URLVariables = new URLVariables();
+				downLoadData.gatherTime = user.gatherTime;
+				downLoadData.interval = user.interval;
+				downLoadData.isHealthOrThreshold = user.isHealthOrThreshold;
+				downLoadData.viewType = user.viewType;
+				downLoadData.resId = user.resId;
+				downLoadData.resType = user.resType;
+				downLoadData.moTypeId = user.moTypeId;
+				log.debug("importantIndexPager.totalRowCount=" + importantIndexPager.totalRowCount);
+				downLoadData.counts = importantIndexPager.totalRowCount;
+				downLoadData.type = 1;
+				downLoadUrl.data = downLoadData;
+				fileUpDownLoad.downLoadURLRequest = downLoadUrl;
+				fileUpDownLoad.fileFilters = fileTypes;
+				fileUpDownLoad.downLoad();
+				log.info("export send");
+			}
+
+			protected function image6_clickHandler(event:MouseEvent):void
+			{
+				log.info("export param");
+				var fileType:FileFilter = new FileFilter("Excel", "*.xls");
+				var fileTypes:Array = new Array(fileType);
+				var fileUpDownLoad:FileUpDownLoad = new FileUpDownLoad();
+				var downLoadUrl:URLRequest = new URLRequest(user.context + "/scenedaily/delist/delistAction!leaderReportExcel.action");
+				var downLoadData:URLVariables = new URLVariables();
+				downLoadData.gatherTime = user.gatherTime;
+				downLoadData.interval = user.interval;
+				downLoadData.isHealthOrThreshold = user.isHealthOrThreshold;
+				downLoadData.viewType = user.viewType;
+				downLoadData.resId = user.resId;
+				downLoadData.resType = user.resType;
+				downLoadData.moTypeId = user.moTypeId;
+				log.debug("enUnhealthyPager.totalRowCount=" + enUnhealthyPager.totalRowCount);
+				downLoadData.counts = enUnhealthyPager.totalRowCount;
+				downLoadData.type = 2;
+				downLoadUrl.data = downLoadData;
+				fileUpDownLoad.downLoadURLRequest = downLoadUrl;
+				fileUpDownLoad.fileFilters = fileTypes;
+				fileUpDownLoad.downLoad();
+				log.info("export send");
+			}
+
+			protected function image7_clickHandler(event:MouseEvent):void
+			{
+				log.info("export param");
+				var fileType:FileFilter = new FileFilter("Excel", "*.xls");
+				var fileTypes:Array = new Array(fileType);
+				var fileUpDownLoad:FileUpDownLoad = new FileUpDownLoad();
+				var downLoadUrl:URLRequest = new URLRequest(user.context + "/scenedaily/delist/delistAction!leaderReportExcel.action");
+				var downLoadData:URLVariables = new URLVariables();
+				downLoadData.gatherTime = user.gatherTime;
+				downLoadData.interval = user.interval;
+				downLoadData.isHealthOrThreshold = user.isHealthOrThreshold;
+				downLoadData.viewType = user.viewType;
+				downLoadData.resId = user.resId;
+				downLoadData.resType = user.resType;
+				downLoadData.moTypeId = user.moTypeId;
+				log.debug("enSubhealthyPager.totalRowCount=" + enSubhealthyPager.totalRowCount);
+				downLoadData.counts = enSubhealthyPager.totalRowCount;
+				downLoadData.type = 3;
+				downLoadUrl.data = downLoadData;
+				fileUpDownLoad.downLoadURLRequest = downLoadUrl;
+				fileUpDownLoad.fileFilters = fileTypes;
+				fileUpDownLoad.downLoad();
+				log.info("export send");
+
+			}
+		]]>
+	</fx:Script>
+
+	<s:VGroup width="100%"
+			  height="100%"
+			  paddingTop="2"
+			  top="16"
+			  left="2"
+			  gap="14"
+			  right="2">
+		<s:BorderContainer styleName="borderContainerDaily1"
+						   width="100%"
+						   height="45">
+			<mx:Image source="@Embed(source='../../../img/lamp.png')"
+					  left="4"
+					  top="4"/>
+			<s:Label text="{leaderAttentionPanelPM.leaderAttentionPanelDM.importantIndexCount}"
+					 left="24"
+					 right="24"
+					 buttonMode="true"
+					 width="100%"
+					 height="100%"
+					 verticalAlign="middle"
+					 click="leaderAttentionDetailClickHandler('1')"/>
+		</s:BorderContainer>
+
+		<s:BorderContainer styleName="borderContainerDaily1"
+						   width="100%"
+						   height="45"
+						   click="leaderAttentionDetailClickHandler('2')">
+			<mx:Image source="@Embed(source='../../../img/lamp.png')"
+					  left="4"
+					  top="4"/>
+			<s:Label text="{leaderAttentionPanelPM.leaderAttentionPanelDM.enUnhealthyCount}"
+					 left="24"
+					 right="24"
+					 buttonMode="true"
+					 width="100%"
+					 height="100%"
+					 verticalAlign="middle"/>
+		</s:BorderContainer>
+
+		<s:BorderContainer styleName="borderContainerDaily1"
+						   width="100%"
+						   height="45"
+						   click="leaderAttentionDetailClickHandler('3')">
+			<mx:Image source="@Embed(source='../../../img/lamp.png')"
+					  left="4"
+					  top="4"/>
+			<s:Label text="{leaderAttentionPanelPM.leaderAttentionPanelDM.enSubhealthyCount}"
+					 left="24"
+					 right="24"
+					 buttonMode="true"
+					 width="100%"
+					 height="100%"
+					 verticalAlign="middle"/>
+		</s:BorderContainer>
+	</s:VGroup>
+
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="improtantIndex"
+							dragable="true"
+							width="800"
+							height="350"
+							resizable="true"
+							styleName="window"
+							minimizable="false"
+							maximize="maximizeHandler(event)"
+							restore="restoreHandler(event)"
+							close="closeHandler(event)"
+							title="重要性能指标超出健康门限信息表"
+							visible="false">
+			<s:VGroup width="100%"
+					  height="100%">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 id="improtantIndexDataGrid"
+									 horizontalScrollPolicy="auto"
+									 dataProvider="{leaderAttentionPanelPM.leaderAttentionPanelDM.importantIndexList}"
+									 itemClick="improtantIndexDataGrid_itemClickHandler(event)">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="cityName"
+												   headerText="地市"/>
+						<mx:AdvancedDataGridColumn dataField="perfGroupName"
+												   width="240"
+												   headerText="指标名称"/>
+						<mx:AdvancedDataGridColumn dataField="kpiValue"
+												   headerText="指标值"/>
+						<mx:AdvancedDataGridColumn dataField="gatherTime"
+												   width="145"
+												   headerText="时间"/>
+						<mx:AdvancedDataGridColumn dataField="healthRange"
+												   headerText="阈值范围"/>
+						<mx:AdvancedDataGridColumn dataField="unhealthReason"
+												   headerText="不健康原因"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:Scroller width="100%"
+							verticalScrollPolicy="off"
+							horizontalScrollPolicy="auto">
+					<s:HGroup width="100%"
+							  horizontalAlign="right">
+						<pager:Pager id="importantIndexPager"
+									textAlign="right"
+									pageChange="queryImportantIndexPage()"
+									pageSize="10"/>
+					</s:HGroup>
+				</s:Scroller>
+			</s:VGroup>
+			<s:HGroup verticalAlign="middle"
+					  horizontalAlign="center"
+					  right="35"
+					  top="-22">
+				<mx:Image source="{export}"
+						  buttonMode="true"
+						  toolTip="导出"
+						  click="image5_clickHandler(event)"/>
+			</s:HGroup>
+		</ailk_compts:Window>
+	</mx:Box>
+
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="enUnheathReport"
+							dragable="true"
+							width="800"
+							height="350"
+							styleName="window"
+							minimizable="false"
+							maximize="maximizeHandler(event)"
+							restore="restoreHandler(event)"
+							close="closeHandler(event)"
+							title="网元处于不健康状态信息表"
+							visible="false">
+			<s:VGroup width="100%"
+					  height="100%">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 id="enUnheathReportDataGrid"
+									 horizontalScrollPolicy="auto"
+									 dataProvider="{leaderAttentionPanelPM.leaderAttentionPanelDM.enUnhealthyList}"
+									 itemClick="enUnheathReportDataGrid_itemClickHandler(event)">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="cityName"
+												   headerText="地市"/>
+						<mx:AdvancedDataGridColumn dataField="moName"
+												   headerText="网元名称"/>
+						<mx:AdvancedDataGridColumn dataField="moTypeName"
+												   headerText="网元类型"/>
+						<mx:AdvancedDataGridColumn dataField="perfGroupName"
+												   width="240"
+												   headerText="指标名称"/>
+						<mx:AdvancedDataGridColumn dataField="kpiValue"
+												   headerText="指标值"/>
+						<mx:AdvancedDataGridColumn dataField="healthRange"
+												   headerText="阈值范围"/>
+						<mx:AdvancedDataGridColumn dataField="unhealthReason"
+												   headerText="不健康原因"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:Scroller width="100%"
+							verticalScrollPolicy="off"
+							horizontalScrollPolicy="auto">
+					<s:HGroup width="100%"
+							  horizontalAlign="right">
+						<pager:Pager id="enUnhealthyPager"
+									textAlign="right"
+									pageChange="queryEnUnhealthyPage()"
+									pageSize="10"/>
+					</s:HGroup>
+				</s:Scroller>
+			</s:VGroup>
+			<s:HGroup verticalAlign="middle"
+					  horizontalAlign="center"
+					  right="35"
+					  top="-22">
+				<mx:Image source="{export}"
+						  buttonMode="true"
+						  toolTip="导出"
+						  click="image6_clickHandler(event)"/>
+			</s:HGroup>
+		</ailk_compts:Window>
+	</mx:Box>
+
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="enSubheathReport"
+							dragable="true"
+							width="800"
+							height="350"
+							styleName="window"
+							minimizable="false"
+							maximize="maximizeHandler(event)"
+							restore="restoreHandler(event)"
+							close="closeHandler(event)"
+							title="网元处于亚健康状态信息表"
+							visible="false">
+			<s:VGroup width="100%"
+					  height="100%">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 id="enSubheathReportDataGrid"
+									 horizontalScrollPolicy="auto"
+									 dataProvider="{leaderAttentionPanelPM.leaderAttentionPanelDM.enSubhealthyList}"
+									 itemClick="enSubheathReportDataGrid_itemClickHandler(event)">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="cityName"
+												   headerText="地市"/>
+						<mx:AdvancedDataGridColumn dataField="moName"
+												   headerText="网元名称"/>
+						<mx:AdvancedDataGridColumn dataField="moTypeName"
+												   headerText="网元类型"/>
+						<mx:AdvancedDataGridColumn dataField="perfGroupName"
+												   width="240"
+												   headerText="指标名称"/>
+						<mx:AdvancedDataGridColumn dataField="kpiValue"
+												   headerText="指标值"/>
+						<mx:AdvancedDataGridColumn dataField="healthRange"
+												   headerText="阈值范围"/>
+						<mx:AdvancedDataGridColumn dataField="unhealthReason"
+												   headerText="不健康原因"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:Scroller width="100%"
+							verticalScrollPolicy="off"
+							horizontalScrollPolicy="auto">
+					<s:HGroup width="100%"
+							  horizontalAlign="right">
+						<pager:Pager id="enSubhealthyPager"
+									textAlign="right"
+									pageChange="queryEnSubhealthyPage()"
+									pageSize="10"/>
+					</s:HGroup>
+				</s:Scroller>
+			</s:VGroup>
+			<s:HGroup verticalAlign="middle"
+					  horizontalAlign="center"
+					  right="35"
+					  top="-22">
+				<mx:Image source="{export}"
+						  buttonMode="true"
+						  toolTip="导出"
+						  click="image7_clickHandler(event)"/>
+			</s:HGroup>
+		</ailk_compts:Window>
+	</mx:Box>
+</ailk_compts:Window>

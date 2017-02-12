@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  title="保障简讯" close="closeMe();" dragable="true">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.data.GisServ;
+			
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private var isInit:Boolean = false;
+			
+			//数据接口
+			private var _gisServ:GisServ = null;
+			
+			//当前显示的场景编号
+			private var _monitorId:String = null;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.main.tools.EsureInfo");
+
+			public function get monitorId():String
+			{
+				return _monitorId;
+			}
+
+			public function set monitorId(value:String):void
+			{
+				_monitorId = value;
+			}
+
+			public function get gisServ():GisServ
+			{
+				return _gisServ;
+			}
+
+			public function set gisServ(value:GisServ):void
+			{
+				_gisServ = value;
+			}
+
+			private function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			public function init():void
+			{
+				//第一次进来时加载
+				if (!isInit)
+				{
+					var param:Object = new Object();
+					param.monitor_id = _monitorId;
+					log.info("保障简讯查询参数 monitor_id=" + _monitorId);
+					_gisServ.getEnsureNews(param,loadData,null,loadErrData);
+				}
+			}
+			
+			public function loadData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载保障简讯成功！");
+					this.info.text = obj.news;
+				}
+				else
+				{
+					log.info("加载保障简讯为空！");
+				}
+			}
+			
+			public function loadErrData(obj:Object):void
+			{
+				log.info("加载保障简讯失败！");
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:Text id="info" width="200" height="100">
+	</mx:Text>
+</panel:Window>

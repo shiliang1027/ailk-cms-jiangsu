@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:view="com.linkage.module.cms.roamtopic.view.*"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 styleName="windowPerf"
+		 title="{windowTitle}" 
+		 maximizable="false" 
+		 closable="false"
+		 minimizable="false"
+		 width="100%" 
+		 height="100%">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.roamtopic.event.RoamTopicEvent;
+			
+			import mx.controls.Alert;
+			import mx.controls.DateField;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			
+			[Inject("roamTopicPM")]
+			[Bindable]
+			public var pm:RoamTopicPM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			[Bindable]
+			private var windowTitle:String = new String();
+			
+			[Bindable]
+			private var showBack:Boolean = false;
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+			
+			[MessageHandler(selector="REFRESH_ROMTOPIC")]
+			public function refreshRoamWindow(event:RoamTopicEvent):void{
+				if("2" == pm.dm.roamTopicType){
+					windowTitle = "全省漫游";
+					roamTopicDataGrid.height = 400;
+					roamTopicDataGrid.width = 420;
+					showBack = false;
+					linkDescPanel.height = 170;
+					linkDescPanel.width = 300;
+				}
+				if("1" == pm.dm.roamTopicType){
+					windowTitle = "省际漫游";
+					roamTopicDataGrid.height = 430;
+					roamTopicDataGrid.width = 250;
+					showBack = false;
+					if("2" == pm.dm.parameters.type){
+						showBack = true;
+						roamTopicDataGrid.height = 400;
+						windowTitle = "全省漫游";
+					}
+					if("4" == pm.dm.parameters.type){
+						showBack = true;
+						roamTopicDataGrid.height = 400;
+					}
+					if("4" == pm.dm.type){
+						showBack = true;
+						roamTopicDataGrid.height = 400;
+					}
+					
+					linkDescPanel.height = 100;
+					linkDescPanel.width = 300;
+				}
+				timeField.text = pm.dm.time.substr(0,16);
+			}
+			
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				var dateStr:String = dateFormatter.format(date);
+				var index:int = dateStr.indexOf(":")
+				dateStr = dateStr.substr(0,index + 1) + "00";
+				return dateStr;
+			}
+			
+			//创建时间
+			protected function createTime(event:FlexEvent, remote:int):void
+			{
+				var d:Date = new Date();
+				if(d.getMinutes() < 10)
+				{
+					d.setHours(d.getHours() - 7)
+				}else{
+					d.setHours(d.getHours() - 6)
+				}
+				var dateStr:String = dateFormatter.format(d);
+				var index:int = dateStr.indexOf(":")
+				dateStr = dateStr.substr(0,index + 1) + "00";
+				event.currentTarget.text = dateStr;
+			}
+			
+			protected function timeField_changeHandler(event:CalendarLayoutChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+//				Alert.show(timeField.text + ":" + pm.dm.time + "\n" + pm.dm.parameters.time);
+				//pm.dm.time == (timeField.text + ":00") || 
+				if(pm.dm.parameters.time==(timeField.text + ":00") && pm.dm.time == (timeField.text + ":00")){
+					return;
+				}
+				if(timeField.text.length==19){
+					return;
+				}
+				pm.dm.time = timeField.text + ":00";
+				pm.dm.parameters.time = pm.dm.time;
+				pm.dm.parameters.shengnei = "";
+				pm.dm.parameters.type=pm.dm.roamTopicType;
+				pm.dm.selectIndex = linkDescPanel.roamSituationTabBar.selectedIndex;
+				
+				dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+				dispatchMsg(new RoamTopicEvent("LOAD_DATA"));
+			}
+			
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				pm.dm.type = "";
+				pm.dm.roamTopicType = "1";
+				pm.dm.parameters.type = "1";
+				pm.dm.parameters.time = pm.dm.time;
+				pm.dm.parameters.selectIndex = linkDescPanel.roamSituationTabBar.selectedIndex;
+				
+				dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+				dispatchMsg(new RoamTopicEvent("LOAD_DATA"));
+			}
+			
+			[MessageHandler(selector="REFRESH_ROMTOPIC_CONFIG_POP")]
+			public function showPopWindow(event:RoamTopicEvent):void{
+				
+				dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+				
+				configcomp.visible = true;
+				configcomp.includeInLayout = true;
+				configcomp.x = 400;
+				configcomp.y = 100;
+			}
+			
+			[MessageHandler(selector="ROAMTOPIC_CONFIG_CLOSE")]
+			public function closePopWindow(event:RoamTopicEvent):void{
+				
+				configcomp.visible = false;
+				configcomp.includeInLayout = false;
+				PopUpManager.removePopUp(configcomp);
+			}
+		]]>
+	</fx:Script>
+	
+	<mx:HDividedBox width="100%" height="100%" paddingTop="20">
+		<s:Group width="100%" height="100%">
+			<view:MapView id="mapView"/>
+			<s:Button right="10" label="返回" visible="{showBack}" click="button1_clickHandler(event)"/>
+		</s:Group>
+		<view:RoamTopicDataGrid id="roamTopicDataGrid" width="30%" height="100%"/>
+	</mx:HDividedBox>
+	<s:VGroup left="10" top="15" gap="20">
+		<s:HGroup width="100%"  horizontalAlign="left" verticalAlign="bottom">
+			<s:Label text="时间:" fontSize="12" fontFamily="微软雅黑" fontStyle="normal" fontWeight="normal"/>
+			<ailk_compts:UXDateField fontSize="12" fontFamily="微软雅黑" fontStyle="normal" fontWeight="normal" id="timeField" creationComplete="createTime(event,-3600*6)" change="timeField_changeHandler(event)"
+									 color="0x000000" editable="false"  yearNavigationEnabled="true"  labelFunction="formatDate" width="200"/>
+		</s:HGroup>
+	</s:VGroup>
+	<view:RoamTopicChart id="toamTopicChart" left="10" bottom="20" width="500" height="200" visible="true" includeInLayout="true"/>
+	<view:configComp id="configcomp"  width="400" height="200" visible="false" includeInLayout="false"/>
+	<ailk_compts:NavBar x="10" y="45" title="图例" location="right" styleName="sceneNavBar" includeInLayout="true">
+		<view:LegendsView  id="linkDescPanel" width="300"/>
+	</ailk_compts:NavBar>
+</ailk_compts:Window>

@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   fontSize="15"
+		   fontWeight="bold"
+		   horizontalScrollPolicy="off"
+		   xmlns:components="com.linkage.module.cms.scenedaily.view.components.*"
+		   xmlns:view="com.linkage.module.cms.scenedaily.view.*"
+		   xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<fx:Declarations>
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{SceneDailyModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+
+			import spark.events.IndexChangeEvent;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			public var parameters:Object;
+
+			private var log:ILogger = Log.getLoggerByClass(SceneDailyModule);
+
+			[MessageDispatcher]
+			public var sendMsg:Function;
+
+			[Bindable]
+			private var viewNames:ArrayCollection = new ArrayCollection([{"id": 0, "name": "领导视图"}, {"id": 1, "name": "管理视图"}, {"id": 1, "name": "一线视图"},]);
+
+			[Bindable]
+			private var kpiName:String;
+
+			[Bindable]
+			private var kpiValue:String;
+
+			[Init]
+			public function moduleInit():void
+			{
+				if (log.infoEnabled)
+					log.info("--开始初始化用户信息！");
+
+				this.parameters = this.parentApplication.parameters;
+
+				user.context = this.parameters['context'];
+				user.account = this.parameters['account'];
+				user.areaId = this.parameters['areaId'];
+
+				user.cityId = "00";
+				user.viewType = "1";
+
+				user.resId = "00";
+				user.resType = "1";
+
+				if (log.infoEnabled)
+				{
+					log.debug(user);
+					log.info("--初始化用户信息完成！");
+				}
+
+				log.info("--抛出加载数据事件！"); //GIS视图创建完成配置信息后抛出。TODO
+//				sendMsg(new SceneDailyEvent(SceneDailyEvent.COMPONENTS_LOAD_DATA));
+			}
+
+			protected function changeView(event:IndexChangeEvent):void
+			{
+				log.info("切换视图类型到：" + event.newIndex + 1);
+				var e:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.CHANGE_VIEW_TYPE);
+				e.param = {'viewType': String(event.newIndex + 1)};
+				user.viewType = String(event.newIndex + 1);
+				sendMsg(e);
+			}
+
+			//显示当前指标名称以及指标值
+			[MessageHandler(selector="MINI_CLEAR_KPIINFOHANDLER")]
+			[MessageHandler(selector="LOAD_IMP_PRO_KPI_EVENT")]
+			public function loadkpiHandler(e:SceneDailyEvent):void
+			{
+				log.info("当前默认指标名称[{0}]以及指标值[{1}];", e.param.perfGroupName, e.param.kpiValue);
+				kpiName = e.param.perfGroupName;
+				if (e.param.resType == "1" && e.param.kpiValue)
+				{
+					kpiValue = "全省：" + e.param.kpiValue;
+
+				}
+				else if (e.param.resType == "2" && e.param.kpiValue)
+				{
+					kpiValue = "全市：" + e.param.kpiValue;
+				}
+				else if (e.param.resType == "3" && e.param.kpiValue)
+				{
+					kpiValue = e.param.kpiValue;
+				}
+				else
+				{
+					kpiValue = "";
+				}
+			}
+
+
+			private function navigate2Cfg():void
+			{
+				var url:String = user.context + "cms/scenedaily/SceneDailyCfg.jsp";
+
+				log.info("跳转到配置页面：" + url);
+
+				navigateToURL(new URLRequest(url), "_blank");
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				top="1"
+				left="1"
+				right="10"
+				bottom="1"
+				horizontalScrollPolicy="off">
+		<s:Group id="mainGroup"
+				 width="100%"
+				 height="100%">
+			<!--610-->
+			<view:SceneDailyView left="2"
+								 right="2"
+								 top="2"
+								 bottom="2"/>
+			<s:Group width="100%"
+					 height="100%"
+					 top="2">
+				<s:BorderContainer cornerRadius="6"
+								   height="27"
+								   width="63%"
+								   minWidth="330"
+								   styleName="borderContainerCfg"
+								   top="2"
+								   left="{mainGroup.width/5 + 17}">
+					<s:HGroup width="100%"
+							  paddingLeft="5"
+							  verticalAlign="middle"
+							  height="100%">
+						<s:DropDownList dataProvider="{viewNames}"
+										left="6"
+										width="165"
+										labelField="name"
+										selectedIndex="0"
+										styleName="dropDownList"
+										change="changeView(event)"/>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  horizontalAlign="center">
+							<s:Label text="{kpiName}"
+									 styleName="label"/>
+							<s:Label text="{kpiValue}"
+									 styleName="label"/>
+						</s:HGroup>
+						<s:HGroup right="6"
+								  width="68"
+								  height="100%"
+								  buttonMode="true"
+								  click="navigate2Cfg()"
+								  verticalAlign="middle">
+							<mx:Image source="@Embed('img/clock.png')"
+									  toolTip="设置"/>
+							<s:Label text="设置"
+									 styleName="label"/>
+						</s:HGroup>
+					</s:HGroup>
+				</s:BorderContainer>
+			</s:Group>
+		</s:Group>
+	</s:Scroller>
+</mx:Module>

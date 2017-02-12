@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    width="400"
+                    height="450"
+                    visible="false"
+                    title="终端统计"
+                    close="window1_closeHandler(event)"
+                    minimizable="false"
+                    maximizable="false"
+                    closable="true"
+                    dragable="true"
+                    styleName="window"
+                    xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart">
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+            import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+            import com.linkage.module.cms.scene.domain.common.IUser;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.managers.PopUpManager;
+            import mx.rpc.events.FaultEvent;
+            import mx.rpc.remoting.RemoteObject;
+
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            [Inject("user")]
+            public var user:IUser;
+
+            private var log:ILogger = Log.getLoggerByClass(SceneTerminalFloat);
+
+            [Bindable]
+            public var ac:ArrayCollection = new ArrayCollection;
+
+			//TODO
+            [MessageHandler(selector = "CHANGE_VIEW")]
+            public function loadData(e:Object = null):void
+            {
+                if (!this.visible)
+                    return;
+
+                var rmt:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_distribute_dataService", "", user.context + "messagebroker/amf",
+                    function(result:Object):void
+                    {
+                        log.info("加载 终端悬浮框 数据成功");
+                        log.info(result);
+
+                        ac.addAll(result['terminal'] as IList);
+
+                    },
+                    function(e:FaultEvent):void
+                    {
+                        log.error("加载 终端悬浮框 数据失败：" + e.fault.faultDetail);
+                    });
+
+
+                var param:Object = {};
+
+                if (user.level == "2")
+                    param.area_id = user.sceneId;
+                else
+                    param.scene_id = user.initSceneId;
+
+                param.city_id = user.cityId;
+
+                log.info("加载 终端悬浮框 数据~~");
+                log.debug(param);
+
+                ac.removeAll();
+                rmt.getTerminalValue(param);
+            }
+
+
+            protected function window1_closeHandler(event:WindowEvent):void
+            {
+                this.visible = false;
+                PopUpManager.removePopUp(this);
+            }
+
+            private function indexNumLabelFun(value:Object, dg:Object):String
+            {
+                var indexNum:int = (ac.getItemIndex(value) + 1);
+                return indexNum.toString();
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+
+    <mx:AdvancedDataGrid id="termDG"
+                         width="100%"
+                         rowCount="5"
+                         verticalScrollPolicy="auto"
+                         styleName="sceneDG"
+                         dataProvider="{ac}"
+                         height="100%">
+        <mx:columns>
+            <mx:AdvancedDataGridColumn headerText="排名"
+                                       width="60"
+                                       labelFunction="indexNumLabelFun"/>
+            <mx:AdvancedDataGridColumn dataField="terminal_brand"
+                                       textAlign="left"
+                                       headerText="品牌"/>
+            <mx:AdvancedDataGridColumn dataField="type_name"
+                                       textAlign="left"
+                                       width="135"
+                                       headerText="型号"/>
+            <mx:AdvancedDataGridColumn dataField="USER_COUNT"
+                                       headerText="用户数"/>
+        </mx:columns>
+    </mx:AdvancedDataGrid>
+</ailk_compts:Window>

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:navbar="com.linkage.module.cms.components.navbar.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.view.resource.imagesclass.IconParam;
+
+			import mx.events.ListEvent;
+			/**
+			 * 网元树回调方法
+			 */
+			private var callBack:Function=null;
+
+			public function initTree(neTreeXml:XML, funcTreeXml:XML, func:Function):void
+			{
+				//1.初始化网元树
+				callBack=func;
+				neTree.dataProvider=neTreeXml;
+				neTree.openItems=neTreeXml;
+
+				//2.初始化功能图
+//				funTree.dataProvider=funcTreeXml;
+//				funTree.openItems=funcTreeXml;
+			}
+
+
+			//点击网元树
+			protected function netree_changeHandler(event:ListEvent):void
+			{
+				var selectedItem:Object=event.currentTarget.selectedItem;
+				var parentItem:Object=event.target.getParentItem(selectedItem);
+				var parentTreeName:String=null;
+				if (parentItem != null)
+				{
+					parentTreeName=parentItem.@label;
+				}
+				callBack.call(null, selectedItem.@label, parentTreeName, selectedItem.@type, selectedItem.@level);
+			}
+
+			//点击功能图
+			protected function funtree_changeHandler(event:ListEvent):void
+			{
+				var selectedItem:Object=event.currentTarget.selectedItem;
+				var url:String=selectedItem.url;
+				if (url != "none")
+				{
+					navigateToURL(new URLRequest(url), "_self");
+				}
+			}
+		]]>
+	</fx:Script>
+	<navbar:NavBar title="树图"
+				   location="right"
+				   width="147"
+				   titleLocation="top"
+				   top="36">
+		<s:Group width="147"
+				 height="360">
+			<mx:ViewStack id="myViewStack"
+						  width="100%"
+						  height="100%"
+						  top="23"
+						  creationPolicy="all"
+						  paddingBottom="2"
+						  paddingLeft="2"
+						  paddingRight="2"
+						  paddingTop="2">
+				<s:NavigatorContent label="网元树">
+					<mx:Tree id="neTree"
+							 labelField="@label"
+							 showRoot="true"
+							 width="100%"
+							 height="100%"
+							 borderStyle="none"
+							 folderClosedIcon="{IconParam.closeIcon}"
+							 folderOpenIcon="{IconParam.openIcon}"
+							 defaultLeafIcon="{IconParam.leafIcon}"
+							 disclosureClosedIcon="{IconParam.disclosureClosedIcon}"
+							 disclosureOpenIcon="{IconParam.disclosureOpenIcon}"
+							 change="netree_changeHandler(event)"/>
+				</s:NavigatorContent>
+				<!--<s:NavigatorContent label="功能图">
+					 <mx:Tree id="funTree"
+					 labelField="@label"
+					 showRoot="true"
+					 width="100%"
+					 height="100%"
+					 borderStyle="none"
+					 folderClosedIcon="{IconParam.closeIcon}"
+					 folderOpenIcon="{IconParam.openIcon}"
+					 defaultLeafIcon="{IconParam.leafIcon}"
+					 disclosureClosedIcon="{IconParam.disclosureClosedIcon}"
+					 disclosureOpenIcon="{IconParam.disclosureOpenIcon}"
+					 change="funtree_changeHandler(event)"/>
+					 </s:NavigatorContent>-->
+			</mx:ViewStack>
+			<s:TabBar dataProvider="{myViewStack}"
+					  buttonMode="true"
+					  styleName="commonTabBar"/>
+		</s:Group>
+	</navbar:NavBar>
+</s:Group>

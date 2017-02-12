@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+
+			import spark.components.NavigatorContent;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.resourcestat");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时任务
+			private var t:Timer = new Timer(86400000);
+
+			//数据结果
+			public var resourceArray:ArrayCollection = new ArrayCollection([
+				{name: "核心网", data: [{name: "SSA", value: "4"}, {name: "TMG", value: "6"}]},
+				{name: "无线网", data: [{name: "BSC", value: "8"}, {name: "RNC", value: "10"}]}]);
+
+			//手型鼠标呈项器
+			private var btModeRender:IFactory = new ClassFactory(ButtonModeRender);
+
+			//排序用
+			private var orderMap:Object = ["核心网", "无线网", "传输网", "动环网", "数据网"];
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//加载数据
+				loadData();
+
+				//启动定时任务
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				//加载数据
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityResources(_cityId, _specList, getResInfo, null, getResInfoErr);
+				}
+				else
+				{
+					_remoteData.getAllProvinceResources(_specList, getResInfo, null, getResInfoErr);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("资源统计数据：" + obj);
+				if(obj != null)
+				{
+					showGroup.visible = true;
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+
+				else
+				{
+					log.info("资源统计：查询无数据");
+					Alert.show("资源统计数据查询为空！");
+						//createTable(resourceArray);
+				}
+
+				//loadInfo.hideLoading();
+			}
+
+			//缓存表格
+			private var tableMap:Dictionary = new Dictionary();
+
+			private function createTable(obj:Object):void
+			{
+				var refresh:Boolean = false;
+
+				for each(var resourceData:Object in obj)
+				{
+					var d:AdvancedDataGrid = null;
+
+					//如果没有当前的TABLE，则重新生成
+					if(tableMap[resourceData.name] == null)
+					{
+						d = new AdvancedDataGrid();
+						d.horizontalScrollPolicy = "off";
+						d.verticalScrollPolicy = "auto";
+						d.sortableColumns = false;
+						//d.showHeaders = false;
+						d.percentHeight = 100;
+						d.percentWidth = 100;
+
+						//生成列
+
+						var colArr:Array = new Array();
+						var c1:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						c1.headerText = "网元类型　";
+						c1.dataField = "name";
+						c1.width = 300;
+						colArr = colArr.concat(c1);
+						var c2:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						c2.headerText = "网元数量";
+						c2.dataField = "value";
+						c2.width = 600;
+						c2.itemRenderer = btModeRender;
+						colArr = colArr.concat(c2);
+						d.columns = colArr;
+
+						d.addEventListener(ListEvent.ITEM_CLICK, showMoList);
+
+						//缓存当前的TABLE
+						tableMap[resourceData.name] = d;
+						refresh = true;
+					}
+					//否则直接赋值
+
+					else
+					{
+						d = (tableMap[resourceData.name] as AdvancedDataGrid);
+					}
+
+					d.dataProvider = resourceData.data;
+				}
+
+				//将表格添加到页面
+				if(refresh)
+				{
+					this.viewStack1.removeAllElements();
+					for each(var str:String in orderMap)
+					{
+						if(tableMap[str] != null)
+						{
+							d = (tableMap[str] as AdvancedDataGrid);
+							var n:NavigatorContent = new NavigatorContent();
+							n.label = str;
+							n.addElement(d);
+
+							this.viewStack1.addElement(n);
+						}
+					}
+				}
+
+				obj = null;
+			}
+
+			private function showMoList(e:ListEvent):void
+			{
+				var dataField:String = e.target.columns[e.columnIndex].dataField;
+
+				//网元统计数据点击
+				if(dataField == "value")
+				{
+
+				}
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("资源统计：查询数据异常");
+				Alert.show("资源统计数据查询异常！");
+				//createTable(resourceArray);
+				//loadInfo.hideLoading();
+			}
+
+			override public function showToolBar():void
+			{
+				this.toolBar.visible = true;
+				this.toolBar.includeInLayout = true;
+			}
+
+			override public function hideToolBar():void
+			{
+				this.toolBar.visible = false;
+				this.toolBar.includeInLayout = false;
+			}
+
+			override public function showWindowTool():void
+			{
+				this.img1.visible = true;
+				this.img1.includeInLayout = true;
+			}
+
+			override public function hideWindowTool():void
+			{
+				this.img1.visible = false;
+				this.img1.includeInLayout = false;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="info"
+			  width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  height="20"
+				  id="toolBar">
+			<s:HGroup width="50%"
+					  height="20"
+					  horizontalAlign="left">
+				<s:Label text=""
+						 visible="false"
+						 id="showTitle"
+						 color="0xFFFFFF">
+				</s:Label>
+			</s:HGroup>
+			<s:HGroup width="50%"
+					  height="20"
+					  horizontalAlign="right">
+				<mx:Image id="img1"
+						  source="{window}"
+						  click="moveWindow(this.img, showTitle);"
+						  buttonMode="true">
+				</mx:Image>
+				<mx:Image id="img"
+						  source="{open}"
+						  click="openWindow(this.img,this.showTitle);"
+						  buttonMode="true">
+				</mx:Image>
+			</s:HGroup>
+		</s:HGroup>
+		<s:VGroup width="100%"
+				  height="100%"
+				  id="showGroup"
+				  visible="false">
+			<s:Scroller width="100%"
+						height="100%"
+						verticalScrollPolicy="auto"
+						horizontalScrollPolicy="auto">
+				<s:Group>
+					<mx:ViewStack id="viewStack1"
+								  height="100%"
+								  width="100%"
+								  top="23"
+								  paddingBottom="2"
+								  paddingLeft="2"
+								  paddingRight="2"
+								  paddingTop="2">
+					</mx:ViewStack>
+					<s:TabBar dataProvider="{viewStack1}"
+							  styleName="commonTabBar"
+							  buttonMode="true">
+					</s:TabBar>
+				</s:Group>
+			</s:Scroller>
+		</s:VGroup>
+	</s:VGroup>
+</datashow:DataGroup>

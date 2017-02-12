@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 华伟 (Ailk No.)
+		 @version 1.0
+		 @date 2012-10-15
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupmonitor.custscene.event.CustSceneEvent;
+
+			import mx.controls.Alert;
+
+			import spark.components.CheckBox;
+			import spark.components.Label;
+
+			[Inject]
+			[Bindable]
+			public var pm:RunMonitorPerfCompPM;
+
+			[Bindable]
+			public var cusId:String;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var realServTargetSelectedCompArray:Array;
+			//private var perfDataShowComps:Object;
+			//private var realCheckBoxArray:Object;
+			//private var realSelectArray:Array;
+			private var realServTargetCompArray:Array;
+
+			//private var perfTypeSelectArray:Array;
+
+			//获取到指标组  添加指标组复选框
+			[MessageHandler(selector="loadKpiGroupByCustIdComp")]
+			public function addKpiGroupCheckBoxs(event:CustSceneEvent):void
+			{
+				var result:Object=event.param;
+				realServTargetCompArray=new Array;
+				realServerTargetSelectGroup.removeAllElements();
+				perfDataShowGroup.removeAllElements();
+				if (result && result.length == 0)
+				{
+					var promp:Label=new Label();
+					promp.text="无指标";
+					realServerTargetSelectGroup.addElement(promp);
+					selectBtnGroup.visible=false;
+					return;
+				}
+				for each (var data:Object in result)
+				{
+					var kpiComp:PerServerTargetSelectComp=new PerServerTargetSelectComp();
+					kpiComp.serverTarget=data;
+					realServerTargetSelectGroup.addElement(kpiComp);
+					realServTargetCompArray.push(kpiComp);
+				}
+				selectBtnGroup.visible=true;
+			}
+
+			//查询
+			protected function realPrefQuery_clickHandler(event:MouseEvent):void
+			{
+				//realPrefQuery.enabled=false;
+				var hasSelect:Boolean=false;
+//				if (prefStat_startTime.selectedDate.getTime() > prefStat_endTime.selectedDate.getTime())
+//				{
+//					Alert.show("开始时间不能大于结束时间", "提示");
+//					return;
+//				}
+				perfDataShowGroup.removeAllElements();
+				realServTargetSelectedCompArray=new Array;
+				if (realServTargetCompArray && realServTargetCompArray.length > 0)
+				{
+					for each (var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray)
+					{
+						if (servTargetComp.checkbox.selected)
+						{
+							hasSelect=true;
+							realServTargetSelectedCompArray.push(servTargetComp);
+						}
+					}
+					if (!hasSelect)
+					{
+						Alert.show("请选择指标", "提示");
+						//realPrefQuery.enabled=true;
+						return;
+					}
+					getChartData();
+				}
+
+			}
+
+			//获取趋势图数据
+			private function getChartData():void
+			{
+				var servTargetSelectedComp:PerServerTargetSelectComp=realServTargetSelectedCompArray.shift();
+				var param:Object=new Object();
+				param.servTypeId=realServTypeBar.selectedItem.serv_type_id;
+				param.perfTypeId=servTargetSelectedComp.serverTarget.perfTypeId;
+				param.showName=servTargetSelectedComp.serverTarget.showName;
+				param.cusId=cusId;
+				var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_PREF_CHART_DATA);
+				evt.param=param;
+				msgDispatcher(evt);
+
+			}
+
+			//创建趋势图  并请求下一个趋势图数据
+			[MessageHandler(selector="loadPrefChartDataComp")]
+			public function createPrefChart(event:CustSceneEvent):void
+			{
+				//创建趋势图
+				var perfDataShow:PerfChartShowComp=new PerfChartShowComp();
+				//event.param.perf_algorithm=servTargetSelectedComp.serverTarget.perf_algorithm;
+				event.param.cust_serv_type_name=String(realServTypeBar.selectedItem.cust_serv_type_name);
+//				event.param.perf_algorithm="%";
+//				event.param.bussType=servTargetSelectedComp.serverTarget.bussType;
+//				param.perfTypeId=servTargetSelectedComp.serverTarget.perfTypeId;
+				perfDataShow.param=event.param;
+				perfDataShowGroup.addElement(perfDataShow);
+				//如果还有选中的指标则接着创建
+				if (realServTargetSelectedCompArray.length > 0)
+				{
+					getChartData();
+				}
+//				else
+//				{
+//					realPrefQuery.enabled=true;
+//				}
+			}
+
+			//全选
+			protected function selectAllBtn_clickHandler(event:MouseEvent):void
+			{
+				for each (var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray)
+				{
+					servTargetComp.checkbox.selected=true;
+				}
+			}
+
+			//反选
+			protected function selectOtherBtn_clickHandler(event:MouseEvent):void
+			{
+				for each (var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray)
+				{
+					servTargetComp.checkbox.selected=!servTargetComp.checkbox.selected;
+				}
+			}
+
+			//清除
+			public function clear():void
+			{
+				pm.dm.realServTypeBar.removeAll();
+				pm.dm.realServTypeBar.refresh();
+				realServerTargetSelectGroup.removeAllElements();
+				selectBtnGroup.visible=false;
+				perfDataShowGroup.removeAllElements();
+			}
+		]]>
+	</fx:Script>
+	<!--<mx:Form width="100%"
+		 id="prefForm">
+		 <s:HGroup width="100%">
+		 <mx:FormItem label="开始时间：">
+		 <mx:DateField id="prefStat_startTime"
+		 width="120"
+		 formatString="YYYY-MM-DD"/>
+		 </mx:FormItem>
+		 <mx:FormItem label="结束时间：">
+		 <mx:DateField id="prefStat_endTime"
+		 width="120"
+		 formatString="YYYY-MM-DD"/>
+		 </mx:FormItem>
+		 </s:HGroup>
+		 </mx:Form>-->
+	<s:Group width="100%"
+			 height="100%">
+		<mx:ViewStack width="100%"
+					  height="100%"
+					  top="23"
+					  styleName="commonViewStack">
+			<s:NavigatorContent width="100%"
+								height="100%">
+				<s:Scroller width="100%"
+							height="100%"
+							horizontalScrollPolicy="auto"
+							verticalScrollPolicy="auto">
+					<s:VGroup width="100%"
+							  paddingLeft="10"
+							  paddingRight="10"
+							  paddingTop="10"
+							  paddingBottom="10">
+						<s:TileGroup width="100%"
+									 rowHeight="20"
+									 verticalGap="1"
+									 horizontalGap="1"
+									 id="realServerTargetSelectGroup"
+									 requestedColumnCount="6"
+									 horizontalAlign="left"
+									 columnAlign="justifyUsingGap">
+						</s:TileGroup>
+						<s:HGroup id="selectBtnGroup"
+								  visible="false"
+								  width="100%"
+								  horizontalAlign="right">
+							<s:Button label="全选"
+									  id="selectAllBtn"
+									  buttonMode="true"
+									  click="selectAllBtn_clickHandler(event)"/>
+							<s:Button label="反选"
+									  id="selectOtherBtn"
+									  buttonMode="true"
+									  click="selectOtherBtn_clickHandler(event)"/>
+							<s:Button label="查询"
+									  id="realPrefQuery"
+									  buttonMode="true"
+									  click="realPrefQuery_clickHandler(event)"/>
+						</s:HGroup>
+
+						<s:TileGroup width="100%"
+									 height="100%"
+									 columnAlign="justifyUsingWidth"
+									 columnWidth="200"
+									 verticalGap="1"
+									 horizontalGap="1"
+									 id="perfDataShowGroup"
+									 requestedColumnCount="2"
+									 horizontalAlign="left">
+						</s:TileGroup>
+					</s:VGroup>
+				</s:Scroller>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+		<s:TabBar dataProvider="{pm.dm.realServTypeBar}"
+				  id="realServTypeBar"
+				  labelField="cust_serv_type_name"
+				  styleName="commonTabBar"
+				  buttonMode="true"
+				  change="pm.realServTypeBar_changeHandler(event)"/>
+	</s:Group>
+</s:Group>

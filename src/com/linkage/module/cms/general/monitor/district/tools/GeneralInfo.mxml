@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  title="概况信息"
+			  dragable="true" 
+			  width="575" 
+			  height="200"
+			  close="closeMe();" 
+			  creationComplete="window1_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			private var lm:LoadManager;
+			
+			//是否初始化
+			private var isInit:Boolean = false;
+			
+			//数据接口
+			private var _dataService:LevelThreeService = null;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.district.MapView.tools");
+
+			private function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			[Bindable]
+			private var dp:ArrayCollection = new ArrayCollection();
+			
+			public function init(cityId:String):void
+			{
+				//第一次进入才加载
+				if (!isInit)
+				{
+					isInit = true;
+					_dataService.queryGeneralInfos({'cityId': cityId}, 
+						function(data:Object):void
+						{
+							log.info("加载概况信息成功！" + data.length);
+							
+							if(data != null && data.length > 0)
+							{
+								dp.addAll(data as IList);
+								dp.refresh();
+							}
+							else
+							{
+								log.info("加载概况数据为空！");
+							}
+						},
+						null,
+						function(e:FaultEvent):void
+						{
+							log.info("加载概况信息失败：" + e.fault.faultString);
+						});
+					
+				}
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var col:AdvancedDataGridColumn = null;
+				var arr:Array = new Array();
+				
+				//创建列
+				col = new AdvancedDataGridColumn();
+				col.headerText = "统计时间";
+				col.dataField = "gather_time";
+				arr.push(col);
+				
+				col = new AdvancedDataGridColumn();
+				col.headerText = "统计分类";
+				col.dataField = "stat_type";
+				arr.push(col);
+				
+				col = new AdvancedDataGridColumn();
+				col.headerText = "指标名称";
+				col.dataField = "show_name";
+				arr.push(col);
+				
+				col = new AdvancedDataGridColumn();
+				col.headerText = "指标当前值";
+				col.dataField = "perf_value";
+				arr.push(col);
+				
+				col = new AdvancedDataGridColumn();
+				col.headerText = "较平时变化情况";
+				col.dataField = "compare_num";
+				arr.push(col);
+				
+				col = new AdvancedDataGridColumn();
+				col.headerText = "变化百分比";
+				col.dataField = "compare_rate";
+				arr.push(col);
+				
+				grid.columns = arr;
+			}
+
+			public function get dataService():LevelThreeService
+			{
+				return _dataService;
+			}
+
+			public function set dataService(value:LevelThreeService):void
+			{
+				_dataService = value;
+			}
+
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group width="100%" height="100%" id="ginfoGroup">
+		<mx:AdvancedDataGrid width="100%" height="100%" id="grid" horizontalScrollPolicy="auto" dataProvider="{dp}"/>
+	</s:Group>
+</panel:Window>

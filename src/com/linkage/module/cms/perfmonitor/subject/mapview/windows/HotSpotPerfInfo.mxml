@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+              xmlns:s="library://ns.adobe.com/flex/spark" 
+              xmlns:mx="library://ns.adobe.com/flex/mx" 
+              xmlns:panel="com.linkage.system.component.panel.*" 
+              width="560" 
+              height="300"
+              dragable="true"
+              closable="false"
+              title="性能信息" 
+              xmlns:common="com.linkage.module.cms.perfmonitor.subject.common.*"
+              >
+    <panel:layout>
+        <s:VerticalLayout/>
+    </panel:layout>
+    
+    <fx:Script>
+        <![CDATA[
+            import com.linkage.module.cms.perfmonitor.subject.data.SubjectHotSpotService;
+            
+            import flash.utils.setTimeout;
+            
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.events.FlexEvent;
+            import mx.formatters.DateFormatter;
+            import mx.logging.ILogger;
+            import mx.logging.Log;
+            import mx.rpc.events.FaultEvent;
+            
+            //日志
+            public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subject.mapview.windows.HotspotPerfInfo");
+            
+            public static const dateFormatter:DateFormatter = new DateFormatter();
+            
+            private var _hotspotService:SubjectHotSpotService;
+            private var _hotspotId:Object;
+            
+            [Bindable]
+            private var perfData:ArrayCollection = new ArrayCollection([]);
+            
+            [Bindable]
+            private var kpiList:ArrayCollection = new ArrayCollection([]);
+            
+            private var _perfName:String = '成功率';
+            
+            
+            public function initData():void
+            {
+                dateFormatter.formatString="YYYY-MM-DD JJ:NN:SS";
+                
+                moType.dataProvider = new ArrayCollection([
+                    {label:'CELL', value:'101'},
+                    {label:'UCELL', value:'102'},
+                    {label:'BTS', value:'16'},
+                    {label:'NODEB', value:'28'}
+                ]);
+                moType.selectedIndex = 0;
+                loadKpiList();
+                
+                var date1:Date = new Date();
+                var date2:Date = new Date();
+                
+                date1.setTime(date1.getTime() - 24*60*60*1000);
+                var nowStr1:String = dateFormatter.format(date1);
+                startDate.text = nowStr1;
+                
+                var nowStr2:String = dateFormatter.format(date2);
+                endDate.text = nowStr2;
+            }
+            
+            private function loadKpiList():void
+            {
+                var motypeId:Object = moType.selectedItem['value'];
+                
+                _hotspotService.hotspotKpiList({'moTypeId':motypeId},
+                    function(data:Object):void
+                    {
+                        kpiList.removeAll();
+                        kpiList.addAll(data as ArrayCollection);
+                        kpiSelect.selectedIndex = 0;
+                        queryData();
+                    },null,
+                    function(error:FaultEvent):void
+                    {
+                        kpiList.removeAll();
+                    });
+            }
+            
+            private function queryData():void
+            {
+                var param:Object = {};
+                param['startTime'] = startDate.text;
+                param['endTime'] = endDate.text;
+                param['moTypeId'] = moType.selectedItem['value'];
+                param['kpiId'] = kpiSelect.selectedItem['value'];
+                param['hotspot_id'] = _hotspotId;
+                
+                _hotspotService.getHotspotPerfGraphic(param,
+                    function(data:Object):void
+                    {
+                        perfData.removeAll();
+                        perfData.addAll(data as ArrayCollection);
+                    },null,
+                    function(e:FaultEvent):void
+                    {
+                        perfData.removeAll();
+                    });
+            }
+            
+            /**
+             * 格式化时间
+             */
+            public function formatDate(date:Date):String
+            {
+                return dateFormatter.format(date);
+            }
+
+            public function set hotspotService(value:SubjectHotSpotService):void
+            {
+                _hotspotService = value;
+            }
+
+            public function set hotspotId(value:Object):void
+            {
+                _hotspotId = value;
+            }
+
+            
+        ]]>
+    </fx:Script>
+    
+    <fx:Declarations>
+        <mx:SeriesInterpolate id="interpolateIn" duration="1000"/>
+        <s:SolidColorStroke id = "s1" color="0x00FF00" weight="4"/>
+    </fx:Declarations>
+    
+    <s:HGroup width="100%" height="51" horizontalAlign="center" gap="1" verticalAlign="middle" paddingLeft="2" paddingRight="2">
+        <s:VGroup verticalAlign="middle" width="50%">
+            <s:HGroup verticalAlign="middle">
+                <s:Label text="开始时间"/>
+                <common:UXDateField id="startDate" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="true"/>
+            </s:HGroup>
+            <s:HGroup verticalAlign="middle">
+                <s:Label text="结束时间"/>
+                <common:UXDateField id="endDate" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="true"/>
+            </s:HGroup>
+        </s:VGroup>
+        
+        <s:VGroup verticalAlign="middle" width="50%">
+            <s:HGroup verticalAlign="middle" horizontalAlign="right" width="100%">
+                <s:Label text="网元类型"/>
+                <s:DropDownList id="moType" change="loadKpiList()" width="160"/>
+            </s:HGroup>
+            <s:HGroup verticalAlign="middle" horizontalAlign="right" width="100%">
+                <s:Label text="指标名称"/>
+                <s:DropDownList id="kpiSelect" change="queryData()" width="160" dataProvider="{kpiList}"/>
+            </s:HGroup>
+        </s:VGroup>
+        
+        <mx:Spacer width="5"/>
+        <s:Button label="查询" click="queryData()"/>
+    </s:HGroup>
+    
+    <mx:HRule width="100%" height="2"/>
+    
+    <mx:LineChart id="linechart" height="100%" width="100%"
+                  paddingLeft="5" paddingRight="5" dataProvider="{perfData}" dataTipCalloutStroke="{s1}"
+                  showDataTips="true">
+        <mx:horizontalAxis>
+            <mx:CategoryAxis categoryField="time"/>
+        </mx:horizontalAxis>
+        
+        <mx:series>
+            <mx:LineSeries yField="value" form="curve"
+                           lineStroke="{s1}" displayName="{this.kpiSelect.selectedItem.label}"
+                           showDataEffect="{interpolateIn}"
+                           radius="4"/>
+        </mx:series>
+    </mx:LineChart>
+    
+</panel:Window>

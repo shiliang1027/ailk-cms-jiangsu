@@ -1,0 +1,743 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 minimizable="false" maximizable="false" dragable="true"
+		 close="hideWindow()" closable="true" title="图层">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private var _callBack:Function = null;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.main.tools.ViewLevelDiv");
+			
+			protected function hideWindow():void
+			{
+				this.visible = false;
+			}
+
+			protected function dealClick(name:String, type:String, id:String, event:MouseEvent, isAll:Boolean = false):void
+			{
+				var isSelected:Boolean = (event.target as CheckBox).selected;
+				
+				//是否全选
+				if (isAll)
+				{
+					var obj:CheckBox = (event.target as CheckBox);
+					
+					//取父节点下所有的内容
+					var num:int = obj.parent.numChildren;
+					for (var i:int=0;i<num;i++)
+					{
+						var tmp:CheckBox = (obj.parent.getChildAt(i) as CheckBox);
+						tmp.selected = isSelected;
+					}
+				}
+				
+				if (_callBack != null)
+				{
+					_callBack.call(null, name, type, id, isSelected);
+				}
+			}
+			
+			//判断对象是否显示
+			public function filterObjectOutBts(type:String,subType:String,obj:Object):Boolean
+			{
+				var flag:Boolean = false;
+				var objType:String = "";
+				
+				if (type == "bts")
+				{
+					objType = obj.vip_type;
+					//2G VVIP基站
+					if (objType == "4")
+					{
+						if (this.bts_vvip.selected)
+						{
+							flag = true;
+						}
+					}
+						//2G VIP基站
+					else if (objType == "3")
+					{
+						if (this.bts_vip.selected)
+						{
+							flag = true;
+						}
+					}
+						//2G 非VIP基站
+					else if (objType == "0")
+					{
+						if (this.bts_nvip.selected)
+						{
+							flag = true;
+						}
+					}
+						//2G 超级基站
+					else if (objType == "5")
+					{
+						if (this.bts_super.selected)
+						{
+							flag = true;
+						}
+					}
+						//2G 其他
+					else
+					{
+						if (this.bts_all.selected)
+						{
+							flag = true;
+						}
+					}
+				}
+				if (type == "nodeb")
+				{
+					objType = obj.vip_type;
+					//3G VVIP基站
+					if (objType == "4")
+					{
+						if (this.nodeb_vvip.selected)
+						{
+							flag = true;
+						}
+					}
+						//3G VIP基站
+					else if (objType == "3")
+					{
+						if (this.nodeb_vip.selected)
+						{
+							flag = true;
+						}
+					}
+						//3G 非VIP基站
+					else if (objType == "0")
+					{
+						if (this.nodeb_nvip.selected)
+						{
+							flag = true;
+						}
+					}
+						//3G 超级基站
+					else if (objType == "5")
+					{
+						if (this.nodeb_super.selected)
+						{
+							flag = true;
+						}
+					}
+						//3G 其他
+					else
+					{
+						if (this.nodeb_all.selected)
+						{
+							flag = true;
+						}
+					}
+				}
+				
+				return flag;
+			}
+			
+			//判断对象是否显示
+			public function filterObject(type:String,subType:String,obj:Object):Boolean
+			{
+				var flag:Boolean = false;
+				var objType:String = "";
+				
+				if (type == "bts")
+				{
+					objType = obj.vip_type;
+					//2G VVIP基站
+					if (objType == "4")
+					{
+						if (this.bts_vvip.selected)
+						{
+							flag = true;
+						}
+					}
+					//2G VIP基站
+					else if (objType == "3")
+					{
+						if (this.bts_vip.selected)
+						{
+							flag = true;
+						}
+					}
+					//2G 非VIP基站
+					else if (objType == "0")
+					{
+						if (this.bts_nvip.selected)
+						{
+							flag = true;
+						}
+					}
+					//2G 超级基站
+					else if (objType == "5")
+					{
+						if (this.bts_super.selected)
+						{
+							flag = true;
+						}
+					}
+					//2G 其他
+					else
+					{
+						if (this.bts_all.selected)
+						{
+							flag = true;
+						}
+					}
+					
+					//显示的情况下，再判断状态
+					if (flag)
+					{
+						//过滤网元状态
+						flag = filterStatus(obj);
+					}
+					if (flag)
+					{
+						//过滤退服原因
+						flag = filterSubject(obj);
+					}
+				}
+				if (type == "nodeb")
+				{
+					objType = obj.vip_type;
+					//3G VVIP基站
+					if (objType == "4")
+					{
+						if (this.nodeb_vvip.selected)
+						{
+							flag = true;
+						}
+					}
+					//3G VIP基站
+					else if (objType == "3")
+					{
+						if (this.nodeb_vip.selected)
+						{
+							flag = true;
+						}
+					}
+					//3G 非VIP基站
+					else if (objType == "0")
+					{
+						if (this.nodeb_nvip.selected)
+						{
+							flag = true;
+						}
+					}
+					//3G 超级基站
+					else if (objType == "5")
+					{
+						if (this.nodeb_super.selected)
+						{
+							flag = true;
+						}
+					}
+					//3G 其他
+					else
+					{
+						if (this.nodeb_all.selected)
+						{
+							flag = true;
+						}
+					}
+					
+					//显示的情况下，再判断状态
+					if (flag)
+					{
+						//过滤网元状态
+						flag = filterStatus(obj);
+					}
+					if (flag)
+					{
+						//过滤退服原因
+						flag = filterSubject(obj);
+					}
+				}
+				if (type == "cell")
+				{
+					//2G 最差小区
+					if (subType == "1")
+					{
+						if (this.cell_worst.selected)
+						{
+							flag = true;
+						}
+					}
+					//2G 劣化小区
+					else if (subType == "2")
+					{
+						if (this.cell_bad.selected)
+						{
+							flag = true;
+						}
+					}
+					//2G 其他
+					else
+					{
+						if (this.cell_all.selected)
+						{
+							flag = true;
+						}
+					}
+					
+					log.info("---->< cell 过滤，subType：" + subType +　" flag:" + flag);
+					if (flag)
+					{
+						//过滤网元状态
+						flag = filterStatus(obj);
+					}
+					log.info("---->< cell 过滤，subType：" + subType +　" flag:" + flag);
+				}
+				if (type == "ucell")
+				{
+					//2G 最差小区
+					if (subType == "1")
+					{
+						if (this.ucell_worst.selected)
+						{
+							flag = true;
+						}
+					}
+						//2G 劣化小区
+					else if (subType == "2")
+					{
+						if (this.ucell_bad.selected)
+						{
+							flag = true;
+						}
+					}
+						//2G 其他
+					else
+					{
+						if (this.ucell_all.selected)
+						{
+							flag = true;
+						}
+					}
+					
+					log.info("---->< ucell 过滤，subType：" + subType +　" flag:" + flag);
+					if (flag)
+					{
+						//过滤网元状态
+						flag = filterStatus(obj);
+					}
+					log.info("---->< ucell 过滤，subType：" + subType +　" flag:" + flag);
+				}
+				
+				//机楼
+				if (type == "room")
+				{
+					//可能有多个类型，以逗号分割
+					objType = "," + obj.mo_type + ",";
+					if (objType.indexOf(",1,") != -1)
+					{
+						if (this.room_core.selected)
+						{
+							flag = true;
+						}
+					}
+					else if (objType.indexOf(",2,") != -1)
+					{
+						if (this.room_data.selected)
+						{
+							flag = true;
+						}
+					}
+					else if (objType.indexOf(",3,") != -1)
+					{
+						if (this.room_env.selected)
+						{
+							flag = true;
+						}
+					}
+					else if (objType.indexOf(",4,") != -1)
+					{
+						if (this.room_trans.selected)
+						{
+							flag = true;
+						}
+					}
+					else
+					{
+						if (this.room_all.selected)
+						{
+							flag = true;
+						}
+					}
+				}
+				
+				//应急资源
+				if (type == "emergency")
+				{
+					if (subType == "oil")
+					{
+						if (this.emergency_oil.selected)
+						{
+							flag = true;
+						}
+					}
+					else if (subType == "communicationcar")
+					{
+						if (this.emergency_car.selected)
+						{
+							flag = true;
+						}
+					}else if (subType == "person")
+					{
+						log.info("应急人员………3………");
+						if (this.emergency_person.selected)
+						{
+							log.info("应急人员………4………");
+							flag = true;
+						}
+					}
+					else
+					{
+						if (this.emergency_all.selected)
+						{
+							flag = true;
+						}
+					}
+				}
+				
+				//WLAN
+				if (type == "wlan")
+				{
+					if (this.wlan.selected)
+					{
+						flag = true;
+					}
+				}
+				
+				//覆盖范围
+				if (type == "coverArea")
+				{
+					if (subType == "bts")
+					{
+						if (this.coverArea_bts.selected)
+						{
+							flag = true;
+						}
+					}
+					else if (subType == "nodeb")
+					{
+						if (this.coverArea_nodeb.selected)
+						{
+							flag = true;
+						}
+					}
+					else if (subType == "rnc")
+					{
+						if (this.coverArea_rnc.selected)
+						{
+							flag = true;
+						}
+					}
+					else if (subType == "bsc")
+					{
+						if (this.coverArea_bsc.selected)
+						{
+							flag = true;
+						}
+					}
+					else if (subType == "msc")
+					{
+						if (this.coverArea_msc.selected)
+						{
+							flag = true;
+						}
+					}
+					else
+					{
+						if (this.coverArea_all.selected)
+						{
+							flag = true;
+						}
+					}
+				}
+				
+				return flag;
+			}
+			
+			//过来网元状态
+			private function filterStatus(obj:Object):Boolean
+			{
+				var flag:Boolean = true;
+				var moStatus:String = obj.mo_status;
+				var workStat:String = obj.work_stat;
+				
+				//如果网元状态一个都没选，则显示所有的
+				if (this.mo_status_err.selected || this.mo_status_all.selected || this.mo_status_normal.selected)
+				{
+					//网元状态
+					if (moStatus == "1")
+					{
+						if (!this.mo_status_err.selected && !this.mo_status_all.selected)
+						{
+							flag = false;
+						}
+					}
+					else if (moStatus == "0")
+					{
+						if (!this.mo_status_normal.selected && !this.mo_status_all.selected)
+						{
+							flag = false;
+						}
+					}
+				}
+				
+				//如果工程状态一个都没选，则显示所有的
+				if (this.work_stat_err.selected || this.work_stat_nerr.selected || this.work_stat_all.selected)
+				{
+					//工程状态
+					if (workStat == "1")
+					{
+						if (!this.work_stat_err.selected && !this.work_stat_all.selected)
+						{
+							flag = false;
+						}
+					}
+					else if (workStat == "2")
+					{
+						if (!this.work_stat_nerr.selected && !this.work_stat_all.selected)
+						{
+							flag = false;
+						}
+					}
+				}
+				
+				return flag;
+			}
+			
+			//过滤退服原因
+			private function filterSubject(obj:Object):Boolean
+			{
+				var flag:Boolean = true;
+				var subject:String = obj.subject;
+				
+				//如果退服原因一个都没选，则显示所有的
+				if (this.subject_dev.selected || this.subject_power.selected || this.subject_low.selected || this.subject_all.selected || this.subject_one.selected || this.subject_trans.selected)
+				{
+					if (subject == "3")
+					{
+						if (!this.subject_dev.selected && !this.subject_all.selected)
+						{
+							flag = false;
+						}
+					}
+					else if (subject == "1")
+					{
+						if (!this.subject_power.selected && !this.subject_all.selected)
+						{
+							flag = false;
+						}
+					}
+					else if (subject == "2")
+					{
+						if (!this.subject_low.selected && !this.subject_all.selected)
+						{
+							flag = false;
+						}
+					}
+					else if (subject == "4")
+					{
+						if (!this.subject_one.selected && !this.subject_all.selected)
+						{
+							flag = false;
+						}
+					}
+					else if (subject == "5")
+					{
+						if (!this.subject_trans.selected && !this.subject_all.selected)
+						{
+							flag = false;
+						}
+					}
+					else if (subject == null)
+					{
+						flag = false;
+					}
+				}
+				
+				return flag;
+			}
+
+			public function get callBack():Function
+			{
+				return _callBack;
+			}
+
+			public function set callBack(value:Function):void
+			{
+				_callBack = value;
+			}
+
+			//设置默认性能选项
+			public function addDefaultPerfId(perfId:String):void
+			{
+				if (perfId == "1")
+				{
+					this.perfGrid_1.selected = true;
+				}
+				if (perfId == "2")
+				{
+					this.perfGrid_2.selected = true;
+				}
+				if (perfId == "3")
+				{
+					this.perfGrid_3.selected = true;
+				}
+				if (perfId == "4")
+				{
+					this.perfGrid_4.selected = true;
+				}
+				if (perfId == "5")
+				{
+					this.perfGrid_5.selected = true;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+		<mx:Accordion id="dataAccordion" creationPolicy="all">
+			<mx:Canvas id="objCvs" label="对象图层" width="100%" height="100%" horizontalScrollPolicy="on" verticalScrollPolicy="off" backgroundAlpha="0">
+				<s:VGroup width="575" height="220">
+					
+					<s:HGroup verticalAlign="middle" horizontalAlign="left">
+						<s:CheckBox id="bts_all" width="85" selected="true" click="dealClick('2G基站','bts','',event,true)" label="2G基站" styleName="fristCB"/>
+						<s:CheckBox id="bts_vvip" width="85" selected="true" click="dealClick('2G基站_VVIP基站','bts','4', event)" label="VVIP基站"/>
+						<s:CheckBox id="bts_vip" width="80" selected="true" click="dealClick('2G基站_VIP基站','bts','3', event)" label="VIP基站"/>
+						<s:CheckBox id="bts_dang" width="75" selected="true" click="dealClick('2G基站_党政军','bts','-1', event)" label="党政军"/>
+						<s:CheckBox id="bts_edu" width="55" selected="true" click="dealClick('2G基站_高校','bts','-1', event)" label="高校"/>
+						<s:CheckBox id="bts_nvip" width="85" selected="true" click="dealClick('2G基站_非VIP基站','bts','0', event)" label="非VIP基站"/>
+						<s:CheckBox id="bts_super" width="85" selected="true" click="dealClick('2G基站_超级基站','bts','5', event)" label="超级基站"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle" >
+						<s:CheckBox id="nodeb_all" width="85" selected="true" click="dealClick('3G基站','nodeb','', event,true)" label="3G基站" styleName="fristCB"/>
+						<s:CheckBox id="nodeb_vvip" width="85" selected="true" click="dealClick('3G基站_VVIP基站','nodeb','4', event)" label="VVIP基站"/>
+						<s:CheckBox id="nodeb_vip" width="80" selected="true" click="dealClick('3G基站_VIP基站','nodeb','3', event)" label="VIP基站"/>
+						<s:CheckBox id="nodeb_dang" width="75" selected="true" click="dealClick('3G基站_党政军','nodeb','-1', event)" label="党政军"/>
+						<s:CheckBox id="nodeb_edu" width="55" selected="true" click="dealClick('3G基站_高校','nodeb','-1', event)" label="高校"/>
+						<s:CheckBox id="nodeb_nvip" width="85" selected="true" click="dealClick('3G基站_非VIP基站','nodeb','0', event)" label="非VIP基站"/>
+						<s:CheckBox id="nodeb_super" width="85" selected="true" click="dealClick('3G基站_超级基站','nodeb','5', event)" label="超级基站"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="cell_all" width="85" selected="true" click="dealClick('2G小区','cell','', event,true)" label="2G小区" styleName="fristCB"/>
+						<s:CheckBox id="cell_worst" width="85" selected="true" click="dealClick('2G小区_最差小区','cell','1', event)" label="最差小区"/>
+						<s:CheckBox id="cell_bad" width="85" selected="true" click="dealClick('2G小区_劣化小区','cell','2', event)" label="劣化小区"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="ucell_all" width="85" selected="true" click="dealClick('3G小区','ucell','', event,true)" label="3G小区" styleName="fristCB"/>
+						<s:CheckBox id="ucell_worst" width="85" selected="true" click="dealClick('3G小区_最差小区','ucell','1', event)" label="最差小区"/>
+						<s:CheckBox id="ucell_bad" width="85" selected="true" click="dealClick('3G小区_劣化小区','ucell','2', event)" label="劣化小区"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="room_all" width="85" click="dealClick('机楼机房','room','', event,true)" label="机楼机房" styleName="fristCB"/>
+						<s:CheckBox id="room_core" width="85" click="dealClick('机楼机房_核心网设备','room','1', event)" label="核心网设备"/>
+						<s:CheckBox id="room_data" width="85" click="dealClick('机楼机房_数据网设备','room','2', event)" label="数据网设备"/>
+						<s:CheckBox id="room_env" width="85" click="dealClick('机楼机房_动环设备','room','3', event)" label="动环设备"/>
+						<s:CheckBox id="room_trans" width="85" click="dealClick('机楼机房_传输设备','room','4', event)" label="传输设备"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="emergency_all" width="85" click="dealClick('应急资源','emergency','', event,true)" label="应急资源" styleName="fristCB"/>
+						<s:CheckBox id="emergency_oil" width="85" click="dealClick('应急资源_油机','oil','', event)" label="油机"/>
+						<s:CheckBox id="emergency_car" width="85" click="dealClick('应急资源_应急通信车','communicationcar','', event)" label="应急通信车"/>
+						<s:CheckBox id="emergency_person" width="120" click="dealClick('应急资源_周边人员驻点','person','', event)" label="周边人员驻点"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="wlan" width="85" click="dealClick('wlan热点','wlan','', event)" label="wlan热点" styleName="fristCB"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+				</s:VGroup>
+			</mx:Canvas>
+			<mx:Canvas id="statCvs" label="状态图层" width="100%" height="100%" horizontalScrollPolicy="on" verticalScrollPolicy="off" backgroundAlpha="0">
+				<s:VGroup width="575" height="220">
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="mo_status_all" width="85" click="dealClick('网元状态','mo_status','', event,true)" label="网元状态" styleName="fristCB"/>
+						<s:CheckBox id="mo_status_err" width="85" click="dealClick('网元状态_故障','mo_status','1', event)" label="故障"/>
+						<s:CheckBox id="mo_status_normal" width="85" click="dealClick('网元状态_正常','mo_status','0', event)" label="正常"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="work_stat_all" width="85" click="dealClick('工程状态','work_stat','', event,true)" label="工程状态" styleName="fristCB"/>
+						<s:CheckBox id="work_stat_err" width="85" click="dealClick('工程状态_工程','work_stat','1', event)" label="工程"/>
+						<s:CheckBox id="work_stat_nerr" width="85" click="dealClick('工程状态_非工程','work_stat','2', event)" label="非工程"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="subject_all" width="85" click="dealClick('退服原因','subject','', event,true)" label="退服原因" styleName="fristCB"/>
+						<s:CheckBox id="subject_dev" width="85" click="dealClick('退服原因_基站故障','subject','3', event)" label="基站故障"/>
+						<s:CheckBox id="subject_power" width="85" click="dealClick('退服原因_停电','subject','1', event)" label="停电"/>
+						<s:CheckBox id="subject_one" width="85" click="dealClick('退服原因_一次下电','subject','4', event)" label="一次下电"/>
+						<s:CheckBox id="subject_low" width="85" click="dealClick('退服原因_低电压','subject','2', event)" label="低电压"/>
+						<s:CheckBox id="subject_trans" width="85" click="dealClick('退服原因_传输中断','subject','5', event)" label="传输中断"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="coverArea_all" width="85" click="dealClick('覆盖范围','coverArea','', event,true)" enabled="false" label="覆盖范围" styleName="fristCB"/>
+						<s:CheckBox id="coverArea_msc" width="85" click="dealClick('覆盖范围_MSC','coverArea','msc', event)" label="MSC"/>
+						<s:CheckBox id="coverArea_bsc" width="85" click="dealClick('覆盖范围_BSC','coverArea','bsc', event)" label="BSC"/>
+						<s:CheckBox id="coverArea_rnc" width="85" click="dealClick('覆盖范围_RNC','coverArea','rnc', event)" label="RNC"/>
+						<s:CheckBox id="coverArea_bts" width="85" click="dealClick('覆盖范围_BTS','coverArea','bts', event)" label="BTS"/>
+						<s:CheckBox id="coverArea_nodeb" width="85" click="dealClick('覆盖范围_NodeB','coverArea','nodeb', event)" label="NodeB"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox id="perfGrid_all" width="85" click="dealClick('性能渲染指标','perfGrid','', event,true)" enabled="false" label="性能渲染指标" styleName="fristCB"/>
+						<s:CheckBox id="perfGrid_1" width="85" click="dealClick('性能渲染指标_用户数','perfGrid','1', event)" label="用户数"/>
+						<s:CheckBox id="perfGrid_2" width="85" click="dealClick('性能渲染指标_话务量','perfGrid','2', event)" label="话务量"/>
+						<s:CheckBox id="perfGrid_3" width="85" click="dealClick('性能渲染指标_接通率','perfGrid','3', event)" label="接通率"/>
+						<s:CheckBox id="perfGrid_4" width="85" click="dealClick('性能渲染指标_无线利用率','perfGrid','4', event)" label="无线利用率"/>
+						<s:CheckBox id="perfGrid_5" width="85" click="dealClick('性能渲染指标_拥塞率','perfGrid','5', event)" label="拥塞率"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+					
+				</s:VGroup>
+			</mx:Canvas>
+			<mx:Canvas id="ensureCvs" label="保障图层" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="on" backgroundAlpha="0">
+				<s:VGroup width="575" height="220">
+					<s:HGroup verticalAlign="middle">
+						<s:CheckBox width="85" click="dealClick('保障情况','ensure','', event,true)" label="保障情况" styleName="fristCB"/>
+						<s:CheckBox width="85" click="dealClick('保障情况_概况信息','ensure','general', event)" label="概况信息" selected="true"/>
+						<s:CheckBox width="85" click="dealClick('保障情况_保障简讯','ensure','info', event)" label="保障简讯"/>
+						<s:CheckBox width="85" click="dealClick('保障情况_天气情况','ensure','weather', event)" label="天气情况"/>
+						<s:CheckBox width="85" click="dealClick('保障情况_倒计时','ensure','time', event)" label="倒计时"/>
+						<s:CheckBox width="85" click="dealClick('保障情况_历史回放','ensure','history', event)" label="历史回放"/>
+					</s:HGroup>
+					<mx:HRule width="100%" height="2"/>
+				</s:VGroup>
+			</mx:Canvas>
+		</mx:Accordion>
+</panel:Window>

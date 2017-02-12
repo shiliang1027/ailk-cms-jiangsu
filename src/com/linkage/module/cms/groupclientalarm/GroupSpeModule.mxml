@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute"
+		   xmlns:panel="com.linkage.system.component.panel.*"  
+		   xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   xmlns:components="com.linkage.module.cms.groupclientalarm.components.*" 
+		   backgroundColor="0xD7E0E7"
+		   width="100%" height="100%" 
+		   creationComplete="module_creationCompleteHandler()">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager; 
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclientalarm.control.GroupMonitorModuleControl_TREE;
+			import com.linkage.module.cms.groupclientalarm.data.GroupMonitorDataManager;
+			import com.linkage.module.cms.groupclientalarm.data.GroupMonitorDataManagerBS;
+			import com.linkage.module.cms.groupclientalarm.data.GroupSpeDataManager;
+			import com.linkage.module.cms.groupclientalarm.data.GroupSpeDataManagerBS;
+			import com.linkage.module.cms.groupclientalarm.event.CustWindowEvent;
+			import com.linkage.module.cms.groupclientalarm.event.FilterFormEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			
+			import flash.net.navigateToURL;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.EffectEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.GroupSpeModule");
+			public var parameters:Object;	
+			
+			[Bindable]
+			private static var _down_blue:Class;
+			
+			[Bindable]
+			public var datas:ArrayCollection;
+			
+			private var defaultFilter:String = '';
+			public var lm:LoadManager = null;
+			
+			
+			[Bindable]
+			public var typeDP:ArrayCollection = new ArrayCollection(
+				[{name:"全部", value:0},
+					{name:"GPRS业务", value:1},
+					{name:"语音专线", value:2},
+					{name:"互联网专线", value:3},
+					{name:"传输专线", value:4},
+					{name:"短信业务", value:5},
+					{name:"彩信专线", value:6},
+					{name:"MPLS VPN业务", value:7}]
+			);
+			
+			[Bindable]
+			public var levelDP:ArrayCollection = new ArrayCollection(
+				[ {name:"全部", value:0},
+					{name:"网络层", value:1},
+					{name:"业务层", value:2},
+					{name:"客户层", value:3}
+					]);
+			
+			[Bindable]
+			public var rankDP:ArrayCollection = new ArrayCollection(
+				[{name:"全部", value:0},
+					{name:"一级", value:1},
+					{name:"二级", value:2},
+					{name:"三级", value:3}
+					]);
+
+			protected function module_creationCompleteHandler():void
+			{
+				parameters = parentApplication.parameters;
+				lm = new LoadManager(this);
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//初始化manager
+				initServerClass();
+				//获取最新的左边对象树
+				loadTreeInfo();
+				loadtableInfo();
+				
+				
+			}
+			private var groupSpeDataManager:GroupSpeDataManager;
+//			private var groupSpeDataManager:GroupSpeDataManager= null;
+			
+			private function initServerClass():void
+			{
+					groupSpeDataManager = new GroupSpeDataManagerBS(this.parameters['context']);
+					log.info("initServerClass");
+					log.info(this.parameters['context']);
+			}
+			private function loadTreeInfo():void
+			{
+				lm.showLoading();
+				groupSpeDataManager.queyrKpiTree({},
+					function(result:Object):void
+					{
+						if(result.data){
+							log.info('加载左侧tree成功，xml:'+result.data);
+						}
+						data = result.data;
+						log.info(data);
+						initTree(data);
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('加载左侧tree失败！');
+						lm.hideLoading();
+					});
+			}
+			private function loadtableInfo():void
+			{
+				var param:Object = new Object();
+				
+				param.speTree = "all";
+				param.busType = 0;
+				param.level = 0;
+				param.kpiName = kpiName.text;
+//				param.kpiId = String(data.@kpiId);
+				param.grade = "";
+				param.pageSize = 20;
+				param.currentPage = 1;
+				
+				querySpeform(param);
+				log.info("初始化完成！");
+			}
+			
+			private var xmlData:XML;//默认显示第一层
+			private function initTree(xml:Object):void{
+				tree.dataProvider = XML(xml);
+				xmlData  = tree.dataProvider[0];
+				tree.callLater(expandTree);
+			}
+			/**
+			 * 
+			 * 默认打开第一层
+			 **/
+			private function expandTree():void{
+				tree.expandChildrenOf(xmlData , true);
+				for each (var item:XML in xmlData.node) 
+				{
+					tree.expandChildrenOf(item , false);
+				}
+//				
+			}
+			protected function tree_itemClickHandler(event:ListEvent):void
+			{
+				
+//				tree.callLater(expandTree);
+				log.info("触发设备tree点击事件！");
+				var param:Object = new Object();
+				var data:XML = XML(Tree(event.currentTarget).selectedItem);
+				
+				tree.expandChildrenOf(data , true);
+//				for each (var item:XML in data.node) 
+//				{
+//					tree.expandChildrenOf(item , false);
+//				}
+				log.info("data.@label="+data.@label);
+				if(data.@label == "指标树")
+				{
+					param.speTree = "all";
+					param.busType = 0;
+					param.level = 0;
+//					param.gatherWay = collectMethod.text;
+					param.kpiName = kpiName.text;
+					param.kpiId = String(data.@kpiId);
+//					param.dataSource = dataSource.text;
+					param.grade = "";
+//					param.pageSize = 20;
+//					param.currentPage = 1;
+					kpiLevelDP.selectedIndex = 0;
+					typeListDP.selectedIndex = 0;
+					kpiName.text = "";
+					
+				}else{
+						
+					if(data.@level == "网络层")
+					{
+						param.level = 1;
+						kpiLevelDP.selectedIndex = 1;
+					}else if(data.@level == "业务层")
+					{
+						param.level = 2;
+						kpiLevelDP.selectedIndex = 2;
+					}else if(data.@level == "客户层")
+					{
+						param.level = 3;
+						kpiLevelDP.selectedIndex = 3;
+					}else{
+						param.level = 0;
+						kpiLevelDP.selectedIndex = 0;
+					}
+					
+					if(data.@busType == "互联网专线" )
+					{
+						param.busType = 3;
+						typeListDP.selectedIndex = 3;
+					}else if(data.@busType == "语音专线")
+					{
+						param.busType = 2;
+						typeListDP.selectedIndex = 2;
+					}else if(data.@busType == "传输专线")
+					{
+						param.busType = 4;
+						typeListDP.selectedIndex = 4;
+					}else if(data.@busType == "GPRS业务")
+					{
+						param.busType = 1;
+						typeListDP.selectedIndex = 1;
+					}else if(data.@busType == "短信业务")
+					{
+						param.busType = 5;
+						typeListDP.selectedIndex = 5;
+					}
+					else if(data.@busType == "彩信专线")
+					{
+						param.busType = 6;
+						typeListDP.selectedIndex = 6;
+					}else{
+						param.busType = 0;
+						typeListDP.selectedIndex = 0;
+					}
+					
+					param.kpiName = String(data.@kpiName);
+					kpiName.text = data.@kpiName;
+					param.kpiId = String(data.@kpiId);
+				}
+				
+//				param.gatherWay = collectMethod.text;
+				
+//				param.dataSource = dataSource.text;
+				param.grade = "";
+				param.pageSize = 20;
+				param.currentPage = 1;
+				log.info("tree_itemClickHandler");
+				log.info(param);
+				querySpeform(param);
+			}
+			//查询设备列表。
+			private function querySpeform(param:Object):void{
+				lm.showLoading();
+				
+				groupSpeDataManager.queryKpiListInfo(param,
+					function(result:Object):void
+					{
+						kpiData.dataProvider = result.data;
+						kpiDataPager.totalRowCount = result.totalCount;
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('查询集客设备性能指标失败！');
+						lm.hideLoading();
+					});
+			}
+			
+			protected function exportData_clickHandler(event:MouseEvent):void
+			{
+				
+				var type:String = "busType=" + typeListDP.selectedItem.value+"&level="+kpiLevelDP.selectedItem.value+"&kpiName="+kpiName.text;
+				var url:String = "/cms/groupsupport/performance/kpi/kpiAction!exportKpiList.action?"+ type;	
+				log.info("url="+url);
+				navigateToURL(new URLRequest(url), "_self");
+//				ExternalInterface.call("export2Excel", url, {'sheetName': exportCache[nowIndex]['title'], 'cityId': _cityId}, "1");
+				
+			}
+			
+			protected function queryData_clickHandler(event:MouseEvent):void
+			{
+				var param:Object = new Object();
+				param.busType = typeListDP.selectedItem.value;
+				param.level = kpiLevelDP.selectedItem.value;
+//				param.gatherWay = collectMethod.text;
+				param.kpiName = kpiName.text;
+				param.kpiId = "";
+//				param.dataSource = dataSource.text;
+//				param.grade = kpiRankDP.selectedItem.value;
+				param.pageSize = 20;
+				param.currentPage = 1;
+				log.info("集客指标管理");
+				log.info(param);
+				querySpeform(param);
+			}
+			
+			
+			protected function kpiDataPager_pageChangeHandler(event:PagerEvent):void
+			{
+				// TODO Auto-generated method stub
+				lm.showLoading();
+				
+				
+				var param:Object = new Object();
+				param.busType = typeListDP.selectedItem.value;
+				param.level = kpiLevelDP.selectedItem.value;
+//				param.gatherWay = collectMethod.text;
+				param.kpiName = kpiName.text;
+				param.kpiId = "";
+//				param.dataSource = dataSource.text;
+//				param.grade = kpiRankDP.selectedItem.value;
+				param.pageSize = kpiDataPager.pageSize;
+				param.currentPage = kpiDataPager.currentPage;
+				
+				log.info("kpiDataPager_pageChangeHandler");
+				log.info(param);
+				groupSpeDataManager.queryKpiListInfo(param,
+					function(result:Object):void
+					{
+						if(result.datas){
+							log.info('查询集客设备性能指标成功，xml:');
+						}
+						
+						log.info(result.kpiViewdata.kpiData);
+						log.info(result.kpiViewdata.totalRowCount);
+						kpiData.dataProvider = result.kpiViewdata.kpiData;
+						kpiDataPager.totalRowCount = result.kpiViewdata.totalRowCount;
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('查询集客设备性能指标失败！');
+						lm.hideLoading();
+					});
+			}
+			
+			protected function resetData_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				typeListDP.selectedIndex = 0;
+				kpiLevelDP.selectedIndex = 0;
+				kpiName.text = "";
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:HGroup width="100%" height="100%" gap="4" right="4" left="4" top="4" bottom="10">
+		<s:Group width="20%" height="100%" >
+			<mx:Tree id="tree"
+					 height="100%"
+					 width="240"
+					 borderColor="0x888888"
+					 borderAlpha="0.9" 
+					 contentBackgroundColor="0xEEF6FC"
+					 verticalAlign="middle"
+					 showRoot="true"
+					 showScrollTips="true"
+					 wordWrap="false"
+					 variableRowHeight="true"
+					 labelField="@label"
+					 editorHeightOffset="0"
+					 indentation="12"
+					 openDuration="250"
+					 paddingLeft="10"
+					 folderClosedIcon="{null}"
+					 folderOpenIcon="{null}"
+					 defaultLeafIcon="{null}"
+					 disclosureClosedIcon="@Embed('assets/+.png')"
+					 disclosureOpenIcon="@Embed('assets/-.png')"
+					 itemClick="tree_itemClickHandler(event)"
+					 />
+		</s:Group>
+		<s:VGroup width="80%" height="100%" >
+			<s:VGroup width="100%">
+				<s:HGroup includeInLayout="true"> </s:HGroup>
+				<s:HGroup width="1100">
+					<mx:FormItem width="5%">
+						<s:Label text="  "/>
+					</mx:FormItem>
+					<mx:FormItem label="业务类型：" width="30%">
+						<s:DropDownList id="typeListDP"
+										width="120"
+										dataProvider="{typeDP}"
+										labelField="name"
+										prompt="选择业务类型"
+										selectedIndex="0"/>
+					</mx:FormItem>
+					<mx:FormItem label="指标层次：" width="30%">
+						<s:DropDownList id="kpiLevelDP"
+										width="120"
+										dataProvider="{levelDP}"
+										labelField="name"
+										prompt="选择指标层次"
+										selectedIndex="0"/>
+					</mx:FormItem>
+					<mx:FormItem label="指标名称：" width="30%">
+						<s:TextInput id="kpiName" 
+									 width="160"/>
+					</mx:FormItem>
+				</s:HGroup>
+				<s:HGroup width="100%">
+					<mx:FormItem width="5%">
+						<s:Label text="  "/>
+					</mx:FormItem>
+					<mx:FormItem label="业务类型：" width="30%" visible="false">
+						<s:DropDownList id="typeListDP1"
+										width="120"
+										dataProvider="{typeDP}"
+										labelField="name"
+										prompt="选择业务类型"
+										selectedIndex="0"/>
+					</mx:FormItem>
+					<mx:FormItem label="指标层次：" width="30%" visible="false">
+						<s:DropDownList id="kpiLevelDP1"
+										width="120"
+										dataProvider="{levelDP}"
+										labelField="name"
+										prompt="选择指标层次"
+										selectedIndex="0"/>
+					</mx:FormItem>
+					<mx:FormItem label="   " width="30%" horizontalAlign="center">
+						<s:HGroup>
+							<s:Button label="导出" id="exportData" click="exportData_clickHandler(event)"/>
+							<s:Button label="查询" id="queryData" click="queryData_clickHandler(event)"/>
+							<s:Button label="重置" id="resetData" click="resetData_clickHandler(event)"/>
+						</s:HGroup>	
+					</mx:FormItem>
+				</s:HGroup>
+			</s:VGroup>
+		<s:VGroup>
+			
+				<s:VGroup width="100%" height="100%">
+					<mx:AdvancedDataGrid id="kpiData"
+										 width="100%"
+										 height="530" 
+										 verticalScrollPolicy="auto"
+										 horizontalScrollPolicy="auto"
+										 enabled="true"
+										 editable="false"
+										 rowCount="20" rowHeight="25">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="指标编码" width="100"
+													   dataField="kpi_id"/>
+							<mx:AdvancedDataGridColumn headerText="指标名称" width="200"
+													   dataField="kpi_name"/>
+							<mx:AdvancedDataGridColumn headerText="指标描述" width="200"
+													   dataField="kpi_desc"/>
+							<mx:AdvancedDataGridColumn headerText="业务类型名称" width="150"
+													   dataField="serv_type_name"/>
+							<mx:AdvancedDataGridColumn headerText="英文名称"  width="100"
+													   dataField="english_name"/>
+							<mx:AdvancedDataGridColumn headerText="数据单位"  width="100"
+													   dataField="unit"/>
+							<mx:AdvancedDataGridColumn headerText="指标层次"  width="100"
+													   dataField="level_name"/>
+							<mx:AdvancedDataGridColumn headerText="备注"
+													   dataField="remark"
+													   itemRenderer="com.linkage.module.cms.groupclientalarm.renderer.RemarkRenderer"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+					<s:HGroup width="100%"
+							  horizontalAlign="right">
+						<pager:Pager id="kpiDataPager"
+									 pageSize="20"
+									 currentPage="1"
+									 pageChange="kpiDataPager_pageChangeHandler(event)"/>
+					</s:HGroup>
+				</s:VGroup>
+		</s:VGroup>	
+		</s:VGroup>
+	</s:HGroup>
+</mx:Module>

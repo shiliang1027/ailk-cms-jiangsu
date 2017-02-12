@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    width="730"
+                    height="217"
+                    visible="false"
+                    close="window1_closeHandler(event)"
+                    minimizable="false"
+                    maximizable="false"
+                    closable="true"
+                    dragable="true"
+                    styleName="window"
+                    xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart">
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+            import com.ailk.common.ui.chart.core.ChartParam;
+            import com.ailk.common.ui.chart.core.PrettyChartType;
+            import com.ailk.common.ui.chart.core.SerialParam;
+            import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+            import com.ailk.common.ui.gis.core.ILayer;
+            import com.linkage.module.cms.scene.domain.common.IUser;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.events.FlexEvent;
+            import mx.managers.PopUpManager;
+            import mx.rpc.events.FaultEvent;
+            import mx.rpc.remoting.RemoteObject;
+
+            import spark.events.IndexChangeEvent;
+
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            [Inject("user")]
+            public var user:IUser;
+
+            private var log:ILogger = Log.getLoggerByClass(SceneTopNFloat);
+
+            private var tabAc:ArrayCollection = new ArrayCollection(
+                [
+                {"id": "2g", "label": "GSM"},
+                {"id": "3g", "label": "TD"},
+                {"id": "4g", "label": "LTE"}
+                ]);
+
+            [Bindable]
+            public var userNumAC:ArrayCollection = new ArrayCollection;
+            [Bindable]
+            public var liuLiangAC:ArrayCollection = new ArrayCollection;
+            [Bindable]
+            public var countsAC:ArrayCollection = new ArrayCollection;
+
+            public var userNumACAll:ArrayCollection = new ArrayCollection;
+            public var liuLiangACAll:ArrayCollection = new ArrayCollection;
+            public var countsACAll:ArrayCollection = new ArrayCollection;
+
+			//TODO
+            [MessageHandler(selector = "CHANGE_VIEW")]
+            public function loadData(e:Object = null):void
+            {
+                if (!this.visible)
+                    return;
+
+                hg.enabled = false;
+
+                if (chartWin.visible)
+                    PopUpManager.removePopUp(chartWin);
+
+                var rmt:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_distribute_dataService", "", user.context + "messagebroker/amf",
+                    function(result:Object):void
+                    {
+                        log.info("加载 topn悬浮框 数据成功");
+                        log.info(result);
+
+                        showDatas(result);
+
+                    },
+                    function(e:FaultEvent):void
+                    {
+                        log.error("加载 topn悬浮框 数据失败：" + e.fault.faultDetail);
+                    });
+
+                log.info("加载 topn悬浮框 数据~~");
+
+                var param:Object = {};
+                param.type = tabBar.selectedItem.id;
+
+                if (user.level == "2")
+                    param.area_id = user.sceneId;
+                else
+                    param.scene_id = user.initSceneId;
+
+                param.city_id = user.cityId;
+
+                log.debug(param);
+
+                clearDatas();
+
+                rmt.getDistributeValue(param);
+            }
+
+            private function clearDatas():void
+            {
+                userNumACAll.removeAll();
+                liuLiangACAll.removeAll();
+                countsACAll.removeAll();
+
+                userNumAC.removeAll();
+                liuLiangAC.removeAll();
+                countsAC.removeAll();
+            }
+
+            private function showDatas(result:Object):void
+            {
+                userNumACAll.addAll(result['userNum'] as IList);
+                liuLiangACAll.addAll(result['liuLiang'] as IList);
+                countsACAll.addAll(result['counts'] as IList);
+
+                hg.enabled = true;
+
+                log.debug("userNumACAll");
+                log.debug(userNumACAll);
+                log.debug("liuLiangACAll");
+                log.debug(liuLiangACAll);
+                log.debug("countsACAll");
+                log.debug(countsACAll);
+
+                for (var index:int = 0; index < 5; index++)
+                {
+                    var item:Object = userNumACAll.getItemAt(index);
+                    item.rowNum = index + 1;
+                    userNumAC.addItem(item);
+
+                    item = liuLiangACAll.getItemAt(index);
+                    item.rowNum = index + 1;
+                    liuLiangAC.addItem(item);
+
+                    item = countsACAll.getItemAt(index);
+                    item.rowNum = index + 1;
+                    countsAC.addItem(item);
+                }
+
+                this.title = result['time'];
+            }
+
+            protected function window1_closeHandler(event:WindowEvent):void
+            {
+                this.visible = false;
+                PopUpManager.removePopUp(this);
+            }
+
+            protected function showAllKpiByChart(key:String):void
+            {
+                chartWin.visible = true;
+                PopUpManager.addPopUp(chartWin, this.parent as DisplayObject);
+                PopUpManager.centerPopUp(chartWin);
+
+                var datas:ArrayCollection = this[key + 'ACAll'] as ArrayCollection;
+                chartWin.title = "单位：" + datas.getItemAt(0)['unit'];
+
+                var p1:SerialParam = new SerialParam('perf_value', "指标值");
+                p1.chartType = PrettyChartType.CHART_TYPE_PIE;
+
+                var serArr:ArrayCollection = new ArrayCollection;
+                serArr.addItem(p1);
+
+                var chartParam:ChartParam = new ChartParam();
+                chartParam.xAxisProperty = "perf_name";
+                chartParam.showLegend = false;
+
+                pc.chartParam = chartParam;
+                pc.series = serArr;
+
+                pc.chartData(datas, true);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+
+    <s:VGroup width="100%"
+              height="100%"
+              gap="0">
+        <s:TabBar dataProvider="{tabAc}"
+                  labelField="label"
+                  id="tabBar"
+                  change="loadData()"
+                  styleName="sceneTabBar1"/>
+        <s:HGroup id="hg"
+                  width="100%"
+                  enabled="false"
+                  height="22"
+                  verticalAlign="middle"
+                  gap="0">
+            <s:HGroup width="33%"
+                      paddingLeft="10"
+                      paddingRight="20">
+                <s:Label text="流量"/>
+                <mx:Spacer width="100%"/>
+                <s:Label text="更多"
+                         buttonMode="true"
+                         click="showAllKpiByChart('liuLiang')"/>
+            </s:HGroup>
+            <s:HGroup width="33%"
+                      paddingLeft="10"
+                      paddingRight="20">
+                <s:Label text="用户数"/>
+                <mx:Spacer width="100%"/>
+                <s:Label text="更多"
+                         buttonMode="true"
+                         click="showAllKpiByChart('userNum')"/>
+            </s:HGroup>
+            <s:HGroup width="33%"
+                      paddingLeft="10"
+                      paddingRight="20">
+                <s:Label text="次数"/>
+                <mx:Spacer width="100%"/>
+                <s:Label text="更多"
+                         buttonMode="true"
+                         click="showAllKpiByChart('counts')"/>
+            </s:HGroup>
+        </s:HGroup>
+        <s:HGroup width="100%"
+                  height="100%"
+                  gap="0">
+            <mx:AdvancedDataGrid id="liuLiangDG"
+                                 styleName="sceneDG"
+                                 rowCount="5"
+                                 verticalScrollPolicy="off"
+                                 dataProvider="{liuLiangAC}"
+                                 width="33%"
+                                 height="100%">
+                <mx:columns>
+                    <mx:AdvancedDataGridColumn headerText="序号"
+                                               dataField="rowNum"
+                                               width="60"/>
+                    <mx:AdvancedDataGridColumn dataField="perf_name"
+                                               width="95"
+                                               headerText="指标名称"/>
+                    <mx:AdvancedDataGridColumn dataField="perf_value"
+                                               width="75"
+                                               headerText="指标值"/>
+                </mx:columns>
+            </mx:AdvancedDataGrid>
+            <mx:AdvancedDataGrid id="userNumDG"
+                                 width="33%"
+                                 rowCount="5"
+                                 verticalScrollPolicy="off"
+                                 styleName="sceneDG"
+                                 dataProvider="{userNumAC}"
+                                 height="100%">
+                <mx:columns>
+                    <mx:AdvancedDataGridColumn headerText="序号"
+                                               width="60"
+                                               dataField="rowNum"/>
+                    <mx:AdvancedDataGridColumn dataField="perf_name"
+                                               width="95"
+                                               headerText="指标名称"/>
+                    <mx:AdvancedDataGridColumn dataField="perf_value"
+                                               width="75"
+                                               headerText="指标值"/>
+                </mx:columns>
+            </mx:AdvancedDataGrid>
+            <mx:AdvancedDataGrid id="countsDG"
+                                 styleName="sceneDG"
+                                 rowCount="5"
+                                 verticalScrollPolicy="off"
+                                 dataProvider="{countsAC}"
+                                 width="33%"
+                                 height="100%">
+                <mx:columns>
+                    <mx:AdvancedDataGridColumn headerText="序号"
+                                               width="60"
+                                               dataField="rowNum"/>
+                    <mx:AdvancedDataGridColumn dataField="perf_name"
+                                               width="95"
+                                               headerText="指标名称"/>
+                    <mx:AdvancedDataGridColumn dataField="perf_value"
+                                               width="75"
+                                               headerText="指标值"/>
+                </mx:columns>
+            </mx:AdvancedDataGrid>
+        </s:HGroup>
+    </s:VGroup>
+
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="chartWin"
+                            styleName="window"
+                            minimizable="false"
+                            maximizable="false"
+                            dragable="true"
+                            closable="true"
+                            visible="false"
+                            close="{PopUpManager.removePopUp(chartWin)}"
+                            width="800"
+                            height="600">
+            <ailk_chart:PrettyChart id="pc"
+                                    width="100%"
+                                    height="100%"/>
+        </ailk_compts:Window>
+    </mx:Box>
+</ailk_compts:Window>

@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+			  close="showHideWindow()"
+			  mouseEnabled="true"
+			  minimizable="false"
+			  maximizable="false"
+			  dragable="true"
+			  minHeight="30"
+			  width="100%"
+			  height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.AlarmMonitor;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectPowerService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			//窗口显示
+			private var _winShow:Boolean=false;
+			//命名上下文
+			private var _context:String=null;
+			//告警监控
+			private var _alarmMonitor:AlarmMonitor=null;
+			//小区服务
+			private var _cellService:SubjectCellService=null;
+			//基站专题
+			private var _btsService:SubjectPowerService=null;
+			//专题WLAN
+			private var _wlanService:SubjectWlanService=null;
+			//图标参数
+			private var paramsArr:ArrayCollection=new ArrayCollection([{caption: " "}, {showvalues: "0"}, {labelDisplay: 'Rotate'}, {slantLabels: '1'}, {formatNumberScale: '0'}, {formatNumber: '0'}, {showFCMenuItem: "0"}, {drawAnchors: "1"}, {chartLeftMargin: "3"}, {chartRightMargin: "8"}, {chartTopMargin: "3"}, {canvasBorderAlpha: "0"}, {lineColor: "0x00FF00"}, {chartBottomMargin: "0"}, {lineThickness: "4"}]);
+			//日志记录器
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.perfmonitor.monitor.alarm.component.SubCityDetail");
+
+
+			//加载图形数据
+			public function loadChartData(perfTypeId:String):void
+			{
+				if ("8000" == perfTypeId) //零话务量小区
+				{
+					_cellService.zeroCellStatList(loadDataSucc, null, loadDataErr);
+				}
+				else if ("8001" == perfTypeId) //最差小区
+				{
+					_cellService.worstCellStatList(loadDataSucc, null, loadDataErr);
+				}
+				else if ("8002" == perfTypeId) //劣化小区
+				{
+					_cellService.badCellStatList(loadDataSucc, null, loadDataErr);
+				}
+				else if ("8003" == perfTypeId) //小区无线利用率
+				{
+					_cellService.highUsageRateCellStat(loadDataSucc, null, loadDataErr);
+				}
+				else if ("8004" == perfTypeId) //零业务量热点
+				{
+					_wlanService.zeroWlanStat(loadDataSucc, null, loadDataErr);
+				}
+				else if ("8005" == perfTypeId) //退服AP
+				{
+					_wlanService.quitApStat(loadDataSucc, null, loadDataErr);
+				}
+				else if ("8006" == perfTypeId) //停电基站
+				{
+					_btsService.btsNoPowerStat({city_id: '00', city_layer: '1'}, loadDataSucc, null, loadDataErr);
+				}
+				else if ("8007" == perfTypeId) //低性能蓄电池
+				{
+					_btsService.powerCellStat({city_id: '00', city_layer: '1'}, loadDataSucc, null, loadDataErr);
+				}
+				else
+				{
+					Alert.show("指标有误,perfTypeId" + perfTypeId);
+				}
+			}
+
+			private function loadDataSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载统计数据正常！");
+					createChart(obj[0]);
+				}
+				else
+				{
+					log.info("加载统计数据为空！");
+				}
+			}
+
+			private function loadDataErr(obj:Object):void
+			{
+				log.info("加载统计数据异常！" + obj);
+			}
+
+			//关闭按钮回调
+			public function showHideWindow(displayObject:DisplayObject=null):void
+			{
+				if (_winShow)
+				{
+					_winShow=false;
+					PopUpManager.removePopUp(this);
+				}
+				else
+				{
+					_winShow=true;
+					PopUpManager.addPopUp(this, displayObject, false);
+					PopUpManager.centerPopUp(this);
+				}
+			}
+
+			//图形数据
+			private function createChart(obj:Object):void
+			{
+				var data:ArrayCollection=new ArrayCollection();
+				var column1:String=obj.column[0];
+				var column2:String=obj.column[1];
+
+				//行
+				for each (var labelObj:Object in obj.datalist)
+				{
+					var tmp:Object=new Object();
+					tmp.label=labelObj[column1];
+					data.addItem(tmp);
+				}
+
+				//标题
+				var tmp2:Object=new Object();
+				tmp2.seriesName=obj.title + "统计";
+				data.addItem(tmp2);
+
+				//值
+				for each (var valueObj:Object in obj.datalist)
+				{
+					var tmp1:Object=new Object();
+					tmp1.value=valueObj[column2];
+					tmp1.link="E-showChart," + valueObj[column1];
+					data.addItem(tmp1);
+				}
+
+				if (data.length >= 3)
+				{
+					chart.FCParams=paramsArr;
+					chart.FCData=data;
+					chart.FCRender();
+				}
+			}
+
+			public function set alarmMonitor(value:AlarmMonitor):void
+			{
+				_alarmMonitor=value;
+			}
+
+			public function set context(value:String):void
+			{
+				_context=value;
+			}
+
+			public function set cellService(value:SubjectCellService):void
+			{
+				_cellService=value;
+			}
+
+			public function set btsService(value:SubjectPowerService):void
+			{
+				_btsService=value;
+			}
+
+			public function set wlanService(value:SubjectWlanService):void
+			{
+				_wlanService=value;
+			}
+		]]>
+	</fx:Script>
+
+	<fusioncharts:FusionChartsLK id="chart"
+								 width="100%"
+								 height="350"
+								 FCChartType="Column3D"
+								 FCData="{new ArrayCollection()}"
+								 FCParams="{new ArrayCollection()}"/>
+</panel:Window>

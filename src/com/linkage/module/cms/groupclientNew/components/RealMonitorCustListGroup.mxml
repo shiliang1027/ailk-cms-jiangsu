@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		 xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		 creationComplete="realMonitorCustListGroup_creationCompleteHandler(event)">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:states>
+		<s:State name="state_alarm"/>
+		<s:State name="state_allAlarm"/>
+	</s:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="queryAllCust", type="com.linkage.module.cms.groupclientNew.event.RealMonitorCustListGroupEvent")]
+		[Event(name="queryAlarmCust", type="com.linkage.module.cms.groupclientNew.event.RealMonitorCustListGroupEvent")]
+		[Event(name="custSelected", type="com.linkage.module.cms.groupclientNew.event.RealMonitorCustListGroupEvent")]
+		[Event(name="custNumQuery", type="com.linkage.module.cms.groupclientNew.event.RealMonitorCustListGroupEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclientNew.event.RealMonitorCustListGroupEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			[Bindable]
+			private var alarmNum:Number = 0;
+			[Bindable]
+			private var custNum:Number = 0;
+			
+			private var dataList:Object;
+			protected function realMonitorCustListGroup_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(RealMonitorCustListGroupEvent.DATACHANGE,onDataChange);
+				this.addEventListener(RealMonitorCustListGroupEvent.REFRESH,onRefresh);
+				this.addEventListener(RealMonitorCustListGroupEvent.CUSTNUMCHANGE,onCustNumChange);
+			}
+			
+			private function onDataChange(event:RealMonitorCustListGroupEvent):void{
+				var result:Object = event.param;
+				var sort:Sort=new Sort();
+				var alarmLeverField:SortField = new SortField("alarm_level_num", true);
+				var custNameField:SortField = new SortField("cust_name", true);
+				custNameField.compareFunction = myCompare;
+				sort.fields=[alarmLeverField,custNameField];
+				result.dataList.sort = sort;
+				result.dataList.refresh();
+				custServInfoDG.dataProvider = result.dataList;
+//				if(this.currentState == "state_allAlarm"){
+//					custServInfoDG.dataProvider = result.dataList;
+//				}else if(this.currentState == "state_alarm"){
+//					dataList = result.dataList;
+//					custServInfoDG.dataProvider = getDataList();
+//				}
+//				if(int(result.dataList.length)<12){
+//					custServInfoDG.rowCount = 13;
+//				}else{
+//					custServInfoDG.rowCount = int(result.dataList.length)+1;
+//				}
+				rbEnable(true);
+			}
+			
+			private function myCompare(a:Object, b:Object, fields:Array = null):int
+			{
+				if(String(a.cust_name).indexOf('常熟市海邦汽车销售服务有限公司')!=-1 || String(a.cust_name).indexOf('徐州市宏华新墙材工程有限公司')!=-1){
+					return -1;
+				}else if(String(b.cust_name).indexOf('常熟市海邦汽车销售服务有限公司')!=-1 || String(b.cust_name).indexOf('徐州市宏华新墙材工程有限公司')!=-1){
+					return 1;
+				}
+				return 0;
+			}
+			
+			
+			private function getDataList():Object{
+				var list:ArrayCollection = new ArrayCollection();
+				var startNo:Number = (custServInfoPager.currentPage-1)*custServInfoPager.pageSize;
+				for(var i:Number=0;i<custServInfoPager.pageSize;i++){
+					if(startNo+i<=dataList.length){
+						try{
+							list.addItem(ArrayCollection(dataList).getItemAt(startNo+i));
+						}catch(e:Error){}
+					}else{
+						break;
+					}
+				}
+				return list;
+			}
+			
+			private function onRefresh(event:RealMonitorCustListGroupEvent):void{
+				if(allAlarmRB.selected){
+					allAlarmRB.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}else{
+					alarmRB.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+//				this.dispatchEvent(new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.CUSTNUMQUERY));
+			}
+			
+			private function onCustNumChange(event:RealMonitorCustListGroupEvent):void{
+				custNum = Number(event.param.cust_num);
+				alarmNum = Number(event.param.alarm_num);
+			}
+			
+			protected function allAlarmRB_clickHandler(event:MouseEvent):void
+			{
+				this.currentState = "state_allAlarm";
+				this.dispatchEvent(new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.CUSTNUMQUERY));
+				var param:Object = new Object();
+				custServInfoPager.currentPage = 1;
+				param.curPage_splitPage = String(custServInfoPager.currentPage);
+				param.num_splitPage = String(custServInfoPager.pageSize);
+				var evt:RealMonitorCustListGroupEvent = new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.QUERYALLCUST);
+				evt.param = param;
+				this.dispatchEvent(evt);
+				rbEnable(false);
+			}
+			
+			protected function alarmRB_clickHandler(event:MouseEvent):void
+			{
+				this.currentState = "state_alarm";
+				this.dispatchEvent(new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.CUSTNUMQUERY));
+//				this.dispatchEvent(new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.QUERYALARMCUST));
+				var param:Object = new Object();
+				custServInfoPager.currentPage = 1;
+				param.curPage_splitPage = String(custServInfoPager.currentPage);
+				param.num_splitPage = String(custServInfoPager.pageSize);
+				var evt:RealMonitorCustListGroupEvent = new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.QUERYALARMCUST);
+				evt.param = param;
+				this.dispatchEvent(evt);
+				rbEnable(false);
+			}
+			
+			protected function custServInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object=custServInfoDG.dataProvider[event.rowIndex];
+				var evt:RealMonitorCustListGroupEvent = new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.CUSTSELECTED);
+				evt.param = data.cust_no;
+				this.dispatchEvent(evt);
+			}
+			
+			protected function custServInfoPager_pageChangeHandler(event:PagerEvent):void
+			{
+				var param:Object = new Object();
+				param.curPage_splitPage = String(custServInfoPager.currentPage);
+				param.num_splitPage = String(custServInfoPager.pageSize);
+				var evt:RealMonitorCustListGroupEvent;
+				if(this.currentState == "state_alarm"){
+//					custServInfoDG.dataProvider = getDataList();
+					evt = new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.QUERYALARMCUST);
+					evt.param = param;
+					this.dispatchEvent(evt);
+				}else{
+					evt = new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.QUERYALLCUST);
+					evt.param = param;
+					this.dispatchEvent(evt);
+					rbEnable(false);
+				}
+			}
+			
+			private function rbEnable(flag:Boolean):void{
+				alarmRB.enabled=flag;
+				allAlarmRB.enabled=flag;
+			}
+			
+			private function alarmLevelSort(obj1:Object,obj2:Object):int{
+				if(int(obj1["alarm_level_num"])>int(obj2["alarm_level_num"])){
+					return -1;
+				}else if(int(obj1["alarm_level_num"])<int(obj2["alarm_level_num"])){
+					return 1;
+				}
+				return 0;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup width="100%" horizontalAlign="right" verticalAlign="middle">
+		<s:Label text="影响用户数：{alarmNum}/总用户数：{custNum}" paddingRight="10"/>
+		<s:RadioButton label="告警"
+					   selected="true"
+					   id="alarmRB"
+					   groupName="alarmType"
+					   click="alarmRB_clickHandler(event)"
+					   buttonMode="true"/>
+		<s:RadioButton label="全部"
+					   id="allAlarmRB"
+					   groupName="alarmType"
+					   click="allAlarmRB_clickHandler(event)"
+					   buttonMode="true"/>
+	</s:HGroup>
+	<s:VGroup width="100%" height="100%">
+		<!--<s:Scroller width="100%" height="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+			<s:Group>-->
+				<mx:AdvancedDataGrid id="custServInfoDG"
+									 width="100%" height="100%"
+									 rowCount="13"
+									 columnWidth="200"
+									 itemClick="custServInfoDG_itemClickHandler(event)">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn width="250"
+												   dataField="cust_name"
+												   headerText="客户名称"/>
+						<mx:AdvancedDataGridColumn dataField="city_name"
+												   headerText="所属区域"/>
+						<mx:AdvancedDataGridColumn dataField="comm_name"
+												   headerText="级别"/>
+						<mx:AdvancedDataGridColumn width="250"
+												   dataField="bussType"
+												   headerText="业务"/>
+						<mx:AdvancedDataGridColumn dataField="num"
+												   itemRenderer="com.linkage.module.cms.groupclientNew.renderer.CustAlarmGroupWarnRenderer"
+												   headerText="告警数" 
+												   sortCompareFunction="alarmLevelSort"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			<!--</s:Group>
+		</s:Scroller>-->
+		<s:HGroup width="100%"
+				  id="custServPageGroup"
+				  horizontalAlign="right">
+			<pager:Pager id="custServInfoPager" totalRowCount.state_alarm="{alarmNum}" totalRowCount.state_allAlarm="{custNum}"
+						 pageSize="50"
+						 pageChange="custServInfoPager_pageChangeHandler(event)">
+			</pager:Pager>
+		</s:HGroup>
+	</s:VGroup>
+	
+	
+</s:Group>

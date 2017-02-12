@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					minimizable="false"
+					maximizable="false"
+					dragable="true"
+					styleName="windowScene"
+					width="800"
+					height="450"
+					close="{PopUpManager.removePopUp(this);this.visible = false;}"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.importantKPI.ImportantKPIPM;
+			import com.linkage.module.cms.gsscene.view.components.importantKPI.event.ImportantKPIEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			[Bindable]
+			public var cityChartLabel:String;
+			[Bindable]
+			public var historyChartLabel:String;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneIntroKPIDetail);
+			
+			public var loadManager:LoadManager = new LoadManager(this);
+			
+			private var initFlag:Boolean = true;//是否为首次加载
+			
+			[Bindable]
+			private var thresholdFlag:Boolean = false;//是否显示门限
+			//当前数据结构
+			/**
+			 * 
+			 **/
+			private var _data:Object = {};
+			public function set data(value:Object):void
+			{
+				_data = value;
+				doChangeDatas();
+			}
+			private function doChangeDatas():void{
+				log.info("加载数据data");
+				log.info(_data);
+				if(initFlag){
+					this.cityChartBuildChart();
+					this.historyChartBuildChart();
+					initFlag = false;
+				}
+				cityChart.chartData(_data.cityDatas, false);
+				historyChart.chartData(_data.historyDatas, false);
+			}
+			/**
+			 * 
+			 * 创建图形。
+			 **/ 
+			private var historyHorizontalLines:ArrayCollection;
+			private var cityHorizontalLines:ArrayCollection;
+			public function historyChartBuildChart():void
+			{
+				historyChart.xAxisFontSize = 13;
+				historyChart.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				var sp1:SerialParam = new SerialParam("kpiValue", historyChartLabel);
+				sp1.chartType = "line";
+				sp1.lineType = "segment";
+				series.addItem(sp1);
+				
+				historyChart.series = series;
+				historyChart.canDropLabels = true;
+				historyChart.xAxisFontSize = 12;
+				
+				var chartparam:ChartParam = new ChartParam();
+				chartparam.labelStep = 1;
+				chartparam.xAxisProperty = 'time';
+				historyHorizontalLines = new ArrayCollection();
+				if(historyThreshold.selected&&null!=_data.historyThreshold){
+					for each(var hdata:Object in _data.historyThreshold)
+					{
+						var hl:HorizontalLine = new HorizontalLine();
+						hl.yValue = Number(hdata.value);
+						hl.lineColor = uint(hdata.color);
+						hl.lineThickness = 1;
+						hl.dashedLine = false;
+						historyHorizontalLines.addItem(hl);
+					}
+					chartparam.horizontalLines = historyHorizontalLines;
+				}
+				historyChart.chartParam = chartparam;
+			}
+			
+			
+			
+			
+			public function cityChartBuildChart():void
+			{
+				cityChart.xAxisFontSize = 13;
+				cityChart.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				var sp1:SerialParam = new SerialParam("value", cityChartLabel);
+				sp1.chartType = "column";
+				series.addItem(sp1);
+				
+				cityChart.series = series;
+				cityChart.canDropLabels = true;
+				cityChart.xAxisFontSize = 12;
+				var chartparam:ChartParam = new ChartParam();
+				chartparam.labelStep = 1;
+				chartparam.xAxisProperty = 'city';
+				chartparam.use3DColumn = true;
+				//设置门限
+				if(topnThreshold.selected&&null!=_data.cityThreshold){
+					cityHorizontalLines = new ArrayCollection();
+					for each(var hdata:Object in _data.cityThreshold)
+					{
+						var hl:HorizontalLine = new HorizontalLine();
+						hl.yValue = Number(hdata.value);
+						hl.lineColor = uint(hdata.color);
+						hl.lineThickness = 1;
+						hl.dashedLine = false;
+						cityHorizontalLines.addItem(hl);
+					}
+					chartparam.horizontalLines = cityHorizontalLines;
+				}
+				cityChart.chartParam = chartparam;
+			}
+			public function showHistoryChartThreshold():void
+			{
+				historyChartBuildChart();
+				historyChart.chartData(_data.historyDatas, true);
+			}
+			public function showCityChartThreshold():void
+			{
+				cityChartBuildChart();
+				cityChart.chartData(_data.cityDatas, true);
+			}
+			
+			[MessageHandler(selector = "LOAD_SCENE_PERSONS_DATA_SUCC")]
+			[MessageHandler(selector = "LOAD_SCENE_TRAFFIC_DATA_SUCC")]
+			public function sceneIntroQuitLoadData(event:SceneIntroEvent):void{
+				log.info("加载数据data成功");
+				loadManager.hideLoading();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" verticalAlign="middle" horizontalAlign="center" gap="10">
+		<s:Group width="96%" height="50%">
+			<s:Rect alpha="1" x="0" y="0" width="100%" height="100%" 
+					radiusX="10" radiusY="10">
+				<s:fill>
+					<s:LinearGradient>
+						<s:GradientEntry color="0XBDCEE0" alpha="0.5"/> 
+					</s:LinearGradient>
+				</s:fill>
+			</s:Rect> 
+			<s:Group width="100%" height="30" visible="{thresholdFlag}" includeInLayout="{thresholdFlag}">
+				<s:Label id="historyTitle" text="历史趋势" left="10" verticalCenter="0"/>
+				<s:CheckBox label="门限"
+							styleName="label"
+							right="30"
+							id="historyThreshold"
+							verticalCenter="0"
+							click="showHistoryChartThreshold()"/>
+			</s:Group>
+			<ailk_chart:PrettyChart top="30"
+									id="historyChart"
+									showYaxisTitle="true"
+									showXaxisTitle="true"
+									horizontalCenter="0"
+									width="100%"
+									height="100%"/>
+		</s:Group>
+		<s:Group width="96%" height="50%">
+			<s:Rect alpha="1" x="0" y="0" width="100%" height="100%" 
+					radiusX="10" radiusY="10">
+				<s:fill>
+					<s:LinearGradient>
+						<s:GradientEntry color="0XBDCEE0" alpha="0.5"/> 
+					</s:LinearGradient>
+				</s:fill>
+			</s:Rect> 
+			<s:Group width="100%" height="30"  visible="{thresholdFlag}" includeInLayout="{thresholdFlag}">
+				<s:Label id="topnTitle" text="TOPN" left="10" verticalCenter="0"/>
+				<s:CheckBox label="门限" 
+							id="topnThreshold"
+							styleName="label"
+							right="30" verticalCenter="0"
+							click="showCityChartThreshold()"/>
+			</s:Group>
+			<ailk_chart:PrettyChart top="30"
+									id="cityChart"
+									showYaxisTitle="true"
+									showXaxisTitle="true"
+									horizontalCenter="0"
+									width="100%"
+									height="100%"/>
+		</s:Group>
+	</s:VGroup>
+</ailk_compts:Window>

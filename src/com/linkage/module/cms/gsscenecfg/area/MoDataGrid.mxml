@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    width="100%"
+                    height="100%"
+                    creationComplete="creationCompleteHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import com.linkage.module.cms.gsscenecfg.common.DeleteDGIR;
+            import com.linkage.module.cms.gsscenecfg.common.LEvent;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+            import mx.events.FlexEvent;
+
+            private var opCol:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+            private var typeCol:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+            private var nameCol:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+
+            private var itemRenderer:IFactory = new ClassFactory(DeleteDGIR);
+
+            private var ac:ArrayCollection = new ArrayCollection;
+
+            public var deleteCallback:Function;
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                dg.addEventListener(LEvent.DELETECLICKED, dealDelete);
+
+                dealCols();
+            }
+
+            private function dealCols():void
+            {
+                opCol.width = 60;
+                opCol.headerText = "删除";
+                opCol.itemRenderer = itemRenderer;
+
+                if (label == "应急资源")
+                {
+                    typeCol.dataField = "type_name";
+                    typeCol.headerText = "类型";
+                    nameCol.dataField = "name";
+                    nameCol.headerText = "名称";
+                    dg.columns = [opCol, typeCol, nameCol];
+                }
+                else
+                {
+                    nameCol.dataField = "mo_name";
+                    nameCol.headerText = "名称";
+                    nameCol.width = 300;
+                    dg.columns = [opCol, nameCol];
+                }
+
+                dg.validateNow();
+            }
+
+            private function dealDelete(e:LEvent):void
+            {
+                ac.removeItemAt(ac.getItemIndex(e.dt));
+                deleteCallback.call(this, e.dt);
+            }
+
+            public function setData(t:String, data:Object):void
+            {
+                label = t;
+
+                ac = data as ArrayCollection;
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <mx:AdvancedDataGrid id="dg"
+                         dataProvider="{ac}"
+                         draggableColumns="false"
+                         sortableColumns="false"
+                         textAlign="left"
+                         styleName="adg"
+                         width="100%"
+                         height="100%"/>
+</s:NavigatorContent>

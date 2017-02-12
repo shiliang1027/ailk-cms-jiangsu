@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  width="380" closable="false" maximizable="false" minimizable="false">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			
+			//信息提示框 数据表格列配置
+			private var alarmColumnArrc:Array = ['专业,专业', '一级告警,一级告警', '二级告警,二级告警', '三级告警,三级告警'];
+			private var perfColumnArrc:Array = ['指标名称,指标名称', '指标数据,指标数据', '指标级别,指标级别'];
+			private var showPerf:Array = ['语音信道溢出率（不含切换）(%)','最坏小区数(个)','GSM话务量(erl)','系统寻呼成功率(%)','互联互通话务量(erl)','互联互通每线话务量(erl)'];
+			
+			public function initData(type:String, obj:Object):void
+			{
+				//初始化列
+				var arr:Array = new Array();
+				if (type == "1")
+				{
+					for each(var col:String in alarmColumnArrc)
+					{
+						var dgCol:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						dgCol.dataField = col.split(",")[1];
+						dgCol.headerText = col.split(",")[0];
+						arr = arr.concat(dgCol);
+					}
+					
+					this.title = "告警统计信息";
+				}
+				else if (type == "7")
+				{
+					for each(var col2:String in perfColumnArrc)
+					{
+						var dgCol2:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						dgCol2.dataField = col2.split(",")[1];
+						dgCol2.headerText = col2.split(",")[0];
+						arr = arr.concat(dgCol2);
+					}
+					
+					this.title = "性能统计信息";
+				}
+				this.msgGrid.columns = arr;
+				
+				var dataArr:Array = new Array();
+				if (type == "7")
+				{
+					for each (var aob:Object in obj["dataList"])
+					{
+						for each (var perf:String in showPerf)
+						{
+							if (aob["指标名称"] == perf)
+							{
+								dataArr.push(aob);
+							}
+						}
+					}
+				}
+				else
+				{
+					for each (var ao:Object in obj["dataList"])
+					{
+						dataArr.push(ao);
+					}
+				}
+				
+				this.msgGrid.dataProvider = dataArr;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:AdvancedDataGrid id="msgGrid" width="100%" sortableColumns="false">
+	</mx:AdvancedDataGrid>
+</panel:Window>

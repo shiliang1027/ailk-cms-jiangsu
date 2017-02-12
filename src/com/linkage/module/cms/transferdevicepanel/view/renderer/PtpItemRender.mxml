@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				autoDrawBackground="false"
+				xmlns:parsley="http://www.spicefactory.org/parsley"
+				xmlns:view="com.linkage.module.cms.transferdevicepanel.view.*">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			import mx.events.FlexEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(PtpItemRender);
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+
+			private function buildItems():void
+			{
+			}
+
+			override public function set data(value:Object):void
+			{
+				super.data=value;
+				try
+				{
+					buildItems();
+				}
+				catch (e:Error)
+				{
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<s:SkinnableContainer>
+		<s:layout>
+			<s:VerticalLayout verticalAlign="middle"
+							  horizontalAlign="center"
+							  gap="5"/>
+		</s:layout>
+		<view:PtpComp data="{data}"/>
+		<s:Label text="{data.ptp_no}"/>
+	</s:SkinnableContainer>
+
+</s:ItemRenderer>

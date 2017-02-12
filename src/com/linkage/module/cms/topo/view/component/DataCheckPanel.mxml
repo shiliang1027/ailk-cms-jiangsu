@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  title="数据稽核"
+			  minHeight="24"
+			  minWidth="600"
+			  width="600"
+			  height="300"
+			  dragable="true"
+			  close="hide()"
+			  maximizable="false"
+			  mouseEnabled="true"
+			  creationComplete="window1_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:HorizontalLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.cms.topo.event.TopoEventTypes;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.XMLListCollection;
+			import mx.controls.dataGridClasses.DataGridItemRenderer;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			// log
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.view.component.DataCheckPanel");
+
+			// 画布
+			[Bindable]
+			private var _topoCanvas:TopoCanvas = null;
+			// CMS数据源
+			private var _cmsDataSource:ICmsDataSource = null;
+			// 远程请求url的上下文
+			private var _urlContext:String = null;
+			// loading
+			private var _loading:ILoadingInfo = null;
+			// 数据列表
+			[Bindable]
+			private var _dataList:XMLListCollection = new XMLListCollection();
+
+			[Bindable]
+			private var _moAName:String = null;
+			[Bindable]
+			private var _moZName:String = null;
+
+			[Bindable]
+			private var _info:String = null;
+			[Bindable]
+			private var _infoVisiable:Boolean = false;
+
+			// 电路id和电路名称的key
+			private static const KEY_CIRCUIT_ID:String = "id";
+			private static const KEY_CIRCUIT_NAME:String = "name";
+			// --------------------- 两个定位的菜单 ------------------
+			// 右键菜单
+			[Bindable]
+			private var _myMenu:ContextMenu = new ContextMenu();
+			// 关联到传输电路的菜单(新)
+			private var _menuItem_toTopo:ContextMenuItem = new ContextMenuItem("关联到传输电路拓扑");
+			// 关联到传输光缆GIS
+			private var _menuItem_toGis:ContextMenuItem = new ContextMenuItem("关联到传输光缆");
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// 初始化菜单
+				_myMenu.hideBuiltInItems();
+				_myMenu.addEventListener(ContextMenuEvent.MENU_SELECT, cMenuSelectHandler, false);
+				// 两个菜单实例
+				_menuItem_toTopo.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, customCMenuItemHandler_toTopo);
+				_menuItem_toGis.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, customCMenuItemHandler_toGis);
+			}
+
+			/**
+			 * 弹出显示面板
+			 */
+			public function show(parent:DisplayObject, modal:Boolean = false):void
+			{
+				PopUpManager.removePopUp(this);
+				PopUpManager.addPopUp(this, parent, modal);
+				PopUpManager.centerPopUp(this);
+			}
+
+			/**
+			 * 隐藏面板
+			 */
+			public function hide():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			/**
+			 * 注入CMS数据源
+			 */
+			public function set dataSourceCms(value:ICmsDataSource):void
+			{
+				_cmsDataSource = value;
+			}
+
+
+			public function set topoCanvas(value:TopoCanvas):void
+			{
+				_topoCanvas = value;
+
+				_loading = LoadingManager.getInstance().loadingInfo;
+			}
+
+
+			/**
+			 * 注入URL上下文
+			 */
+			public function set urlContext(value:String):void
+			{
+				_urlContext = value;
+			}
+
+			/**
+			 * 初始化面板
+			 */
+			public function initPanel(moId1:String, moId2:String, moName1:String, moName2:String):void
+			{
+				// 先清空之前的数据
+				_moAName = null;
+				_moZName = null;
+				_dataList.removeAll();
+				_info = null;
+				_infoVisiable = false;
+				// 开始加载
+				_loading.loadingStart();
+				_cmsDataSource.queryMoTranRelations(moId1, moId2, function(data:XML):void
+					{
+						_moAName = data["@up_name"];
+						_moZName = data["@down_name"];
+
+						_dataList.source = data.child("relation");
+						_dataList.refresh();
+
+						if (StringUtils.isEmpty(_moAName) || StringUtils.isEmpty(_moZName))
+						{
+							showInfo(moName1 + " 与 " + moName2 + " 之间没有关联关系,请核实");
+						}
+
+					}, function():void
+					{
+						_loading.loadingEnd();
+					});
+			}
+
+			private function showInfo(info:String):void
+			{
+				_info = info;
+				_infoVisiable = true;
+			}
+
+			/**
+			 * 右键菜单被触发
+			 * @param event
+			 *
+			 */
+			private function cMenuSelectHandler(event:ContextMenuEvent):void
+			{
+				var renderer:IListItemRenderer = event.mouseTarget as IListItemRenderer;
+				var menuItems:Array = _myMenu.customItems;
+				menuItems.length = 0;
+				if (renderer != null && renderer.data.hasOwnProperty("@" + KEY_CIRCUIT_ID))
+				{
+//					menuItems.push(_menuItem_toTopo);
+					menuItems.push(_menuItem_toGis);
+				}
+			}
+
+			/**
+			 * 定制右键菜单item选中的捕获逻辑 关联到拓扑(新)
+			 * @param event
+			 *
+			 */
+			private function customCMenuItemHandler_toTopo(event:ContextMenuEvent):void
+			{
+				var renderer:IListItemRenderer = event.mouseTarget as IListItemRenderer;
+				if (renderer)
+				{
+					var circId:String = renderer.data["@" + KEY_CIRCUIT_ID];
+					var circCode:String = renderer.data["@" + KEY_CIRCUIT_NAME];
+					loadCircuitTopo(circId, circCode);
+				}
+			}
+
+			/**
+			 * 定制右键菜单item选中的捕获逻辑  关联到gis
+			 * @param event
+			 *
+			 */
+			private function customCMenuItemHandler_toGis(event:ContextMenuEvent):void
+			{
+				var renderer:IListItemRenderer = event.mouseTarget as IListItemRenderer;
+				if (renderer)
+				{
+					var circId:String = renderer.data["@" + KEY_CIRCUIT_ID];
+					var circCode:String = renderer.data["@" + KEY_CIRCUIT_NAME];
+
+					loadOpticGis(circCode);
+				}
+			}
+
+			/**
+			 * 加载具体的电路id对应的电路拓扑
+			 */
+			private function loadCircuitTopo(circId:String, circCode:String):void
+			{
+				var topoName:String = StringUtils.isNullStr(_topoCanvas.topoName) ? Constants.DEFAULT_TOPONAME : _topoCanvas.topoName;
+				log.debug("加载具体的电路拓扑 topoName={0} circId={1} circCode={2}", topoName, circId, circCode);
+				_topoCanvas.loadViewModelTopo("tranCircuitChannelTopoViewModel", "circuit_id:" + circId + "#circuit_code:" + circCode + "#name:" + circCode + "传输通道视图", topoName);
+			}
+
+			/**
+			 * 加载管线GIS
+			 */
+			private function loadOpticGis(circName:String):void
+			{
+				var openUrl:String = _urlContext + "/cms/general/monitor/GeneralMonitorMo.action?type=circuit&moId={'model':'2','circName':'" + circName + "','device':'1'}";
+				log.debug("关联到传输光缆GIS URL: {0}", openUrl);
+				ExternalInterface.call("openUrl(\"" + openUrl + "\")");
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="0">
+		<mx:FormHeading label="综合资源关联关系"/>
+		<mx:Form width="100%">
+			<mx:FormItem label="上联设备">
+				<s:HGroup>
+					<s:Label text="{_moAName}"/>
+					<s:Label text="{_info}"
+							 visible="{_infoVisiable}"
+							 color="0xff0000"/>
+				</s:HGroup>
+			</mx:FormItem>
+			<mx:FormItem label="下联设备">
+				<s:Label text="{_moZName}"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:FormHeading label="传输网关联关系"/>
+		<mx:AdvancedDataGrid dataProvider="{_dataList}"
+							 contextMenu="{_myMenu}"
+							 width="100%">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="电路名称"
+										   dataField="@name"
+										   width="0.5"/>
+				<mx:AdvancedDataGridColumn headerText="A端业务网元"
+										   dataField="@serv_a_name"
+										   width="0.25"/>
+				<mx:AdvancedDataGridColumn headerText="Z端业务网元"
+										   dataField="@serv_z_name"
+										   width="0.25"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+</panel:Window>

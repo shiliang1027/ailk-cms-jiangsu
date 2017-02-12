@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					height="100%">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.roamtopic.RoamTopicModuleContext;
+			import com.linkage.module.cms.roamtopic.event.RoamTopicEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			
+			private var log:ILogger=Log.getLoggerByClass(RoamTopicDataGrid);
+			[Inject("roamTopicPM")]
+			[Bindable]
+			public var pm:RoamTopicPM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			//动态生成表格
+			[MessageHandler(selector="REFRESH_ROMTOPIC")]
+			public function refreshRoamDG(event:RoamTopicEvent):void
+			{
+				
+				log.info("REFRESH_ROMTOPIC");
+				roamTopicDG.columns = [];
+				var viewPerfArr:Array = new Array();
+				
+				var roamDGConfig:ArrayCollection = pm.dm.roamDGConfig;
+				
+				var lengthTotal:Number = 0;
+				for(var k:int=0;k<roamDGConfig.length;k++){
+					lengthTotal +=  new String(roamDGConfig[k].headerText).length;
+				}
+				for(var i:int=0;i<roamDGConfig.length;i++)
+				{
+					var dc:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dc.headerText = roamDGConfig[i].headerText;
+					dc.dataField = roamDGConfig[i].dataField;
+					dc.headerWordWrap = true;
+					dc.draggable = false;
+					dc.width = (dc.headerText.length == 2 ? 3.5:dc.headerText.length);
+//					dc.width = (dc.headerText.length == 4 ? 4.3:dc.headerText.length);
+					dc.width = (dc.headerText.length == 6 ? 5.1:dc.headerText.length);
+//					dc.width = (dc.headerText.length == 5 ? 4.5:dc.headerText.length);
+					if("huanbi" == dc.dataField){
+						dc.itemRenderer =  new ClassFactory(UpDownRoamTopicItemRenderer);
+					}
+					viewPerfArr.push(dc);
+				}
+				roamTopicDG.columns = viewPerfArr;
+				
+				log.info("2~~"+pm.dm.type);
+				if(pm.dm.roamTopicType == "1"  || pm.dm.type == "4"){
+					if(pm.dm.selectIndex == 0){
+						log.info("3~~");
+						roamTopicDG.dataProvider = pm.dm.inDatas;
+					}else{
+						log.info("4~~");
+						roamTopicDG.dataProvider = pm.dm.outDatas;
+					}
+				}else{
+					roamTopicDG.dataProvider = pm.dm.roamTopicDG;
+				}
+				roamTopicDG.showDataTips = true;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<mx:AdvancedDataGrid id="roamTopicDG" width="100%" styleName="sceneDG" rowCount="21"
+						 height="100%" headerSortSeparatorSkin="mx.skins.ProgrammaticSkin"
+						 resizableColumns="true" sortableColumns="false" sortExpertMode="true">
+		<mx:columns>
+			
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</s:Group>

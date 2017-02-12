@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		xmlns:mx="library://ns.adobe.com/flex/mx"
+		width="100%" 
+		height="100%" 
+		label="性能指标" 
+		xmlns:fusioncharts="com.linkage.common.fusioncharts.*" 
+		creationComplete="runMonitorPerfComp_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="serverQuery", type="com.linkage.module.cms.groupclientNew.event.RealMonitorPerfCompEvent")]
+		[Event(name="serverTargetQuery", type="com.linkage.module.cms.groupclientNew.event.RealMonitorPerfCompEvent")]
+		[Event(name="perfQuery", type="com.linkage.module.cms.groupclientNew.event.RealMonitorPerfCompEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.groupclientNew.control.GroupMonitorModuleControl_TREE;
+			import com.linkage.module.cms.groupclientNew.event.PerfDataShowCompEvent;
+			import com.linkage.module.cms.groupclientNew.event.RealMonitorPerfCompEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.CheckBox;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientNew.control.GroupMonitorModuleControl_TREE");
+			
+			//业务类型数据集(供性能查询)
+			[Bindable]
+			private var servTypeList:ArrayCollection;
+			//性能查询指标数据集
+			private var realServerTargetData:ArrayCollection=new ArrayCollection();
+			
+			private var df:DateFormatter=new DateFormatter();
+			
+			
+			private var realServTargetSelectedCompArray:Array;
+			private var perfDataShowComps:Object;
+			private var realCheckBoxArray:Object;
+			private var realSelectArray:Array;
+			private var realServTargetCompArray:Array;
+			private var perfTypeSelectArray:Array;
+			protected function runMonitorPerfComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(RealMonitorPerfCompEvent.SERVERCHANGE,onServerChange);
+				this.addEventListener(RealMonitorPerfCompEvent.SERVERTARGETCHANGE,onServerTargetChange);
+				this.addEventListener(RealMonitorPerfCompEvent.PERFDATACHANGE,onPerfDataChange);
+				var date:Date=new Date();
+				df.formatString="YYYY-MM-DD";
+				prefStat_endTime.text=df.format(date);
+				prefStat_endTime.selectedDate=date;
+				date.setDate(date.getDate() - 1);
+				prefStat_startTime.text=df.format(date);
+				prefStat_startTime.selectedDate=date;
+				
+				this.dispatchEvent(new RealMonitorPerfCompEvent(RealMonitorPerfCompEvent.SERVERQUERY));
+			}
+			
+			private function onServerChange(event:RealMonitorPerfCompEvent):void{
+				servTypeList = new ArrayCollection();
+				for each(var data:Object in event.param){
+					servTypeList.addItem(data);
+					log.info(servTypeList);
+				}
+				log.info("servTypeList.l="+servTypeList.length);
+				if(servTypeList.length>0){
+					var param:Object = new Object;
+					param.servTypeId = String(servTypeList[0].serv_type_id);
+					log.info("param.servTypeId ="+param.servTypeId);
+					var evt:RealMonitorPerfCompEvent = new RealMonitorPerfCompEvent(RealMonitorPerfCompEvent.SERVERTARGETQUERY);
+					evt.param = param;
+					this.dispatchEvent(evt);
+				}else{
+					log.info(".......");
+				}
+				
+			}
+			
+			private function onServerTargetChange(event:RealMonitorPerfCompEvent):void{
+				var result:Object = event.param;
+				realServTargetCompArray = new Array;
+				realServerTargetSelectGroup.removeAllElements();
+				realPrefSelectGroup.removeAllElements();
+				perfDataShowGroup.removeAllElements();
+				realCheckBoxArray=null;
+				realSelectArray=null;
+//				log.info("result.l="+result.length);
+//				log.info(result);
+				if(result && result.length==0){
+					var promp:Label = new Label();
+					promp.text = "无指标";
+					realServerTargetSelectGroup.addElement(promp);
+					selectBtnGroup.visible=false;
+					return;
+				}
+					var bussType:String = String(servTypeList[realServTypeBar.selectedIndex].serv_type_id);
+					for each(var data:Object in result){
+						var servTargetComp:PerServerTargetSelectComp = new PerServerTargetSelectComp();
+						data.bussType = bussType;
+						servTargetComp.serverTarget = data;
+						realServerTargetSelectGroup.addElement(servTargetComp);
+						realServTargetCompArray.push(servTargetComp);
+				}
+				/* var bussType:String = String(servTypeList[realServTypeBar.selectedIndex].serv_type_id);
+				for each(var data:Object in result){
+					var servTargetComp:PerServerTargetSelectComp = new PerServerTargetSelectComp();
+					data.bussType = bussType;
+					servTargetComp.serverTarget = data;
+					realServerTargetSelectGroup.addElement(servTargetComp);
+					realServTargetCompArray.push(servTargetComp);
+				} */
+				selectBtnGroup.visible=true;
+			}
+			
+			
+			private function onPerfDataChange(event:RealMonitorPerfCompEvent):void{
+				var result:Object = event.param;
+				log.info(result);
+				if(result.perfTypeId){
+					if(!realCheckBoxArray){
+						realCheckBoxArray = new Object;
+						realSelectArray = new Array;
+						var length:Number=0;
+						for(var key:String in result){
+							if(key == "avg" || key == "total" || key == "experience" || key == "perfTypeId"){
+								continue;
+							}
+							var data:Object = new Object;
+							data.label = String(servTypeList[realServTypeBar.selectedIndex].cust_serv_type_name)+key;
+							var serverProdSelectComp:ServerProdSelectComp = new ServerProdSelectComp();
+							serverProdSelectComp.data = data;
+							serverProdSelectComp.checkbox.addEventListener(MouseEvent.CLICK,onRealCheckBoxClick);
+							realCheckBoxArray[key]=serverProdSelectComp;
+							realPrefSelectGroup.addElement(serverProdSelectComp);
+							realSelectArray.push(key);
+							length++;
+						}
+						
+						if(length>1){
+							var data:Object = new Object;
+							data.label = String(servTypeList[realServTypeBar.selectedIndex].cust_serv_type_name)+"汇总";
+							var serverProdSelectComp:ServerProdSelectComp = new ServerProdSelectComp();
+							serverProdSelectComp.data = data;
+							serverProdSelectComp.checkbox.addEventListener(MouseEvent.CLICK,onRealCheckBoxClick);
+							realCheckBoxArray["汇总"]=serverProdSelectComp;
+							realPrefSelectGroup.addElement(serverProdSelectComp);
+							realSelectArray.push("汇总");
+						}
+					}
+					result.realSelectArray=realSelectArray;
+					var perfDataShow:PerfDataShowComp = perfDataShowComps[result.perfTypeId];
+					var evt:PerfDataShowCompEvent = new PerfDataShowCompEvent(PerfDataShowCompEvent.DATACHANGE);
+					evt.param = result;
+					perfDataShow.dispatchEvent(evt);
+				}
+			}
+			
+			private var isRealCheckClick:Boolean = false;
+			private var i:Number=0;
+			private function onRealCheckBoxClick(event:MouseEvent):void{
+				isRealCheckClick=true;
+				realSelectArray = new Array;
+				for(var key:String in realCheckBoxArray){
+					if(ServerProdSelectComp(realCheckBoxArray[key]).checkbox.selected){
+						realSelectArray.push(key);
+					}
+				}
+				perfTypeChange();
+			}
+			
+			protected function realServTypeBar_changeHandler(event:IndexChangeEvent):void
+			{
+				var param:Object = new Object;
+				param.servTypeId = String(servTypeList[event.newIndex].serv_type_id);
+				var evt:RealMonitorPerfCompEvent = new RealMonitorPerfCompEvent(RealMonitorPerfCompEvent.SERVERTARGETQUERY);
+				evt.param = param;
+				this.dispatchEvent(evt);
+				realPrefSelectGroup.removeAllElements();
+				perfDataShowGroup.removeAllElements();
+				realCheckBoxArray=null;
+				realSelectArray=null;
+			}
+			
+			protected function realPrefQuery_clickHandler(event:MouseEvent):void
+			{
+				var hasSelect:Boolean = false;
+				if(prefStat_startTime.selectedDate.getTime()>prefStat_endTime.selectedDate.getTime()){
+					Alert.show("开始时间不能大于结束时间","提示");
+					return;
+				}
+				perfDataShowGroup.removeAllElements();
+				realServTargetSelectedCompArray = new Array;
+				perfDataShowComps=new Object;
+				perfTypeSelectArray = new Array;
+				if(realServTargetCompArray && realServTargetCompArray.length>0){
+					for each(var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray){
+						if(servTargetComp.checkbox.selected){
+							hasSelect=true;
+							realServTargetSelectedCompArray.push(servTargetComp);
+						}
+					}
+					if(!hasSelect){
+						Alert.show("请选择指标","提示");
+						return;
+					}
+					sendQuery();
+				}
+				
+			}
+			
+			private function sendQuery():void{
+				var servTargetSelectedComp:PerServerTargetSelectComp = realServTargetSelectedCompArray.shift();
+				var param:Object = new Object();
+				param.startTime=df.format(prefStat_startTime.selectedDate);
+				param.endTime=df.format(prefStat_endTime.selectedDate);
+				param.bussType = servTargetSelectedComp.serverTarget.bussType;
+				param.perfTypeId = servTargetSelectedComp.serverTarget.perfTypeId;
+				param.title = servTargetSelectedComp.serverTarget.showName;
+				param.perf_algorithm = servTargetSelectedComp.serverTarget.perf_algorithm;
+				param.cust_serv_type_name = String(servTypeList[realServTypeBar.selectedIndex].cust_serv_type_name);
+				var perfDataShow:PerfDataShowComp = new PerfDataShowComp();
+				perfDataShow.param = param;
+				perfDataShow.addEventListener(PerfDataShowCompEvent.DATAQUERY,onPerfDataQuery);
+				perfDataShow.addEventListener(PerfDataShowCompEvent.COMPLETE,onPerfDataShowComplete);
+				perfDataShowGroup.addElement(perfDataShow);
+				perfDataShowComps[param.perfTypeId]=perfDataShow;
+				perfTypeSelectArray.push(param.perfTypeId);
+			}
+			
+			private function onPerfDataQuery(event:PerfDataShowCompEvent):void{
+				var evt:RealMonitorPerfCompEvent = new RealMonitorPerfCompEvent(RealMonitorPerfCompEvent.PERFQUERY);
+				evt.param = event.param;
+				this.dispatchEvent(evt);
+			}
+			
+			private function onPerfDataShowComplete(event:PerfDataShowCompEvent):void{
+				if(isRealCheckClick){
+					setTimeout(perfTypeChange,Number(event.param));
+				}else if(realServTargetSelectedCompArray.length>0){
+					setTimeout(sendQuery,Number(event.param));
+				}
+			}
+			
+			private function perfTypeChange():void{
+				var perfDataShowComp:PerfDataShowComp = perfDataShowComps[perfTypeSelectArray[i]];
+				i++;
+				if(i==perfTypeSelectArray.length){
+					isRealCheckClick=false;
+					i=0;
+				}
+				var evt:PerfDataShowCompEvent = new PerfDataShowCompEvent(PerfDataShowCompEvent.SELECTCHANGE);
+				evt.param = realSelectArray;
+				perfDataShowComp.dispatchEvent(evt);
+			}
+			
+			protected function selectAllBtn_clickHandler(event:MouseEvent):void
+			{
+				for each(var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray){
+					servTargetComp.checkbox.selected=true;
+				}
+			}
+
+			protected function selectOtherBtn_clickHandler(event:MouseEvent):void
+			{
+				for each(var servTargetComp:PerServerTargetSelectComp in realServTargetCompArray){
+					servTargetComp.checkbox.selected = !servTargetComp.checkbox.selected;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:Form width="100%"
+			 id="prefForm">
+		<s:HGroup width="100%">
+			<mx:FormItem label="开始时间：">
+				<mx:DateField id="prefStat_startTime"
+							  width="120"
+							  formatString="YYYY-MM-DD"/>
+			</mx:FormItem>
+			<mx:FormItem label="结束时间：">
+				<mx:DateField id="prefStat_endTime"
+							  width="120"
+							  formatString="YYYY-MM-DD"/>
+			</mx:FormItem>
+		</s:HGroup>
+	</mx:Form>
+	<s:Group width="100%" height="100%">
+		<mx:ViewStack width="100%"
+					  height="100%"
+					  top="23"
+					  styleName="commonViewStack">
+			<s:NavigatorContent width="100%"
+								height="100%">
+				<s:Scroller width="100%"
+							height="100%"
+							horizontalScrollPolicy="auto"
+							verticalScrollPolicy="auto">
+					<s:VGroup width="100%" paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="10">
+						<s:TileGroup width="100%" rowHeight="20" verticalGap="1" horizontalGap="1" id="realServerTargetSelectGroup" requestedColumnCount="6" horizontalAlign="left" columnAlign="justifyUsingGap">
+						</s:TileGroup>
+						<s:HGroup id="selectBtnGroup" visible="false" width="100%" horizontalAlign="right">
+							<s:Button label="全选"
+									  id="selectAllBtn"
+									  buttonMode="true"
+									  click="selectAllBtn_clickHandler(event)"/>
+							<s:Button label="反选"
+									  id="selectOtherBtn"
+									  buttonMode="true"
+									  click="selectOtherBtn_clickHandler(event)"/>
+							<s:Button label="查询"
+									  id="realPrefQuery"
+									  buttonMode="true"
+									  click="realPrefQuery_clickHandler(event)"/>
+						</s:HGroup>
+						
+						<s:TileGroup width="100%" rowHeight="20" verticalGap="1" horizontalGap="1" id="realPrefSelectGroup" requestedColumnCount="6" horizontalAlign="left" columnAlign="justifyUsingGap">
+						</s:TileGroup>
+						<s:TileGroup width="100%" height="100%" columnAlign="justifyUsingWidth" columnWidth="200" verticalGap="1" horizontalGap="1" id="perfDataShowGroup" requestedColumnCount="2" horizontalAlign="left">
+						</s:TileGroup>
+						<!--<s:VGroup width="100%" id="perfDataShowGroup">
+							
+						</s:VGroup>-->
+					</s:VGroup>
+				</s:Scroller>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+		<s:TabBar dataProvider="{servTypeList}"
+				  id="realServTypeBar"
+				  labelField="cust_serv_type_name"
+				  styleName="commonTabBar"
+				  buttonMode="true"
+				  change="realServTypeBar_changeHandler(event)"/>
+	</s:Group>
+</mx:VBox>

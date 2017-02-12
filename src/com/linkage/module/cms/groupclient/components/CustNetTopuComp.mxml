@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="集客网络拓扑"
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 creationComplete="vbox1_creationCompleteHandler(event)">
+	
+	<!--
+		 ***************************************
+		 This is Content
+		 @author wuchao (Ailk No.)
+		 @version 1.0
+		 @date 2013-6-3
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Metadata>
+		[Event(name="initCust",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+		[Event(name="saveEditData",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+		[Event(name="exportTopo",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+	</fx:Metadata>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclient.event.HealthInfoCompEvent;
+			import com.linkage.module.cms.groupclient.renderer.ADChangeDataRenderer;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.controls.Text;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.validators.NumberValidator;
+			
+			import spark.events.TextOperationEvent;
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.groupclient.components.CustNetTopuComp");
+
+//			[Bindable]
+//			private var anyDataList:ArrayCollection=new ArrayCollection([{"custServType": "集团短信", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "集团GPRS", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "行业应用", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "语音专线/政企固化", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "移动400", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "数据专线（长途）", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "数据专线（本地）", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}, {"custServType": "互联网专线", "servCount": "23", "bandWidth": "23", "ydServCoun": "23", "ydIsSelfUse": "23", "ydBandWidth": "23", "dxServCoun": "12", "dxBandWidth": "45", "ltServCoun": "12", "ltBandWidth": "45", "othServCoun": "12", "othBandWidth": "45"}]);
+		
+			[Bindable]
+			private var changeData:Object = {};
+			[Bindable]
+			var columDataField:String = null;
+			[Bindable]
+			var columDataId:String = null;
+			[Bindable]
+			var rowCount:int = 0;
+			[Bindable]
+			var isEditOrAdd:String = "";
+			[Bindable]
+			var cust_id:String = "";
+			[Bindable]
+			private var anyDataList:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			public var myDP:ArrayCollection = new ArrayCollection(
+				[ {name:"是", value:"是"},
+				  {name:"否", value:"否"} ]);
+			
+			[Bindable]
+			private var groupClientHealthList:ArrayCollection=new ArrayCollection([{"type": "资源健康表", "healthRate":" " , "healthGrade":" "}, {"type": "设备健康表", "healthRate":" " , "healthGrade":" "},{"type": "业务健康表", "healthRate":" " , "healthGrade":" "}]);
+		
+			
+			protected function vbox1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(HealthInfoCompEvent.CUSTNETTOPODATA,onDataChange);
+				this.addEventListener(HealthInfoCompEvent.ISSAVESUC,onIsSUC);
+				this.addEventListener(HealthInfoCompEvent.REFRESH, onRefresh);
+			}
+			
+			private function onRefresh(event:HealthInfoCompEvent):void
+			{
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.INITCUST));
+			}
+			
+			private function onDataChange(event:HealthInfoCompEvent):void
+			{
+//				log.info("onDataChange 集客网络拓扑");
+//				log.info(event.param);
+//				anyDataDG.dataProvider = event.param;
+				anyDataList.removeAll();
+				anyDataList.addAll(event.param.list as IList);
+				anyDataList.refresh();
+				anyDataDG.dataProvider = anyDataList;
+//				anyDataList = event.param;
+			}
+			private function onIsSUC(event:HealthInfoCompEvent):void
+			{
+				log.info("onDataChange   onIsSUC");
+				log.info(event.param);
+				
+				if(event.param == "no"){
+					Alert.show("保存失败","提示");
+					
+				}else if(event.param == "yes"){
+					Alert.show("保存成功","提示");
+				}
+				else if(event.param == "repeat"){
+					Alert.show("数据类型已存在","提示");
+				}
+				
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.INITCUST));
+			}
+			protected function editDG_clickHandler(event:MouseEvent):void
+			{
+				isEditOrAdd = "edit";
+				doClear();
+			}
+			
+			protected function saveDG_clickHandler():void
+			{
+//				if(typename.text == null || typename.text =="" ||ydServCounInput.text == null || ydServCounInput.text == "" || ydBandWidthInput.text == null || ydBandWidthInput.text == "" || dxServCounInput.text == null || dxServCounInput.text == "" || dxBandWidthInput.text == null || dxBandWidthInput.text == "" || ltServCounInput.text == null || ltServCounInput.text == "" || ltBandWidthInput.text == null || ltBandWidthInput.text == "" || othServCounInput.text == null || othServCounInput.text == "" || othBandWidthInput.text == null || othBandWidthInput.text == "")
+				if(typename.text == null || typename.text =="" ||ydServCounInput.text == null || ydServCounInput.text == "" || ydBandWidthInput.text == null || ydBandWidthInput.text == "")
+				{
+					Alert.show("输入框值不能为空！");
+				}
+				else
+				{
+					log.info("saveDG_clickHandler typename.text="+typename.text);
+					
+					changeData['cust_id'] = cust_id;
+					changeData['type'] = typename.text;
+					changeData['business_cmcc'] = ydServCounInput.text;
+					changeData['isPrimary'] = ydIsSelfUseDropDownList.selectedItem["name"];
+					changeData['bandwidth_cmcc'] = ydBandWidthInput.text;
+					changeData['bandwidth_cu'] = ltBandWidthInput.text;
+					changeData['business_cu'] = ltServCounInput.text;
+					changeData['bandwidth_ct'] = dxBandWidthInput.text;
+					changeData['business_ct'] = dxServCounInput.text;
+					changeData['bandwidth_other'] = othBandWidthInput.text;
+					changeData['business_other'] = othServCounInput.text;
+					
+					log.info("changeData");
+					log.info(changeData);
+					
+					save(changeData);		
+				}
+			}
+			
+			protected function save(data:Object):void
+			{
+				var param:Object = new Object();
+				param.List = data;
+				param.isEditOrAdd = isEditOrAdd;
+				
+				changeDataWin.visible = false;
+				changeDataWin.includeInLayout = false;
+				
+				var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.SAVEEDITDATA);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			protected function anyDataDG_itemClickHandler(event:ListEvent):void
+			{
+					rowCount=event.rowIndex;
+					changeData=anyDataDG.dataProvider[event.rowIndex];
+					columDataField=String((anyDataDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+					if(isEditOrAdd == "edit")
+					{
+						typename.editable = false;
+						PopUpManager.addPopUp(changeDataWin, this.parent as DisplayObject);
+						PopUpManager.centerPopUp(changeDataWin);
+						changeDataWin.visible = true;
+						changeDataWin.includeInLayout = true;
+						
+						cust_id = anyDataDG.selectedItem['cust_id'];
+						typename.text = anyDataDG.selectedItem['type'];
+						 if(anyDataDG.selectedItem['isPrimary'] == "是")
+						{
+							ydIsSelfUseDropDownList.selectedIndex = 0;
+						}else if(anyDataDG.selectedItem['isPrimary'] == "否")
+						{
+							ydIsSelfUseDropDownList.selectedIndex = 1;
+						} 
+						ydServCounInput.text = anyDataDG.selectedItem['bandwidth_cmcc'];
+						ydBandWidthInput.text = anyDataDG.selectedItem['bandwidth_cmcc'];
+						ltBandWidthInput.text = anyDataDG.selectedItem['bandwidth_cu'];
+						ltServCounInput.text = anyDataDG.selectedItem['business_cu'];
+						dxBandWidthInput.text = anyDataDG.selectedItem['bandwidth_ct'];
+						dxServCounInput.text = anyDataDG.selectedItem['business_ct'];
+						othBandWidthInput.text = anyDataDG.selectedItem['bandwidth_other'];
+						othServCounInput.text = anyDataDG.selectedItem['business_other'];
+					}
+					
+			}
+			
+			protected function doClear():void
+			{
+				typename.text = "";
+				ydIsSelfUseDropDownList.selectedIndex = 0;
+				ydServCounInput.text = "";
+				ydServCounInput.text = "";
+				ydBandWidthInput.text = "";
+				ltBandWidthInput.text = "";
+				ltServCounInput.text = "";
+				dxBandWidthInput.text = "";
+				dxServCounInput.text = "";
+				othBandWidthInput.text = "";
+				othServCounInput.text = "";
+			}
+			
+			
+			protected function addInfo_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				isEditOrAdd = "add";
+				typename.editable = true;
+				PopUpManager.addPopUp(changeDataWin, this.parent as DisplayObject);
+				PopUpManager.centerPopUp(changeDataWin);
+				changeDataWin.visible = true;
+				changeDataWin.includeInLayout = true;
+				doClear();
+			}
+			
+			protected function changeDataWin_closeHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(changeDataWin);
+				changeDataWin.visible = false;
+				changeDataWin.includeInLayout = false;
+				
+				typename.text = "";
+				doClear();
+			}
+			
+			protected function cancel_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				isEditOrAdd = "cancel";
+				PopUpManager.removePopUp(changeDataWin);
+				changeDataWin.visible = false;
+				changeDataWin.includeInLayout = false;
+				
+				doClear();
+			}
+			
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.EXPORTTOPO);
+				this.dispatchEvent(evt);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Scroller>
+		<s:VGroup>
+			<s:VGroup>
+				<!--<s:HGroup horizontalAlign="right">
+					<s:Button id="editDG" label="编辑表格" click="editDG_clickHandler(event)"/>
+					<s:Button id="addInfo" label="添加" click="addInfo_clickHandler(event)"/>
+					<s:Button id="cancel" label="取消编辑或添加" click="cancel_clickHandler(event)"/>
+					<s:Button id="export" label="导出" click="export_clickHandler(event)"/>
+				</s:HGroup>-->
+				<panel:Window id="anyDataPanel" 
+						 title="移动业务与其他运营商业务分析"
+						 width="100%"
+						 height="100%"
+						 minHeight="30"
+						 maximizable="false"
+						 closable="false">
+					<s:VGroup >
+						<mx:AdvancedDataGrid id="anyDataDG"
+											 sortableColumns="false"
+											 width="100%"
+											 height="100%"
+											 itemClick="anyDataDG_itemClickHandler(event)"
+											 headerWordWrap="true">
+							<mx:groupedColumns>
+								<mx:AdvancedDataGridColumn dataField="type"
+														   headerText="集团业务类型"/>
+								<mx:AdvancedDataGridColumnGroup headerText="移动业务量占比（自动计算）" width="250">
+									<mx:AdvancedDataGridColumn dataField="businessRate"
+															   headerText="业务量（%）" width="150"/>
+									<mx:AdvancedDataGridColumn dataField="bandwidthRate"  width="100"
+															   headerText="带宽（%）" />
+								</mx:AdvancedDataGridColumnGroup>
+								<mx:AdvancedDataGridColumnGroup headerText="移动">
+									<mx:AdvancedDataGridColumn dataField="business_cmcc"
+															   headerText="业务量（条）"/>
+									<mx:AdvancedDataGridColumn dataField="isPrimary"
+															   headerText="是否主用" />
+									<mx:AdvancedDataGridColumn dataField="bandwidth_cmcc"
+															   headerText="总带宽（M）"/>
+								</mx:AdvancedDataGridColumnGroup>
+								<mx:AdvancedDataGridColumnGroup headerText="电信">
+									<mx:AdvancedDataGridColumn dataField="business_ct"
+															   headerText="业务量（条）"/>
+									<mx:AdvancedDataGridColumn dataField="bandwidth_ct"
+															   headerText="总带宽（M）"/>
+								</mx:AdvancedDataGridColumnGroup>
+								<mx:AdvancedDataGridColumnGroup headerText="联通">
+									<mx:AdvancedDataGridColumn dataField="business_cu"
+															   headerText="业务量（条）"/>
+									<mx:AdvancedDataGridColumn dataField="bandwidth_cu"
+															   headerText="总带宽（M）"/>
+								</mx:AdvancedDataGridColumnGroup>
+								<mx:AdvancedDataGridColumnGroup headerText="其他运营商">
+									<mx:AdvancedDataGridColumn dataField="business_other"
+															   headerText="业务量（条）"/>
+									<mx:AdvancedDataGridColumn dataField="bandwidth_other" 
+															   headerText="总带宽（M）"/>
+								</mx:AdvancedDataGridColumnGroup>
+							</mx:groupedColumns>
+						</mx:AdvancedDataGrid>
+					</s:VGroup>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup>
+				<panel:Window  id="groupClientHealthPanel" 
+						 title="集团客户健康表"
+						 width="100%"
+						 height="100%"
+						 minHeight="30"
+						 maximizable="false"
+						 closable="false">
+					<mx:AdvancedDataGrid id="groupClientHealthDG"
+										     sortableColumns="false"
+											 width="100%"
+											 height="100%"
+											 dataProvider="{groupClientHealthList}"
+											 headerWordWrap="true" rowCount="4">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="类型"
+													   dataField="type"/>
+							<mx:AdvancedDataGridColumn headerText="健康度占比"
+													   dataField="healthRate"/>
+							<mx:AdvancedDataGridColumn headerText="健康成绩"
+													   dataField="healthGrade"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window >
+			</s:VGroup>
+		</s:VGroup>
+	</s:Scroller>
+	<panel:Window id="changeDataWin" title="编辑窗口" visible="false" includeInLayout="false" dragable="true" close="changeDataWin_closeHandler(event)">
+		<s:VGroup>
+			<s:HGroup>
+				<s:Label text="集团业务类型:"/>
+				<s:TextInput id="typename" width="100"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="移动:"/>
+				<s:Label text="业务量（条）:"/>
+				<s:TextInput id="ydServCounInput" width="100" restrict="0-9" toolTip="只能输入数字" />
+				<s:Label text="总带宽（M）"/>
+				<s:TextInput id="ydBandWidthInput" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="是否主用:"/>
+				<s:DropDownList id="ydIsSelfUseDropDownList"  width="100" labelField="name" dataProvider="{myDP}" selectedIndex="0" />
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="电信:"/>
+				<s:Label text="业务量（条）:"/>
+				<s:TextInput id="dxServCounInput" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="总带宽（M）"/>
+				<s:TextInput id="dxBandWidthInput" width="100" restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="联通:"/>
+				<s:Label text="业务量（条）:"/>
+				<s:TextInput id="ltServCounInput" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="总带宽（M）"/>
+				<s:TextInput id="ltBandWidthInput" width="100" restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="其他"/>
+				<s:Label text="业务量（条）:"/>
+				<s:TextInput id="othServCounInput" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="总带宽（M）"/>
+				<s:TextInput id="othBandWidthInput" width="100" restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+			<!--<s:HGroup width="100%"
+					  horizontalAlign="left">
+				<s:Label text="注：除“移动：业务量”和“总带宽”，其他输入框只能输入内容均为数字！" color="red" fontSize="10"/>
+			</s:HGroup>-->
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button id="saveDG" label="保存" 
+						  click="saveDG_clickHandler()"/>
+				<s:Button id="cancelDG" label="取消" 
+						  click="cancel_clickHandler(event)"/>
+			</s:HGroup>
+			
+		</s:VGroup>
+	</panel:Window>
+</mx:VBox>

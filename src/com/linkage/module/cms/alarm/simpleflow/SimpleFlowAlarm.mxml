@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+			   minWidth="400"
+			   minHeight="300"
+			   preinitialize="application_preinitializeHandler(event)"
+			   applicationComplete="application_applicationCompleteHandler(event)"
+			   preloader="com.linkage.module.cms.components.downloadprogress.CustomPreloader">
+	<s:layout>
+		<s:VerticalLayout paddingBottom="5"/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.utils.StringUtil;
+
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.alarm.simpleflow.SimpleFlowAlarm");
+
+			[Bindable]
+			private var _moduleKey:String="groupmonitorflowalarm";
+			private var _isCustAlarm:Boolean=false;
+
+			protected function application_preinitializeHandler(event:FlexEvent):void
+			{
+				System.useCodePage=true;
+				// 初始化日志Target
+				var target:ILoggingTarget=new MonsterTarget2();
+				target.level=int(this.parameters.logLevel);
+				target.filters=splitFilters(this.parameters.logFilters);
+				Log.addTarget(target);
+
+				var key:String=parameters.moduleKey;
+				if (!StringUtils.isNullStr(key))
+				{
+					_moduleKey=key;
+				}
+				var isCustAlarm:String=parameters["isCustAlarm"];
+				_isCustAlarm=(isCustAlarm == "true" || isCustAlarm == "TRUE") ? true : false;
+				log.info(" >>>>> 进入简易流水 moduleKey:{0} 是否集客流水:{1} >>>>> ", _moduleKey, _isCustAlarm);
+
+				// 加载样式
+				styleManager.loadStyleDeclarations2(this.parameters.styleUrl);
+			}
+
+			// 分隔日志过滤器
+			private function splitFilters(filters:String):Array
+			{
+				var array:Array=null;
+				if (filters != null)
+				{
+					array=filters.split(",");
+				}
+				return array;
+			}
+
+			protected function application_applicationCompleteHandler(event:FlexEvent):void
+			{
+				var alarmParam:String=parameters["alarmParam"];
+				var moId:String=parameters["moId"];
+				if (StringUtils.isNullStr(moId))
+				{
+					Alert.show("请先选择网元", "提示");
+					return;
+				}
+				if (_isCustAlarm)
+				{
+					// 集客流水
+					this.currentState="custAlarmState";
+					custAlarm.params={mapInfo: alarmParam};
+					custAlarm.ruleContent="alarmneid=\"" + moId + "\"";
+					log.debug("集客流水 ruleContent:{0}", custAlarm.ruleContent);
+					custAlarm.initInfo();
+				}
+				else
+				{
+					//普通流水
+					this.currentState="flowAlarmState";
+					flowAlarm.params={mapInfo: alarmParam};
+					flowAlarm.ruleContent="alarmneid=\"" + moId + "\"";
+					log.debug("普通流水 ruleContent:{0}", flowAlarm.ruleContent);
+					flowAlarm.initInfo();
+				}
+			}
+		]]>
+	</fx:Script>
+	<!-- 普通流水 -->
+	<pubflow:alarm id="flowAlarm"
+				   width="100%"
+				   height="100%"
+				   moduleKey="{_moduleKey}"
+				   includeIn="flowAlarmState"/>
+	<!-- 集客流水 -->
+	<pubflow:custalarm id="custAlarm"
+					   width="100%"
+					   height="100%"
+					   moduleKey="{_moduleKey}"
+					   includeIn="custAlarmState"/>
+	<s:states>
+		<s:State name="flowAlarmState"/>
+		<s:State name="custAlarmState"/>
+	</s:states>
+</s:Application>

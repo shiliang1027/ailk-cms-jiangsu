@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:topo="com.linkage.module.topo.framework.view.*"
+		 xmlns:component="com.linkage.module.topo.framework.view.component.*"
+		 xmlns:toolbar="com.linkage.module.topo.framework.view.component.toolbar.*"
+		 xmlns:action="com.linkage.module.topo.framework.view.component.toolbar.action.*"
+		 xmlns:operation="com.linkage.module.topo.framework.view.component.toolbar.operation.*"
+		 xmlns:hawkeye="com.linkage.module.topo.framework.view.component.hawkeye.*"
+		 xmlns:cmscomponent="com.linkage.module.cms.topo.view.component.*"
+		 xmlns:tree="com.linkage.module.topo.framework.view.component.tree.*"
+		 xmlns:flow="com.linkage.module.cms.alarm.flow.*"
+		 xmlns:panel="com.linkage.module.topo.framework.view.component.panel.*"
+		 xmlns:navigation="com.linkage.module.topo.framework.view.component.snavigation.*"
+		 xmlns:scaleruler="com.linkage.module.topo.framework.view.component.scaleruler.*"
+		 xmlns:advanceSearchIcon="com.linkage.module.cms.topo.view.component.toolbar.action.*"
+		 xmlns:advanceSearch="com.linkage.module.cms.topo.view.component.toolbar.*"
+		 preinitialize="topoContainer_preinitializeHandler(event)"
+		 width="100%"
+		 height="100%" xmlns:action1="com.linkage.module.cms.topo.view.component.toolbar.action.*" xmlns:toolbar1="com.linkage.module.cms.topo.view.component.toolbar.*" xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<s:layout>
+		<s:HorizontalLayout gap="0"/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<!--<s:Rotate id="rotate" target="{tulinav}" angleBy="90"/>-->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.topo.Version;
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.cms.topo.data.http.CmsHttpDataSource;
+			import com.linkage.module.cms.topo.data.remoting.CmsRemoteDataSource;
+			import com.linkage.module.cms.topo.service.extend.CmsExtendService;
+			import com.linkage.module.cms.topo.service.extend.TopoLocateService;
+			import com.linkage.module.cms.topo.util.CmsLoadingInfo;
+			import com.linkage.module.cms.topo.util.LinkMove;
+			import com.linkage.module.cms.topo.view.component.AttributePanel;
+			import com.linkage.module.cms.topo.view.component.AutoCreateLinkPanel;
+			import com.linkage.module.cms.topo.view.component.ChannelTopoPanel;
+			import com.linkage.module.cms.topo.view.component.CircuitListPanel;
+			import com.linkage.module.cms.topo.view.component.ImportDeviceInViewPanel;
+			import com.linkage.module.cms.topo.view.component.ImportDevicePanel;
+			import com.linkage.module.cms.topo.view.component.LegendPanel;
+			import com.linkage.module.cms.topo.view.component.NodeModifyPanel;
+			import com.linkage.module.cms.topo.view.component.OpticListPanel;
+			import com.linkage.module.cms.topo.view.component.ResCustStatisticPanel;
+			import com.linkage.module.cms.topo.view.component.ResourceStatisticPanel;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.CanvasEvent;
+			import com.linkage.module.topo.framework.controller.event.TopoAlarmEvent;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.core.parser.XmlParserFactory;
+			import com.linkage.module.topo.framework.core.style.StyleFactory;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.data.http.HttpDataSource;
+			import com.linkage.module.topo.framework.data.remotimg.RemoteDataSource;
+			import com.linkage.module.topo.framework.service.ServiceContainer;
+			import com.linkage.module.topo.framework.service.extend.HightLightService;
+			import com.linkage.module.topo.framework.service.extend.alarm.DefaultAlarmRefService;
+			import com.linkage.module.topo.framework.service.extend.data.DefaultDataService;
+			import com.linkage.module.topo.framework.service.extend.menu.DefaultMenuService;
+			import com.linkage.module.topo.framework.service.extend.msg.DefaultMsgService;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.util.TopoUtil;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.CanvasPanelCache;
+			import com.linkage.module.topo.framework.view.component.panel.AlarmRendererConfigPanel;
+			import com.linkage.module.topo.framework.view.component.panel.AutoLayoutPanel;
+			import com.linkage.module.topo.framework.view.component.panel.CreateViewPanel;
+			import com.linkage.module.topo.framework.view.component.panel.ElementPropertyConfigPanel;
+			import com.linkage.module.topo.framework.view.component.panel.GroupModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.HLinkLayerModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.LineModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.LinkModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.PicModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.SegmentMirrorModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.SegmentModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.ShapeModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.TPGridModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.TPViewModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.TextModifyPanel;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.TopoContainer");
+			
+			// ------------------- 布局,样式 --------------------
+			// 拓扑树分隔条是否显示
+			[Bindable]
+			private var _treeDividedVisible:Boolean = false;
+			// 告警流水分隔条是否显示
+			[Bindable]
+			private var _alarmDividedVisible:Boolean = false;
+			// 左边的分隔条向右样式
+			private static const STYPE_LEFT_GO_RIGHT:String = "leftGoRightDivider";
+			// 左边的分隔条向右样式
+			private static const STYPE_LEFT_GO_LEFT:String = "leftGoLeftDivider";
+			// 下面的分隔条向上样式
+			private static const STYPE_BOTTOM_GO_TOP:String = "bottomGoTopDivider";
+			// 下面的分隔条向下样式
+			private static const STYPE_BOTTOM_GO_BOTTOM:String = "bottomGoBottomDivider";
+			// ---------------------------------------
+			
+			// 业务逻辑容器
+			[Bindable]
+			private var serviceContainer:ServiceContainer;
+			// 画布面板容器
+			private var _canvasPanelCache:CanvasPanelCache;
+			// 数据源
+			[Bindable]
+			private var _dataSource:IDataSource = null;
+			// CMS数据源
+			[Bindable]
+			private var _dataSourceCms:ICmsDataSource = null;
+			
+			// 加载中提示
+			private var _loadingInfo:CmsLoadingInfo = new CmsLoadingInfo();
+			
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+			
+			// -------------------- 传入参数 -------------------
+			// 图标上下文
+			[Bindable]
+			private var _iconContext:String = null;
+			// 填充图标上下文
+			[Bindable]
+			private var _iconFillContext:String = null;
+			// url上下文
+			[Bindable]
+			private var _urlContext:String = null;
+			
+			//------------------- 判断过程中的条件 ------------------
+			// 搜索类型
+			[Bindable]
+			private var _searchType:String = Constants.SEARCH_TYPE_ALL;
+			// 集客搜索的toponame过滤的正则表达式
+			[Bindable]
+			private var _searchTopoNamesRegex:String = null;
+			// 资源统计面板是否启用
+			private var _resStatEnabled:Boolean = true;
+			// 集客统计面板是否启用
+			private var _custStatEnabled:Boolean = true;
+			
+			/**
+			 * 初始化拓扑
+			 * @param params 参数
+			 * @param isGroupTopo 是否集客拓扑
+			 */
+			[Bindable]
+			private var _topoId:String;
+			public function initTopoContainer(params:Object, isGroupTopo:Boolean):void
+			{
+				// ================= 全部的参数 ============== 
+				var _isHttpDS:Boolean = params.isHttpDS == "true";
+				var _flowAlarmEnabled:Boolean = params.flowAlarmEnabled == "true";
+				var _treeLevel:String = params[Constants.PARAM_TREELEVEL];
+				var _treeVisible:String = params[Constants.PARAM_TREEVISIBLE];
+				var _sessionId:String = params[Constants.PARAM_SESSIONID];
+				var _alarmParams:String = params[CmsTopoConstants.PARAM_ALARM_PARAM];
+				var _topoId:String = params[Constants.PARAM_TOPOID];
+				var _topoName:String = params[Constants.PARAM_TOPONAME];
+				var _topoType:String = params[Constants.PARAM_TOPOTYPE];
+				var user:Object = TopoUtil.jsonDecode(params[Constants.PARAM_USER]);
+				var searchTopoNamesRegex:String = params[CmsTopoConstants.PARAM_SEARCH_TOPONAMES_REGEX];
+				var jkTopoNamesRegex:String = params[CmsTopoConstants.PARAM_JK_TOPONAMES_REGEX];
+				_urlContext = TopoUtil.formatContext(params[Constants.PARAM_URL_CONTEXT]);
+				_iconContext = TopoUtil.formatContext(params[Constants.PARAM_ICON_CONTEXT]);
+				_iconFillContext = TopoUtil.formatContext(params[Constants.PARAM_ICONFILL_CONTEXT]);
+				var _renderAlarmNumEnabled:Boolean = params[Constants.PARAM_RENDERALARMNUM_ENABLED] == "true";
+				var _toolbarAuthKeys:Array = TopoUtil.jsonDecode(params[Constants.PARAM_TOOLBAR_AUTHKEYS]) as Array;
+				var _isEoms:String = params["isEoms"];
+				// ===========================================
+				
+				topoCanvas.renderAlarmNumEnabled = _renderAlarmNumEnabled;
+				// 设置loading提示的parent
+				_loadingInfo.parent = topoCanvas;
+				// 注册监听器
+				//				registerListeners();
+				topoCanvas.menuManager.version = Version.VERSION;
+				// 设置工具栏的权限
+				toolBar.authKeys = _toolbarAuthKeys;
+				editToolBar.authKeys = _toolbarAuthKeys;
+				
+				if(_isEoms == "1")
+				{
+					edit.visible = false;
+					includeInLayout = false;
+					log.info("TopoContainer edit false");
+				}else{
+					edit.visible = true;
+					edit.includeInLayout = true;
+					log.info("TopoContainer edit true");
+				}
+				
+				// 队列拓扑显示
+				linkDescPanel.pid = _topoId;
+				if(_topoId == "1/data/cmnet/queue")
+				{
+					queueListPanel.visible = true;
+					//linkDescPanel.visible = true;
+					//					tulinav.visible = true;
+					//					linkDescPanel.desc = "指标：队列流出带宽利用率";
+					topoCanvas.extInfo = "98";
+				}
+				if(_topoId == "1/data/cmnet/port")
+				{
+					topoCanvas.extInfo = "99";
+					//linkDescPanel.visible = true;
+					//					tulinav.visible = true;
+					//					linkDescPanel.desc = "指标：端口流入/流出带宽利用率";
+				}
+				
+				
+				// 【第一步】初始化dataUtil中的默认参数
+				DataUtil.addParameter(CmsTopoConstants.XML_KEY_AREA_ID, user.areaId);
+				
+				// 【第二步】初始化画布
+				topoCanvas.styleFactory = new StyleFactory(_iconContext, _iconFillContext);
+				topoCanvas.parserFactory = new XmlParserFactory();
+				
+				// 【第三步】初始化数据源
+				_dataSource = _isHttpDS ? new HttpDataSource(_sessionId, _urlContext) : new RemoteDataSource(user, _urlContext);
+				_dataSourceCms = _isHttpDS ? new CmsHttpDataSource(_sessionId, _urlContext) : new CmsRemoteDataSource(user, _urlContext);
+				
+				// 【第四步】普通/集客对应初始化
+				if (isGroupTopo)
+				{
+					log.info("当前进入的是[集客]拓扑");
+					_searchType = Constants.SEARCH_TYPE_CUSTOMER;
+					log.info("搜索包含拓扑有(符合条件的正则表达式): " + jkTopoNamesRegex);
+					_searchTopoNamesRegex = jkTopoNamesRegex;
+					_resStatEnabled = false;
+					statIcon.hide();
+					_custStatEnabled=true;
+					_topoName=CmsTopoConstants.DEFAULT_TOPONAME_JTKH;
+					advanceSearchIcon.visible = true;
+					advanceSearchIcon.includeInLayout = true;					
+					
+				}
+				else
+				{
+					log.info("当前进入的是[普通]拓扑");
+					_searchType = Constants.SEARCH_TYPE_ALL;
+					log.info("搜索包含拓扑有(符合条件的正则表达式): " + searchTopoNamesRegex);
+					_searchTopoNamesRegex = searchTopoNamesRegex;
+					_resStatEnabled = statIcon.iconEnabled;
+					_custStatEnabled = false;
+					jkStatIcon.hide();
+					advanceSearchIcon.visible = false;
+					advanceSearchIcon.includeInLayout = false;
+					
+					//非集客拓扑隐藏高级检索导航按钮
+					advanceSearchIcon.hide();
+				}
+				
+				
+				// 【第五步】各种扩展面板
+				_canvasPanelCache = new CanvasPanelCache(topoCanvas, panelContainer);
+				//				initExtendPanels();
+				
+				// 【第六步】初始化扩展的业务类
+				serviceContainer = new ServiceContainer(panelContainer, _urlContext);
+				
+				// >>>>>> 往逻辑容器中添加扩展的业务逻辑 >>>>>> 
+				// [1]菜单
+				serviceContainer.addService(new DefaultMenuService(_dataSource));
+				// [2]数据
+				var remoteDataParam:Object = {};
+				remoteDataParam[Constants.PARAM_TOPONAME] = _topoName;
+				remoteDataParam[Constants.PARAM_TOPOID] = _topoId;
+				remoteDataParam[Constants.PARAM_TOPOTYPE] = _topoType;
+				serviceContainer.addService(new DefaultDataService(_dataSource, remoteDataParam));
+				// [3]告警刷新
+				var dars:DefaultAlarmRefService = new DefaultAlarmRefService(_dataSource);
+				serviceContainer.addService(dars);
+				// [4]消息提醒
+				serviceContainer.addService(new DefaultMsgService());
+				// [5]CMS扩展
+				var cmsExtendService:CmsExtendService = new CmsExtendService(_dataSource, _dataSourceCms);
+				cmsExtendService.workStatRefreshEnable = true;
+				serviceContainer.addService(cmsExtendService);
+				// [6]拓扑定位
+				serviceContainer.addService(new TopoLocateService(_dataSource, elementListPanel, _searchTopoNamesRegex));
+				// [7]高亮关联网元
+				serviceContainer.addService(new HightLightService());
+				// <<<<<< 往逻辑容器中添加扩展的业务逻辑 <<<<<<
+				
+				// 【第七步】启动告警流水
+				//				flowAlarm.params = _alarmParams;
+				//				flowAlarm.addEventListener(TopoAlarmEvent.SHOW_FLOW_ALARM, function(event:TopoAlarmEvent):void
+				//				{
+				//					showFlowAlarmPanel();
+				//				});
+				//				flowAlarm.addEventListener(TopoAlarmEvent.HIDE_FLOW_ALARM, function(event:TopoAlarmEvent):void
+				//				{
+				//					hideFlowAlarmPanel();
+				//				});
+				//				flowAlarm.defaultCustFlow = isGroupTopo;
+				//				if (_flowAlarmEnabled)
+				//				{
+				//					flowAlarm.start();
+				//				}
+				
+				// 【第八步】启动业务逻辑
+				serviceContainer.start();
+				// 【第九步】启动拓扑树
+				//				topoTree.pid = _topoId;
+				//				var treeLevel:int = int(_treeLevel);
+				//				if (treeLevel != 0)
+				//				{
+				//					topoTree.level = treeLevel;
+				//				}
+				//				else
+				//				{
+				//					topoTree.level = _topoId == "1/0" ? 2 : 1;
+				//				}
+				//				topoTree.treeVisible = _treeVisible;
+				//				topoTree.topoName = _topoName;
+				//				topoTree.start();
+				
+				topoCanvas.addEventListener(CanvasEvent.LAYER_CHANGED, canvasEventHandler_DataChanged);
+				log.debug("----------{0}",params.linkmoves);
+				//				log.debug("----------{0}",JSON.decode(params.linkmoves).length);
+				//				var linkmoves:*=JSON.decode(params.linkmove);
+				//				for(var i:uint=0;i<linkmoves.length;i++){
+				//					log.debug("----------{0}",linkmoves[i]);
+				//				}
+				//				animations.addAll(linkmoves);
+				//				log.debug(animations);
+			}
+			
+			private var animations:ArrayCollection = new ArrayCollection();
+			private var moves:Array = new Array();
+			
+			private function canvasEventHandler_DataChanged(event:CanvasEvent):void
+			{
+//				for(var i:uint=0;i<moves.length;i++){
+//					LinkMove(moves[i]).destroy();
+//				}
+//				if(moves.length > 0){
+//					moves.splice(0,moves.length);
+//				}
+//				_dataSourceCms.queryTopoLinkObjects({layerid:topoCanvas.topoId},function(data:Object):void{
+//					log.info("查询结果：");
+//					log.info(data);
+//					//对数据进行处理
+//					animations.addAll(data as ArrayCollection);
+//					for(var i:uint=0;i<animations.length;i++){
+//						var linkMove:LinkMove = new LinkMove(animations.getItemAt(i),topoCanvas);
+////						break;
+//						moves.push(linkMove);
+//					}	
+//				})
+//				var linkobj:* = {
+//					"id":"1",
+//					"layerid":"1/switch",
+//					"eids":"1/4350210e-a832-4dd5-a678-d17ac957b0da,1/7e151d0d-22b0-4ce0-a8bf-7b13338233c7,1/switch/0100,1/switch/0700,1/switch/0400",
+//					"params":"color=0xff0000",
+//					"parentid":"",
+//					"flag":true
+//				};
+//				animations.addItem(linkobj);
+//				linkobj = {
+//					"id":"2",
+//					"layerid":"1/switch",
+//					"eids":"1/switch/0400,1/switch/0700,1/switch/0100,1/7e151d0d-22b0-4ce0-a8bf-7b13338233c7,1/4350210e-a832-4dd5-a678-d17ac957b0da",
+//					"params":"color=0x99FF00",
+//					"parentid":"1",
+//					"flag":true
+//				};
+//				animations.addItem(linkobj);
+//				linkobj = {
+//					"id":"3",
+//					"layerid":"1/switch",
+//					"eids":"1/7e151d0d-22b0-4ce0-a8bf-7b13338233c7,1/switch/0700",
+//					"params":"color=0x00ffff",
+//					"parentid":"",
+//					"flag":true
+//				};
+//				animations.addItem(linkobj);
+//				linkobj = {
+//					"id":"4",
+//					"layerid":"1/switch",
+//					"eids":"1/7e151d0d-22b0-4ce0-a8bf-7b13338233c7,1/switch/0400",
+//					"params":"color=0x00ffff",
+//					"parentid":"3",
+//					"flag":true
+//				}
+//				animations.addItem(linkobj);
+//				
+//				
+//				for(var i:uint=0;i<animations.length;i++){
+//					var linkMove:LinkMove = new LinkMove(animations.getItemAt(i),topoCanvas);
+//				}
+			}
+			
+			
+			private function topoContainer_preinitializeHandler(event:FlexEvent):void
+			{
+				LoadingManager.getInstance().loadingInfo = _loadingInfo;
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<!-- 核心容器 -->
+	<s:BorderContainer id="coreContainer"
+					   width="100%"
+					   height="100%"
+					   cornerRadius="6">
+		<topo:TopoPanelContainer id="panelContainer"
+								 width="100%"
+								 height="100%"
+								 topoCanvas="{topoCanvas}">
+			<topo:layout>
+				<s:BasicLayout/>
+			</topo:layout>
+			
+			<!-- 核心的画布 -->
+			<component:TopoCanvas id="topoCanvas"
+								  serviceContainer="{serviceContainer}"/>
+		</topo:TopoPanelContainer>
+		
+		<!-- 鹰眼 -->
+		<hawkeye:HawkEyeContainer id="hawkEyes"
+								  bottom="5"
+								  right="5"
+								  topoCanvas="{topoCanvas}"  visible="true"/>
+		<!-- 导航 -->
+		<!--<navigation:Navigation topoCanvas="{topoCanvas}"
+		top="10"
+		left="10" visible="false" includeInLayout="false"/>-->
+		<!-- 工具栏 -->
+		<toolbar:TopoToolBar id="editToolBar"
+							 authEnabled="true"
+							 topoCanvas="{topoCanvas}"
+							 top="36"
+							 right="115">
+			<!-- 移动模式 -->
+			<action:MoveActionIcon/>
+			<!-- 自动布局 -->
+			<operation:AutoLayoutOptIcon/>
+			<!-- 创建缩略图 -->
+			<action:CreateHLinkLayerActionIcon/>
+			<!-- 创建形状 -->
+			<action:CreateShapeActionIcon/>
+			<!-- 创建图片对象 -->
+			<action:CreatePicActionIcon/>
+			<!-- 创建链路 -->
+			<action:CreateLinkActionIcon/>
+			<!-- 创建线对象 -->
+			<action:CreateLineActionIcon/>
+			<!-- 保存拓扑 -->
+			<operation:SaveTopoOptIcon/>
+			<!-- 告警渲染配置 -->
+			<operation:AlarmRendererConfigOptIcon/>
+		</toolbar:TopoToolBar>
+		
+		<!--高级检索工具条，包含检索条件下拉框、输入框、搜索按钮-->
+		<toolbar:TopoToolBar id="advanceSearchToolBar"
+							 authEnabled="true"
+							 topoCanvas="{topoCanvas}"
+							 top="36" right="115">
+			<advanceSearch:AdvanceTopoSearch
+				topoCanvas="{topoCanvas}"
+				dataSource="{_dataSource}"
+				elementListPanel="{elementListPanel}"
+				searchTopoNamesRegex="{_searchTopoNamesRegex}"/>
+		</toolbar:TopoToolBar>
+		
+		<toolbar:TopoToolBar id="toolBar"
+							 authEnabled="true"
+							 topoCanvas="{topoCanvas}"
+							 top="10"
+							 right="15">
+			<!-- 返回上一级 -->
+			<operation:GoBackOptIcon/>
+			<!-- 选择模式 -->
+			<action:SelectActionIcon isDefault="true"/>
+			<!-- 拖动模式 -->
+			<action:PanActionIcon/>
+			<!-- 放大操作 -->
+			<action:ZoomOutActionIcon/>
+			<!-- 缩小操作 -->
+			<action:ZoomInActionIcon/>
+			<!-- 一屏显示 -->
+			<operation:OneScreenViewOptIcon/>
+			<!-- 正常显示 -->
+			<operation:OriginalViewOptIcon/>
+			<!-- 导出图片 -->
+			<operation:ExportImageOptIcon/>
+			<!-- 打印 -->
+			<operation:PrintOptIcon/>
+			<!-- 属性显隐切换 -->
+			<operation:AttrToggleOptIcon/>
+			<!-- 图例显隐切换 -->
+			<operation:LegendToggleOptIcon/>
+			<!-- 统计面板显隐切换 -->
+			<operation:StatisticToggleOptIcon id="statIcon"/>
+			<!-- 集客统计面板显隐切换 -->
+			<operation:StatisticToggleOptIcon id="jkStatIcon"
+											  authKey="StatisticToggle_JTKH"/>
+			<!-- 标尺显隐切换 -->
+			<!--
+			<operation:ScaleRulerToggleOptIcon/>
+			-->
+			<!-- 编辑模式 -->
+			<action:EditActionIcon subToolBar="{editToolBar}" id="edit"/>
+			<!-- 鹰眼 -->
+			<operation:HawkEyeOptIcon hawkEyes="{hawkEyes}"/>
+			
+			<!--高级检索工具条 add by donglm 2013-11-05-->
+			<advanceSearchIcon:AdvanceSearchViewIcon 
+				id="advanceSearchIcon"
+				subToolBar="{advanceSearchToolBar}"/>	
+			
+			<!-- 搜索 -->
+			<toolbar:DeviceSearch topoCanvas="{topoCanvas}"
+								  dataSource="{_dataSource}"
+								  elementListPanel="{elementListPanel}"
+								  searchType="{_searchType}"
+								  searchTopoNamesRegex="{_searchTopoNamesRegex}"/>
+		</toolbar:TopoToolBar>
+		
+		<!-- 搜索列表面板 -->
+		<panel:ElementListPanel id="elementListPanel"
+								topoCanvas="{topoCanvas}"
+								dataSource="{_dataSource}"
+								right="15"
+								top="62"/>
+		<panel:QueueListPanel id="queueListPanel" top="15"
+							  topoCanvas="{topoCanvas}"  left="500" 
+							  visible="false"/>
+		
+		<s:HGroup left="0" bottom="150" gap="12" visible="false" includeInLayout="false">
+			<s:BorderContainer id="tulinav" minHeight="0" minWidth="0" visible="false">
+				<s:Label text="图例" width="15" left="5" right="5" top="5" bottom="5"/>
+			</s:BorderContainer>
+			<panel:LinkDescPanel id="linkDescPanel" topoCanvas="{topoCanvas}"
+								 dataSource="{_dataSource}" visible="false"/>
+		</s:HGroup>
+	</s:BorderContainer>
+	<!-- 核心容器End -->
+</s:Group>

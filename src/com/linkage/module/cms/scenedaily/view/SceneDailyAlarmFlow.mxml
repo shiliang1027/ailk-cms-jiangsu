@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window width="100%"
+					height="100%"
+					minimizable="false"
+					closable="false"
+					styleName="window"
+					resize="window1_resizeHandler(event)"
+					creationComplete="window1_creationCompleteHandler(event)"
+					xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.alarm.framework.view.columnrenderer.HeaderSelectRenderer;
+			import com.linkage.module.cms.alarm.framework.view.resource.imagesclass.IconParam;
+			import com.linkage.module.cms.general.monitor.datashow.alarmstat.AlarmColumnRenderer;
+			import com.linkage.module.cms.scenedaily.domain.DailySheetFlowDM;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+			import com.linkage.module.cms.scenedaily.event.hangandpick.HangPlateEvent;
+			import com.linkage.module.cms.scenedaily.view.components.SheetFlowAlarmLevel;
+
+			import flash.utils.setTimeout;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridItemRenderer;
+			import mx.controls.advancedDataGridClasses.MXAdvancedDataGridItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.events.IndexChangeEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(SceneDailyAlarmFlow);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			private var showAllImg:Image;
+
+			private var rule:String;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("dailySheetFlowDM")]
+			public var dm:DailySheetFlowDM;
+
+			public var tempSheetData:ArrayCollection; //临时存储工单被过滤数据
+
+			private var sheetList:ArrayCollection = new ArrayCollection(); //工单数据
+
+			private var hasFilterList:ArrayCollection = new ArrayCollection(); //被过滤掉的工单数据
+
+			private var tempDataField:String; //工单需要过滤字段
+
+			private var sheetDetailURL:String = "warn/sheet/sheetAction!tosheetInfo.action?";
+
+			public function initAlarm():void
+			{
+				//添加显示全部告警按钮
+				log.info('初始化全部告警按钮~~');
+				showAllImg = new Image();
+				showAllImg.source = IconParam.iconShowAll;
+				showAllImg.buttonMode = true;
+				showAllImg.toolTip = "显示全部告警";
+				showAllImg.visible = false;
+				showAllImg.addEventListener(MouseEvent.CLICK, showAllAlarms);
+				alarmFlow.addToolButton(showAllImg);
+
+				log.info("开始 初始化告警流水！");
+				//初始化告警流水
+				alarmFlow.params = parentApplication.parameters;
+
+				alarmFlow.initInfo(null, 1, "-1#1");
+
+				rule = ""; //todo
+
+				this.parentApplication.add(alarmFlow);
+
+				log.info("初始化告警 ruleContent：" + alarmFlow.ruleContent);
+			}
+
+			private function showAllAlarms(e:MouseEvent):void
+			{
+				alarmFlow.reload('');
+
+				log.info("取消过滤 告警流水 ruleContent：" + alarmFlow.ruleContent);
+
+				showAllImg.visible = false;
+			}
+
+			public function reloadAlarm(e:SceneDailyEvent):void
+			{
+				log.info("change view ,  reload alarm flow!");
+//				alarmFlow.reload("###################");
+			}
+
+			public function filterAlarm(e:HangPlateEvent):void
+			{
+				log.info("挂牌网元，告警过滤：" + e.param.mo_id);
+				setTimeout(function():void
+					{
+						alarmFlow.reload('alarmneid="' + e.param.mo_id + '"');
+						log.info("alarmFlow.ruleContent:{0}", alarmFlow.ruleContent);
+					}, 2000);
+				this.showAllImg.visible = true;
+			}
+
+			protected function window1_resizeHandler(event:ResizeEvent):void
+			{
+				if(this.height < 93)
+					topgroup.visible = false;
+				else
+					topgroup.visible = true;
+				alarmSheetLabel.visible = this.height < 93;
+				alarmSheetLabel.includeInLayout = this.height < 93;
+			}
+
+			public function stopFlow(stopFlag:Boolean):void
+			{
+				if(stopFlag)
+					alarmFlow.stopLoad(true);
+				else
+					alarmFlow.reload(rule);
+			}
+
+			private var sheetInitFlag:Boolean = false;
+
+			protected function tabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				if(event.newIndex == 1 && !sheetInitFlag)
+				{
+					sheetInitFlag = true;
+
+					log.info("开始初始化工单流水~~");
+					var e:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.LOAD_SHEET_FLOW);
+					msgDispatcher(e);
+				}
+			}
+
+			[MessageHandler(selector="CHANGE_MAP")]
+			public function reloadSheetData(e:SceneDailyEvent):void
+			{
+				if(sheetInitFlag)
+				{
+					log.info("开始 reLoad工单流水~~");
+					var e:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.LOAD_SHEET_FLOW);
+					msgDispatcher(e);
+				}
+			}
+
+			[MessageHandler(selector="DEAL_SHEET_FLOW")]
+			public function showSheetFlow(e:SceneDailyEvent):void
+			{
+				log.info("处理工单流水数据到表格~");
+				var sheetData:Object = dm.sheetFlowData[0];
+
+				if(this.sheetDG.columns == null || this.sheetDG.columns.length != sheetData.column.length)
+				{
+					var colArr:Array = new Array();
+					for(var index:String in sheetData.name)
+					{
+						var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						col.dataField = sheetData.column[index];
+						col.headerText = sheetData.name[index];
+						col.headerRenderer = new ClassFactory(HeaderSelectRenderer);
+
+						if(sheetData.name[index] == "告警级别")
+						{
+							col.itemRenderer = new ClassFactory(SheetFlowAlarmLevel);
+						}
+
+						colArr = colArr.concat(col);
+					}
+					log.info("处理工单流水表格， 表头~");
+					this.sheetDG.columns = colArr;
+				}
+
+				log.info("处理工单流水表格， 数据集：" + sheetData.datalist['length']);
+				sheetList = sheetData['datalist'] as ArrayCollection;
+				this.sheetDG.dataProvider = sheetList;
+			}
+
+			//表头选择事件 title==label  value= dropdownlist.key  field=datafield
+			public function headerSelectChange(value:String, field:String, title:String, success:Function, restore:Function):void
+			{
+
+				var sort:Sort;
+				if(value == "1")
+				{
+					sort = new Sort();
+					sort.fields = [new SortField(field, true, false)];
+					sheetList.sort = sort;
+					sheetList.refresh();
+				}
+				else if(value == "2")
+				{
+					sort = new Sort();
+					sort.fields = [new SortField(field, true, true)];
+					sheetList.sort = sort;
+					sheetList.refresh();
+				}
+				else if(value == "3")
+				{
+					PopUpManager.removePopUp(filterWin);
+					tempDataField = field;
+					log.info("field:{0}", field);
+					var filterArr:ArrayCollection = new ArrayCollection();
+					var tempMap:Object = new Object();
+					for each(var obj:Object in sheetList)
+					{
+						if(!tempMap.hasOwnProperty(obj[field]))
+						{
+							tempMap[obj[field]] = obj[field];
+							filterArr.addItem({"key": obj[field], "value": obj[field]});
+						}
+					}
+					log.info(filterArr);
+					filterArr.refresh();
+					filterDdl.labelField = "value";
+					filterDdl.dataProvider = filterArr;
+					filterWin.title = title;
+					PopUpManager.addPopUp(filterWin, parentApplication as DisplayObject);
+					PopUpManager.centerPopUp(filterWin);
+				}
+
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//添加右键菜单
+				var menu:ContextMenu = new ContextMenu();
+				var arr:Array = new Array();
+
+				//查看资源
+				var resMenu:ContextMenuItem = new ContextMenuItem("查看EMOS详情");
+
+				//SHEETID 对应 表里SHEETNO
+				resMenu.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(e:ContextMenuEvent):void
+					{
+						var url:String = "";
+						if(e.mouseTarget is AdvancedDataGridItemRenderer)
+						{
+							var render:AdvancedDataGridItemRenderer = e.mouseTarget as AdvancedDataGridItemRenderer;
+							if(render.data != null && render.data["SHEETID"] != null)
+							{
+								log.info("查看工单详情：" + render.data["SHEETID"]);
+								url = user.context + sheetDetailURL.replace(/\$/g, "&") + 'sheetno=' + render.data["SHEETID"] + '&isgroupsheet=' + render.data["ISGROUPSHEET"];
+								log.info('url：' + url);
+								navigateToURL(new URLRequest(url));
+							}
+							else
+							{
+								Alert.show("工单号为空！");
+							}
+						}
+						else if(e.mouseTarget is MXAdvancedDataGridItemRenderer)
+						{
+							var mxrender:MXAdvancedDataGridItemRenderer = e.mouseTarget as MXAdvancedDataGridItemRenderer;
+							if(mxrender.data != null && mxrender.data["SHEETID"] != null)
+							{
+								log.info("查看工单详情：" + mxrender.data["SHEETID"]);
+								url = user.context + sheetDetailURL.replace(/\$/g, "&") + 'sheetno=' + mxrender.data["SHEETID"] + '&isgroupsheet=' + mxrender.data["ISGROUPSHEET"];
+								log.info('url：' + url);
+								navigateToURL(new URLRequest(url));
+							}
+							else
+							{
+								Alert.show("工单号为空！");
+							}
+						}
+						else
+						{
+							Alert.show("工单号为空！");
+						}
+
+					});
+				arr.push(resMenu);
+
+				menu.customItems = arr;
+				sheetDG.contextMenu = menu;
+				sheetDG.contextMenu.hideBuiltInItems();
+			}
+
+			//过滤
+			protected function filterClickHandler():void
+			{
+				PopUpManager.removePopUp(filterWin);
+				var item:Object = filterDdl.selectedItem;
+				hasFilterList.removeAll();
+				for each(var obj:Object in sheetList)
+				{
+					if(obj[tempDataField].toString() != item["key"].toString())
+					{
+						hasFilterList.addItem(obj);
+					}
+				}
+				log.info("hasFilterList长度：{0}", hasFilterList.length);
+				for each(obj in hasFilterList)
+				{
+					sheetList.removeItemAt(sheetList.getItemIndex(obj));
+				}
+				sheetList.refresh();
+				log.info("sheetList长度：{0}", sheetList.length);
+				sheetDG.dataProvider = sheetList;
+				sheetDG.validateNow();
+//				filterBox.visible = false;
+//				filterBox.includeInLayout = false;
+
+				cancelBt.enabled = true;
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				sheetList.addAll(hasFilterList);
+				sheetDG.dataProvider = sheetList;
+				sheetDG.validateNow();
+				hasFilterList.removeAll();
+
+				cancelBt.enabled = false;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  top="-20"
+			  id="topgroup"
+			  gap="0">
+		<s:TabBar id="tabBar"
+				  dataProvider="{viewStack}"
+				  buttonMode="true"
+				  change="tabBar_changeHandler(event)"
+				  styleName="sceneTabBar1"/>
+		<mx:ViewStack width="100%"
+					  height="100%"
+					  styleName="sceneViewStack"
+					  id="viewStack"
+					  creationPolicy="all">
+			<s:NavigatorContent width="100%"
+								height="100%"
+								creationPolicy="all"
+								label="告警">
+				<pubflow:sceneAlarm id="alarmFlow"
+									width="100%"
+									height="100%"
+									alarmStyleName="sceneDG"
+									moduleKey="sceneflowalarm"/>
+			</s:NavigatorContent>
+
+			<s:NavigatorContent width="100%"
+								height="100%"
+								label="工单">
+				<mx:AdvancedDataGrid sortableColumns="false"
+									 styleName="sceneDG"
+									 id="sheetDG"
+									 width="100%"
+									 height="100%"/>
+				<s:Button id="cancelBt"
+						  label="取消过滤"
+						  right="40"
+						  top="-25"
+						  enabled="false"
+						  click="button1_clickHandler(event)"/>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:VGroup>
+	<s:Label id="alarmSheetLabel"
+			 text="告警/工单信息"
+			 right="15"
+			 top="-10"/>
+	<mx:HBox id="filterBox"
+			 visible="false"
+			 includeInLayout="false">
+		<ailk_compts:Window id="filterWin"
+							width="327"
+							height="86"
+							dragable="true"
+							styleName="window"
+							maximizable="false"
+							minimizable="false"
+							close="PopUpManager.removePopUp(filterWin);"
+							title="过滤">
+			<s:HGroup width="100%"
+					  height="100%"
+					  textAlign="center"
+					  horizontalAlign="center"
+					  verticalAlign="middle">
+				<s:DropDownList id="filterDdl"
+								width="100%"/>
+				<s:Button label="过滤"
+						  click="filterClickHandler()"
+						  width="50"/>
+			</s:HGroup>
+		</ailk_compts:Window>
+	</mx:HBox>
+</ailk_compts:Window>

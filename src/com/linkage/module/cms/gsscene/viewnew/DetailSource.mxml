@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="385"
+		 close="{PopUpManager.removePopUp(this)}"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 maximizable="false"
+		 title="应急资源详情"
+		 dragable="true"
+		 closable="true"
+		 styleName="window"
+		 minimizable="false"
+		 creationComplete="init()"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.ResMatrixCompPM;
+			
+			import mx.collections.ArrayCollection;
+			import spark.components.RadioButtonGroup;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			public var cityList:ArrayCollection = new ArrayCollection();
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[Bindable]
+			private var resTypeList:ArrayCollection = new ArrayCollection(
+				[
+					{'id': '1', 'name': '应急通信车'},
+					{'id': '2', 'name': '应急油机车'},
+					{'id': '3', 'name': '便携式油机'},
+					{'id': '4', 'name': '应急人'},
+					{'id': '5', 'name': '卫星电话'}
+				]);
+			public var cityId:String;
+			public var editData:Object;
+			[Bindable]
+			private var rbg:RadioButtonGroup = new RadioButtonGroup;
+			public var resTypeId:String;
+			[Bindable]
+			public var pm:ResMatrixCompPM;
+			public var areaId:String;
+			private var log:ILogger = Log.getLoggerByClass(DetailSource);
+			public function init():void{
+				if(null!=editData){
+					isUsedRb1.selected = editData.isused == "1";
+					isUsedRb0.selected = editData.isused == "0";
+					if(editData.areaid != null &&　editData.areaid != ""){
+						areaId = editData.areaid;
+					}
+					resTypeId = editData.emergrestype;
+					longitude_input.text = editData.longitude;
+					latitude_input.text = editData.latitude;
+					cityId = editData.cityid;
+					emergresname_input.text = editData.emergresname;
+					emergresdesc_input.text = editData.emergresdesc;
+				}
+				if (resTypeId != null)
+				{
+					resTypeDDP.selectedIndex = int(resTypeId) - 1;
+					resTypeId = null;
+				}
+				if (areaId != null)
+				{
+					setTimeout(function():void
+					{
+						for each (var area:Object in pm.dm.areaList)
+						{
+							if (area.AREAID == areaId)
+							{
+								areaDDP.selectedItem = area;
+								break;
+							}
+						}
+						areaId = null;
+					}, 1500);
+				}
+				if (cityId != null)
+				{
+					setTimeout(function():void
+					{
+						for each (var city:Object in cityList)
+						{
+							if (city.cityId == cityId)
+							{
+								cityDDP.selectedItem = city;
+								break;
+							}
+						}
+						
+						cityId = null;
+					}, 1500);
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<s:VGroup width="100%"
+			  height="100%"
+			  horizontalAlign="center"
+			  verticalAlign="middle">
+		<mx:Form>
+			<mx:FormItem label="资源类型：">
+				<s:DropDownList id="resTypeDDP"
+								labelField="name"
+								requireSelection="true"
+								dataProvider="{resTypeList}"
+								/>
+			</mx:FormItem>
+			
+			<mx:FormItem label="通信车状态：">
+				<s:HGroup>
+					<s:RadioButton id="isUsedRb1"
+								   group="{rbg}"
+								   label="已调度"
+								   value="1"/>
+					<s:RadioButton id="isUsedRb0"
+								   group="{rbg}"
+								   label="未调度"
+								   selected="true"
+								   value="0"/>
+				</s:HGroup>
+			</mx:FormItem>
+			
+			<mx:FormItem label="所属区域：">
+				<s:DropDownList id="areaDDP"
+								dataProvider="{pm.dm.areaList}"
+								labelField="AREANAME"
+								width="160"/>
+			</mx:FormItem>
+			
+			<mx:FormItem label="所属地市：">
+				<s:DropDownList id="cityDDP" 
+								dataProvider="{cityList}"
+								labelField="cityName"
+								width="160"/>
+			</mx:FormItem>
+			
+			<mx:FormItem label="经度：">
+				<s:HGroup>
+					<s:TextInput id="longitude_input" editable="false"
+								 text="0"/>
+				</s:HGroup>
+			</mx:FormItem>
+			
+			<mx:FormItem label="纬度：">
+				<s:HGroup>
+					<s:TextInput id="latitude_input" editable="false"
+								 text="0"/>
+				</s:HGroup>
+			</mx:FormItem>
+			
+			<mx:FormItem label="资源名称：">
+				<s:HGroup>
+					<s:TextInput id="emergresname_input" editable="false"/>
+				</s:HGroup>
+			</mx:FormItem>
+			<mx:FormItem label="载频：">
+				<s:HGroup>
+					<s:TextInput id="zaipin_input" editable="false"/>
+				</s:HGroup>
+			</mx:FormItem>
+			<mx:FormItem label="话务量：">
+				<s:HGroup>
+					<s:TextInput id="huawuliang_input" editable="false"
+								 text="0"/>
+				</s:HGroup>
+			</mx:FormItem>
+			<mx:FormItem label="流量：">
+				<s:HGroup>
+					<s:TextInput id="liuliang_input" editable="false"
+								 text="0"/>
+				</s:HGroup>
+			</mx:FormItem>
+			<mx:FormItem label="联系电话：">
+				<s:TextArea id="emergresdesc_input" width="240" editable="false"
+							height="60"/>
+			</mx:FormItem>
+		</mx:Form>
+	</s:VGroup>
+</ailk_compts:Window>

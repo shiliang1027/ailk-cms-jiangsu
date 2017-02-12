@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  dragable="true" close="closeMe();" maximizable="true" minimizable="true"
+			  width="250" height="160">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Text;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.perfshow");
+			
+			public function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			//创建设备
+			public function initPerfGridData(obj:Object):void
+			{
+				this.devGrid.removeAllElements();
+				
+				//先检查最大列数
+				var maxCol:int = 0;
+				var total:int = 0;
+				
+				for each (var specDev1:Object in obj)
+				{
+					//计数
+					var count:int = 0;
+					//计算有多少行
+					for each (var devC1:Object in specDev1.devlist)
+					{
+						count ++;
+					}
+					if (count > 100)
+					{
+						maxCol = 100;
+					}
+					else
+					{
+						if (count > maxCol)
+						{
+							maxCol = count;
+						}
+					}
+					
+					total += count;
+				}
+				
+				if (total > 0)
+				{
+					//添加列
+					var titleRow:GridRow = new GridRow();
+					var specTitleItem:GridItem = new GridItem();
+					specTitleItem.setStyle("borderStyle","solid");
+					specTitleItem.setStyle("borderColor","0xFFFFFF");
+					specTitleItem.setStyle("backgroundColor","0X395F84");
+					specTitleItem.setStyle("horizontalAlign","center");
+					specTitleItem.setStyle("verticalAlign","middle");
+					var specTitleText:Text = new Text();
+					specTitleText.text = "专业";
+					specTitleItem.addElement(specTitleText);
+					titleRow.addElement(specTitleItem);
+					var devTitleItem:GridItem = new GridItem();
+					devTitleItem.setStyle("borderStyle","solid");
+					devTitleItem.setStyle("borderColor","0xFFFFFF");
+					devTitleItem.setStyle("backgroundColor","0X395F84");
+					devTitleItem.setStyle("horizontalAlign","center");
+					devTitleItem.setStyle("verticalAlign","middle");
+					devTitleItem.colSpan = maxCol;
+					var devTitleText:Text = new Text();
+					devTitleText.text = "性能异常统计";
+					devTitleItem.addElement(devTitleText);
+					titleRow.addElement(devTitleItem);
+					this.devGrid.addElementAt(titleRow,0);
+					
+					for each (var specDev:Object in obj)
+					{
+						//计数
+						var index:int = 0;
+						var devCount:int = 0;
+						//计算有多少行
+						for each (var devC:Object in specDev.devlist)
+						{
+							devCount ++;
+						}
+						var rowSpan:int = devCount/maxCol;
+						if ((devCount % maxCol) > 0)
+						{
+							rowSpan += 1;
+						}
+						log.info("专业：" + specDev.spec + " devCount=" + devCount + "  rowSpan=" + rowSpan);
+						
+						var row:GridRow = new GridRow();
+						
+						//先添加专业名称
+						var specItem:GridItem = new GridItem();
+						specItem.setStyle("borderStyle","solid");
+						specItem.setStyle("borderColor","0xFFFFFF");
+						specItem.setStyle("backgroundColor","0X395F84");
+						specItem.setStyle("horizontalAlign","center");
+						specItem.setStyle("verticalAlign","middle");
+						if (rowSpan > 0)
+						{
+							specItem.rowSpan = rowSpan;
+						}
+						var specText:Text = new Text();
+						specText.text = specDev.spec;
+						specItem.addElement(specText);
+						row.addElement(specItem);
+						
+						//再添加列
+						if (specDev.devlist != null)
+						{
+							
+							for each (var dev:Object in specDev.devlist)
+							{
+								if (dev.level == null || dev.level == "" || dev.level == "0")
+								{
+									continue;
+								}
+								
+								if (index >= maxCol)
+								{
+									//添加新行
+									this.devGrid.addElement(row);
+									row = new GridRow();
+									index = 0;
+								}
+								
+								var devItem:GridItem = new GridItem();
+								devItem.setStyle("borderStyle","solid");
+								devItem.setStyle("borderColor","0xFFFFFF");
+								if (dev.level == "1")
+								{
+									devItem.setStyle("backgroundColor","0xFF0000");
+								}
+								else if (dev.level == "2")
+								{
+									devItem.setStyle("backgroundColor","0xFFA500");
+								}
+								else if (dev.level == "3")
+								{
+									devItem.setStyle("backgroundColor","0xFFFF00");
+								}
+								else if (dev.level == "4")
+								{
+									devItem.setStyle("backgroundColor","0x4169e1");
+								}
+								var devText:Text = new Text();
+								devText.setStyle("color",0x000000);
+								devText.text = String(dev.moName);
+								devItem.addElement(devText);
+								row.addElement(devItem);
+								
+								index++;
+							}
+						}
+						
+						if (index < maxCol)
+						{
+							//添加空格
+							for (var i:int=index;i<maxCol;i++)
+							{
+								var blankItem:GridItem = new GridItem();
+								blankItem.setStyle("borderStyle","solid");
+								blankItem.setStyle("borderColor","0xFFFFFF");
+								blankItem.minWidth = 60;
+								row.addElement(blankItem);
+							}
+						}
+						
+						this.devGrid.addElement(row);
+					}
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Scroller width="100%" height="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+		<s:Group width="100%" height="100%">
+			<mx:Grid id="devGrid" color="0xFFFFFF" horizontalGap="-1" verticalGap="-1">
+			</mx:Grid>
+		</s:Group>
+	</s:Scroller>
+</panel:Window>

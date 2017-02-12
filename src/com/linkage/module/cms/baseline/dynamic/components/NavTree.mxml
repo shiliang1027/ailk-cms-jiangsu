@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Tree xmlns:fx="http://ns.adobe.com/mxml/2009"
+                   xmlns:s="library://ns.adobe.com/flex/spark"
+                   xmlns:mx="library://ns.adobe.com/flex/mx"
+                   height="100%"
+                   width="100%"
+                   borderAlpha="0"
+                   verticalAlign="middle"
+                   contentBackgroundAlpha="0"
+                   showScrollTips="true"
+                   wordWrap="false"
+                   variableRowHeight="true"
+                   showRoot="true"
+                   labelField="@label"
+                   editorHeightOffset="0"
+                   itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.TreeDataItemRenderer"
+                   fontWeight="normal"
+                   fontSize="12"
+                   indentation="12"
+                   paddingLeft="10"
+                   folderClosedIcon="{null}"
+                   folderOpenIcon="{null}"
+                   disclosureClosedIcon="@Embed('../assets/+.png')"
+                   disclosureOpenIcon="@Embed('../assets/-.png')"
+				   xmlns:tree="com.linkage.system.component.tree.*"
+				   >
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			/**
+			 *初始化设备id和指标。2014-5-30
+			 **/
+			private var _defaultMoId:String = "";
+			private var _defaultPerfTypeId:String = "";
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.dynamic.components.NavTree");
+			/**
+			 * 初始化tree
+			 **/ 
+			private var xmlData:XML;
+			public function initTree(xmlObj:Object):void
+			{
+				var xml:XML = XML(xmlObj);
+				this.dataProvider = xml;
+				xmlData  = this.dataProvider[0];
+				this.callLater(expandTree);
+			}
+			/**
+			 * 
+			 * 默认打开第一层
+			 **/
+			private function expandTree():void{
+				this.expandChildrenOf(xmlData , true);
+				for each (var item:XML in xmlData.node) 
+				{
+					this.expandChildrenOf(item , false);
+				}
+			}
+			
+			/**
+			 *加载子网元处理方法
+			 **/
+			public var treeOpenItem:Object;
+			public function dealChildTree(obj:Object):void{
+				var result:XML = new XML(obj);
+				log.info("result:");
+//				log.info(result);
+				(treeOpenItem as XML).setChildren(result.children());
+				log.info("treeOpenItem:");
+//				log.info(treeOpenItem);
+				this.expandItem(treeOpenItem, false);
+				expandParent(treeOpenItem as XML);
+				this.selectedItem = treeOpenItem;
+				var index:Number = this.getItemIndex(treeOpenItem);
+				this.verticalScrollPosition = index;
+			}
+			/**
+			 *层层展开父节点
+			 * @param item
+			 *
+			 */
+			private function expandParent(item:XML):void
+			{
+				if (item && !this.isItemOpen(item))
+				{
+					this.expandItem(item, true);
+					expandParent(item.parent());
+				}
+			}
+			
+			public function get defaultMoId():String
+			{
+				return _defaultMoId;
+			}
+			
+			public function set defaultMoId(value:String):void
+			{
+				_defaultMoId=value;
+			}
+			public function get defaultPerfTypeId():String
+			{
+				return _defaultPerfTypeId;
+			}
+			public function set defaultPerfTypeId(value:String):void
+			{
+				_defaultPerfTypeId=value;
+			}
+		]]>
+	</fx:Script>
+
+    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+
+    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+</mx:Tree>

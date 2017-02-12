@@ -1,0 +1,986 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   creationComplete="module1_creationCompleteHandler(event)"
+		   xmlns:panel="com.linkage.system.component.panel.*"
+		   xmlns:component="com.linkage.module.cms.perfmonitor.indexview.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.common.CommonColRender;
+			import com.linkage.module.cms.perfmonitor.indexview.component.AlarmLevelColRenderer;
+			import com.linkage.module.cms.perfmonitor.indexview.component.DevLineView;
+			import com.linkage.module.cms.perfmonitor.indexview.component.SubCityDetail;
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.data.MonitorDataImp;
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.util.MonitorUtil;
+			import com.linkage.module.cms.perfmonitor.servperf.data.ServPerfMonitorDataMgr;
+			import com.linkage.module.cms.perfmonitor.servperf.servstatistic.CityDetailPerfChartWindow;
+			import com.linkage.module.cms.perfmonitor.servperf.servstatistic.HisPerfChartWindow;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellServiceImp;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectPowerServiceImp;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanServiceImp;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+
+			public var parameters:Object;
+
+			private var testFlag:Boolean = false;
+
+			//日志
+			public var log:ILogger;
+
+			[Bindable]
+			private var devGeneralDP:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var devDetailDP:ArrayCollection = new ArrayCollection();
+
+			[Bindable]
+			private var svcDP:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var svcDetailDP:ArrayCollection = new ArrayCollection();
+
+			[Bindable]
+			private var sbjDP:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var sbjCityDetailDP:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var sbjMoDetailDP:ArrayCollection = new ArrayCollection();
+
+			[Bindable]
+			private var commonColumnRenderer:IFactory = new ClassFactory(CommonColRender);
+
+			[Bindable]
+			private var almLvlColRender:IFactory = new ClassFactory(AlarmLevelColRenderer);
+
+
+
+			//加载完成的个数，全部加载完成后隐藏loading
+			private var finishedNum:uint = 0;
+
+			//loading动画~~
+			private var lm:LoadManager;
+
+			//数据刷新  定时器    周期    5分钟
+			private var timer:Timer = new Timer(300000);
+
+			//设备趋势图
+			private var _devLineView:DevLineView = null;
+
+			//业务地市详情
+			private var _servCityDetail:CityDetailPerfChartWindow = null;
+
+			//专题地市详情
+			private var _subCityDetail:SubCityDetail = null;
+
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//保存引用参数
+				this.parameters = parentApplication.parameters;
+				PerfIndexViewDataMgr.setContext(this.parameters['context']);
+
+				//初始化日志
+				initLog();
+
+				//初始化 		loading 定时器    样式  参数
+				justInit();
+
+				//首次加载数据
+				loadData();
+
+				initMenu();
+			}
+
+			private function justInit():void
+			{
+				log.info('初始化     loading 定时器    样式  参数');
+
+				lm = new LoadManager(mainGroup);
+
+				timer.addEventListener(TimerEvent.TIMER, loadData);
+
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+
+				setTimeout(function():void
+					{
+						timer.start();
+						log.info('数据刷新定时器 启动！');
+						//-------------------------------------历史回退修改------------------------------------
+						this.parentApplication.add(timer);
+					//-------------------------------------历史回退修改------------------------------------
+
+					}, 60000);
+			}
+
+			private function initLog():void
+			{
+				var target:ILoggingTarget = new MonsterTarget2();
+				var logLevel:String = this.parameters["logLevel"];
+
+				//日志级别
+				if(logLevel == "error")
+				{
+					target.level = LogEventLevel.ERROR;
+				}
+				else if(logLevel == "warn")
+				{
+					target.level = LogEventLevel.WARN;
+				}
+				else if(logLevel == "info")
+				{
+					target.level = LogEventLevel.INFO;
+				}
+				else if(logLevel == "debug")
+				{
+					target.level = LogEventLevel.DEBUG;
+				}
+				else
+				{
+					target.level = LogEventLevel.INFO;
+				}
+
+				//日志过滤器
+				var logFilter:String = this.parameters["logTarget"];
+				if(logFilter != null && logFilter != "")
+				{
+					var logArr:Array = logFilter.split(",");
+					target.filters = logArr;
+				}
+				else
+				{
+					target.filters = ["com.linkage.module.cms.perfmonitor.indexview.*", "com.linkage.system.*"];
+				}
+
+				Log.addTarget(target);
+
+				log = Log.getLogger("com.linkage.module.cms.perfmonitor.indexview.PerfIndexView");
+
+				log.info('初始化日志完成！');
+			}
+
+			//初始化流水菜单
+			private function initMenu():void
+			{
+				ServPerfMonitorDataMgr.setContext(this.parameters['context']);
+
+				//菜单
+				var menu:ContextMenu = new ContextMenu();
+				menu.hideBuiltInItems();
+				var menuItem1:ContextMenuItem = new ContextMenuItem("趋势图");
+				menuItem1.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerDevLine);
+				menu.customItems.push(menuItem1);
+				devPerfDetailGrid.contextMenu = menu;
+
+				//菜单
+				var menu2:ContextMenu = new ContextMenu();
+				menu2.hideBuiltInItems();
+				var menuItem2:ContextMenuItem = new ContextMenuItem("地市详情");
+				menuItem2.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerServDetail);
+				menu2.customItems.push(menuItem2);
+				var menuItem3:ContextMenuItem = new ContextMenuItem("趋势图");
+				menuItem3.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerSevrLine);
+				menu2.customItems.push(menuItem3);
+				svcPerfCityDetailGrid.contextMenu = menu2;
+
+//				var menu3:ContextMenu = new ContextMenu();
+//				menu3.hideBuiltInItems();
+//				var menuItem4:ContextMenuItem = new ContextMenuItem("地市详情");
+//				menuItem4.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerSubMinitorDetail);
+//				menu3.customItems.push(menuItem4);
+//				var menuItem5:ContextMenuItem = new ContextMenuItem("趋势图");
+//				menuItem5.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerSubMinitorLine);
+//				menu3.customItems.push(menuItem5);
+//				var menuItem6:ContextMenuItem = new ContextMenuItem("进入专题");
+//				menuItem6.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerSubMinitorOpen);
+//				menu3.customItems.push(menuItem6);
+//				sbjCityDetailGrid.contextMenu = menu3;
+
+			}
+
+			//设备性能流水:趋势图
+			private function cmenuItemHandlerDevLine(event:ContextMenuEvent):void
+			{
+				if(event.mouseTarget is AlarmLevelColRenderer)
+				{
+				}
+				else if(!event.mouseTarget.hasOwnProperty('listData') || event.mouseTarget['listData'].rowIndex < 0)
+					return;
+
+				var data:Object = event.mouseTarget['data'];
+				log.info("设备性能菜单:地市详情 moId=" + data.moId + ",moName=" + data.moName + ",moTypeName=" + data.moTypeName + ",perfId=" + data.perfId);
+
+				if(data != null)
+				{
+					if(_devLineView == null)
+					{
+						//初始化设备趋势图
+						_devLineView = new DevLineView();
+						_devLineView.monitorData = new MonitorDataImp({'context': this.parameters['context']});
+					}
+
+					_devLineView.moId = data.moId;
+					_devLineView.moTypeName = data.moTypeName;
+					_devLineView.moName = data.moName;
+					_devLineView.showHideWindow(mainGroup);
+					_devLineView.loadKpiList(data.perfId);
+				}
+			}
+
+			//业务设备性能流水:地市详情
+			private function cmenuItemHandlerServDetail(event:ContextMenuEvent):void
+			{
+				if(event.mouseTarget is AlarmLevelColRenderer)
+				{
+				}
+				else if(!event.mouseTarget.hasOwnProperty('listData') || event.mouseTarget['listData'].rowIndex < 0)
+					return;
+
+				var data:Object = event.mouseTarget['data'];
+
+				if(data != null)
+				{
+					log.info("业务设备性能菜单:地市详情perfId=" + data.perfId + ",perfName=" + data.perfName + ",interval=" + data.interval + ",context=" + this.parameters['context']);
+					//地市详情 图表窗口 
+					if(_servCityDetail == null)
+					{
+						_servCityDetail = new CityDetailPerfChartWindow();
+
+						_servCityDetail.context = this.parameters['context'];
+						_servCityDetail.clickFlag = false;
+
+						_servCityDetail.width = 600;
+						_servCityDetail.height = 400;
+					}
+
+					_servCityDetail.x = 340;
+					_servCityDetail.y = 30;
+					_servCityDetail.perfId = data.perfId;
+					_servCityDetail.perfName = data.perfName;
+					_servCityDetail.interval = data.interval;
+					_servCityDetail.init();
+
+					PopUpManager.addPopUp(_servCityDetail, mainGroup, false);
+				}
+			}
+
+			//业务性能流水:趋势图
+			private function cmenuItemHandlerSevrLine(event:ContextMenuEvent):void
+			{
+				if(event.mouseTarget is AlarmLevelColRenderer)
+				{
+				}
+				else if(!event.mouseTarget.hasOwnProperty('listData') || event.mouseTarget['listData'].rowIndex < 0)
+					return;
+
+				var data:Object = event.mouseTarget['data'];
+				if(data != null)
+				{
+					log.info("业务设备性能菜单:趋势图 perfId=" + data.perfId + ",perfName=" + data.perfName + ",cityId=" + data.cityId + ",context=" + this.parameters['context']);
+					var hpWindow:HisPerfChartWindow = new HisPerfChartWindow();
+					hpWindow.perfId = data.perfId;
+					hpWindow.perfName = data.perfName;
+					hpWindow.cityId = data.cityId;
+					hpWindow.context = this.parameters['context'];
+					hpWindow.x = 200;
+					hpWindow.y = 30;
+
+					PopUpManager.addPopUp(hpWindow, mainGroup, false);
+				}
+			}
+
+			//专题监控流水:地市详情
+			private function cmenuItemHandlerSubMinitorDetail(event:ContextMenuEvent):void
+			{
+				if(event.mouseTarget is AlarmLevelColRenderer)
+				{
+				}
+				else if(!event.mouseTarget.hasOwnProperty('listData') || event.mouseTarget['listData'].rowIndex < 0)
+					return;
+
+				var data:Object = event.mouseTarget['data'];
+				if(data != null)
+				{
+					if(_subCityDetail == null)
+					{
+						_subCityDetail = new SubCityDetail();
+						_subCityDetail.cellService = new SubjectCellServiceImp(this.parameters['context']);
+						_subCityDetail.btsService = new SubjectPowerServiceImp(this.parameters['context']);
+						_subCityDetail.wlanService = new SubjectWlanServiceImp(this.parameters['context']);
+						_subCityDetail.context = this.parameters['context'];
+						_subCityDetail.x = 340;
+						_subCityDetail.y = 30;
+						_subCityDetail.width = 600;
+						_subCityDetail.height = 400;
+					}
+					log.info("专题监控:地市详情 perfId=" + data.perfId);
+					_subCityDetail.showHideWindow(mainGroup);
+					_subCityDetail.loadChartData(data.perfId);
+				}
+			}
+
+			//专题监控流水:趋势图
+			private function cmenuItemHandlerSubMinitorLine(event:ContextMenuEvent):void
+			{
+				if(event.mouseTarget is AlarmLevelColRenderer)
+				{
+				}
+				else if(!event.mouseTarget.hasOwnProperty('listData') || event.mouseTarget['listData'].rowIndex < 0)
+					return;
+
+				var data:Object = event.mouseTarget['data'];
+				if(data != null)
+				{
+					var cityName:String = data.cityName;
+					var perfId:String = data.perfId;
+					var perfName:String = data.perfName;
+					var cityId:String = data.cityId;
+
+					log.info("专题监控:趋势图cityName=" + cityName + ", perfId=" + perfId + ", perfName=" + perfName + ", cityId=" + cityId);
+					if(_perfChartDetail.cellService == null)
+					{
+						_perfChartDetail.cellService = new SubjectCellServiceImp(parameters['context']);
+						_perfChartDetail.btsService = new SubjectPowerServiceImp(this.parameters['context']);
+						_perfChartDetail.wlanService = new SubjectWlanServiceImp(this.parameters['context']);
+					}
+
+					_perfChartDetail.visible = true;
+					_perfChartDetail.showChart(cityId, cityName, perfName);
+				}
+			}
+
+			//专题监控流水:进入专题
+			private function cmenuItemHandlerSubMinitorOpen(event:ContextMenuEvent):void
+			{
+				if(event.mouseTarget is AlarmLevelColRenderer)
+				{
+				}
+				else if(!event.mouseTarget.hasOwnProperty('listData') || event.mouseTarget['listData'].rowIndex < 0)
+					return;
+
+				var data:Object = event.mouseTarget['data'];
+				if(data != null)
+				{
+					var url:String = null;
+					var type:int = MonitorUtil.getTypeByPerfTypeId(data.perfId);
+					log.info("专题监控流水:进入专题type=" + type + " perfId:" + data.perfId);
+					if(type == 1 || type == 2 || type == 3 || type == 5)
+					{
+						url = "/cms/perfmonitor/subject/CellSubjectMonitor.jsp?type=" + type;
+						navigateToURL(new URLRequest(this.parameters['context'] + url), "_self");
+					}
+					else if(type == 6)
+					{
+						url = "/cms/perfmonitor/subject/BtsSubjectMonitor.jsp";
+						navigateToURL(new URLRequest(this.parameters['context'] + url), "_self");
+					}
+					else if(type == 7)
+					{
+						url = "/cms/perfmonitor/subject/WlanSubjectMonitor.jsp";
+						navigateToURL(new URLRequest(this.parameters['context'] + url), "_self");
+					}
+				}
+			}
+
+			private function loadData(event:TimerEvent = null):void
+			{
+				log.info('加载数据，  是否刷新：' + (event != null));
+				finishedNum = 0;
+
+				loadDevData(event != null);
+
+				loadSvcAndSbjData(event != null);
+			}
+
+
+			//-------------------------设备性能----------------------------------------
+			//加载设备性能监控数据
+			private function loadDevData(refreshFlag:Boolean = false):void
+			{
+				lm.showLoading();
+				log.info('加载设备性能  概况/详情  信息.');
+				PerfIndexViewDataMgr.getBadEquipList(
+					function(data:Object):void
+					{
+						hideLoading();
+						log.info('显示设备性能  概况/详情  信息.');
+						initListData2DataGrid(data['general'], devGeneralDP);
+						initListData2DataGrid(data['detail'], devDetailDP);
+					},
+					function(e:FaultEvent):void
+					{
+						hideLoading();
+						log.error('加载 设备性能劣化  概况/详情 数据失败！');
+					});
+			}
+
+			protected function devPerfGeneralGrid_itemClickHandler(e:ListEvent):void
+			{
+				var specName:String = devPerfGeneralGrid.dataProvider[e.rowIndex]['specName'];
+				var dataField:String = devPerfGeneralGrid.columns[e.columnIndex].dataField;
+
+				log.info('过滤设备性能劣化详情表格 dataField:' + dataField + ' specName:' + specName);
+				log.info('设备性能概况表格点击事件处理: row:' + e.rowIndex + ' col:' + e.columnIndex);
+
+				//点击专业类型跳到相关专业监控页面
+				if(e.columnIndex == 0)
+				{
+					if(specName == '无线网')
+					{
+						specName = '无线';
+					}
+
+					devDetailDP.filterFunction = function(item:Object):Boolean
+					{
+						return item['specName'].toString().indexOf(specName) >= 0;
+					}
+					devDetailDP.refresh();
+				}
+				else //联动右侧详情表格
+				{
+					var level:String = '一级';
+					if(e.columnIndex == 2)
+						level = '二级';
+					if(specName == '无线网')
+					{
+						specName = '无线';
+					}
+					devDetailDP.filterFunction = function(item:Object):Boolean
+					{
+						return item['specName'].toString().indexOf(specName) >= 0 && level == item['perfLevel'];
+					}
+					devDetailDP.refresh();
+				}
+			}
+
+			//-------------------------设备性能----------------------------------------
+
+
+
+
+
+			//-------------------------业务性能----------------------------------------
+			private function loadSvcAndSbjData(refreshFlag:Boolean = false):void
+			{
+				log.info('加载  业务性能劣化 概况/详情 和 专题监控 概况和地市详情 数据!');
+				PerfIndexViewDataMgr.getPerfInfo(
+					function(data:Object):void
+					{
+						hideLoading();
+						if(!data || !data['svc'])
+						{
+							log.error(" 业务性能劣化 概况/详情 和 专题监控 概况和地市详情 数据  为空  ！");
+							return;
+						}
+
+						log.info('显示业务性能劣化概况数据.');
+						initSvcData(data['svc']);
+
+						log.info('显示业务性能劣化详情数据.');
+						initListData2DataGrid(data['svcDetail'], svcDetailDP);
+
+						log.info('显示专题监控 概况数据.');
+						initListData2DataGrid(data['sbj'], sbjDP);
+
+						log.info('显示专题监控 地市详情 数据.');
+						initListData2DataGrid(data['sbjCityDetail'], sbjCityDetailDP);
+					},
+					function(e:FaultEvent):void
+					{
+						hideLoading();
+						log.error('加载 业务性能概况/详情&专题性能概况/地市详情 数据失败！');
+					});
+
+				log.info('加载  专题监控 网元详情 数据!');
+				PerfIndexViewDataMgr.getNeDetailList(
+					function(data:Object):void
+					{
+						log.info('显示专题监控 网元详情 数据.');
+						initListData2DataGrid(data, sbjMoDetailDP);
+					},
+					function(e:FaultEvent):void
+					{
+						log.error('加载 专题性能网元详情 数据失败！');
+					});
+			}
+
+			private function hideLoading():void
+			{
+				finishedNum++;
+				if(finishedNum >= 2)
+					lm.hideLoading();
+			}
+
+			private function initSvcData(data:Object):void
+			{
+				if(data.length < 1)
+					return;
+
+				var arr:ArrayCollection = new ArrayCollection();
+				for(var sn:Object in data)
+				{
+					for each(var obj:Object in data[sn])
+					{
+						obj['svcName'] = sn;
+						arr.addItem(obj);
+					}
+				}
+
+				initListData2DataGrid(arr, svcDP);
+			}
+
+			protected function svcPerfGeneralDataGrid_itemClickHandler(e:ListEvent):void
+			{
+				var dataField:String = e.target.columns[e.columnIndex].dataField;
+				var perfName:String = e.target.dataProvider[e.rowIndex]['perfName'];
+				var svcName:String = e.target.dataProvider[e.rowIndex]['svcName'];
+
+				log.info('业务性能监控概况表格点击事件, dataField:' + dataField + ' perfName:' + perfName + ' svcName:' + svcName);
+
+				if(dataField == 'svcName')
+				{
+					svcDetailDP.filterFunction = function(item:Object):Boolean
+					{
+						return svcName == item['svcName'];
+					}
+					svcDetailDP.refresh();
+
+				}
+				else
+				{
+					svcDetailDP.filterFunction = function(item:Object):Boolean
+					{
+						return perfName == item['perfName'];
+					}
+					svcDetailDP.refresh();
+				}
+			}
+
+			//-------------------------业务性能----------------------------------------
+
+
+
+			//-------------------------专题性能----------------------------------------
+//			protected function sbjPerfGenralGrid_itemClickHandler(e:ListEvent):void
+//			{
+//				var dataField:String = sbjPerfGenralGrid.columns[e.columnIndex].dataField;
+//				var perfName:String = sbjPerfGenralGrid.dataProvider[e.rowIndex]['perfName'];
+//				log.info('专题监控概况表格点击事件, dataField:' + dataField + ' perfName:' + perfName);
+//
+//				if(dataField == 'cityNum')
+//				{
+//					sbjCityDetailDP.filterFunction = function(item:Object):Boolean
+//					{
+//						return perfName == item['perfName'];
+//					}
+//					sbjCityDetailDP.refresh();
+//					sbjViewStack.selectedIndex = 0;
+//				}
+//				else if(dataField == 'moNum')
+//				{
+//					sbjMoDetailDP.filterFunction = function(item:Object):Boolean
+//					{
+//						return perfName == item['perfName'];
+//					}
+//					sbjMoDetailDP.refresh();
+//					sbjViewStack.selectedIndex = 1;
+//				}
+//				else
+//				{
+//					sbjCityDetailDP.filterFunction = function(item:Object):Boolean
+//					{
+//						return perfName == item['perfName'];
+//					}
+//					sbjCityDetailDP.refresh();
+//
+//					sbjMoDetailDP.filterFunction = function(item:Object):Boolean
+//					{
+//						return perfName == item['perfName'];
+//					}
+//					sbjMoDetailDP.refresh();
+//				}
+//			}
+
+			//-------------------------专题性能----------------------------------------
+
+
+			//---------------------------共用-------------------------------------
+			private function initListData2DataGrid(data:Object, dp:ArrayCollection):void
+			{
+				if(data.length < 1)
+					return;
+
+				var f:Function = dp.filterFunction;
+				dp.filterFunction = null;
+				dp.refresh();
+				dp.removeAll();
+				for each(var item:Object in data)
+				{
+					dp.addItem(item);
+				}
+				dp.filterFunction = f;
+				dp.refresh();
+			}
+
+
+			protected function maximizeHandler(type:Number):void
+			{
+				win1.visible = (type == 1);
+				win1.includeInLayout = (type == 1);
+				win2.visible = (type == 2)
+				win2.includeInLayout = (type == 2);
+//				win3.visible = (type == 3);
+//				win3.includeInLayout = (type == 3);
+			}
+
+
+			protected function restoreHandler(type:Number):void
+			{
+				win1.visible = true;
+				win1.includeInLayout = true;
+				win2.visible = true;
+				win2.includeInLayout = true;
+//				win3.visible = true;
+//				win3.includeInLayout = true;
+			}
+
+
+			protected function reset_clickHandler(type:Number):void
+			{
+				if(type == 1)
+				{
+					devDetailDP.filterFunction = null;
+					devDetailDP.refresh();
+				}
+				else if(type == 2)
+				{
+					svcDetailDP.filterFunction = null;
+					svcDetailDP.refresh();
+				}
+//				else if(type == 3)
+//				{
+//					if(sbjViewStack.selectedIndex == 0)
+//					{
+//						sbjCityDetailDP.filterFunction = null;
+//						sbjCityDetailDP.refresh();
+//					}
+//					else
+//					{
+//						sbjMoDetailDP.filterFunction = null;
+//						sbjMoDetailDP.refresh();
+//					}
+//				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+
+	<s:VGroup id="mainGroup"
+			  width="100%"
+			  height="100%"
+			  gap="5"
+			  left="5"
+			  right="5"
+			  top="5">
+		<!-- 设备-->
+		<panel:Window id="win1"
+					  width="100%"
+					  height="100%"
+					  title="设备性能"
+					  closable="false"
+					  minimizable="false"
+					  maximize="maximizeHandler(1)"
+					  restore="restoreHandler(3)">
+			<s:HGroup width="100%"
+					  height="100%"
+					  gap="10">
+				<mx:AdvancedDataGrid id="devPerfGeneralGrid"
+									 width="45%"
+									 height="100%"
+									 dataProvider="{devGeneralDP}"
+									 textAlign="left"
+									 itemClick="devPerfGeneralGrid_itemClickHandler(event)"
+									 draggableColumns="false"
+									 horizontalScrollPolicy="auto">
+					<mx:groupedColumns>
+						<mx:AdvancedDataGridColumnGroup headerText="设备性能劣化概况">
+							<mx:AdvancedDataGridColumn headerText="专业类型"
+													   dataField="specName"
+													   width="170"/>
+							<mx:AdvancedDataGridColumn headerText="一级性能劣化"
+													   dataField="level1"
+													   width="190"
+													   itemRenderer="{almLvlColRender}"/>
+							<mx:AdvancedDataGridColumn headerText="二级性能劣化"
+													   dataField="level2"
+													   itemRenderer="{almLvlColRender}"/>
+						</mx:AdvancedDataGridColumnGroup>
+					</mx:groupedColumns>
+				</mx:AdvancedDataGrid>
+				<mx:AdvancedDataGrid id="devPerfDetailGrid"
+									 width="55%"
+									 height="100%"
+									 dataProvider="{devDetailDP}"
+									 draggableColumns="false"
+									 textAlign="left"
+									 horizontalScrollPolicy="auto">
+					<mx:groupedColumns>
+						<mx:AdvancedDataGridColumnGroup headerText="设备性能劣化详情">
+							<mx:AdvancedDataGridColumn headerText="劣化级别"
+													   dataField="perfLevel"
+													   width="85"
+													   itemRenderer="{almLvlColRender}"/>
+							<mx:AdvancedDataGridColumn headerText="地市"
+													   dataField="cityName"/>
+							<mx:AdvancedDataGridColumn headerText="劣化网元名称"
+													   dataField="moName"
+													   width="120"/>
+							<mx:AdvancedDataGridColumn headerText="劣化指标"
+													   dataField="perfName"/>
+							<mx:AdvancedDataGridColumn headerText="劣化指标值"
+													   dataField="perfValue"/>
+							<mx:AdvancedDataGridColumn headerText="性能基准"
+													   dataField="perfBase"/>
+							<mx:AdvancedDataGridColumn headerText="性能时段"
+													   dataField="perfTime"
+													   width="145"/>
+							<mx:AdvancedDataGridColumn headerText="专业类型"
+													   dataField="specName"/>
+						</mx:AdvancedDataGridColumnGroup>
+					</mx:groupedColumns>
+				</mx:AdvancedDataGrid>
+			</s:HGroup>
+			<s:Button click="reset_clickHandler(1)"
+					  label="重置"
+					  right="20"
+					  top="-22"/>
+		</panel:Window>
+
+		<!-- 业务-->
+		<panel:Window id="win2"
+					  width="100%"
+					  height="100%"
+					  title="业务性能"
+					  closable="false"
+					  minimizable="false"
+					  maximize="maximizeHandler(2)"
+					  restore="restoreHandler(3)">
+			<s:HGroup width="100%"
+					  height="100%"
+					  gap="10">
+				<!--<s:Group id="svcGroup" width="45%" height="100%"/>-->
+				<mx:AdvancedDataGrid id="svcGeneralGrid"
+									 width="45%"
+									 height="100%"
+									 dataProvider="{svcDP}"
+									 draggableColumns="false"
+									 textAlign="left"
+									 itemClick="svcPerfGeneralDataGrid_itemClickHandler(event)"
+									 horizontalScrollPolicy="auto">
+					<mx:groupedColumns>
+						<mx:AdvancedDataGridColumnGroup headerText="全省业务性能概况">
+							<mx:AdvancedDataGridColumn headerText="业务类型"
+													   dataField="svcName"/>
+							<mx:AdvancedDataGridColumn headerText="业务指标"
+													   dataField="perfName"/>
+							<mx:AdvancedDataGridColumn headerText="指标值"
+													   dataField="perfValue"/>
+							<mx:AdvancedDataGridColumn headerText="指标基准"
+													   dataField="perfBase"/>
+							<mx:AdvancedDataGridColumn headerText="问题地市数量"
+													   dataField="cityNum"
+													   width="120"/>
+						</mx:AdvancedDataGridColumnGroup>
+					</mx:groupedColumns>
+				</mx:AdvancedDataGrid>
+
+				<mx:AdvancedDataGrid id="svcPerfCityDetailGrid"
+									 width="55%"
+									 height="100%"
+									 dataProvider="{svcDetailDP}"
+									 draggableColumns="false"
+									 textAlign="left"
+									 horizontalScrollPolicy="on">
+					<mx:groupedColumns>
+						<mx:AdvancedDataGridColumnGroup headerText="业务性能问题地市详情">
+							<mx:AdvancedDataGridColumn headerText="劣化级别"
+													   dataField="perfLevel"
+													   width="85"
+													   itemRenderer="{almLvlColRender}"/>
+							<mx:AdvancedDataGridColumn headerText="业务类型"
+													   dataField="svcName"
+													   width="85"/>
+							<mx:AdvancedDataGridColumn headerText="业务指标"
+													   dataField="perfName"
+													   width="85"/>
+							<mx:AdvancedDataGridColumn headerText="地市"
+													   dataField="cityName"
+													   width="85"/>
+							<mx:AdvancedDataGridColumn headerText="指标值"
+													   dataField="perfValue"
+													   width="85"/>
+							<mx:AdvancedDataGridColumn headerText="指标基准"
+													   dataField="perfBase"
+													   width="85"/>
+							<mx:AdvancedDataGridColumn headerText="性能时段"
+													   dataField="perfTime"
+													   width="145"/>
+						</mx:AdvancedDataGridColumnGroup>
+					</mx:groupedColumns>
+				</mx:AdvancedDataGrid>
+			</s:HGroup>
+			<s:Button click="reset_clickHandler(2)"
+					  label="重置"
+					  right="20"
+					  top="-22"/>
+		</panel:Window>
+
+		<!-- 专题-->
+		<!--<panel:Window id="win3"
+			 width="100%"
+			 height="100%"
+			 title="专题监控"
+			 closable="false"
+			 minimizable="false"
+			 maximize="maximizeHandler(3)"
+			 restore="restoreHandler(3)">
+			 <s:HGroup width="100%"
+			 height="100%"
+			 gap="10">
+			 <mx:AdvancedDataGrid id="sbjPerfGenralGrid"
+			 width="45%"
+			 height="100%"
+			 dataProvider="{sbjDP}"
+			 textAlign="left"
+			 horizontalScrollPolicy="auto"
+			 itemClick="sbjPerfGenralGrid_itemClickHandler(event)"
+			 draggableColumns="false">
+			 <mx:groupedColumns>
+			 <mx:AdvancedDataGridColumnGroup headerText="专题性能指标概况">
+			 <mx:AdvancedDataGridColumn headerText="专题指标"
+			 dataField="perfName"/>
+			 <mx:AdvancedDataGridColumn headerText="指标值"
+			 dataField="perfValue"/>
+			 <mx:AdvancedDataGridColumn headerText="指标基准"
+			 dataField="perfBase"/>
+			 <mx:AdvancedDataGridColumn headerText="问题地市数量"
+			 dataField="cityNum"
+			 width="115"/>
+			 <mx:AdvancedDataGridColumn headerText="问题网元数量"
+			 dataField="moNum"
+			 width="115"/>
+			 </mx:AdvancedDataGridColumnGroup>
+			 </mx:groupedColumns>
+			 </mx:AdvancedDataGrid>
+
+			 <s:VGroup width="55%"
+			 height="100%"
+			 gap="0">
+			 <s:TabBar id="sbjTabBar"
+			 dataProvider="{sbjViewStack}"
+			 styleName="commonTabBar"/>
+			 <mx:ViewStack id="sbjViewStack"
+			 creationPolicy="all"
+			 width="100%"
+			 height="100%">
+			 <s:NavigatorContent label="问题地市"
+			 width="100%"
+			 height="100%"
+			 creationPolicy="all">
+			 <mx:AdvancedDataGrid id="sbjCityDetailGrid"
+			 width="100%"
+			 height="100%"
+			 draggableColumns="false"
+			 textAlign="left"
+			 horizontalScrollPolicy="auto"
+			 dataProvider="{sbjCityDetailDP}">
+			 <mx:groupedColumns>
+			 <mx:AdvancedDataGridColumnGroup headerText="专题监控问题地市详情">
+			 <mx:AdvancedDataGridColumn headerText="性能劣化级别"
+			 dataField="perfLevel"
+			 width="120"
+			 itemRenderer="{almLvlColRender}"/>
+			 <mx:AdvancedDataGridColumn headerText="专题指标"
+			 dataField="perfName"
+			 width="85"/>
+			 <mx:AdvancedDataGridColumn headerText="地市名称"
+			 dataField="cityName"
+			 width="85"/>
+			 <mx:AdvancedDataGridColumn headerText="指标值"
+			 dataField="perfValue"
+			 width="85"/>
+			 <mx:AdvancedDataGridColumn headerText="指标基准"
+			 dataField="perfBase"
+			 width="85"/>
+			 <mx:AdvancedDataGridColumn headerText="指标时段"
+			 dataField="perfTime"
+			 width="145"/>
+			 </mx:AdvancedDataGridColumnGroup>
+			 </mx:groupedColumns>
+			 </mx:AdvancedDataGrid>
+			 </s:NavigatorContent>
+			 <s:NavigatorContent label="问题网元"
+			 width="100%"
+			 height="100%"
+			 creationPolicy="all">
+			 <mx:AdvancedDataGrid id="sbjMoDetailGrid"
+			 width="100%"
+			 height="100%"
+			 draggableColumns="false"
+			 textAlign="left"
+			 horizontalScrollPolicy="auto"
+			 dataProvider="{sbjMoDetailDP}">
+			 <mx:groupedColumns>
+			 <mx:AdvancedDataGridColumnGroup headerText="专题监控问题网元详情">
+			 <mx:AdvancedDataGridColumn headerText="性能劣化级别"
+			 dataField="perfLevel"
+			 width="120"
+			 itemRenderer="{almLvlColRender}"/>
+			 <mx:AdvancedDataGridColumn headerText="专题指标"
+			 dataField="perfName"
+			 width="85"/>
+			 <mx:AdvancedDataGridColumn headerText="网元名称"
+			 dataField="moName"
+			 width="85"/>
+			 <mx:AdvancedDataGridColumn headerText="指标值"
+			 dataField="perfValue"
+			 width="85"/>
+			 <mx:AdvancedDataGridColumn headerText="指标基准"
+			 dataField="perfBase"
+			 width="85"/>
+			 <mx:AdvancedDataGridColumn headerText="指标时段"
+			 dataField="perfTime"
+			 width="145"/>
+			 </mx:AdvancedDataGridColumnGroup>
+			 </mx:groupedColumns>
+			 </mx:AdvancedDataGrid>
+			 </s:NavigatorContent>
+			 </mx:ViewStack>
+			 </s:VGroup>
+			 </s:HGroup>
+			 <s:Button click="reset_clickHandler(3)"
+			 label="重置"
+			 right="20"
+			 top="-17"/>
+			 </panel:Window>-->
+	</s:VGroup>
+	<component:PerfChartDetail id="_perfChartDetail"
+							   x="200"
+							   y="100"
+							   visible="false"/>
+</mx:Module>

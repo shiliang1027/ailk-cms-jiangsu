@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   xmlns:view="com.linkage.module.cms.quitstatnew.view.*"
+		   width="100%"
+		   height="100%"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   creationComplete="quitModule_creationCompleteHandler(event)"
+		   preinitialize="quitModule_preinitializeHandler(event)"
+		   xmlns:components="com.linkage.module.cms.quitstatnew.view.components.*">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.quitstatnew.domain.IUser;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+
+			import mx.events.FlexEvent;
+
+			import spark.components.SkinnableContainer;
+
+			[Inject("user")]
+			public var user:IUser;
+			public var parameters:Object;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			private var log:ILogger = Log.getLoggerByClass(QuitModule);
+
+
+
+			protected function quitModule_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.debug("模块加载完成");
+				dispatchMsg(new QuitStatEvent(QuitStatEvent.MODULE_CREATETION_COMPLETE));
+			}
+
+			protected function quitModule_preinitializeHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.parameters = this.parentApplication.parameters;
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+			}
+
+			[Init]
+			public function moduleInit():void
+			{
+				user.context = this.parameters['context'];
+				user.account = this.parameters['account'];
+				user.areaId = this.parameters['areaId'];
+				user.searchType = "2";
+			}
+		]]>
+	</fx:Script>
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-10-22
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{QuitModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+
+	<mx:HDividedBox width="100%"
+					height="100%">
+
+		<!--江苏地图-->
+		<view:QuitMapView width="100%"
+						  height="100%"/>
+		<!--江苏地图-->
+		<!--山东地图-->
+		<!--<view:QuitMapView_SD width="100%"
+						  height="100%"/>-->
+		<!--山东地图-->
+		<!--山西地图-->
+		<!--<view:QuitMapView_SX width="100%"
+						  height="100%"/>-->
+		<!--山西地图-->
+		<view:QuitDataView width="680"
+						   height="100%"/>
+	</mx:HDividedBox>
+
+	<components:QuitHistoryComp width="590"
+								height="130"
+								visible="false"
+								includeInLayout="false"/>
+	<components:ConfigComp width="750"
+						   height="410"/>
+
+	<components:QuitDetailComp width="730"
+							   height="330"
+							   visible="false"
+							   includeInLayout="false"/>
+
+	<components:QuitHistoryResultComp width="730"
+									  height="330"
+									  visible="false"
+									  includeInLayout="false"/>
+
+</mx:Module>

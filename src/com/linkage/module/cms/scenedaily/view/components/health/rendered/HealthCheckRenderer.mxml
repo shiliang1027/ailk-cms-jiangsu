@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true"
+								  dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)"
+								  xmlns:parsley="http://www.spicefactory.org/parsley">
+
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			import mx.events.FlexEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(HealthCheckRenderer);
+
+			private function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				try
+				{
+					if (data)
+					{
+						if (data.trend)
+						{
+							if (data.trend == "1")
+							{
+								log.info("aa" + data.trend);
+								imgup.visible=true;
+								imgup.includeInLayout=true;
+								imgdowm.visible=false;
+								imgdowm.includeInLayout=false;
+								imgho.visible=false;
+								imgho.includeInLayout=false;
+							}
+							else if (data.trend == "0")
+							{
+								imgup.visible=false;
+								imgup.includeInLayout=false;
+								imgdowm.visible=false;
+								imgdowm.includeInLayout=false;
+								imgho.visible=true;
+								imgho.includeInLayout=true;
+							}
+							else if (data.trend == "-1")
+							{
+								imgup.visible=false;
+								imgup.includeInLayout=false;
+								imgdowm.visible=true;
+								imgdowm.includeInLayout=true;
+								imgho.visible=false;
+								imgho.includeInLayout=false;
+							}
+							else
+							{
+								imgup.visible=false;
+								imgup.includeInLayout=false;
+								imgdowm.visible=false;
+								imgdowm.includeInLayout=false;
+								imgho.visible=false;
+								imgho.includeInLayout=false;
+							}
+						}
+						else
+						{
+							imgup.visible=false;
+							imgup.includeInLayout=false;
+							imgdowm.visible=false;
+							imgdowm.includeInLayout=false;
+							imgho.visible=false;
+							imgho.includeInLayout=false;
+						}
+					}
+				}
+				catch (e:Error)
+				{
+					log.info("error");
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:HBox width="100%"
+			 contentBackgroundAlpha="0"
+			 backgroundAlpha="0"
+			 horizontalAlign="center"
+			 verticalAlign="middle">
+		<s:Label text="{data.pefValue}"/>
+		<mx:Image id="imgup"
+				  source="@Embed('../../../../img/up.png')"
+				  visible="false"
+				  includeInLayout="false"/>
+		<mx:Image id="imgdowm"
+				  source="@Embed('../../../../img/down.png')"
+				  visible="false"
+				  includeInLayout="false"/>
+		<mx:Image id="imgho"
+				  source="@Embed('../../../../img/ping.png')"
+				  visible="false"
+				  includeInLayout="false"/>
+	</mx:HBox>
+</s:MXAdvancedDataGridItemRenderer>

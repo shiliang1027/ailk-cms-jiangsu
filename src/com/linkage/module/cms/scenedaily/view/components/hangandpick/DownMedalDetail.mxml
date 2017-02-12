@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					styleName="window"
+					close="window1_closeHandler(event)"
+					maximize="window1_maximizeHandler(event)"
+					restore="window1_restoreHandler(event)"
+					minimizable="false"
+					dragable="true"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-8-30
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			private var log:ILogger = Log.getLoggerByClass(DownMedalDetail);
+			[Inject("downMedalDetailPM")]
+			[Bindable]
+			public var downMedalDetailPM:DownMedalDetailPM;
+			private var tempId:String;
+
+			/**
+			 * 初始化入口方法
+			 */
+			public function loadData(param:Object):void
+			{
+				log.debug("[摘牌详情]:begin...");
+				this.tempId = param.id;
+				downMedalDetailPM.getDownMedalnfo(param.id);
+			}
+
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				log.debug("挂牌下载id=" + tempId + ",type=" + 2);
+				downMedalDetailPM.export(tempId, 2);
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				this.closeButton.visible = false;
+
+			}
+
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				this.width = 700;
+				this.height = 400;
+				this.x = (this.parentApplication.width - this.width) / 2
+				this.y = (this.parentApplication.height - this.height) / 2 - 50;
+				this.closeButton.visible = true;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:Label text="基本信息"/>
+		<mx:AdvancedDataGrid dataProvider="{downMedalDetailPM.hangMedalDetailDM.baseInfoData}"
+							 id="baseDataGrid"
+							 width="100%"
+							 height="30%"
+							 textAlign="center"
+							 verticalScrollPolicy="auto">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="地市"
+										   dataField="cityname"/>
+				<mx:AdvancedDataGridColumn headerText="网元名称"
+										   dataField="mo_name"/>
+				<mx:AdvancedDataGridColumn headerText="网元类型"
+										   dataField="mo_type_name"/>
+				<mx:AdvancedDataGridColumn headerText="挂牌时间"
+										   dataField="happentime"/>
+				<mx:AdvancedDataGridColumn headerText="摘牌时间"
+										   dataField="delisttime"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:Label text="劣化指标明细"/>
+		<mx:AdvancedDataGrid dataProvider="{downMedalDetailPM.hangMedalDetailDM.propertyInfoData}"
+							 id="propertyDataGrid"
+							 width="100%"
+							 height="30%"
+							 textAlign="center"
+							 verticalScrollPolicy="auto">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="指标名称"
+										   dataField="name"/>
+				<mx:AdvancedDataGridColumn headerText="越线指标值"
+										   dataField="value"/>
+				<mx:AdvancedDataGridColumn headerText="健康值"
+										   dataField="normalthreshold"/>
+				<mx:AdvancedDataGridColumn headerText="越线指标发生时间"
+										   dataField="casetime"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:Label text="工单信息"/>
+		<mx:AdvancedDataGrid dataProvider="{downMedalDetailPM.hangMedalDetailDM.workOrderInfoData}"
+							 width="100%"
+							 height="30%"
+							 textAlign="center"
+							 verticalScrollPolicy="auto">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="工单号"
+										   dataField="sheetno"/>
+				<mx:AdvancedDataGridColumn headerText="工单状态"
+										   dataField="sheetstatus"/>
+				<mx:AdvancedDataGridColumn headerText="派单时间"
+										   dataField="sendtime"/>
+				<mx:AdvancedDataGridColumn headerText="工单时限"
+										   dataField="sheettime"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+	<mx:Image source="@Embed('../../../img/icon_export.png')"
+			  width="30"
+			  height="20"
+			  right="14"
+			  toolTip="导出"
+			  top="-23"
+			  buttonMode="true"
+			  click="export_clickHandler(event)"/>
+</ailk_compts:Window>

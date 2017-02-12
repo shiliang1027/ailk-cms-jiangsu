@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*" 
+			  minHeight="180" maxHeight="500" close="closeMe();" 
+			  dragable="true" resizable="true" title="{_title}">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			//显示标题
+			[Bindable]
+			private var _title:String = "红橙黄蓝预警";
+			
+			//记录当前网元所有的管线编号
+			[Bindable]
+			public var lineDatas:ArrayCollection = new ArrayCollection();
+			
+		
+			public function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!-- 指标图表-->
+		<s:VGroup width="100%" height="100%" gap="2">
+			<s:HGroup width="100%" height="30" paddingLeft="10" paddingRight="2" paddingTop="10" paddingBottom="5" horizontalAlign="left">
+				<s:HGroup height="100%" gap="0" verticalAlign="middle">
+					<mx:Text text="开始"/>
+					<common:UXDateField id="startDate" color="0x000000" bottom="5" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="false"/>
+				</s:HGroup>
+				<s:HGroup height="100%" gap="0" verticalAlign="middle">
+					<mx:Text text=" 结束"/>
+					<common:UXDateField id="endDate" color="0x000000" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="false"/>
+				</s:HGroup>
+				<s:HGroup height="100%" gap="0" verticalAlign="middle">
+					<mx:Text text=" 图表类型"/>
+					<s:DropDownList id="fcType" change="changeKpiType()"/>
+				</s:HGroup>
+				<s:HGroup height="100%" gap="0" verticalAlign="middle">
+					<mx:Text text=" 指标"/>
+					<s:DropDownList id="kpiSelect" width="180" dataProvider="{kpiDp}"/>
+					<s:Group width="15"/>
+					<s:Button label="应用" click="loadKpiData()"/>
+				</s:HGroup>
+			</s:HGroup>
+			<s:Group height="2" name="占位"/>
+			<mx:HRule width="100%" height="2" strokeColor="0x004080"/>
+			
+			<fusioncharts:FusionChartsLK id="kpiFc" width="100%" height="170"
+										 FCChartType="Spline"
+										 FCData="{new ArrayCollection()}"
+										 FCParams="{new ArrayCollection()}"
+										 FCFolder="{parentApplication.parameters.context}flex-release/FusionCharts"/>
+		</s:VGroup>
+</panel:Window>

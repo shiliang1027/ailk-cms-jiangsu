@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  minimizable="true"
+			  maximizable="true"
+			  closable="false"
+			  resizable="true"
+			  minimizableRight="10" 
+			  minimizableBottom="5"
+			  dragable="true"
+			  minHeight="25"
+			  minWidth="150"
+			  width="580"
+			  height="100%"
+			  title="事件列表"
+			  xmlns:parsley="http://www.spicefactory.org/parsley"
+			  creationComplete="window_creationCompleteHandler(event)"
+			  >
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.alarm.customrule.component.ColorRenderer;
+			import com.linkage.module.cms.alarm.eventwindow.domain.EventWindowDM;
+			import com.linkage.module.cms.alarm.eventwindow.event.EventwindowEvent;
+			import com.linkage.module.cms.alarm.eventwindow.view.EventFilterWindow;
+			import com.linkage.module.cms.alarm.eventwindow.view.RemarkConfigView;
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			
+			import mx.controls.Alert;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			private var log:ILogger = Log.getLoggerByClass(EventWindow);
+
+			[Inject("user")]
+			public var user:IUser;
+			
+			[Inject("eventWindowDM")]
+			[Bindable]
+			public var dm:EventWindowDM;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			
+			[Embed(source="assets/+.png")]
+			[Bindable]
+			public  var addImage:Class;
+			
+			[Embed(source="assets/search.png")]
+			[Bindable]
+			public  var searchImage:Class;
+			private var cellContextMenu:ContextMenu;
+			protected function statData_doubleClickHandler(event:MouseEvent):void
+			{
+			log.info(statData.selectedItem);
+			var url:String= "/cms/alarm/ivrevents/logsAction!queryEventdetail.action?id=" +statData.selectedItem.id ;
+			log.info("url="+url);
+			navigateToURL(new URLRequest(url));
+//			ExternalInterface.call("function(){window.open('" + url + "','','resizable=yes,toolbar=no')}");
+			
+			}
+			
+			
+			protected function window_creationCompleteHandler(event:FlexEvent):void
+			{
+				cellContextMenu = new ContextMenu();
+				var ivrContinue:ContextMenuItem = new ContextMenuItem("续报事件");
+				var ivrReset:ContextMenuItem = new ContextMenuItem("恢复事件");
+				var delEvent:ContextMenuItem = new ContextMenuItem("删除事件");
+				var ivrRemark:ContextMenuItem = new ContextMenuItem("事件备注");
+				ivrContinue.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, ivrContinueHandler);
+				ivrReset.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, ivrContinueHandler);
+				delEvent.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, delEventHandler);
+				ivrRemark.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, ivrRemarkHandler);
+				cellContextMenu.customItems.push(ivrContinue,ivrReset,delEvent,ivrRemark);
+				cellContextMenu.hideBuiltInItems();
+				statData.contextMenu = cellContextMenu;
+				
+				dispatchMsg(new Event("LOAD_EVENTWINDOW_DATA"));
+					dm.timer.addEventListener(TimerEvent.TIMER,onTimeHandler);
+					dm.timer.start();
+			}
+			
+			private function ivrContinueHandler(event:ContextMenuEvent):void
+			{
+				var obj:Object = event.mouseTarget.parent as IListItemRenderer;
+				var caption:String = event.currentTarget.caption;
+				if (obj == null)
+					obj = event.mouseTarget as IListItemRenderer;
+				var item:Object = obj["data"];
+				log.info(item);
+				var id:String = String(item['id']);
+				dm.parameters.id = id;
+				if(id != null  || id != "")
+				{
+					switch (caption)
+					{
+						case "续报事件":
+							var url:String= "/cms/cms/scheduling/schedulingAction!getRoleTree.action?id="+id+"&status=1";
+							break;
+						case "恢复事件":
+							var url:String= "/cms/cms/scheduling/schedulingAction!getRoleTree.action?id="+id+"&status=2";
+							break;
+					}
+					
+					log.info("url="+url);
+					navigateToURL(new URLRequest(url));
+					
+				}
+			} 
+			//事件删除
+			private function delEventHandler(event:ContextMenuEvent):void
+			{
+				AlarmUtil.showMessage("您确定要删除该事件吗？", "消息", Alert.OK | Alert.CANCEL, null, function(eventClose:CloseEvent):void
+				{
+					if (eventClose.detail == Alert.OK)
+					{
+						var obj:Object = event.mouseTarget.parent as IListItemRenderer;
+						if (obj == null)
+							obj = event.mouseTarget as IListItemRenderer;
+						var item:Object = obj["data"];
+						log.info(item);
+						log.info(user);
+						var id:String = String(item['id']);
+						dm.parameters.id = id;
+						dm.parameters.status = 2;
+						dm.parameters.context = user.context;
+						dm.parameters.areaId = user.areaId;
+						dm.parameters.account = user.account;
+						log.info("id:"+id);
+						if(id != null  || id != "")
+						{
+							dispatchMsg(new Event("DELETE_EVENTWINDOW_DATA"));
+						}
+						
+					}
+				});
+			} 
+			//事件备注
+			private function ivrRemarkHandler(event:ContextMenuEvent):void
+			{
+				log.info("事件备注设置");
+				var obj:Object = event.mouseTarget.parent as IListItemRenderer;
+				if (obj == null)
+					obj = event.mouseTarget as IListItemRenderer;
+				var item:Object = obj["data"];
+				log.info(item);
+				var id:String = String(item['id']);
+				var eventName:String = String(item['event']);
+				dm.eventName = eventName;
+				dm.parameters.id = id;
+				dispatchMsg(new EventwindowEvent(EventwindowEvent.REMARKVIEWSHOW));
+				dispatchMsg(new Event("SELECT_REMARK_BYID"));
+//				PopUpManager.addPopUp(remark, this.parentDocument as DisplayObject);
+//				PopUpManager.centerPopUp(remark);//居中显示;
+			} 
+			
+			
+			private function onTimeHandler(event:TimerEvent):void{
+				dispatchMsg(new Event("LOAD_EVENTWINDOW_DATA"));
+			}
+			
+			private function add_clickHandler(event:MouseEvent):void
+			{
+				var url:String= "/cms/cms/scheduling/schedulingAction!newPageShceduling.action";
+				log.info("url="+url);
+				navigateToURL(new URLRequest(url));
+			}
+			private function search_clickHandler(event:MouseEvent):void
+			{
+				log.info("显示窗口");
+//				var searchView:EventFilterWindow = new EventFilterWindow();
+//				searchView.visible = true;
+//				PopUpManager.addPopUp(searchView, this.parentDocument as DisplayObject);
+//				PopUpManager.centerPopUp(searchView);//居中显示;
+				dispatchMsg(new EventwindowEvent(EventwindowEvent.VIEWSHOW));
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		
+	</fx:Declarations>
+	<s:Group width="100%"
+			  height="100%">
+		<s:HGroup top="-18" right="35" verticalAlign="middle"
+				  horizontalAlign="center" >
+			<mx:Image id="search" visible="true"
+					  source="{searchImage}"
+					  autoLoad="true"
+					  toolTip="事件查询"
+					  buttonMode="true"
+					  click="search_clickHandler(event)" />
+			<mx:Image id="add" visible="true"
+					  source="{addImage}"
+					  autoLoad="true"
+					  toolTip="新建空白事件"
+					  buttonMode="true"
+					  click="add_clickHandler(event)"/>
+		</s:HGroup>
+			
+	<mx:AdvancedDataGrid id="statData"
+						 width="100%"
+						 height="100%"
+						 minWidth="5"
+						 dataProvider="{dm.datas}"
+						 verticalScrollPolicy="auto"
+						 horizontalScrollPolicy="auto"
+						 verticalAlign="middle"
+						 enabled="true"
+						 doubleClickEnabled="true"
+						 doubleClick="statData_doubleClickHandler(event)"
+						 textAlign="left"
+						 fontWeight="normal"
+						 >
+		<mx:columns>
+			<mx:AdvancedDataGridColumn headerText="事件名称" width="220"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="event"/>
+			<mx:AdvancedDataGridColumn headerText="地市" width="100"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}" 
+									   dataField="city"/>
+			<mx:AdvancedDataGridColumn headerText="专业" width="100"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="spec_name"/>
+			<mx:AdvancedDataGridColumn headerText="调度人" width="120"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}" 
+									   dataField="operator_name"/>
+			<mx:AdvancedDataGridColumn headerText="事件开始时间" width="160"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="startTime"/>
+			<mx:AdvancedDataGridColumn headerText="事件结束时间" width="160"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="endTime"/>
+			<mx:AdvancedDataGridColumn headerText="告警结束时间" width="160"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="canceltime"/>
+			<mx:AdvancedDataGridColumn headerText="规则名称" width="220"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="ruleName"/>
+			<mx:AdvancedDataGridColumn headerText="事件详情" width="220"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="lastmsgtime"/>
+			<mx:AdvancedDataGridColumn headerText="调度状态" width="100"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="status"/>
+			<mx:AdvancedDataGridColumn headerText="备注" width="120"
+									   itemRenderer="{new ClassFactory(ColorRenderer)}"
+									   dataField="remark"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	</s:Group>
+</panel:Window>

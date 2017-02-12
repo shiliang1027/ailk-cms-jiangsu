@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					minimizable="false"
+					styleName="windowScene"
+					titleIcon="@Embed(source='../../img/title_ico01.png')"
+					width="630"
+					height="360"
+					dragable="true"
+					maximizable="false"
+					close="window1_closeHandler()"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="window1_creationCompleteHandler(event)">
+
+	<!--
+		 ***************************************
+		 赛事编辑或者新增页面
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-7-24
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.RaceInfoEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			private var log:ILogger = Log.getLoggerByClass(RaceInfoAddOrEditWin);
+
+			[Inject("raceInfoCompPM")]
+			[Bindable]
+			public var pm:RaceInfoCompPM;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			/**
+			 * 1：新增  2：编辑
+			 * */
+			private var isAdd:String = "1";
+
+			/**
+			 * 当前页面是否被显示
+			 * */
+			public var isShow:Boolean = false;
+
+			/**
+			 * 初始化方法，根据type判断是新增还是修改，初始化页面
+			 * @type 1：新增  2：修改
+			 * */
+			public function initRaceAddOrEdit(type:String):void
+			{
+				log.info("初始化窗口isAdd：{0}", type);
+				clearRaceGroup();
+				isAdd = type;
+				if (type == "1")
+				{
+					this.title = "新增赛事";
+					log.info("初始加入一个tip");
+					var riat:RaceInfoAddOrEditTip = new RaceInfoAddOrEditTip();
+					raceGroup.addElementAt(riat, 0);
+					riat.addEventListener(RaceInfoEvent.CMS_SCENE_RACEINFO_ADDTIP, addTip);
+					riat.addEventListener(RaceInfoEvent.CMS_SCENE_RACEINFO_DELETETIP, deleteTip);
+					log.info("初始加入一个tip 结束");
+				}
+				else if (type == "2")
+				{
+					this.title = "赛事编辑";
+					log.info("编辑开始");
+					if (pm == null)
+						log.error("pm is null!!");
+//					msgDispatcher(new SceneIntroEvent(SceneIntroEvent.SHOW_SCENE_GAME_TODAY_DETAIL));
+					pm.getRaceInfo();
+				}
+				else
+				{
+					log.error("逻辑错误！！！");
+					window1_closeHandler();
+				}
+
+			}
+
+			/**
+			 * 清空raceGroup
+			 * */
+			private function clearRaceGroup():void
+			{
+				log.info("清除group！{0}", raceGroup.numElements);
+				if (raceGroup.numElements < 2)
+					return;
+				for (var i:int = raceGroup.numElements - 1; i >= 0; i--)
+				{
+					if (raceGroup.getElementAt(i) is RaceInfoAddOrEditTip)
+					{
+						raceGroup.removeElementAt(i);
+					}
+				}
+			}
+
+			[MessageHandler(selector="CMS_SCENE_RACEINFO_RACEINFOINIT")]
+			public function initData(e:RaceInfoEvent):void
+			{
+				log.info("向group中加入需要编辑的数据！！");
+				if (isShow && isAdd == "2")
+				{
+					var riat:RaceInfoAddOrEditTip;
+					var i:int = 0;
+					log.info(pm.dm.raceInfoList);
+					for each (var ri:Object in pm.dm.raceInfoList)
+					{
+						log.info("加入需要编辑的数据：{0}", i);
+						riat = new RaceInfoAddOrEditTip();
+						riat.raceInfo = ri;
+						riat.gameId = ri.gameid;
+						log.info(ri);
+						raceGroup.addElementAt(riat, i);
+						riat.initRaceInfoHandler(ri);
+						riat.addEventListener(RaceInfoEvent.CMS_SCENE_RACEINFO_ADDTIP, addTip);
+						riat.addEventListener(RaceInfoEvent.CMS_SCENE_RACEINFO_DELETETIP, deleteTip);
+						i++;
+					}
+				}
+				log.info("向group中加入需要编辑的数据 end！！");
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				log.info("保存数据isAdd：{0}", isAdd);
+				if (raceGroup.numElements > 1)
+				{
+					var riat:RaceInfoAddOrEditTip;
+					var resList:ArrayCollection = new ArrayCollection(); //结果数据集
+					for (var i:int = 0; i < raceGroup.numElements; i++)
+					{
+						if (raceGroup.getElementAt(i) is RaceInfoAddOrEditTip)
+						{
+							riat = raceGroup.getElementAt(i) as RaceInfoAddOrEditTip;
+							if (riat.getRaceInfoHandler() == null)
+								return;
+							else
+							{
+								resList.addItem(riat.getRaceInfoHandler());
+								if (!riat.changeFlag)
+									resList.removeItemAt(resList.length - 1);
+							}
+						}
+					}
+
+					var riEvt:RaceInfoEvent;
+					if (isAdd == "1")
+					{
+						riEvt = new RaceInfoEvent(RaceInfoEvent.CMS_SCENE_RACEINFO_SAVERACEINFO);
+					}
+					else if (isAdd == "2")
+					{
+						riEvt = new RaceInfoEvent(RaceInfoEvent.CMS_SCENE_RACEINFO_MODIFYRACEINFO);
+					}
+					else
+					{
+						Alert.show("数据保存错误！！", "错误");
+						return;
+					}
+					riEvt.param = new Object;
+					riEvt.param.datas = resList;
+					riEvt.param.sceneId = user.sceneId;
+					riEvt.param.initSceneId = user.initSceneId;
+					log.info(riEvt.param);
+//					msgDispatcher(riEvt);
+					log.info("抛出事件请求后台保存数据！！");
+					requestServerUtil.addRequest(riEvt);
+				}
+				else
+				{
+					Alert.show("没有赛事数据可以保存！", "错误");
+					return;
+				}
+			}
+
+			[MessageHandler(selector="CMS_SCENE_RACEINFO_CLOSEPOPWIN")]
+			public function window1_closeHandler(event:RaceInfoEvent = null):void
+			{
+				this.isShow = false;
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				raceGroup.addEventListener(RaceInfoEvent.CMS_SCENE_RACEINFO_ADDTIP, addTip);
+				raceGroup.addEventListener(RaceInfoEvent.CMS_SCENE_RACEINFO_DELETETIP, deleteTip);
+
+			}
+
+			private function addTip(e:RaceInfoEvent):void
+			{
+				var rait:RaceInfoAddOrEditTip = new RaceInfoAddOrEditTip();
+				raceGroup.addElementAt(rait, raceGroup.numElements - 1);
+			}
+
+			private function deleteTip(e:RaceInfoEvent):void
+			{
+				if (raceGroup.numElements > 2)
+				{
+					log.info("可以删除！！");
+					if (e.target is RaceInfoAddOrEditTip)
+					{
+						log.info("gameId:{0}", (e.target as RaceInfoAddOrEditTip).gameId);
+						raceGroup.removeElement(e.target as RaceInfoAddOrEditTip);
+					}
+				}
+				else
+				{
+					Alert.show("已经是最后一个，不能删除！");
+					return;
+				}
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parent.width;
+				this.height = this.parent.height;
+
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%">
+		<s:VGroup id="raceGroup"
+				  gap="4">
+			<s:HGroup width="100%"
+					  height="20"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button label="保存"
+						  click="button1_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:Scroller>
+</ailk_compts:Window>

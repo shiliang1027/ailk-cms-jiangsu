@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%"
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 xmlns:local="*" xmlns:roam="com.linkage.module.cms.general.regional.view.roam.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.view.roam.event.RoamEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.ObjectUtil;
+			
+			// log
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.view.roam.control.RoamControl");
+			private var _mapArray:Array=new Array();
+			private var _chinaMapArray:Array=new Array();
+			private var _worldMapArray:Array=new Array();
+			
+			//参数
+			[Bindable]
+			public var params:Object = null;
+			
+			public var initFlag:Boolean = false;
+			
+			private var mapObjArray:Object = new Object;
+			
+			private var jsMapArray:Array = new Array;
+			private var gdMapArray:Array = new Array;
+			
+			public function initRoam():void
+			{
+				// TODO Auto-generated method stub
+				roamConfigHttpService.send();
+				
+				/******************* 江苏 *********************/
+				jsMapArray["0100_a"]=js_nanjing_a;
+				jsMapArray["0100_b"]=js_nanjing_b;
+				jsMapArray["0200_a"]=js_suzhou_a;
+				jsMapArray["0200_b"]=js_suzhou_b;
+				jsMapArray["0300_a"]=js_wuxi_a;
+				jsMapArray["0300_b"]=js_wuxi_b;
+				jsMapArray["0400_a"]=js_changzhou_a;
+				jsMapArray["0400_b"]=js_changzhou_b;
+				jsMapArray["0500_a"]=js_zhenjiang_a;
+				jsMapArray["0500_b"]=js_zhenjiang_b;
+				jsMapArray["0600_a"]=js_yangzhou_a;
+				jsMapArray["0600_b"]=js_yangzhou_b;
+				jsMapArray["0700_a"]=js_nantong_a;
+				jsMapArray["0700_b"]=js_nantong_b;
+				jsMapArray["0800_a"]=js_taizhou_a;
+				jsMapArray["0800_b"]=js_taizhou_b;
+				jsMapArray["0900_a"]=js_xuzhou_a;
+				jsMapArray["0900_b"]=js_xuzhou_b;
+				jsMapArray["1000_a"]=js_huaian_a;
+				jsMapArray["1000_b"]=js_huaian_b;
+				jsMapArray["1100_a"]=js_yancheng_a;
+				jsMapArray["1100_b"]=js_yancheng_b;
+				jsMapArray["1200_a"]=js_lianyungang_a;
+				jsMapArray["1200_b"]=js_lianyungang_b;
+				jsMapArray["1300_a"]=js_suqian_a;
+				jsMapArray["1300_b"]=js_suqian_b;
+				
+				
+				/******************* 广东 *********************/
+//				gdMapArray["3_a"]=gd_chaozhou_a;
+//				gdMapArray["4_a"]=gd_dongguan_a;
+//				gdMapArray["5_a"]=gd_foshan_a;
+//				gdMapArray["6_a"]=gd_guangzhou_a;
+//				gdMapArray["7_a"]=gd_heyuan_a;
+//				gdMapArray["8_a"]=gd_jiangmen_a;
+//				gdMapArray["9_a"]=gd_huizhou_a;
+//				gdMapArray["10_a"]=gd_jieyang_a;
+//				gdMapArray["11_a"]=gd_maoming_a;
+//				gdMapArray["12_a"]=gd_meizhou_a;
+//				gdMapArray["13_a"]=gd_qingyuan_a;
+//				gdMapArray["14_a"]=gd_shantou_a;
+//				gdMapArray["15_a"]=gd_shanwei_a;
+//				gdMapArray["16_a"]=gd_shaoguan_a;
+//				gdMapArray["17_a"]=gd_shenzhen_a;
+//				gdMapArray["18_a"]=gd_yangjiang_a;
+//				gdMapArray["19_a"]=gd_yunfu_a;
+//				gdMapArray["20_a"]=gd_zhanjiang_a;
+//				gdMapArray["21_a"]=gd_zhaoqing_a;
+//				gdMapArray["22_a"]=gd_zhongshan_a;
+//				gdMapArray["23_a"]=gd_zhuhai_a;
+//				gdMapArray["3_b"]=gd_chaozhou_b;
+//				gdMapArray["4_b"]=gd_dongguan_b;
+//				gdMapArray["5_b"]=gd_foshan_b;
+//				gdMapArray["6_b"]=gd_guangzhou_b;
+//				gdMapArray["7_b"]=gd_heyuan_b;
+//				gdMapArray["8_b"]=gd_jiangmen_b;
+//				gdMapArray["9_b"]=gd_huizhou_b;
+//				gdMapArray["10_b"]=gd_jieyang_b;
+//				gdMapArray["11_b"]=gd_maoming_b;
+//				gdMapArray["12_b"]=gd_meizhou_b;
+//				gdMapArray["13_b"]=gd_qingyuan_b;
+//				gdMapArray["14_b"]=gd_shantou_b;
+//				gdMapArray["15_b"]=gd_shanwei_b;
+//				gdMapArray["16_b"]=gd_shaoguan_b;
+//				gdMapArray["17_b"]=gd_shenzhen_b;
+//				gdMapArray["18_b"]=gd_yangjiang_b;
+//				gdMapArray["19_b"]=gd_yunfu_b;
+//				gdMapArray["20_b"]=gd_zhanjiang_b;
+//				gdMapArray["21_b"]=gd_zhaoqing_b;
+//				gdMapArray["22_b"]=gd_zhongshan_b;
+//				gdMapArray["23_b"]=gd_zhuhai_b;
+				
+				/******************* 中国 *********************/
+				_chinaMapArray["12_a"]=china_anhui;
+				_chinaMapArray["01_a"]=china_beijing;
+				_chinaMapArray["23_a"]=china_chongqing;
+				_chinaMapArray["13_a"]=china_fujian;
+				_chinaMapArray["28_a"]=china_gansu;
+				_chinaMapArray["19_a"]=china_guangdong;
+				_chinaMapArray["20_a"]=china_guangxi;
+				_chinaMapArray["24_a"]=china_guizhou;
+				_chinaMapArray["21_a"]=china_hainan;
+				_chinaMapArray["03_a"]=china_hebei;
+				_chinaMapArray["08_a"]=china_heilongjiang;
+				_chinaMapArray["16_a"]=china_henan;
+				_chinaMapArray["32_a"]=china_hongkong;
+				_chinaMapArray["18_a"]=china_hunan;
+				_chinaMapArray["10_a"]=china_jiangsu;
+				_chinaMapArray["14_a"]=china_jiangxi;
+				_chinaMapArray["07_a"]=china_jilin;
+				_chinaMapArray["06_a"]=china_liaoning;
+				_chinaMapArray["33_a"]=china_macau;
+				_chinaMapArray["05_a"]=china_neimeng;
+				_chinaMapArray["30_a"]=china_ningxia;
+				_chinaMapArray["29_a"]=china_qinghai;
+				_chinaMapArray["27_a"]=china_shaanxi;
+				_chinaMapArray["04_a"]=china_shanxi;
+				_chinaMapArray["22_a"]=china_sichuan;
+				_chinaMapArray["34_a"]=china_taiwan;
+				_chinaMapArray["02_a"]=china_tianjing;
+				_chinaMapArray["31_a"]=china_xinjiang;
+				_chinaMapArray["26_a"]=china_xizang;
+				_chinaMapArray["25_a"]=china_yunnan;
+				_chinaMapArray["11_a"]=china_zhejiang;
+				_chinaMapArray["09_a"]=china_shanghai;
+				_chinaMapArray["15_a"]=china_shandong;
+				_chinaMapArray["17_a"]=china_hubei;
+				_chinaMapArray["border"]=china_border;
+				
+				/******************* 世界 *********************/
+				_worldMapArray["worldOther"]=world_other;
+				_worldMapArray["76_a"]=world_uk;
+				_worldMapArray["10_a"]=world_sudan;
+				_worldMapArray["50_a"]=world_spain;
+				_worldMapArray["106_a"]=world_southKorea;
+				_worldMapArray["13_a"]=world_saudiArabia;
+				_worldMapArray["1_a"]=world_russia;
+				_worldMapArray["14_a"]=world_mexico;
+				_worldMapArray["9_a"]=world_kazakhstan;
+				_worldMapArray["60_a"]=world_japan;
+				_worldMapArray["69_a"]=world_italy;
+				_worldMapArray["7_a"]=world_india;
+				_worldMapArray["129_a"]=world_holland;
+				_worldMapArray["12_a"]=world_congo;
+				_worldMapArray["3_a"]=world_china;
+				_worldMapArray["2_a"]=world_canada;
+				_worldMapArray["5_a"]=world_brazil;
+				_worldMapArray["6_a"]=world_australia;
+				_worldMapArray["8_a"]=world_argentina;
+				_worldMapArray["4_a"]=world_america;
+				_worldMapArray["11_a"]=world_algeria;
+				_worldMapArray["border"]=world_border;
+				
+//				roamGroup.roamGroup_creationCompleteHandler();
+				
+				mapObjArray["2"]=_chinaMapArray;
+				mapObjArray["1"]=_worldMapArray;
+			}
+			
+			
+			protected function roamConfigHttpService_resultHandler(event:ResultEvent):void
+			{
+				// TODO Auto-generated method stub
+				var config:XML=event.result as XML;
+				for each(var tabinfo:XML in config.children()){
+					log.info("config def:"+config.@def+",tabInfo id:"+tabinfo.@id+","+(tabinfo.@id == config.@def));
+					if(tabinfo.@id == config.@def){
+						var tabBarData:ArrayCollection = new ArrayCollection();
+						for each(var tab:XML in tabinfo.tab){
+							log.info("tab id:"+tab.@a+",label:"+tab.@b+",defCityId:"+tab.@c+",mapUrl:"+tab.@d);
+							switch(String(tabinfo.@id)){
+								case "jiangsu":
+									_mapArray = jsMapArray;
+									break;
+								case "guangdong":
+									_mapArray = gdMapArray;
+									break;
+								default:
+									_mapArray = jsMapArray;
+									break;
+							}
+							mapObjArray["3"]=_mapArray;
+							tabBarData.addItem({id:tab.@a,label:tab.@b,defCityId:tab.@c,mapUrl:tab.@d,mapArray:mapObjArray[tab.@a]});
+						}
+						params.tabBarData = tabBarData;
+						break;
+					}
+				}
+				
+//				params.mapObjArray = [_chinaMapArray,_mapArray,_worldMapArray];
+//				params.mapUrlArray = ["xml/map_china.xml","xml/map_jiangsu.xml","xml/map_world.xml"];
+//				params.tabBarData = new ArrayCollection([{id: 2, label: "省际漫游"}, {id: 3, label: "省内漫游"}, {id: 1, label: "国际漫游"}]);
+				
+				params.roamTypes = {"roam_in": 1, "roam_out": 2};
+//				params.roamDefCitys = {"2": "10", "3": "0100", "1": "3"};
+				
+				roamGroup.parameters = params;
+				roamGroup.dispatchEvent(new RoamEvent(RoamEvent.INIT));
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:HTTPService id="roamConfigHttpService"
+					   url="xml/roam_config.xml"
+					   method="get"
+					   resultFormat="e4x" result="roamConfigHttpService_resultHandler(event)"/>
+		<!-- 江苏 -->
+		<local:nanjing_a id="js_nanjing_a"/>
+		<local:nanjing_b id="js_nanjing_b"/>
+		<local:wuxi_a id="js_wuxi_a"/>
+		<local:wuxi_b id="js_wuxi_b"/>
+		<local:changzhou_a id="js_changzhou_a"/>
+		<local:changzhou_b id="js_changzhou_b"/>
+		<local:zhenjiang_a id="js_zhenjiang_a"/>
+		<local:zhenjiang_b id="js_zhenjiang_b"/>
+		<local:suzhou_a id="js_suzhou_a"/>
+		<local:suzhou_b id="js_suzhou_b"/>
+		<local:yangzhou_a id="js_yangzhou_a"/>
+		<local:yangzhou_b id="js_yangzhou_b"/>
+		<local:huaian_a id="js_huaian_a"/>
+		<local:huaian_b id="js_huaian_b"/>
+		<local:suqian_a id="js_suqian_a"/>
+		<local:suqian_b id="js_suqian_b"/>
+		<local:xuzhou_a id="js_xuzhou_a"/>
+		<local:xuzhou_b id="js_xuzhou_b"/>
+		<local:nantong_a id="js_nantong_a"/>
+		<local:nantong_b id="js_nantong_b"/>
+		<local:yancheng_a id="js_yancheng_a"/>
+		<local:yancheng_b id="js_yancheng_b"/>
+		<local:taizhou_a id="js_taizhou_a"/>
+		<local:taizhou_b id="js_taizhou_b"/>
+		<local:lianyungang_a id="js_lianyungang_a"/>
+		<local:lianyungang_b id="js_lianyungang_b"/>
+		
+		<!-- 广东 -->
+		<!--<local:chaozhou_a id="gd_chaozhou_a"/>
+		<local:dongguan_a id="gd_dongguan_a"/>
+		<local:foshan_a id="gd_foshan_a"/>
+		<local:guangzhou_a id="gd_guangzhou_a"/>
+		<local:heyuan_a id="gd_heyuan_a"/>
+		<local:huizhou_a id="gd_huizhou_a"/>
+		<local:jiangmen_a id="gd_jiangmen_a"/>
+		<local:jieyang_a id="gd_jieyang_a"/>
+		<local:maoming_a id="gd_maoming_a"/>
+		<local:meizhou_a id="gd_meizhou_a"/>
+		<local:qingyuan_a id="gd_qingyuan_a"/>
+		<local:shantou_a id="gd_shantou_a"/>
+		<local:shanwei_a id="gd_shanwei_a"/>
+		<local:shaoguan_a id="gd_shaoguan_a"/>
+		<local:shenzhen_a id="gd_shenzhen_a"/>
+		<local:yangjiang_a id="gd_yangjiang_a"/>
+		<local:yunfu_a id="gd_yunfu_a"/>
+		<local:zhanjiang_a id="gd_zhanjiang_a"/>
+		<local:zhaoqing_a id="gd_zhaoqing_a"/>
+		<local:zhongshan_a id="gd_zhongshan_a"/>
+		<local:zhuhai_a id="gd_zhuhai_a"/>
+		<local:chaozhou_b id="gd_chaozhou_b"/>
+		<local:dongguan_b id="gd_dongguan_b"/>
+		<local:foshan_b id="gd_foshan_b"/>
+		<local:guangzhou_b id="gd_guangzhou_b"/>
+		<local:heyuan_b id="gd_heyuan_b"/>
+		<local:huizhou_b id="gd_huizhou_b"/>
+		<local:jiangmen_b id="gd_jiangmen_b"/>
+		<local:jieyang_b id="gd_jieyang_b"/>
+		<local:maoming_b id="gd_maoming_b"/>
+		<local:meizhou_b id="gd_meizhou_b"/>
+		<local:qingyuan_b id="gd_qingyuan_b"/>
+		<local:shantou_b id="gd_shantou_b"/>
+		<local:shanwei_b id="gd_shanwei_b"/>
+		<local:shaoguan_b id="gd_shaoguan_b"/>
+		<local:shenzhen_b id="gd_shenzhen_b"/>
+		<local:yangjiang_b id="gd_yangjiang_b"/>
+		<local:yunfu_b id="gd_yunfu_b"/>
+		<local:zhanjiang_b id="gd_zhanjiang_b"/>
+		<local:zhaoqing_b id="gd_zhaoqing_b"/>
+		<local:zhongshan_b id="gd_zhongshan_b"/>
+		<local:zhuhai_b id="gd_zhuhai_b"/>-->
+		
+		<!-- 中国地图对象 -->
+		<local:anhui id="china_anhui"/>
+		<local:beijing id="china_beijing"/>
+		<local:chongqing id="china_chongqing"/>
+		<local:fujian id="china_fujian"/>
+		<local:gansu id="china_gansu"/>
+		<local:guangdong id="china_guangdong"/>
+		<local:guangxi id="china_guangxi"/>
+		<local:guizhou id="china_guizhou"/>
+		<local:hainan id="china_hainan"/>
+		<local:hebei id="china_hebei"/>
+		<local:heilongjiang id="china_heilongjiang"/>
+		<local:henan id="china_henan"/>
+		<local:hongkong id="china_hongkong"/>
+		<local:hunan id="china_hunan"/>
+		<local:jiangsu id="china_jiangsu"/>
+		<local:jiangxi id="china_jiangxi"/>
+		<local:jilin id="china_jilin"/>
+		<local:liaoning id="china_liaoning"/>
+		<local:macau id="china_macau"/>
+		<local:neimeng id="china_neimeng"/>
+		<local:ningxia id="china_ningxia"/>
+		<local:qinghai id="china_qinghai"/>
+		<local:shaanxi id="china_shaanxi"/>
+		<local:shanxi id="china_shanxi"/>
+		<local:sichuan id="china_sichuan"/>
+		<local:taiwan id="china_taiwan"/>
+		<local:tianjing id="china_tianjing"/>
+		<local:xinjiang id="china_xinjiang"/>
+		<local:xizang id="china_xizang"/>
+		<local:yunnan id="china_yunnan"/>
+		<local:zhejiang id="china_zhejiang"/>
+		<local:shanghai id="china_shanghai"/>
+		<local:shandong id="china_shandong"/>
+		<local:hubei id="china_hubei"/>
+		<local:borderChina id="china_border"/>
+		
+		<!-- 世界地图对象 -->
+		<local:worldOther id="world_other"/>
+		<local:UnitedKingdom id="world_uk"/>
+		<local:Sudan id="world_sudan"/>
+		<local:Spain id="world_spain"/>
+		<local:SouthKorea id="world_southKorea"/>
+		<local:SaudiArabia id="world_saudiArabia"/>
+		<local:Russia id="world_russia"/>
+		<local:Mexico id="world_mexico"/>
+		<local:Kazakhstan id="world_kazakhstan"/>
+		<local:Japan id="world_japan"/>
+		<local:Italy id="world_italy"/>
+		<local:India id="world_india"/>
+		<local:Holland id="world_holland"/>
+		<local:Congo id="world_congo"/>
+		<local:China id="world_china"/>
+		<local:Canada id="world_canada"/>
+		<local:Brazil id="world_brazil"/>
+		<local:Australia id="world_australia"/>
+		<local:Argentina id="world_argentina"/>
+		<local:America id="world_america"/>
+		<local:Algeria id="world_algeria"/>
+		<local:worldBorder id="world_border"/>
+	</fx:Declarations>
+	<roam:RoamGroup id="roamGroup" width="100%" height="100%">
+	</roam:RoamGroup>
+</s:Group>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%" xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.metry.GisCircle;
+			import com.ailk.common.ui.gis.core.metry.GisLine;
+			import com.ailk.common.ui.gis.core.metry.GisPoint;
+			import com.ailk.common.ui.gis.core.metry.GisSector;
+			import com.ailk.common.ui.gis.core.styles.GisFillPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLinePredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLineStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerStyle;
+			import com.ailk.common.ui.gis.event.MapEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CollectionEvent;
+			import mx.events.CollectionEventKind;
+			
+			[Embed(source="demo/assets/rru_net.png")]
+			private var rru:Class;
+			[Embed(source="demo/assets/respoint_net.png")]
+			private var respoint:Class;
+			private var features:ArrayCollection = new ArrayCollection();
+			protected function mapwork1_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				// TODO Auto-generated method stub
+				features.addEventListener(CollectionEvent.COLLECTION_CHANGE,onCollectionChange);
+				for(var i:int=0;i<10;i++){
+					features.addItem({"name":i,"lo":(gisMap.map.gisExtent.center.x+i/5),"la":(gisMap.map.gisExtent.center.y+i/50)});
+				}
+			}
+			
+			
+			private function onCollectionChange(event:CollectionEvent):void{
+				switch(event.kind){
+					case CollectionEventKind.ADD:
+						add(event.items);
+						break;
+				}
+			}
+			
+			private function add(items:Array):void{
+				items.forEach(function(item:*, index:int, array:Array):void {
+					var gisPoint:GisPoint = new GisPoint(Number(item.lo),Number(item.la));
+					gisMap.map.getCirclePoints(gisPoint,2,int(Math.random()*10)+1).forEach(function(point:*, index:int, array:Array):void {
+						gisMap.map.addGisFeature(new GisFeature(new GisLine([point,gisPoint]),new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0x00ff00)));
+//						gisMap.map.addGisFeature(new GisFeature(new GisSector(point,0,60,1),new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x00ff00, 0.3, null)));
+						gisMap.map.addGisFeature(new GisFeature(point,new GisMarkerPictureStyle(rru)));
+					});
+					gisMap.map.addGisFeature(new GisFeature(gisPoint,new GisMarkerPictureStyle(respoint)));
+				});
+				
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<ailk_gis:MapWork id="gisMap" width="100%" height="100%" mapCreationComplete="mapwork1_mapCreationCompleteHandler(event)">
+		
+	</ailk_gis:MapWork>
+</mx:Module>

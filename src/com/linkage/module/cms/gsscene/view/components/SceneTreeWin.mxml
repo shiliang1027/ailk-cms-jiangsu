@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:panel="com.linkage.system.component.panel.*"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="200"
+					height="300"
+					styleName="windowSceneGisBottom"
+					minimizable="false"
+					maximizable="false"
+					resizable="false"
+					dragable="true"
+					close="window1_closeHandler()">
+	<!--
+		 ***************************************
+		 This is Content（新规范树图）
+		 @author 汪炜 (Ailk No.)
+		 @version 1.0
+		 @date 2014-10-9
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.SceneTreeCompPM;
+			
+			import mx.managers.PopUpManager;
+
+			private var log:ILogger = Log.getLoggerByClass(SceneTreeWin);
+
+			[Inject("sceneTreeCompPM")]
+			[Bindable]
+			public var stcpm:SceneTreeCompPM;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+			
+			private var initFlag:Boolean = false;
+			//初始化区域导航tree数据
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				if (initFlag){
+					return;
+				}
+				log.info("into SceneTreeWin");
+				stcpm.getSceneTreeList();
+				initFlag = true;
+			}
+			protected function window1_closeHandler():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="0"
+			  top="-22">
+		<s:TabBar id="chartTabBar"
+				  dataProvider="{chartViewStack}"
+				  buttonMode="true"
+				  styleName="sceneTabBar1"/>
+		<mx:ViewStack width="100%"
+					  height="100%"
+					  styleName="sceneViewStack"
+					  id="chartViewStack"
+					  creationPolicy="all">
+			<s:NavigatorContent width="100%" height="100%" 
+								creationPolicy="all"
+								label="行政区域">
+				<mx:Tree id="adminTree"
+						 width="100%"
+						 height="100%"
+						 borderAlpha="0"
+						 openItems="{stcpm.stdm.adminTreeData}"
+						 contentBackgroundAlpha="0"
+						 dataProvider="{stcpm.stdm.adminTreeData}"
+						 labelField="@name"
+						 itemClick="{stcpm.getSceneInfo(event)}"/>
+			</s:NavigatorContent>
+			<s:NavigatorContent width="100%" height="100%" 
+								creationPolicy="all"
+								label="特定区域">
+				<mx:Tree id="specialTree"
+						 width="100%"
+						 height="100%"
+						 borderAlpha="0"
+						 openItems="{stcpm.stdm.specialTreeData}"
+						 contentBackgroundAlpha="0"
+						 dataProvider="{stcpm.stdm.specialTreeData}"
+						 labelField="@name"
+						 itemClick="{stcpm.getSceneInfo(event)}"/>
+			</s:NavigatorContent>
+			
+		</mx:ViewStack>
+	</s:VGroup>
+</ailk_compts:Window>

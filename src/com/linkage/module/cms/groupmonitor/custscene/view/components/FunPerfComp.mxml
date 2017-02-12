@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 width="100%"
+		 height="100%"
+		 creationComplete="group1_creationCompleteHandler(event)">
+
+	<fx:Script>
+		<![CDATA[
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				showFirst=true;
+			}
+		]]>
+	</fx:Script>
+
+	<!--
+		 ***************************************
+		 This is Content
+		 @author wuchao (Ailk No.)
+		 @version 1.0
+		 @date 2013-1-6
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.groupmonitor.custscene.event.CustSceneEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(FunPerfComp);
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			//从外部点进来的客户ID
+			[Bindable]
+			public var cusId:String;
+
+			//从外部点进来的客户名字
+			[Bindable]
+			public var custName:String;
+
+			//本页面点击的客户ID
+			[Bindable]
+			public var cusInId:String;
+
+			[Bindable]
+			public var big:String;
+
+			[Inject]
+			[Bindable]
+			public var pm:FunPerfCompPM;
+
+			//选中的服务类型
+			[Bindable]
+			public var servTypeId:String;
+
+			//选中的服务类型
+			[Bindable]
+			public var servTypeName:String;
+
+			[Bindable]
+			public var showFirst:Boolean=true;
+
+			//业务类型数据集(供性能查询)
+			[Bindable]
+			private var servTypeList:ArrayCollection=new ArrayCollection();
+
+			//表格列
+			[Bindable]
+			private var groColumns:Array=new Array();
+
+			[Bindable]
+			private var noData:Boolean=true;
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+//				custGird.columnWidth=fitstBox.width / 2;
+//				custGird.validateNow();
+				this.addEventListener(CustSceneEvent.CLICK_OPTION, opration);
+			}
+
+			private function opration(e:CustSceneEvent):void
+			{
+//				showFirst=false;
+//				var evt2:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_SERVER_TYPE_BY_CUSTID);
+//				var param2:Object=new Object();
+//				cusInId=e.param.cust_id;
+//				param2.cust_id=e.param.cust_id;
+//				evt2.param=param2;
+//				msgDispatcher(evt2);
+
+				var param:Object=new Object;
+				param.servTypeId=String(e.param.type);
+				param.prod_no=String(e.param.prod_no);
+				//var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_KPIS_BY_SERVTYPE);
+				var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.SHOWPERFPANEL);
+				evt.param=param;
+				msgDispatcher(evt);
+			}
+
+			//导航栏返回函数
+			[MessageHandler(selector="loadServerTypeByCustIdComp")]
+			public function onServerChange(event:CustSceneEvent):void
+			{
+				log.info("onServerChange  begin");
+				servTypeList=new ArrayCollection();
+				for each (var data:Object in pm.dm.realServTypeBar)
+				{
+					servTypeList.addItem(data);
+				}
+				if (servTypeList.length > 0)
+				{
+					var param:Object=new Object;
+//					servTypeId=String(servTypeList[0].serv_type_id);
+//					servTypeName=String(servTypeList[0].cust_serv_type_name);
+					param.servTypeId=String(servTypeList[0].serv_type_id);
+					param.cust_id=cusInId;
+					var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_KPIS_BY_SERVTYPE);
+					evt.param=param;
+					msgDispatcher(evt);
+				}
+				else
+				{
+					Alert.show("该集客业务为空！", "提示");
+				}
+				log.info("onServerChange  end");
+			}
+
+			//点击导航栏改变
+			protected function realServTypeBar_changeHandler(event:IndexChangeEvent):void
+			{
+				var param:Object=new Object;
+//				servTypeId=String(servTypeList[event.newIndex].serv_type_id);
+//				servTypeName=String(servTypeList[event.newIndex].cust_serv_type_name);
+				param.servTypeId=String(servTypeList[event.newIndex].serv_type_id);
+				param.cust_id=cusInId;
+				var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_KPIS_BY_SERVTYPE);
+				evt.param=param;
+				msgDispatcher(evt);
+			}
+
+			[MessageHandler(selector="CREATE_KPI_COLUMS")]
+			public function creatColumn(event:CustSceneEvent):void
+			{
+				log.debug("begin creatColumn");
+				groColumns=new Array();
+				var col:AdvancedDataGridColumn=null;
+				if (pm.dm.userCustKpiDataMap)
+				{
+					if (pm.dm.userCustKpiDataMap.heads && (pm.dm.userCustKpiDataMap.heads as ArrayCollection).length > 0)
+					{
+						noData=false;
+						var heads:ArrayCollection=pm.dm.userCustKpiDataMap.heads;
+						for each (var temp:Object in heads)
+						{
+							col=new AdvancedDataGridColumn();
+							col.dataField=temp.dataField;
+							col.headerText=temp.heatText;
+							groColumns.push(col);
+						}
+					}
+					else
+					{
+						noData=true;
+						log.debug("[creatColumn]no colums");
+					}
+					if (pm.dm.userCustKpiDataMap.datas)
+					{
+						kpiGird.dataProvider=pm.dm.userCustKpiDataMap.datas;
+					}
+					else
+					{
+						log.debug("[creatColumn]no data");
+					}
+				}
+				else
+				{
+					noData=true;
+					log.debug("[creatColumn]no colums");
+				}
+
+				log.debug("end creatColumn");
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (servTypeList && servTypeList.length > 0)
+				{
+					var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.SHOW_CHART);
+					evt.param=new Object();
+					evt.param.custId=cusInId;
+					evt.param.cust_serv_type_name=String(servTypeList[realServTypeBar.selectedIndex].cust_serv_type_name);
+					evt.param.servTypeId=String(servTypeList[realServTypeBar.selectedIndex].serv_type_id);
+					msgDispatcher(evt);
+				}
+				else
+				{
+					Alert.show("没有服务类型");
+				}
+
+			}
+
+			public function clear():void
+			{
+				pm.dm.userCustForPerfList.removeAll();
+				pm.dm.userCustForPerfList.refresh();
+			}
+		]]>
+	</fx:Script>
+	<mx:Box label="大客户名称{custName}"
+			visible="{showFirst}"
+			includeInLayout="{showFirst}"
+			id="fitstBox"
+			width="100%"
+			height="100%">
+		<!--<s:Label text="没有数据"
+			 visible="{noData}"/>-->
+		<mx:AdvancedDataGrid width="100%"
+							 height="100%"
+							 id="custGird"
+							 dataProvider="{pm.dm.userCustForPerfList}">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="专线名称"
+										   textAlign="left"
+										   dataField="name"/>
+				<mx:AdvancedDataGridColumn headerText="操作"
+										   itemRenderer="com.linkage.module.cms.groupmonitor.custscene.view.components.renderer.FunPerfRender"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</mx:Box>
+	<mx:Box label="专线名称{custName}"
+			id="secondBox"
+			width="100%"
+			visible="{!showFirst}"
+			includeInLayout="{!showFirst}"
+			height="100%">
+		<s:HGroup>
+			<s:Button label="查看趋势图"
+					  click="button1_clickHandler(event)"/>
+			<s:Button label="回退"
+					  click="button2_clickHandler(event)"/>
+		</s:HGroup>
+		<s:VGroup width="100%"
+				  height="100%">
+			<s:TabBar dataProvider="{servTypeList}"
+					  id="realServTypeBar"
+					  labelField="cust_serv_type_name"
+					  styleName="commonTabBar"
+					  buttonMode="true"
+					  change="realServTypeBar_changeHandler(event)"/>
+			<mx:ViewStack width="100%"
+						  height="100%"
+						  styleName="commonViewStack"
+						  creationPolicy="all">
+				<s:NavigatorContent width="100%"
+									height="100%">
+					<s:Scroller width="100%"
+								height="100%"
+								horizontalScrollPolicy="auto"
+								verticalScrollPolicy="auto">
+						<s:Group width="100%"
+								 height="100%">
+							<mx:AdvancedDataGrid id="kpiGird"
+												 width="100%"
+												 height="100%"
+												 headerWordWrap="true"
+												 draggableColumns="false"
+												 dragMoveEnabled="false"
+												 verticalAlign="middle"
+												 horizontalScrollPolicy="off"
+												 columns="{groColumns}">
+							</mx:AdvancedDataGrid>
+						</s:Group>
+					</s:Scroller>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+		</s:VGroup>
+	</mx:Box>
+</s:Group>

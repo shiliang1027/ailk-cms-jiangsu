@@ -1,0 +1,876 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          horizontalAlign="center"
+          verticalAlign="middle"
+          width="100%"
+          height="100%"
+          creationComplete="initData()"
+          xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+          xmlns:point="com.linkage.module.topo.framework.core.model.element.point.*">
+
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.module.cms.perfmonitornew.common.CommonUtil;
+            import com.linkage.module.cms.perfmonitornew.common.ListRect;
+            import com.linkage.module.cms.perfmonitornew.common.ListRemoveEvent;
+            import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.controls.Alert;
+            import mx.events.CollectionEvent;
+            import mx.events.ListEvent;
+
+            private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.common.SchemeConfig");
+
+            [Bindable]
+            public var specListAC:ArrayCollection = new ArrayCollection;
+            [Bindable]
+            public var cityListAC:ArrayCollection = new ArrayCollection;
+            [Bindable]
+            public var vendorListAC:ArrayCollection = new ArrayCollection;
+            [Bindable]
+            public var moTypeListAC:ArrayCollection = new ArrayCollection;
+
+            private var context:String = "";
+
+            private var schemeId:String;
+            private var schemeName:String;
+            private var remark:String;
+
+            [Bindable]
+            public var moTreeXml:XML;
+
+            [Bindable]
+            public var selectedMoListAC:ArrayCollection = new ArrayCollection;
+
+            public var selectedMoMap:Object = {};
+
+            [Bindable]
+            public var kpiTreeXml:XML;
+
+            //刷新左侧方案树
+            public var refreshSchemeCallBack:Function;
+
+            private var perfMonitorDAO:PerfMonitorDAO = PerfMonitorDAO.getInstance();
+
+            private var lm:LoadManager = new LoadManager(this, "blue");
+
+            private var configedKpis:Object = {};
+
+            protected function saveKpi():void
+            {
+                if (selectedMoListAC.length > 0)
+                    CommonUtil.forEachTreeDown(kpiTreeXml, function(node:XML):void
+                    {
+                        if (node.@selected == "1")
+                        {
+                            var lr:ListRect = new ListRect();
+
+                            lr.kpiName = node.@label;
+                            lr.kpiId = node.@kpi_id;
+                            lr.moTypeId = node.@mo_type_id;
+
+                            lr.delEleCallback = deleteFromCache;
+                            lr.editCallback = editKpiMos;
+
+                            lr.moList.addAll(selectedMoListAC);
+
+                            if (configedKpis[lr.kpiId + lr.moTypeId] != null)
+                                selectedList.removeElement(configedKpis[lr.kpiId + lr.moTypeId]);
+
+                            selectedList.addElementAt(lr, 0);
+
+                            configedKpis[lr.kpiId + lr.moTypeId] = lr;
+                        }
+                    });
+            }
+
+            public function deleteFromCache(id:String):void
+            {
+                configedKpis[id] = null;
+            }
+
+            protected function initData():void
+            {
+                selectedMoList.addEventListener(ListRemoveEvent.LIST_REMOVE, setMoTreeSelect)
+
+                context = this.parentApplication.parameters['context'];
+                PerfMonitorDAO.context = context;
+
+                //加载专业列表
+                perfMonitorDAO.getAllSpec(
+                    function(result:Object):void
+                    {
+                        specListAC.removeAll();
+                        specListAC.addAll(result as IList);
+                    });
+
+                //加载属地列表
+                perfMonitorDAO.getAllCity(
+                    {"parent_id": "00"},
+                    function(result:Object):void
+                    {
+                        cityListAC.removeAll();
+                        cityListAC.addAll(result as IList);
+                    });
+
+                //加载厂家列表
+                perfMonitorDAO.getAllVendor(
+                    function(result:Object):void
+                    {
+                        vendorListAC.removeAll();
+                        vendorListAC.addAll(result as IList);
+                    });
+
+                //加载网元类型列表
+                perfMonitorDAO.getAllMotype(
+                    {},
+                    function(result:Object):void
+                    {
+                        moTypeListAC.removeAll();
+                        moTypeListAC.addAll(result as IList);
+
+                        moTypeList.selectedIndex = 0;
+                    });
+            }
+
+            private function loadMotypeBySpec():void
+            {
+                //加载网元类型列表
+                perfMonitorDAO.getAllMotype(
+                    {"spec_id": getIds(specList, "spec_id")},
+                    function(result:Object):void
+                    {
+                        moTypeListAC.removeAll();
+                        moTypeListAC.addAll(result as IList);
+
+                        moTypeList.selectedIndex = 0;
+                    });
+            }
+
+            private function loadKpiTree():void
+            {
+                var param:Object = {};
+                param.mo_type_id = moTypeList.selectedItem.mo_type_id;
+                param.mo_type_name = moTypeList.selectedItem.label;
+
+                //加载指标列表
+                perfMonitorDAO.getKpiInfo(param,
+                                          function(result:Object):void
+                                          {
+                                              kpiTreeXml = new XML(result);
+                                          });
+            }
+
+            protected function queryMoAndKpi():void
+            {
+                if (moTypeList.selectedIndex < 0)
+                {
+                    Alert.show("网元类型不能为空。", "提示");
+                    return;
+                }
+                else if (moTypeList.selectedItem.mo_type_id == "101"
+                    || moTypeList.selectedItem.mo_type_id == "102"
+                    || moTypeList.selectedItem.mo_type_id == "16"
+                    || moTypeList.selectedItem.mo_type_id == "28"
+					|| moTypeList.selectedItem.mo_type_id == "320"
+					|| moTypeList.selectedItem.mo_type_id == "321")
+                {
+                    if ((moNameTextInput.text == null || moNameTextInput.text == "")
+                        && this.cityList.selectedItems.length < 1
+                        && this.vendorList.selectedItems.length < 1)
+                    {
+                        Alert.show(moTypeList.selectedItem.label + " 数据量较大，请结合 属地/厂家/网元 名称一起查询。", "提示");
+
+                        return;
+                    }
+                }
+
+                lm.showLoading();
+                selectedMoListAC.removeAll();
+
+                loadKpiTree();
+
+                //查询网元列表
+                var param:Object = {};
+
+                if (this.specList.selectedItems.length > 0)
+                    param.spec_id = getIds(specList, "spec_id");
+
+                if (this.cityList.selectedItems.length > 0)
+                    param.city_id = getIds(cityList, "city_id");
+
+                if (this.vendorList.selectedItems.length > 0)
+                    param.vendor_id = getIdsQuo(vendorList, "label");
+
+                param.mo_type_id = this.moTypeList.selectedItem.mo_type_id;
+
+                if (moNameTextInput.text != null && moNameTextInput.text != "")
+                    param.mo_name = moNameTextInput.text;
+
+                perfMonitorDAO.getAllMoinfo(param,
+                                            function(result:Object):void
+                                            {
+                                                moTreeXml = new XML(result);
+                                                lm.hideLoading();
+                                            });
+            }
+
+            private function getIds(pcb:PrettyComboBox, id:String):String
+            {
+                var ids:String = "";
+
+                for each (var item:Object in pcb.selectedItems)
+                {
+                    ids = ids + item[id] + ",";
+                }
+
+                return ids.substr(0, ids.length - 1);
+            }
+
+            private function getIdsQuo(pcb:PrettyComboBox, id:String):String
+            {
+                var ids:String = "";
+
+                for each (var item:Object in pcb.selectedItems)
+                {
+                    ids = ids + "'" + item[id] + "',";
+                }
+
+                return ids.substr(0, ids.length - 1);
+            }
+
+            protected function tree_itemClickHandler(event:ListEvent, isMoTreeFlag:Boolean = false):void
+            {
+                var selectedNode:XML = Tree(event.target).selectedItem as XML;
+
+                selectedNode.@selected = Boolean(Number(selectedNode.@selected)) ? "0" : "1";
+
+                CommonUtil.forEachTreeDown(selectedNode, function(node:XML):void
+                {
+                    node.@selected = selectedNode.@selected;
+                });
+
+                Tree(event.target).validateNow();
+
+                if (isMoTreeFlag)
+                    dealSelectedMoList();
+            }
+
+            //更新已选择网元列表
+            private function dealSelectedMoList():void
+            {
+                CommonUtil.forEachTreeDown(moTreeXml, function(node:XML):void
+                {
+                    if (String(node.@mo_id) != "")
+                    {
+                        if (node.@selected == "1")
+                        {
+                            if (selectedMoMap[String(node.@mo_id)] == null)
+                            {
+                                selectedMoListAC.addItem({"mo_id": node.@mo_id, "label": node.@label});
+                                selectedMoMap[String(node.@mo_id)] = "";
+                            }
+                        }
+                        else
+                        {
+                            if (selectedMoMap[String(node.@mo_id)] != null)
+                            {
+                                for each (var mo:Object in selectedMoListAC)
+                                    if (mo.mo_id == String(node.@mo_id))
+                                    {
+                                        selectedMoListAC.removeItemAt(selectedMoListAC.getItemIndex(mo));
+                                        selectedMoMap[String(node.@mo_id)] = null;
+                                    }
+                            }
+                        }
+                    }
+                });
+            }
+
+            protected function saveScheme(monitorFlag:Boolean = false):void
+            {
+                log.info("保存方案， monitorFlag：" + monitorFlag);
+
+                if (schemeNameTextInput.text == null || schemeNameTextInput.text == "")
+                {
+                    Alert.show("请输入方案名称！", "提示");
+                    return;
+                }
+
+                lm.showLoading();
+
+                var num:Number = selectedList.numElements;
+
+                var saveData:ArrayCollection = new ArrayCollection;
+
+                var remark:String = "设备";
+                var accOid:String = parentApplication.parameters['acc_oid'];
+
+                log.info("num:" + num);
+
+                if (num > 0)
+                {
+                    for (var index:int = 0; index < num; index++)
+                    {
+                        var lr:ListRect = selectedList.getElementAt(index) as ListRect;
+
+                        for each (var mo:Object in lr.moList)
+                            if (currentState == 'kpiedit')
+                                saveData.addItem({
+                                                     "scheme_id": schemeId,
+                                                     "scheme_name": schemeNameTextInput.text,
+                                                     "acc_oid": accOid,
+                                                     "kpi_id": lr.kpiId,
+                                                     "mo_type_id": lr.moTypeId,
+                                                     "mo_id": String(mo['mo_id']),
+                                                     "type": 'KPI',
+                                                     "remark": remark});
+                            else
+                                saveData.addItem({
+                                                     "scheme_name": schemeNameTextInput.text,
+                                                     "acc_oid": accOid,
+                                                     "kpi_id": lr.kpiId,
+                                                     "mo_type_id": lr.moTypeId,
+                                                     "mo_id": String(mo['mo_id']),
+                                                     "type": 'KPI',
+                                                     "remark": remark});
+                    }
+
+                }
+                else
+                {
+                    remark = "汇总";
+
+                    log.info("汇总监控方案。");
+
+                    var selectedKpiNum:int = 0;
+
+                    CommonUtil.forEachTreeDown(
+                        kpiTreeXml,
+                        function(node:XML):void
+                        {
+                            if (String(node.@kpi_id) != "" && node.@selected == "1")
+                                selectedKpiNum++;
+                        });
+
+                    log.info("selectedKpiNum:" + selectedKpiNum);
+
+                    if (selectedKpiNum < 1)
+                    {
+                        Alert.show("请先选择指标。", "提示");
+                        lm.hideLoading();
+                        return;
+                    }
+
+                    if (currentState == 'kpiedit')
+                    {
+						log.info("kpiedit");
+                        CommonUtil.forEachTreeDown(
+                            kpiTreeXml,
+                            function(node:XML):void
+                            {
+                                if (String(node.@kpi_id) != "" && node.@selected == "1")
+                                    saveData.addItem({"scheme_id": schemeId,
+                                                         "scheme_name": schemeNameTextInput.text,
+                                                         "acc_oid": accOid,
+                                                         "kpi_id": String(node.@kpi_id),
+                                                         "mo_type_id": String(node.@mo_type_id),
+                                                         "mo_id": "",
+                                                         "type": 'KPI',
+                                                         "remark": remark});
+                            });
+                    }
+                    else
+						CommonUtil.forEachTreeDown(
+							kpiTreeXml,
+							function(node:XML):void
+							{
+								if (String(node.@kpi_id) != "" && node.@selected == "1")
+                        saveData.addItem({
+										"scheme_name": schemeNameTextInput.text,
+										"acc_oid": accOid,
+										"kpi_id": String(node.@kpi_id),
+										"mo_type_id": String(node.@mo_type_id),
+										"mo_id": "",
+										"type": 'KPI',
+										"remark": remark});
+							});
+                      /*   saveData.addItem({
+                                             "scheme_name": schemeNameTextInput.text,
+                                             "acc_oid": accOid,
+                                             "kpi_id": String(kpiTree.selectedItem.@kpi_id),
+                                             "mo_type_id": String(kpiTree.selectedItem.@mo_type_id),
+                                             "mo_id": "",
+                                             "type": 'KPI',
+                                             "remark": remark}); */
+                }
+
+				log.info("saveData");
+				log.info(saveData);
+                perfMonitorDAO.insertScheme(saveData,
+                                            function(result:Object):void
+                                            {
+                                                if (!monitorFlag && result.toString().indexOf("成功") > 0)
+                                                    Alert.show(result.toString(), "保存方案");
+
+                                                refreshSchemeCallBack.call(null, schemeNameTextInput.text, monitorFlag);
+
+                                                lm.hideLoading();
+                                            });
+            }
+
+            protected function dealAllSelectedMo():void
+            {
+                selectedMoListAC.removeAll();
+                selectedMoMap = {};
+
+                if (moTreeXml != null)
+                {
+                    dealAllTreeNode(moTreeXml, "0");
+
+                    moTree.validateNow();
+                }
+            }
+
+            private function dealAllTreeNode(xml:XML, flag:String):void
+            {
+                CommonUtil.forEachTreeDown(xml, function(node:XML):void
+                {
+                    node.@selected = flag;
+                });
+            }
+
+            protected function selectAllMo():void
+            {
+                dealAllTreeNode(moTreeXml, "1");
+
+                dealSelectedMoList();
+            }
+
+            protected function selectAllKpi():void
+            {
+                dealAllTreeNode(kpiTreeXml, "1");
+
+                kpiTree.validateNow();
+            }
+
+            public function reset():void
+            {
+                clear();
+
+                if (this.currentState == "kpiedit")
+                    loadData();
+            }
+
+            private function clear():void
+            {
+                specList.clear();
+                cityList.clear();
+                vendorList.clear();
+                moTypeList.selectedIndex = -1;
+                moNameTextInput.text = "";
+                schemeNameTextInput.text = "";
+
+                moTreeXml = null;
+                selectedMoListAC.removeAll();
+                selectedMoMap = {};
+                kpiTreeXml = null;
+
+                selectedList.removeAllElements();
+
+                lm.hideLoading();
+            }
+
+            public function loadEditData(id:String, name:String, rk:String):void
+            {
+                clear();
+
+                this.currentState = "kpiedit";
+
+                schemeId = id;
+                schemeName = name;
+                remark = rk;
+
+                loadData();
+            }
+
+            private function loadData():void
+            {
+                schemeNameTextInput.text = schemeName;
+
+                perfMonitorDAO.getMoAndKpiByScheme(
+                    {"scheme_id": schemeId},
+                    function(result:Object):void
+                    {
+                        selectedList.removeAllElements();
+                        selectedMoMap = {};
+                        configedKpis = {};
+
+                        var index:int = 0;
+
+                        for each (var obj:Object in result)
+                        {
+                            var lr:ListRect = new ListRect();
+
+                            lr.kpiName = obj.kpi_name;
+                            lr.kpiId = obj.kpi_id;
+                            lr.moTypeId = obj.mo_type_id;
+
+                            lr.delEleCallback = deleteFromCache;
+                            lr.editCallback = editKpiMos;
+                            lr.moList.addAll(obj['molist'] as IList);
+
+                            if (remark == "设备")
+                            {
+                                if (configedKpis[lr.kpiId + lr.moTypeId] != null)
+                                    selectedList.removeElement(configedKpis[lr.kpiId + lr.moTypeId]);
+
+                                selectedList.addElement(lr);
+
+                                configedKpis[lr.kpiId + lr.moTypeId] = lr;
+                            }
+
+							log.info("remark："+remark);
+                             if (remark == "汇总")
+							{
+								editKpiMos(lr);
+							}
+							else
+							{
+                            if (index++ == 0)
+                                editKpiMos(lr);
+							}
+                        }
+                    });
+            }
+
+            protected function deleteScheme():void
+            {
+                perfMonitorDAO.deleteScheme(
+                    {"scheme_id": schemeId},
+                    function(result:Object):void
+                    {
+                        Alert.show(result.toString(), "删除方案");
+
+                        refreshSchemeCallBack.call();
+
+                        selectedList.removeAllElements();
+                        configedKpis = {};
+
+                        lm.hideLoading();
+                    },
+                    function():void
+                    {
+                        Alert.show("删除方案异常!", "删除方案");
+                        lm.hideLoading();
+                    });
+            }
+
+
+            public function editKpiMos(lr:ListRect):void
+            {
+                selectedMoListAC.removeAll();
+                selectedMoMap = {};
+                selectedMoListAC.addAll(lr.moList);
+
+				var str:XML = new XML("<node selected='1' label='" + lr.kpiName + "' kpi_id='" + lr.kpiId + "' mo_type_id='" + lr.moTypeId + "'/>");
+                if (kpiTreeXml == null)
+				{
+					log.info("kpiTreeXml is null~~");
+					 kpiTreeXml = new XML("<node label='编辑指标'/>");
+					 kpiTreeXml.appendChild(str);
+				}else
+                {
+					log.info("kpiTreeXml is not null~~");
+                    var findFlag:Boolean = false;
+					if(remark == "汇总")
+					{
+						kpiTreeXml.appendChild(str);
+					}else
+					{
+                    CommonUtil.forEachTreeDown(kpiTreeXml, function(node:XML):void
+                    {
+                        if (node.@label == lr.kpiName)
+                        {
+                            node.@selected = "1";
+                            kpiTree.selectedItem = node;
+                            findFlag = true;
+                        }
+                        else
+                            node.@selected = "0";
+                    });
+
+                    if (!findFlag)
+						{
+							log.info("!findFlag");
+                        kpiTreeXml = new XML("<node label='编辑指标'><node selected='1' label='" + lr.kpiName + "' kpi_id='" + lr.kpiId + "' mo_type_id='" + lr.moTypeId + "'/></node>");
+                }
+					}
+				} 
+
+                for each (var motype:Object in moTypeListAC)
+                {
+                    if (lr.moTypeId == motype.mo_type_id)
+                    {
+                        moTypeList.selectedIndex = moTypeListAC.getItemIndex(motype);
+                        break;
+                    }
+                }
+            }
+
+            public function setMoTreeSelect(event:ListRemoveEvent):void
+            {
+                if (moTreeXml != null)
+                    CommonUtil.forEachTreeDown(moTreeXml, function(node:XML):void
+                    {
+                        if (node.@label == event.data)
+                            node.@selected = "0";
+                    });
+            }
+        ]]>
+    </fx:Script>
+
+    <fx:Declarations>
+
+    </fx:Declarations>
+
+    <s:states>
+        <s:State name="kpiadd"/>
+        <s:State name="kpiedit"/>
+    </s:states>
+
+    <ailk_compts:Window width="100%"
+                        height="100%"
+                        title.kpiadd="新增方案"
+                        title.kpiedit="修改方案"
+                        minimizable="false"
+                        maximizable="false"
+                        closable="false"
+                        styleName="window">
+        <s:VGroup width="100%"
+                  height="100%"
+                  horizontalAlign="center"
+                  verticalAlign="top">
+            <s:VGroup width="100%"
+                      horizontalAlign="center">
+                <s:Label text="汇总指标监控：只能选择一个指标，不选择网元即可。    "
+                         color="0x0080FF"/>
+                <s:Label text="设备指标监控：以指标为粒度，同时选择多指标将自动拆分。"
+                         color="0x0080FF"/>
+            </s:VGroup>
+            <mx:Spacer height="10"/>
+            <s:VGroup gap="12"
+                      width="635">
+                <s:HGroup width="100%">
+                    <s:Label width="70"
+                             textAlign="right"
+                             verticalAlign="justify"
+                             text="方案名称"/>
+                    <s:TextInput width="100%"
+                                 id="schemeNameTextInput"/>
+                </s:HGroup>
+                <s:HGroup gap="20"
+                          width="100%">
+                    <s:HGroup>
+                        <s:Label width="70"
+                                 textAlign="end"
+                                 text="专业"/>
+                        <ailk_compts:PrettyComboBox id="specList"
+                                                    change="{loadMotypeBySpec}"
+                                                    multiSlecteEnabled="true"
+                                                    dataProvider="{specListAC}"/>
+                    </s:HGroup>
+                    <s:HGroup>
+                        <s:Label text="属地"
+                                 textAlign="end"/>
+                        <ailk_compts:PrettyComboBox id="cityList"
+                                                    multiSlecteEnabled="true"
+                                                    dataProvider="{cityListAC}"/>
+                    </s:HGroup>
+                    <s:HGroup>
+                        <s:Label text="厂家"
+                                 textAlign="end"/>
+                        <ailk_compts:PrettyComboBox id="vendorList"
+                                                    multiSlecteEnabled="true"
+                                                    dataProvider="{vendorListAC}"/>
+                    </s:HGroup>
+                </s:HGroup>
+                <s:HGroup width="100%"
+                          gap="20">
+                    <s:HGroup>
+                        <s:Label width="70"
+                                 text="网元类型"
+                                 textAlign="right"/>
+                        <s:ComboBox id="moTypeList"
+                                    width="150"
+                                    change="loadKpiTree()"
+                                    dataProvider="{moTypeListAC}"/>
+                    </s:HGroup>
+                    <s:HGroup horizontalAlign="left">
+                        <s:Label text="网元"
+                                 textAlign="right"/>
+                        <s:TextInput width="160"
+                                     id="moNameTextInput"/>
+                    </s:HGroup>
+                    <s:HGroup width="100%"
+                              horizontalAlign="right">
+                        <s:Button label="查询"
+                                  click="queryMoAndKpi()"/>
+                    </s:HGroup>
+                </s:HGroup>
+            </s:VGroup>
+
+            <mx:Spacer height="2"/>
+            <mx:HRule width="{g2.width + 30}"
+                      height="2"/>
+            <mx:Spacer height="2"/>
+
+            <s:HGroup id="g2"
+                      width="635"
+                      height="100%"
+                      maxHeight="260"
+                      horizontalAlign="center"
+                      gap="15">
+                <s:VGroup width="33%"
+                          gap="5"
+                          height="100%">
+                    <s:HGroup width="100%">
+                        <s:Label text="备选网元"/>
+                        <mx:Spacer width="100%"/>
+                        <s:Button label="全选"
+                                  enabled="{moTreeXml!=null}"
+                                  click="selectAllMo()"/>
+                    </s:HGroup>
+                    <mx:Tree id="moTree"
+                             width="100%"
+                             height="100%"
+                             maxHeight="256"
+                             minHeight="100"
+                             labelField="@label"
+                             openItems="{moTreeXml}"
+                             horizontalScrollPolicy="auto"
+                             dataProvider="{moTreeXml}"
+                             itemClick="tree_itemClickHandler(event, true)"
+                             folderClosedIcon="{null}"
+                             folderOpenIcon="{null}"
+                             defaultLeafIcon="{null}"
+                             disclosureClosedIcon="@Embed('../img/+.png')"
+                             disclosureOpenIcon="@Embed('../img/-.png')"
+                             itemRenderer="com.linkage.module.cms.perfmonitornew.common.CheckBoxTreeRenderer"/>
+                </s:VGroup>
+                <s:VGroup width="33%"
+                          gap="5"
+                          height="100%">
+                    <s:HGroup width="100%">
+                        <s:Label text="已选网元 "/>
+                        <s:Label text="{selectedMoListAC.length}"/>
+                        <mx:Spacer width="100%"/>
+                        <s:Button label="全删"
+                                  enabled="{selectedMoListAC.length > 0}"
+                                  click="dealAllSelectedMo()"/>
+                    </s:HGroup>
+                    <s:List id="selectedMoList"
+                            dataProvider="{selectedMoListAC}"
+                            width="100%"
+                            height="100%"
+                            maxHeight="256"
+                            minHeight="100"
+                            itemRenderer="com.linkage.module.cms.perfmonitornew.common.DeleteAbleListItemRenderer"/>
+                </s:VGroup>
+                <s:VGroup width="33%"
+                          gap="5"
+                          height="100%">
+                    <s:HGroup width="100%">
+                        <s:Label text="监控指标"/>
+                        <mx:Spacer width="100%"/>
+                        <s:Button label="全选"
+                                  enabled="{kpiTreeXml!=null}"
+                                  click="selectAllKpi()"/>
+                    </s:HGroup>
+                    <mx:Tree id="kpiTree"
+                             width="100%"
+                             height="100%"
+                             maxHeight="256"
+                             minHeight="100"
+                             labelField="@label"
+                             horizontalScrollPolicy="auto"
+                             dataProvider="{kpiTreeXml}"
+                             openItems="{kpiTreeXml}"
+                             itemClick="tree_itemClickHandler(event)"
+                             folderClosedIcon="{null}"
+                             folderOpenIcon="{null}"
+                             defaultLeafIcon="{null}"
+                             disclosureClosedIcon="@Embed('../img/+.png')"
+                             disclosureOpenIcon="@Embed('../img/-.png')"
+                             itemRenderer="com.linkage.module.cms.perfmonitornew.common.CheckBoxTreeRenderer"/>
+                </s:VGroup>
+            </s:HGroup>
+
+            <mx:Spacer height="2"/>
+            <mx:HRule width="{g2.width + 30}"
+                      height="2"/>
+            <mx:Spacer height="2"/>
+
+            <s:HGroup width="635"
+                      horizontalAlign="center">
+                <s:Button label="保存网元"
+                          enabled="{selectedMoListAC.length>0}"
+                          click="saveKpi()"/>
+                <s:Button label="重置"
+                          click="reset()"/>
+
+                <mx:Spacer width="20"/>
+                <mx:VRule height="20"
+                          width="2"/>
+                <mx:Spacer width="20"/>
+
+                <s:Button label="删除方案"
+                          enabled.kpiadd="false"
+                          click="deleteScheme()"/>
+                <s:Button label="保存方案"
+                          click="saveScheme()"/>
+
+                <mx:Spacer width="20"/>
+                <mx:VRule height="20"
+                          width="2"/>
+                <mx:Spacer width="20"/>
+
+                <s:Button label="开始监控"
+                          click="saveScheme(true)"/>
+            </s:HGroup>
+        </s:VGroup>
+        <s:Button label="新增方案"
+                  click="{this.currentState = 'kpiadd';reset();}"
+                  visible="false"
+                  includeInLayout="false"
+                  visible.kpiedit="true"
+                  includeInLayout.kpiedit="true"/>
+    </ailk_compts:Window>
+
+    <ailk_compts:Window width="230"
+                        height="100%"
+                        title="已配置指标"
+                        styleName="window"
+                        minimizable="false"
+                        maximizable="false"
+                        closable="false">
+        <s:Scroller width="100%"
+                    height="100%"
+                    verticalScrollPolicy="auto">
+            <s:VGroup id="selectedList"
+                      horizontalAlign="center"
+                      width="100%"/>
+        </s:Scroller>
+        <s:Button label="全删"
+                  click="{selectedList.removeAllElements();configedKpis = {};}"
+                  right="0"
+                  top="-22"/>
+    </ailk_compts:Window>
+</s:HGroup>

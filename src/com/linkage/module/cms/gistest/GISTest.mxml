@@ -1,0 +1,994 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%"
+		   creationComplete="application1_creationCompleteHandler(event)" 
+		   xmlns:esri="http://www.esri.com/2008/ags" xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		s|TextArea{
+			content-background-color:"#0033ee";
+			content-background-alpha:0.6;
+		}
+	</fx:Style>
+	
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.gis.core.GisContextMenuItem;
+			import com.ailk.common.ui.gis.core.GisContextUtil;
+			import com.ailk.common.ui.gis.core.GisDynamicServiceLayer;
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.GisFeatureLayer;
+			import com.ailk.common.ui.gis.core.GisLayer;
+			import com.ailk.common.ui.gis.core.metry.GisPoint;
+			import com.ailk.common.ui.gis.core.metry.GisRegion;
+			import com.ailk.common.ui.gis.core.styles.GisFillPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLinePredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLineStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerStyle;
+			import com.ailk.common.ui.gis.core.task.GisIdentifyParameters;
+			import com.ailk.common.ui.gis.core.task.GisIdentifyTask;
+			import com.ailk.common.ui.gis.core.task.GisQuery;
+			import com.ailk.common.ui.gis.event.GisExtentEvent;
+			import com.ailk.common.ui.gis.event.GisIdentifyEvent;
+			import com.ailk.common.ui.gis.event.MapEvent;
+			import com.esri.ags.Graphic;
+			import com.esri.ags.events.ExtentEvent;
+			import com.esri.ags.events.FeatureLayerEvent;
+			import com.esri.ags.events.GraphicEvent;
+			import com.esri.ags.events.IdentifyEvent;
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.tasks.supportClasses.IdentifyResult;
+			import com.esri.ags.tasks.supportClasses.Query;
+			import com.linkage.module.cms.utils.StringUtils;
+			import com.supermap.web.events.ViewBoundsEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			import mx.utils.StringUtil;
+			
+			[Bindable]
+			private var msg:String="";
+			
+			private static var log:ILogger = Log.getLoggerByClass(GISTest);
+			
+			private var b1:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0x000000,0.6,2);
+			private var s1:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x00FF00,0.6,b1);
+			
+			
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+//				styleManager.loadStyleDeclarations2("/cms/flex-release/css/common/show/ui.swf");
+//				styleManager.loadStyleDeclarations2("css/common/show/ui.swf");
+				styleManager.loadStyleDeclarations2(parentApplication.parameters["styleUrl"]);
+				
+//				prompt.addEventListener(MouseEvent.CLICK,onMouseClick);
+//				prompt.addEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
+//				prompt.addEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+//				
+//				prompt.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+//				msg+="[MouseEvent.CLICK]";
+//				prompt.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_DOWN));
+//				msg+="[MouseEvent.MOUSE_DOWN]";
+//				prompt.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_UP));
+//				msg+="[MouseEvent.MOUSE_UP]";
+			}
+			
+			private function onMouseClick(e:MouseEvent):void{
+				for(var i:int=0;i<1000;i++){
+					msg+="[onMouseClick]"+i+"\n";
+				}
+			}
+			
+			private function onMouseDown(e:MouseEvent):void{
+				for(var i:int=0;i<100;i++){
+					msg+="[onMouseDown]"+i+"\n";
+				}
+			}
+			
+			private function onMouseUp(e:MouseEvent):void{
+				for(var i:int=0;i<10;i++){
+					msg+="[onMouseUp]"+i+"\n";
+				}
+			}
+			
+			private function cityChange():void{
+				if(StringUtils.isEmpty(StringUtil.trim(cityIntIDInput.text))){
+					Alert.show("请输入属地ID!","提示");
+					return;
+				}
+				gisWork.map.mapChange(StringUtil.trim(cityIntIDInput.text));
+			}
+			
+			private function btsQuery():void{
+				if(StringUtils.isEmpty(StringUtil.trim(btsIntIDInput.text))){
+					Alert.show("请输入ID!","提示");
+					return;
+				}
+				var inputIds:Array = StringUtil.trim(btsIntIDInput.text).split(",");
+				gisWork.map.queryBTSGisFeaturesByAreaIds(inputIds,showResult);
+			}
+			
+			private function nodeBQuery():void{
+				if(StringUtils.isEmpty(StringUtil.trim(nodebIntIDInput.text))){
+					Alert.show("请输入ID!","提示");
+					return;
+				}
+				var inputIds:Array = StringUtil.trim(nodebIntIDInput.text).split(",");
+				gisWork.map.queryNodeBGisFeaturesByAreaIds(inputIds,showResult);
+			}
+			
+			private function objQuery():void{
+				if(StringUtils.isEmpty(StringUtil.trim(objIDInput.text))){
+					Alert.show("请输入ID!","提示");
+					return;
+				}
+				var inputIds:Array = StringUtil.trim(objIDInput.text).split(",");
+				gisWork.map.queryGisFeaturesByAreaIds(inputIds,showResult);
+//				gisWork.map.queryGisFeaturesBySqlWhereForFields('OBJECTID in ('+objIDInput.text+')',["OBJECTID"],showResult);
+			}
+			
+			
+			private function showResult(gisFeatures:Array):void{
+				var str:String = "";
+				clear();
+				for each(var feature:GisFeature in gisFeatures){
+					feature.gisStyle=s1;
+					feature.autoMoveToTop=false;
+					feature.onClick=gisClick;
+					feature.onMouseOver=gisMouseOver;
+					feature.onMouseOut=gisMouseOut;
+					gisWork.map.addGisFeature(feature);
+//					var centerFeature:GisFeature = new GisFeature(new GisPoint(feature.gisMetry.gisExtent.center.x,feature.gisMetry.gisExtent.center.y),new GisMarkerPictureStyle(pic));
+					var centerFeature:GisFeature = new GisFeature(new GisPoint(feature.gisMetry.gisExtent.center.x,feature.gisMetry.gisExtent.center.y),new GisMarkerPredefinedStyle(GisMarkerStyle.STYLE_CIRCLE,15,0xFF0000));
+					centerFeature.onClick=gisClick;
+					centerFeature.onMouseOver=gisMouseOver;
+					centerFeature.onMouseOut=gisMouseOut;
+					gisWork.map.addGisFeature(centerFeature);
+					for(var key:String in feature.attributes){
+						str+=key+"："+feature.attributes[key]+"\n";
+					}
+					str+= "ID:"+feature.id+"\n中心点：(x="+feature.gisMetry.gisExtent.center.x+",y="+feature.gisMetry.gisExtent.center.y+")\n";
+					for each(var point:GisPoint in (feature.gisMetry as GisRegion).parts){
+						str+= "边界点：(x="+point.x+",y="+point.y+")\n";
+					}
+					
+				}
+				gisWork.map.viewRefresh();
+				msg = str;
+			}
+			
+			private function gisClick(gisFeature:Object,e:Event):void{
+				msg += "[gisFeature.onClick]"+gisFeature+","+"\n";
+				_x = (e as MouseEvent).stageX;
+				_y = (e as MouseEvent).stageY;
+				isVisiable=true;
+			}
+			
+			private function gisMouseOver(gisFeature:Object,e:Event):void{
+				msg += "[gisFeature.onMouseOver]"+gisFeature+","+"\n";
+				_x = (e as MouseEvent).stageX;
+				_y = (e as MouseEvent).stageY;
+				isVisiable=true;
+			}
+			
+			private function gisMouseOut(gisFeature:Object,e:Event):void{
+				msg += "[gisFeature.onMouseOut]"+gisFeature+","+"\n";
+				isVisiable=false;
+			}
+			
+			
+			private function clear():void{
+				msg=gisWork.map.mapUrl+"\n";
+				gisWork.map.clearAll();
+				if(wmsUrl){
+					gisWork.map.hideWMSLayer(wmsUrl);
+				}
+			}
+			
+			private var wmsUrl:String;
+			private function urlQuery():void{
+				clear();
+				if(StringUtils.isEmpty(StringUtil.trim(urlInput.text))){
+					Alert.show("请输入图层URL!","提示");
+					return;
+				}
+				wmsUrl = StringUtil.trim(urlInput.text);
+				gisWork.map.showWMSLayer(wmsUrl);
+				msg = "图层URL："+wmsUrl;
+			}
+//			private 
+			private function url1Query():void{
+				if(StringUtils.isEmpty(StringUtil.trim(urlInput1.text))){
+					Alert.show("请输入图层URL!","提示");
+					return;
+				}
+				if(StringUtils.isEmpty(StringUtil.trim(outFieldInput.text))){
+					Alert.show("请输入字段!","提示");
+					return;
+				}
+				var layer:GisLayer;
+//				for(var i:uint=0;i<10;i++){
+////					if(!layer){
+////						layer = new GisLayer();
+////						layer.url = StringUtil.trim(urlInput1.text);
+////						layer.outField=StringUtil.trim(outFieldInput.text).split(",");
+////						layer.definitionExpression = whereInput.text;
+////						layer.mode="snapshot";
+//////						layer.gisStyle = new GisMarkerPredefinedStyle(GisMarkerStyle.STYLE_CIRCLE,8,0xff0000);
+////						layer.gisStyle = new GisMarkerPictureStyle(pic)
+////						gisWork.map.addGisLayer(layer);
+////					}
+//				}
+				
+				
+			}
+			
+			private var dynamicGisLayer:GisDynamicServiceLayer;
+			
+			private var featureLayer:GisFeatureLayer;
+			private var query:GisQuery;
+			
+			private var gisLayer:GisLayer;
+			private var gisQueryParam:GisIdentifyParameters;
+			private var gisQueryTask:GisIdentifyTask;
+			
+			private function url2Query():void{
+				if(StringUtils.isEmpty(StringUtil.trim(dynamicInput.text))){
+					Alert.show("请输入图层URL!","提示");
+					return;
+				}
+//				dynamicMapLayer.url = StringUtil.trim(dynamicInput.text);
+				if(!dynamicGisLayer){
+					dynamicGisLayer = new GisDynamicServiceLayer();
+					dynamicGisLayer.url = StringUtil.trim(dynamicInput.text);
+					dynamicGisLayer.visibleLayers = new ArrayCollection(StringUtil.trim(dynamicLayerInput.text).split(","));
+					gisWork.map.addGisLayer(dynamicGisLayer);
+					log.info("dynamicGisLayer.layerInfos:{0}",dynamicGisLayer.layerInfos);
+//					featureLayer = new GisFeatureLayer(StringUtil.trim(dynamicInput.text)+"/0",GisFeatureLayer.MODE_SELECTION,["ID"]);
+//					featureLayer.gisStyle = new GisMarkerPictureStyle(pic);
+//					query = new GisQuery();
+//					featureLayer.query = query;
+					
+					gisLayer = new GisLayer();
+					gisLayer.gisStyle = new GisMarkerPictureStyle(pic);
+					gisQueryParam = new GisIdentifyParameters();
+					gisQueryParam.width = gisWork.width;
+					gisQueryParam.height = gisWork.height;
+					gisQueryParam.mapExtent = gisWork.map.gisExtent;
+					gisQueryParam.tolerance=3;
+					gisQueryParam.returnGisMetry=true;
+					
+					gisQueryTask = new GisIdentifyTask();
+					gisQueryTask.identifyParameters = gisQueryParam;
+					gisQueryTask.showBusyCursor=true;
+					gisQueryTask.url = StringUtil.trim(dynamicInput.text);
+					gisQueryTask.addEventListener(GisIdentifyEvent.EXECUTE_COMPLETE,onExecuteCompleteHandler);
+					gisLayer.queryTask = gisQueryTask;
+					
+					
+					
+					var contentMenus:Array = new Array();
+					var item:ContextMenuItem = new ContextMenuItem("测试");
+					
+					contentMenus.push(new GisContextMenuItem("测试",callMenu,true));
+					contentMenus.push(new GisContextMenuItem("测试1",callMenu));
+					contentMenus.push(new GisContextMenuItem("测试2",callMenu));
+					contentMenus.push(new GisContextMenuItem("测试3",callMenu));
+					contentMenus.push(new GisContextMenuItem("测试4",callMenu));
+					contentMenus.push(new GisContextMenuItem("测试5",callMenu));
+					contentMenus.push(new GisContextMenuItem("测试6",callMenu));
+					contentMenus.push(new GisContextMenuItem("测试7",callMenu));
+					
+					gisLayer.featureContextMenus = contentMenus;
+					gisLayer.featureOnClick=gisClick;
+					gisLayer.featureOnMouseOver=gisMouseOver;
+					gisLayer.featureOnMouseOut=gisMouseOut;
+					gisWork.map.addGisLayer(gisLayer);
+					
+//					gisWork.map.addGisLayer(featureLayer);
+					
+				
+				}
+				
+			}
+			
+			
+			private function url2QueryClear():void{
+				gisWork.map.removeGisLayer(dynamicGisLayer);
+				gisWork.map.removeGisLayer(gisLayer);
+				dynamicGisLayer=null;
+				gisLayer=null;
+			}
+			
+			private function onExecuteCompleteHandler(event:GisIdentifyEvent):void{
+				var gisFeature:GisFeature;
+				for (var id:* in event.gisFeatures){
+					gisFeature = GisFeature(event.gisFeatures[id]);
+					gisFeature.gisStyle = new GisMarkerPredefinedStyle(GisMarkerStyle.STYLE_CIRCLE,15,0xff0000);
+					gisLayer.updateFeature(gisFeature);
+					for(var key:* in gisFeature.attributes){
+						log.debug("onExecuteCompleteHandler================>{0}={1}",key,gisFeature.attributes[key]);
+					}
+				}
+			}
+			
+			protected function gisWork_map_clickHandler(event:MapEvent):void
+			{
+				// TODO Auto-generated method stub
+				msg+="坐标点：(x="+event.mapPoint.x+",y="+event.mapPoint.y+")\n";
+				
+			}
+			[Bindable]
+			[Embed(source="assets/Koala.jpg")]
+			public var pic:Class;
+			
+			private var myFeature:GisFeature;
+			private function panTo():void{
+				if(StringUtils.isEmpty(StringUtil.trim(xInput.text))){
+					Alert.show("请输入X坐标!","提示");
+					return;
+				}
+				if(StringUtils.isEmpty(StringUtil.trim(yInput.text))){
+					Alert.show("请输入Y坐标!","提示");
+					return;
+				}
+				var x:Number = Number(StringUtil.trim(xInput.text));
+				var y:Number = Number(StringUtil.trim(yInput.text));
+				myFeature = new GisFeature(new GisPoint(x,y),new GisMarkerPictureStyle(pic,100,100));
+				myFeature.onClick=gisClick;
+				myFeature.onMouseOver=gisMouseOver;
+				myFeature.onMouseOut=gisMouseOut;
+				gisWork.map.addGisFeature(myFeature);
+				gisWork.map.panTo(new GisPoint(x,y));
+				
+			}
+			
+			
+			protected function gisWork_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			private var myContextMenu:ContextMenu;
+			private var startPoint:GisPoint=new GisPoint(116.83055794023407,35.16242895225869);
+			private var endPoint:GisPoint = new GisPoint(122.46512160204017,30.85318755932155);
+			
+			[Bindable]
+			private var _x:Number;
+			[Bindable]
+			private var _y:Number;
+			[Bindable]
+			private var isVisiable:Boolean=false;
+			
+			private var testLayer:GisLayer;
+			private var testLayer1:GisLayer;
+			private var testLayer2:GisLayer;
+			
+			private var gisArray:Array = new Array;
+			private function numTest():void{
+				if(StringUtils.isEmpty(StringUtil.trim(numInput.text))){
+					Alert.show("请输入测试点数量!","提示");
+					return;
+				}
+				
+				var num:uint = uint(numInput.text);
+				var px:Number = Number((endPoint.x-startPoint.x)/50);
+				var py:Number = Number((startPoint.y-endPoint.y)/(num>50?(num%50==0?uint((num/50)):(uint(num/50)+1)):1));
+				var point:GisPoint = new GisPoint(startPoint.x,startPoint.y);
+				
+				if(!testLayer){
+					testLayer = new GisLayer();
+					
+					
+					testLayer1 = new GisLayer();
+					
+					testLayer2 = new GisLayer();
+				}
+				
+//				if(gisArray.length>0){
+//					for each(var feature:GisFeature in gisArray){
+//						gisWork.map.addGisFeature(feature,true);
+//						log.debug("numTest====>"+feature);
+//					}
+//				}else{
+					var contentMenus:Array;
+				
+					for(var i:uint=0;i<num;i++){
+						if(i%50==0){
+							point.y -= py;
+							point.x = startPoint.x;
+						}else{
+							point.x += px;
+						}
+						var feature:GisFeature = new GisFeature(new GisPoint(point.x,point.y),new GisMarkerPictureStyle(pic,100,100));
+						
+						feature.onClick=gisClick;
+						feature.onMouseOver=gisMouseOver;
+						feature.onMouseOut=gisMouseOut;
+						
+						contentMenus = new Array();
+						var item:ContextMenuItem = new ContextMenuItem("测试");
+						
+						contentMenus.push(new GisContextMenuItem("测试",callMenu,true));
+						contentMenus.push(new GisContextMenuItem("测试1",callMenu));
+						contentMenus.push(new GisContextMenuItem("测试2",callMenu));
+						contentMenus.push(new GisContextMenuItem("测试3",callMenu));
+						contentMenus.push(new GisContextMenuItem("测试4",callMenu));
+						contentMenus.push(new GisContextMenuItem("测试5",callMenu));
+						contentMenus.push(new GisContextMenuItem("测试6",callMenu));
+						contentMenus.push(new GisContextMenuItem("测试7",callMenu));
+						feature.contentMenus = contentMenus;
+//						gisWork.map.addGisFeature(feature);
+						testLayer.addGisFeature(feature);
+						gisArray.push(feature);
+						
+					}
+					gisWork.map.addGisLayer(testLayer);
+					gisWork.map.viewRefresh();
+//				}
+				
+			}
+			
+			private function deleTest():void{
+//				for(var id:* in testLayer.gisFeatures){
+//					testLayer.removeGisFeature(GisFeature(testLayer.gisFeatures[id]));
+//				}
+				
+				for each(var feature:GisFeature in gisArray){
+					gisWork.map.removeGisFeature(feature);
+				}
+			}
+			
+			
+			
+			private function removeDefaultItems():void {
+				myContextMenu.hideBuiltInItems();
+				var defaultItems:ContextMenuBuiltInItems = myContextMenu.builtInItems;
+				defaultItems.print = true;
+			}
+			
+			private function callMenu(feature:GisFeature):void{
+				msg+="右键菜单测试："+feature.id+"\n";
+			}
+			
+			private function wellsLayer_selectionCompleteHandler(event:FeatureLayerEvent):void
+			{
+				log.debug("wellsLayer_selectionCompleteHandler=============>"+event.features.length);
+			}
+
+			protected function map_mapClickHandler(event:MapMouseEvent):void
+			{
+				// TODO Auto-generated method stub
+//				var tol:Number = map.extent.width / map.width * 5;
+//				var x:Number = event.mapPoint.x;
+//				var y:Number = event.mapPoint.y;
+//				var queryExtent:Extent = new Extent(x - tol, y - tol, x + tol, y + tol, event.mapPoint.spatialReference);
+////				log.debug("============>"+x+","+y);
+//				
+////				log.debug("============>"+x.toFixed(10)+","+y.toFixed(10));
+//				var selectionQuery:Query = new Query();
+//				selectionQuery.geometry = queryExtent;
+//				wellsLayer.selectFeatures(selectionQuery);
+				
+//				if(gisWork.map.level>5){
+//					identifyParameters.geometry = event.mapPoint;
+//					identifyTask.execute(identifyParameters);
+//				}else{
+//					graphicsLayer.clear();
+//				}
+			}
+
+
+			protected function wellsLayer_graphicAddHandler(event:GraphicEvent):void
+			{
+				// TODO Auto-generated method stub
+				event.graphic.contextMenu = new ContextMenu();
+				var item:ContextMenuItem = new ContextMenuItem("测试");
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void{
+					Alert.show("==========>"+event.graphic.attributes.ID+","+evt.currentTarget.caption);
+				});
+				event.graphic.contextMenu.customItems.push(item);
+				event.graphic.addEventListener(MouseEvent.CLICK,function(evt:MouseEvent):void{
+//					Alert.show("==========>"+Graphic(evt.currentTarget).id);
+				});
+			}
+
+
+			protected function map_zoomEndHandler(event:ZoomEvent):void
+			{
+				// TODO Auto-generated method stub
+//				if(map.level>7){
+//					var selectionQuery:Query = new Query();
+//					selectionQuery.geometry = event.extent;
+//					wellsLayer.selectFeatures(selectionQuery);
+//				}else{
+//					wellsLayer.clear();
+//				}
+			}
+
+
+			protected function map_dragExitHandler(event:DragEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+
+
+			protected function map_extentChangeHandler(event:ExtentEvent):void
+			{
+				// TODO Auto-generated method stub
+//				if(map.level>5){
+//					selectionQuery.geometry = event.extent;
+//					wellsLayer.selectFeatures(selectionQuery);
+//				}else{
+//					wellsLayer.clearSelection();
+//				}
+//				graphicsLayer.clear();
+//				if(map.level>5){
+//					identifyParameters.geometry = event.extent;
+//					identifyTask.execute(identifyParameters);
+//				}else{
+//					graphicsLayer.clear();
+//				}
+				
+			}
+
+
+			protected function wellsLayer_graphicRemoveHandler(event:GraphicEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.debug("wellsLayer_graphicRemoveHandler:"+event.graphic);
+			}
+
+
+			protected function wellsLayer_selectionClearHandler(event:FeatureLayerEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.debug("wellsLayer_selectionClearHandler:"+event.objectIds);
+			}
+
+			private var isChange:Boolean=false;
+			protected function gisWork_extent_changeHandler(event:GisExtentEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.debug("gisWork.map.level:{0},extent:{1}",gisWork.map.level,event.extent)
+//				if(gisWork.map.level>5){
+//					featureLayer.query.gisMetry = event.extent;
+//					featureLayer.selectFeatures(GisFeatureLayer.SELECTION_NEW);
+//					var identifyParameters:GisIdentifyParameters = GisIdentifyTask(gisLayer.queryTask).identifyParameters;
+//					identifyParameters.mapExtent = event.extent;
+//					identifyParameters.gisMetry = event.extent;
+//					gisLayer.selectFeatures(GisFeatureLayer.SELECTION_NEW);
+					
+					
+//				}else if(gisLayer){
+//					featureLayer.clearSelection();
+//					log.debug("gisLayer:{0}",gisLayer);
+//					gisLayer.clearSelection();
+//				}
+				
+				
+//				if(gisWork.map.level>5){
+//					var featureLayer:GisLayer;
+//					var gisQueryParam:GisIdentifyParameters;
+//					if(!isChange){
+//						for each(featureLayer in apLayers){
+//							featureLayer.gisStyle = new GisMarkerPictureStyle(pic,100,100);
+////							featureLayer.query = new GisQuery();
+////							featureLayer.query.gisMetry = event.extent;
+//							gisWork.map.addGisLayer(featureLayer);
+//						}
+//						for each(featureLayer in hotLayers){
+//							featureLayer.gisStyle = new GisMarkerPictureStyle(pic,100,100);
+////							featureLayer.query = new GisQuery();
+////							featureLayer.query.gisMetry = event.extent;
+//							gisWork.map.addGisLayer(featureLayer);
+//						}
+//						for each(var dyLayer:GisDynamicServiceLayer in wlanLayers){
+//							gisWork.map.removeGisLayer(dyLayer);
+//						}
+//						isChange=true;
+//					}
+//					
+//					for each(featureLayer in apLayers){
+////						featureLayer.query.gisMetry = event.extent;
+////						featureLayer.selectFeatures(GisFeatureLayer.SELECTION_NEW);
+////						featureLayer.queryFeatures();
+//						gisQueryParam = GisIdentifyTask(featureLayer.queryTask).identifyParameters;
+//						gisQueryParam.width=gisWork.width;
+//						gisQueryParam.height=gisWork.height;
+//						gisQueryParam.mapExtent=event.extent;
+//						gisQueryParam.gisMetry = event.extent;
+//						featureLayer.selectFeatures();
+//					}
+//					
+//					for each(featureLayer in hotLayers){
+////						featureLayer.query.gisMetry = event.extent;
+////						featureLayer.selectFeatures(GisFeatureLayer.SELECTION_NEW);
+////						featureLayer.queryFeatures();
+//					}
+//					
+//				}else{
+//					if(isChange){
+////						var featureLayer:GisFeatureLayer;
+////						for each(featureLayer in apLayers){
+////							gisWork.map.removeGisLayer(featureLayer);
+////						}
+////						for each(featureLayer in hotLayers){
+////							gisWork.map.removeGisLayer(featureLayer);
+////						}
+//						for each(var dyLayer:GisDynamicServiceLayer in wlanLayers){
+//							gisWork.map.addGisLayer(dyLayer);
+//						}
+//						isChange=false;
+//					}
+//					
+//				}
+			}
+
+			protected function identifyTask_executeCompleteHandler(event:IdentifyEvent):void
+			{
+				if (event.identifyResults.length > 0)
+				{
+					var graphics:Array = new Array();
+					for each(var identifyResult:IdentifyResult in event.identifyResults){
+						log.debug("identifyResult.feature=========>"+identifyResult.feature.toString());
+						identifyResult.feature.symbol = new PictureMarkerSymbol(pic,100,100);
+//						graphicsLayer.add(identifyResult.feature);
+						graphics.push(identifyResult.feature);
+						identifyResult.feature.addEventListener(MouseEvent.CLICK,function(evt:MouseEvent):void{
+							log.debug("============>"+Graphic(evt.currentTarget).id);
+						});
+					}
+//					graphicsLayer.graphicProvider = graphics;
+//					for each(var g:Graphic in graphicsLayer.graphicProvider){
+//						log.debug("============>"+g.id);
+//					}
+				}
+			}
+			
+
+			protected function graphicsLayer_graphicAddHandler(event:GraphicEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.debug("graphicsLayer_graphicAddHandler:{0}",event.graphic);
+			}
+
+
+			private var wlanLayers:Array=new Array;
+			
+
+			private var apLayers:Array = new Array;
+			private var hotLayers:Array = new Array;
+			
+			protected function gisWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+//				var layer:GisLayer = new GisLayer();
+				
+//				var feature:GisFeature = new GisFeature(new GisPoint(119.72222698055316,33.00509211744448),new GisMarkerPictureStyle(pic,100,100));
+//				
+//				feature.onClick=gisClick;
+//				feature.onMouseOver=gisMouseOver;
+//				feature.onMouseOut=gisMouseOut;
+//				layer.addGisFeature(feature);
+//				gisWork.map.addGisLayer(layer);
+//				msg += "mapCreationComplete:"+layer;
+				// TODO Auto-generated method stub
+//				log.info("wlanLayer_NJ:{0}",GisContextUtil.getBean("wlanLayer_0100"));
+//				var wlanLayer_NJ:GisDynamicServiceLayer = GisContextUtil.getBean("wlanLayer_0100") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_NJ);
+//				wlanLayers.push(wlanLayer_NJ);
+//				var wlanLayer_SZ:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_0200") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_SZ);
+//				wlanLayers.push(wlanLayer_SZ);
+//				var wlanLayer_WX:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_0300") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_WX);
+//				wlanLayers.push(wlanLayer_WX);
+//				var wlanLayer_CZ:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_0400") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_CZ);
+//				wlanLayers.push(wlanLayer_CZ);
+//				var wlanLayer_ZJ:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_0500") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_ZJ);
+//				wlanLayers.push(wlanLayer_ZJ);
+//				var wlanLayer_YZ:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_0600") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_YZ);
+//				wlanLayers.push(wlanLayer_YZ);
+//				var wlanLayer_NT:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_0700") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_NT);
+//				wlanLayers.push(wlanLayer_NT);
+//				var wlanLayer_TZ:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_0800") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_TZ);
+//				wlanLayers.push(wlanLayer_TZ);
+//				var wlanLayer_XZ:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_0900") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_XZ);
+//				wlanLayers.push(wlanLayer_XZ);
+//				var wlanLayer_HA:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_1000") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_HA);
+//				wlanLayers.push(wlanLayer_HA);
+//				var wlanLayer_YC:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_1100") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_YC);
+//				wlanLayers.push(wlanLayer_YC);
+//				var wlanLayer_LYG:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_1200") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_LYG);
+//				wlanLayers.push(wlanLayer_LYG);
+//				var wlanLayer_SQ:GisDynamicServiceLayer = ContextUtil.getBean("wlanLayer_1300") as GisDynamicServiceLayer;
+//				gisWork.map.addGisLayer(wlanLayer_SQ);
+//				wlanLayers.push(wlanLayer_SQ);
+//				
+				
+				apLayers.push(GisContextUtil.getBean("wlanLayer_0100_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_0200_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_0300_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_0400_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_0500_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_0600_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_0700_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_0800_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_0900_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_1000_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_1100_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_1200_AP"));
+//				apLayers.push(ContextUtil.getBean("wlanLayer_1300_AP"));
+				
+				hotLayers.push(GisContextUtil.getBean("wlanLayer_0100_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_0200_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_0300_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_0400_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_0500_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_0600_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_0700_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_0800_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_0900_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_1000_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_1100_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_1200_HOT"));
+//				hotLayers.push(ContextUtil.getBean("wlanLayer_1300_HOT"));
+			}
+
+
+			private var visibleLayer:ArrayCollection=new ArrayCollection([1,2]);
+
+			protected function checkbox_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				visibleLayer.removeAll();
+				if(apCB.selected){
+					if(!visibleLayer.contains(1)){
+						visibleLayer.addItem(1);
+					}
+				}
+				if(hotCB.selected){
+					if(!visibleLayer.contains(2)){
+						visibleLayer.addItem(2);
+					}
+				}else{
+					
+				}
+				for each(var layer:GisDynamicServiceLayer in wlanLayers){
+					layer.visibleLayers=visibleLayer;
+				}
+			}
+
+			
+			protected function changePointHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(StringUtils.isEmpty(StringUtil.trim(xInput.text))){
+					Alert.show("请输入X坐标!","提示");
+					return;
+				}
+				if(StringUtils.isEmpty(StringUtil.trim(yInput.text))){
+					Alert.show("请输入Y坐标!","提示");
+					return;
+				}
+				var x:Number = Number(StringUtil.trim(xInput.text));
+				var y:Number = Number(StringUtil.trim(yInput.text));
+				
+				myFeature.gisMetry = new GisPoint(x,y);
+				gisWork.map.updateFeature(myFeature);
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		
+		<!--<esri:Query id="selectionQuery"/>
+		
+		<esri:IdentifyParameters id="identifyParameters" width="{map.width}" height="{map.height}"
+								 mapExtent="{map.extent}"
+								 returnGeometry="true"
+								 spatialReference="{map.spatialReference}"
+								 tolerance="3"/>
+		<esri:IdentifyTask id="identifyTask"
+						   executeComplete="identifyTask_executeCompleteHandler(event)"
+						   showBusyCursor="true"
+						   url="http://10.40.4.111:8399/arcgis/rest/services/lianchuang/SITE/MapServer"/>-->
+		
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<ailk_gis:MapWork id="gisWork" width="100%" height="100%" extent_change="gisWork_extent_changeHandler(event)"
+					  showOverView="false" map_click="gisWork_map_clickHandler(event)" 
+					  creationComplete="gisWork_creationCompleteHandler(event)" mapCreationComplete="gisWork_mapCreationCompleteHandler(event)">
+		
+	</ailk_gis:MapWork>
+	
+	<s:Group width="100%" height="100%" visible="false" includeInLayout="false" >
+		<!--<esri:Map id="map" openHandCursorVisible="false" extentChange="map_extentChangeHandler(event)">
+			<esri:ArcGISTiledMapServiceLayer url="http://10.40.4.111:8399/arcgis/rest/services/jiangsu/jiangsuall/MapServer"/>
+			<esri:ArcGISDynamicMapServiceLayer id="dynamicMapLayer" url="http://10.40.4.111:8399/arcgis/rest/services/lianchuang/NANJING/MapServer">
+				<esri:visibleLayers>
+					<s:ArrayCollection>
+						<fx:Number>0</fx:Number>
+						<fx:Number>1</fx:Number>
+					</s:ArrayCollection>
+				</esri:visibleLayers>
+			</esri:ArcGISDynamicMapServiceLayer>
+			<esri:FeatureLayer id="wellsLayer" definitionExpression="" selectionColor="0"
+							   mode="selection" symbol="{new PictureMarkerSymbol(pic,100,100)}"
+							   outFields="[ID]" graphicAdd="wellsLayer_graphicAddHandler(event)" 
+							   graphicRemove="wellsLayer_graphicRemoveHandler(event)"
+							   selectionComplete="wellsLayer_selectionCompleteHandler(event)"
+							   selectionClear="wellsLayer_selectionClearHandler(event)"
+							   url="http://10.40.4.111:8399/arcgis/rest/services/lianchuang/WLAN_LC/MapServer/0">
+				<esri:infoWindowRenderer>
+					<fx:Component>
+						<esri:LabelDataRenderer>
+							<esri:layout>
+								<s:VerticalLayout/>
+							</esri:layout>
+							<esri:label>Well ID {data.ID}</esri:label>
+						</esri:LabelDataRenderer>
+					</fx:Component>
+				</esri:infoWindowRenderer>
+			</esri:FeatureLayer>
+			
+			<esri:GraphicsLayer id="graphicsLayer" graphicAdd="graphicsLayer_graphicAddHandler(event)"/>
+		</esri:Map>-->
+	</s:Group>
+	<s:BorderContainer top="10" right="15" styleName="bgstyle1" minHeight="0">
+		<s:layout>
+			<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="5" paddingBottom="5"/>
+		</s:layout>
+		
+		<mx:Accordion width="400" height="400">
+			<s:NavigatorContent label="地市地图切换">
+				<s:layout>
+					<s:VerticalLayout/>
+				</s:layout>
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="地市地图切换 CITY_ID:"/>
+					<s:TextInput id="cityIntIDInput"/>
+					<s:Button label="切换" buttonMode="true" click="cityChange()"/>
+				</s:HGroup>
+				
+				<s:HGroup verticalAlign="middle">
+					<s:CheckBox label="AP" id="apCB" selected="true" click="checkbox_clickHandler(event)"/>
+					<s:CheckBox label="HOT" id="hotCB" selected="true" click="checkbox_clickHandler(event)"/>
+				</s:HGroup>
+			</s:NavigatorContent>
+			
+			<s:NavigatorContent label="泰森多边形查询">
+				<s:layout>
+					<s:VerticalLayout/>
+				</s:layout>
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="BTS查询 INT_ID:"/>
+					<s:TextInput id="btsIntIDInput"/>
+					<s:Button label="查询" buttonMode="true" click="btsQuery()"/>
+				</s:HGroup>
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="NODEB查询 INT_ID:"/>
+					<s:TextInput id="nodebIntIDInput"/>
+					<s:Button label="查询" buttonMode="true" click="nodeBQuery()"/>
+				</s:HGroup>
+			</s:NavigatorContent>
+			
+			<s:NavigatorContent label="区县界查询">
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="区县界查询 OBJECT_ID:"/>
+					<s:TextInput id="objIDInput"/>
+					<s:Button label="查询" buttonMode="true" click="objQuery()"/>
+				</s:HGroup>
+			</s:NavigatorContent>
+			
+			<s:NavigatorContent label="图层查询">
+				<s:layout>
+					<s:VerticalLayout/>
+				</s:layout>
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="图片图层查询 URL:"/>
+					<s:TextInput id="urlInput"/>
+					<s:Button label="查询" buttonMode="true" click="urlQuery()"/>
+				</s:HGroup>
+				
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="动态图层 URL:"/>
+					<s:TextInput id="urlInput1"/>
+				</s:HGroup>	
+				
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="动态图层输出字段:"/>
+					<s:TextInput id="outFieldInput"/>
+				</s:HGroup>
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="动态图层查询条件:"/>
+					<s:TextInput id="whereInput"/>
+					<s:Button label="查询" buttonMode="true" click="url1Query()"/>
+					<s:Button label="清空" buttonMode="true"/>
+				</s:HGroup>
+				
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="动态图层服务URL:"/>
+					<s:TextInput id="dynamicInput"/>
+				</s:HGroup>
+				
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="图层:"/>
+					<s:TextInput id="dynamicLayerInput"/>
+					<s:Button label="查询" buttonMode="true" click="url2Query()"/>
+					<s:Button label="清空" buttonMode="true" click="url2QueryClear()"/>
+				</s:HGroup>
+				
+				<s:HGroup verticalAlign="middle">
+					<!--<mx:List dataProvider="{dynamicMapLayer.layerInfos}" labelField="id">
+						
+					</mx:List>-->
+				</s:HGroup>
+			</s:NavigatorContent>
+			
+			<s:NavigatorContent label="定位">
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="定位到 x:"/>
+					<s:TextInput id="xInput" width="80"/>
+					<s:Label text="y:"/>
+					<s:TextInput id="yInput" width="80"/>
+					<s:Button label="查询" buttonMode="true" click="panTo()"/>
+					<s:Button label="更改位置" buttonMode="true" click="changePointHandler(event)"/>
+				</s:HGroup>
+			</s:NavigatorContent>
+			<s:NavigatorContent label="撒点测试">
+				<s:HGroup verticalAlign="middle">
+					<s:Label text="撒点测试 个:"/>
+					<s:TextInput id="numInput"/>
+					<s:Button label="测试" buttonMode="true" click="numTest()"/>
+					<s:Button label="删除" buttonMode="true" click="deleTest()"/>
+				</s:HGroup>
+			</s:NavigatorContent>
+		</mx:Accordion>
+		<s:HGroup>
+			<s:Button label="清空" buttonMode="true" click="testLayer.clear()"/>
+			<s:Button label="复位" buttonMode="true" click="gisWork.map.removeAllGisLayers()"/>
+		</s:HGroup>
+	</s:BorderContainer>
+	<s:TextArea id="msgTextArea" width="400" height="200" left="10" bottom="10" text="{msg}">
+		
+	</s:TextArea>
+	
+	<s:BorderContainer id="prompt" minWidth="0" minHeight="0" x="{_x}" y="{_y}" visible="{isVisiable}" styleName="commonBorderContainer">
+		<s:Label text="x:{_x},y:{_y}"/>
+	</s:BorderContainer>
+</mx:Module>

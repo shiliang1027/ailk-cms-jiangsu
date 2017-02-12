@@ -1,0 +1,1356 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   width="100%"
+		   height="100%"
+		   creationComplete="init()"
+		   preinitialize="module1_preinitializeHandler(event)"
+		   xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import flash.net.navigateToURL;
+			import flash.utils.setTimeout;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import spark.components.Label;
+			import spark.core.IViewport;
+			
+			[Bindable]
+			public var alarmuniqueid:String = "";
+			
+			private var alarmObj:Object = {
+				"isReceive": "0",
+				"isRelationOutSpecialty": "0",
+				"isPre": "0",
+				"isNotPre": "0",
+				"isPreInSpecialty": "0",
+				"isOverSpecPD": "0",
+				"isPreOutSpecialty": "0",
+				"isPreFault": "0",
+				"isOMC": "0",
+				"isExpsh": "0",
+				"isHandRelation": "0",
+				"isIMS": "0",
+				"isClear": "0",
+				"isFlautClose": "0",
+				"isWatchGradeSendTime": "0",
+				"isProvincePro": "0",
+				"isPreMsg": "0",
+				"isMaintenancePro": "0",
+				"isSheetManage": "0",
+				"isClearManage": "0",
+				"isAlarmClear": "0",
+				"isSheetClose": "0",
+				"locatenestatus": "0"
+			};
+			
+			//曲线弯曲程度
+			private var curvePercent:Number = 0;
+			
+			//弯曲锚点在整条线的什么位置
+			private var anchorRatio:int = 2;
+			private var lineThickness:Number = 2;
+			private var headWidth:Number = 10;
+			private var headLength:Number = 15;
+			private var shaftPosition:Number = .2;
+			private var edgeControlPosition:Number = .5;
+			private var lineColor:Number = 0x808080;
+			private var lineAlpha:Number = 1;
+			private var origin:Point = new Point(100, 100);
+			private var destination:Point = new Point(500, 500);
+			private var centerX:Number = 0;
+			private var currentY:Number = 10;
+			private var arrowLength:Number = 50;
+			
+			//日志
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.predeal.PreDealShow");
+			private var interval:Number = 200;
+			
+			private function drawArrow():void
+			{
+				var curveAnchor:Point = new Point(
+					(origin.x + destination.x) / anchorRatio,
+					(origin.y + destination.y) / anchorRatio);
+				
+				if(origin.x > destination.x)
+				{
+					curveAnchor.x -= (destination.y - origin.y) * curvePercent;
+					curveAnchor.y += (destination.x - origin.x) * curvePercent;
+				}
+				else
+				{
+					curveAnchor.x += (destination.y - origin.y) * curvePercent;
+					curveAnchor.y -= (destination.x - origin.x) * curvePercent;
+				}
+				
+				viewGroup.graphics.beginFill(lineColor, lineAlpha);
+				GraphicsUtil.drawArrow(viewGroup.graphics, origin, destination, curveAnchor,
+					{
+						shaftThickness: lineThickness,
+						headWidth: headWidth,
+						headLength: headLength,
+						shaftPosition: shaftPosition,
+						edgeControlPosition: edgeControlPosition
+					}
+				);
+			}
+			
+			private function begin():void
+			{
+				var node:FlowNodeShape = new FlowNodeShape();
+				node.text = "开始";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isReceive == "1")
+					node.currentState = "through";
+				
+				node.shapeType = "hexagon";
+				viewGroup.addElement(node);
+				currentY += node.height;
+				
+				setTimeout(receiveAlarm, interval);
+			}
+			
+			//收到告警
+			private function receiveAlarm():void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isReceive == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				
+				lineColor = 0x808080;
+				var node:FlowNode = new FlowNode();
+				
+				if(alarmObj.daltime_format != null && alarmObj.daltime != "0")
+					node.text = alarmObj.daltime_format + "\r\n";
+				
+				node.text += "收到告警";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isReceive == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showAlarmDetail);
+				}
+				
+				viewGroup.addElement(node);
+				currentY += node.height;
+				
+				setTimeout(isProjectAlarm, interval);
+//				setTimeout(isOverSpecRel, interval);
+			}
+			
+			private function isProjectAlarm():void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.locatenestatus == "1" || alarmObj.locatenestatus == "0")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				
+				lineColor = 0x808080;
+				
+				var node:FlowNodeShape = new FlowNodeShape();
+				node.text = "是否工程告警";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.locatenestatus == "1" || alarmObj.locatenestatus == "0")
+					node.currentState = "through";
+				
+				viewGroup.addElement(node);
+				
+				
+				origin = new Point(centerX + node.width / 2, currentY + node.height / 2);
+				destination = new Point(centerX + node.width / 2 + arrowLength + 40 + this.arrowLength, currentY + node.height / 2);
+				
+				if(alarmObj.locatenestatus == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				
+				lineColor = 0x808080;
+				
+				var label:Label = new Label();
+				label = new Label();
+				label.text = "是";
+				viewGroup.addElement(label);
+				label.x = origin.x + 50;
+				label.y = origin.y - 7;
+				
+				
+				//非预处理结束节点
+				node = new FlowNodeShape();
+				node.text = "结束";
+				node.shapeType = "eclipse";
+				
+				node.x = destination.x;
+				node.y = destination.y - 75;
+				
+				if(alarmObj.locatenestatus == "1")
+				{
+					node.currentState = "through";
+				}
+				
+				viewGroup.addElement(node);
+				
+				currentY += node.height;
+				
+				setTimeout(isOverSpecRel, interval);
+			}
+			
+			private var isOverSpecRelNode:FlowNodeShape;
+			
+			private function isOverSpecRel():void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength  + 8;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.locatenestatus == "0")
+//				if(alarmObj.isOverSpecRel == "0")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				
+				lineColor = 0x808080;
+				
+				 var label:Label = new Label();
+				label.text = "否";
+				viewGroup.addElement(label);
+				label.y = origin.y + this.arrowLength / 2;
+				label.x = origin.x - 8; 
+				
+				var node:FlowNodeShape = new FlowNodeShape();
+				node.text = "是否关联";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isOverSpecRel == "1")
+					node.currentState = "through";
+				
+				viewGroup.addElement(node);
+				isOverSpecRelNode = node;
+				currentY += node.height;
+				
+				setTimeout(overSpecRel, interval);
+			}
+			
+			private function overSpecRel():void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength + 30;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isRelationOutSpecialty == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var label:Label = new Label();
+				label.text = "是";
+				viewGroup.addElement(label);
+				label.y = origin.y + this.arrowLength / 2;
+				label.x = origin.x - 8;
+				var node:FlowNode = new FlowNode();
+				
+				if(alarmObj.reltime != null && alarmObj.reltime != "0")
+					node.text =  alarmObj.reltime + "\r\n";
+				
+				node.text += "跨专业告警关联";
+				
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isRelationOutSpecialty == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showAlarmList);
+				}
+				
+				viewGroup.addElement(node);
+				currentY += node.height;
+				setTimeout(itSpecPD, interval);
+			}
+			
+			private function showAlarmList(e:MouseEvent):void
+			{
+				//到告警查询列表页面
+				var url:String  = "/warn/report/relation/relationQueryAction.action?alarmuniqueid=" + this.alarmObj.alarmuniqueid + "&dalTime=" + this.alarmObj.daltime;
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+//			private var n1:FlowNode;
+			private function itSpecPD(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength + 30;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isRelationOutSpecialty == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var node:FlowNode = new FlowNode();
+				
+//				if(n1 != null)
+//					node = n1;
+				
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isPreIt == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+//					node.addEventListener(MouseEvent.CLICK, toAlarmDetail);
+					node.addEventListener(MouseEvent.CLICK, showAlarmList);
+					if(alarmObj.pretime != null && alarmObj.pretime != "0")
+						node.text = alarmObj.pretime + "\r\n";
+					
+					node.text = "已智能预处理";
+				}
+				else
+				{
+					node.text = "未智能预处理";
+				}
+				
+				if(alarmObj.isPreRelation == "1")
+					node.addEventListener(MouseEvent.CLICK, showAlarmList);
+				
+				viewGroup.addElement(node);
+//				n1 = node;
+//				
+//				if(alarmObj.isPreIt == "1")
+//				{
+//					n1.text = "已智能预处理";
+//				}
+//				else
+//				{
+//					n1.text = "未智能预处理";
+//				}
+				
+				//否 (否跨专业关联)箭头
+				origin = new Point(isOverSpecRelNode.x, isOverSpecRelNode.y + isOverSpecRelNode.height / 2);
+				destination = new Point(node.x, node.y + node.height / 2);
+				
+				this.curvePercent = -.7;
+				this.lineThickness = 3;
+				
+				if(alarmObj.isPre == "1" && alarmObj.isRelationOutSpecialty == "0")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				this.lineThickness = 2;
+				this.curvePercent = 0;
+				
+				var label:Label = new Label();
+				label.text = "否";
+				
+				viewGroup.addElement(label);
+				
+				label.x = origin.x - 118;
+				label.y = origin.y + 137;
+				currentY += node.height;
+				
+				setTimeout(isOrNotPreDeal, interval);
+			}
+			
+			private var systemDispatchNode:FlowNodeShape;
+			
+			private function isOrNotPreDeal(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				//				if(alarmObj.isPreInSpecialty == "1" || alarmObj.isNotPre == "1")
+				
+				if(alarmObj.isPre == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var node:FlowNodeShape = new FlowNodeShape();
+				node.text = "是否需要人工预处理";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				viewGroup.addElement(node);
+				//				if(alarmObj.isPreInSpecialty == "1" || alarmObj.isNotPre == "1")
+				
+				if(alarmObj.isPre == "1")
+					node.currentState = "through";
+				
+				//否 (否预处理)箭头
+				origin = new Point(centerX + node.width / 2, currentY + node.height / 2);
+				destination = new Point(centerX + node.width / 2 + arrowLength + 40 + this.arrowLength, currentY + node.height / 2);
+				
+				if(alarmObj.isNotPre == "1")
+					lineColor = 0xFF8000;
+				this.drawArrow();
+				
+				lineColor = 0x808080;
+				
+				var label:Label = new Label();
+				label = new Label();
+				label.text = "否";
+				viewGroup.addElement(label);
+				label.x = origin.x + 50;
+				label.y = origin.y - 7;
+				
+				
+				//非预处理结束节点
+				node = new FlowNodeShape();
+				
+				if(alarmObj.sheetstarttime != null && alarmObj.sheetstarttime != "0")
+					node.text = alarmObj.sheetstarttime + "\r\n";
+				node.text += "系统派单";
+				
+				node.shapeType = "eclipse";
+				
+				if(alarmObj.isNotPre == "1")
+				{
+					node.currentState = "through";
+				}
+				
+				systemDispatchNode = node;
+				
+				viewGroup.addElement(node);
+				node.x = destination.x;
+				node.y = destination.y - 75;
+				currentY += node.height;
+				
+				setTimeout(inSpecPD, interval);
+			}
+			
+			private function inSpecPD(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength + 30;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isPreInSpecialty == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				var label:Label = new Label();
+				label.text = "是";
+				viewGroup.addElement(label);
+				label.y = origin.y + this.arrowLength / 2;
+				label.x = origin.x - 8;
+				
+				var node:FlowNode = new FlowNode();
+				
+				node.text = "专业内预处理窗口";
+				
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isPreInSpecialty == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showAlarmDetail);
+//					node.addEventListener(MouseEvent.CLICK, showAlarmList);
+				}
+				
+				viewGroup.addElement(node);
+				currentY += node.height;
+				
+				setTimeout(isOverSpecPD, interval);
+			}
+			
+			private var inOverSpecPDNode:FlowNodeShape;
+			private function isOverSpecPD(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isOverSpecPD == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var node:FlowNodeShape = new FlowNodeShape();
+				node.text = "是否跨专业预处理";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isOverSpecPD == "1")
+				{
+					node.currentState = "through";
+//					node.buttonMode = true;
+//					node.addEventListener(MouseEvent.CLICK, toAlarmPreDealMsg);
+				}
+				
+				viewGroup.addElement(node);
+				inOverSpecPDNode = node;
+				currentY += node.height;
+				
+				setTimeout(overSpecPD, interval);
+			}
+			
+			private var overSDP:FlowNode;
+			private function overSpecPD(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength + 30;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isPreOutSpecialty == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var label:Label = new Label();
+				label.text = "是";
+				viewGroup.addElement(label);
+				label.y = origin.y + this.arrowLength / 2;
+				label.x = origin.x - 8;
+				
+				var node:FlowNode = new FlowNode();
+				node.text = "跨专业预处理窗口";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isPreOutSpecialty == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showAlarmDetail);
+				}
+				
+				viewGroup.addElement(node);
+				overSDP = node;
+				currentY += node.height;
+				
+				setTimeout(faultPD, interval);
+			}
+			
+			private var faultPDNode:FlowNode;
+			private var n2:FlowNode;
+			private function faultPD(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isPreOutSpecialty == "1" && alarmObj.isPreFault == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				var node:FlowNode = new FlowNode();
+				
+				if(n2 != null)
+					node = n2;
+				
+				if(faultPDNode)
+					faultPDNode.text = "";
+				
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				faultPDNode = node;
+				
+				viewGroup.addElement(node);
+				n2 = node;
+				
+				if(this.alarmObj.isPreFaulted == "1")
+					n2.text = "已故障预处理";
+				else
+					n2.text = "未故障预处理";
+				
+				if(alarmObj.isPreFault == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showAlarmDetail);
+				}
+				
+				//是否跨专业 到 故障预处理箭头
+				this.curvePercent = .7;
+				this.lineThickness = 3;
+				origin = new Point(inOverSpecPDNode.x + inOverSpecPDNode.width, inOverSpecPDNode.y + inOverSpecPDNode.height / 2);
+				destination = new Point(node.x + node.width, node.y + node.height / 2);
+				
+				if(alarmObj.isPreInSpecialty == "1" && alarmObj.isPreFault == "1" &&　alarmObj.isPreOutSpecialty == "0")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				this.lineThickness = 2;
+				this.curvePercent = 0;
+				
+				var label:Label = new Label();
+				label.text = "否";
+				viewGroup.addElement(label);
+				label.y = overSDP.y + 15;
+				label.x = overSDP.x + 90 + overSDP.width;
+				currentY += node.height;
+				
+				setTimeout(support, interval);
+			}
+			
+			private function showAlarmDetail(e:MouseEvent):void
+			{
+				//跳转到告警详情页面
+				var url:String  = "/warn/rule/report/nonprofess/NonprofessWarnAction!queryWarnInfo.action?alarmNo=" + this.alarmObj.alarmuniqueid + "&dalTime=" + this.alarmObj.daltime;
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+			private function support():void
+			{
+				origin = new Point(faultPDNode.x - this.arrowLength - 50, faultPDNode.y + faultPDNode.height / 2);
+				destination = new Point(faultPDNode.x, faultPDNode.y + faultPDNode.height / 2);
+				
+				var lineFlag:Boolean = false;
+				var node:FlowNode = new FlowNode();
+				node.text = "一键登录OMC系统";
+				node.height = 30;
+				node.y = origin.y - node.height * 2;
+				node.x = origin.x - node.width;
+				
+				if(alarmObj.isOMC == "1" && alarmObj.isPreFault == "1")
+//				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK , toOMC);
+//				}
+//				else
+//					node.enabled = false;
+				
+				viewGroup.addElement(node);
+				node = new FlowNode();
+				node.text = "告警知识库";
+				node.height = 30;
+				node.y = origin.y - node.height;
+				node.x = origin.x - node.width;
+				
+				if(alarmObj.isExpsh == "1" && alarmObj.isPreFault == "1")
+//				{
+					node.currentState = "through";
+					node.buttonMode  = true;
+					node.addEventListener(MouseEvent.CLICK , toExpsh);
+//				}
+				
+				viewGroup.addElement(node);
+				node = new FlowNode();
+				node.text = "告警手工关联";
+				node.height = 30;
+				node.y = origin.y;
+				node.x = origin.x - node.width;
+				
+				//1月13日  要求修改成一致能点开
+				if(alarmObj.isHandRelation == "1" && alarmObj.isPreFault == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showAlarmList);
+				}
+				else
+					node.enabled = false;
+				
+				viewGroup.addElement(node);
+				node = new FlowNode();
+				node.text = "IMS电话调度";
+				node.height = 30;
+				node.y = origin.y + node.height;
+				node.x = origin.x - node.width;
+				
+				if(alarmObj.isIMS == "1" && alarmObj.isPreFault == "1" && alarmObj.alarmuniqueid != "11_00|667815687")
+//				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, toIMS);
+//				}
+				
+				viewGroup.addElement(node);
+				
+				if((alarmObj.isOMC == "1" || alarmObj.isExpsh == "1" || alarmObj.isHandRelation == "1" || alarmObj.isIMS == "1") && alarmObj.isPreFault == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				setTimeout(isAlarmClear, interval);
+			}
+			
+			private function toOMC(e:MouseEvent):void
+			{
+				ExternalInterface.call("innerOpen", "omc", "alarmid=" + this.alarmObj.alarmuniqueid +"&ip=" + this.alarmObj.omc_ip);
+			}
+			
+			private function toExpsh(e:MouseEvent):void
+			{
+				var url:String = "/warn/expsh/experi/experiAction.action?alarmuniqueid=" + this.alarmObj.alarmuniqueid + "&daltime=" + this.alarmObj.daltime;
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+			private function toIMS(e:MouseEvent):void
+			{
+				var url:String = "/warn/rule/report/ctdcall!initInfoForm.action?mo_name=" + this.alarmObj.nename + "&city_name=" + this.alarmObj.alarmregion;
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+			private function toEMOSSheet(e:MouseEvent):void
+			{
+				var url:String = "warn/sheet/sheetAction.action?alarmuniqueid=" + this.alarmObj.alarmuniqueid + "&dalTime=" + this.alarmObj.daltime;
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+			private function isAlarmClear(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				
+				//				if(alarmObj.isFlautClose == "1" || alarmObj.isWatchGradeSendTime == "1")
+				if(alarmObj.isClear == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				var node:FlowNodeShape = new FlowNodeShape();
+				node.text = "告警是否消除";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				viewGroup.addElement(node);
+				
+				//				if(alarmObj.isFlautClose == "1" || alarmObj.isWatchGradeSendTime == "1")
+				if(alarmObj.isClear == "1")
+					node.currentState = "through";
+				
+				//是 箭头
+				origin = new Point(centerX + node.width / 2, currentY + node.height / 2);
+				destination = new Point(centerX + node.width / 2 + arrowLength + 40 + this.arrowLength, currentY + node.height / 2);
+				
+				if(alarmObj.isFlautClose == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var label:Label = new Label();
+				label.text = "是";
+				viewGroup.addElement(label);
+				label.x = origin.x + 50;
+				label.y = origin.y - 7;
+				
+				//非预处理结束节点
+				node = new FlowNodeShape();
+				
+				if(alarmObj.canceltime != null && alarmObj.canceltime != "0")
+					node.text = alarmObj.canceltime + "\r\n";
+				node.text += "故障消除结束";
+				
+				node.shapeType = "eclipse";
+				viewGroup.addElement(node);
+				node.x = destination.x;
+				node.y = destination.y - 75;
+				
+				if(alarmObj.isFlautClose == "1")
+					node.currentState = "through";
+				
+				currentY += node.height;
+				
+				setTimeout(timeSelfAutoDispatch, interval);
+			}
+			
+			private function timeSelfAutoDispatch(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength + 30;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isWatchGradeSendTime == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var label:Label = new Label();
+				label.text = "否";
+				viewGroup.addElement(label);
+				label.y = origin.y + this.arrowLength / 2;
+				label.x = origin.x - 8;
+				
+				var node:FlowNode = new FlowNode();
+				node.text = "分时段半自动派单";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isWatchGradeSendTime == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showDispSheetRule);
+				}
+				
+				viewGroup.addElement(node);
+				currentY += node.height;
+				
+				setTimeout(provinceMonitorSheetDeal, interval);
+			}
+			
+			private function showDispSheetRule(e:MouseEvent):void
+			{
+				//跳转到派单规则页面
+				//                sheetRuleWin.visible = true;
+				//                sheetRuleWin.includeInLayout = true;
+				//                PopUpManager.addPopUp(sheetRuleWin, this);
+				//                PopUpManager.centerPopUp(sheetRuleWin);
+				//
+				//                sheetRule.text = this.alarmObj.sheetRule;
+				var url:String = "/warn/rule/config/warnRuleConfigAction.action?rule_type=3&isedit=0&rule_name=" + this.alarmObj.rulename;
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+			private var pmsd:FlowNode;
+			private function provinceMonitorSheetDeal(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isProvincePro == "1")
+					lineColor = 0xFF8000;
+				this.drawArrow();
+				
+				lineColor = 0x808080;
+				var node:FlowNode = new FlowNode();
+				node.text = "省监控工单处理";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isProvincePro == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, toEMOSSheet);
+				}
+				
+				viewGroup.addElement(node);
+				
+//				origin = new Point(systemDispatchNode.x + systemDispatchNode.width, systemDispatchNode.y + systemDispatchNode.height);
+//				destination = new Point(node.x + node.width , node.y + node.height / 2);
+//				
+//				if(alarmObj.isNotPre == "1")
+//					lineColor = 0xFF8000;
+//				
+//				this.curvePercent = -.6;
+//				
+//				this.drawArrow();
+//				
+//				lineColor = 0x808080;
+//				this.curvePercent = 0;
+				
+				
+				pmsd = node;
+				currentY += node.height;
+				
+				setTimeout(pmsdSupport, interval);
+			}
+			
+			private function pmsdSupport():void
+			{
+				origin = new Point(pmsd.x - this.arrowLength - 50, pmsd.y + pmsd.height / 2);
+				destination = new Point(pmsd.x, pmsd.y + pmsd.height / 2);
+				
+				if((alarmObj.isExpsh == "1" || alarmObj.isPreMsg == "1") && alarmObj.isProvincePro == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var node:FlowNode = new FlowNode();
+				node.text = "告警知识库";
+				node.height = 30;
+				node.y = origin.y - node.height;
+				node.x = origin.x - node.width;
+				
+				if(alarmObj.isExpsh == "1" && alarmObj.isProvincePro == "1")
+					node.currentState = "through";
+				
+				node.buttonMode  = true;
+				node.addEventListener(MouseEvent.CLICK , toExpsh);
+				viewGroup.addElement(node);
+				node = new FlowNode();
+				node.text = "告警预处理信息";
+				node.height = 30;
+				node.y = origin.y;
+				node.x = origin.x - node.width;
+				
+				if(alarmObj.isPreMsg == "1" && alarmObj.isProvincePro == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showAlarmDetail);
+				}
+				else
+					node.enabled = false;
+				
+				viewGroup.addElement(node);
+				
+				setTimeout(maintainGroupFaultDeal, interval);
+			}
+			
+			
+			private function toAlarmPreDealMsg(e:MouseEvent):void
+			{
+				var url:String = "/warn/pre/preAction!alarmPre.action?alarmuniqueid=" + this.alarmObj.alarmuniqueid + "&window_id=9320";
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+			private function toAlarmDetail(e:MouseEvent):void
+			{
+				var url:String = "warn/rule/report/nonprofess/NonprofessWarnAction!getDealInfo.action?alarmNo=" + this.alarmObj.alarmuniqueid;
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+			private var mgfd:FlowNode;
+			private function maintainGroupFaultDeal(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isMaintenancePro == "1")
+					lineColor = 0xFF8000; 
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				var node:FlowNode = new FlowNode();
+				node.text = "代维小组故障处理";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				if(alarmObj.isMaintenancePro == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, toAMS);
+				}	
+				
+				viewGroup.addElement(node);
+				mgfd = node;
+				currentY += node.height;
+				
+				setTimeout(mgfdSupport, interval);
+			}
+			
+			
+			private function toAMS(e:MouseEvent):void
+			{
+				var url:String = "http://10.40.102.23/webgisams/baseOrderMgmt/toBaseOrderDetailPage.do?eomscode=" + this.alarmObj.sheetno;
+				log.info(url);
+				navigateToURL(new URLRequest(url));
+			}
+			
+			
+			private function mgfdSupport():void
+			{
+				origin = new Point(mgfd.x - this.arrowLength - 50, mgfd.y + mgfd.height / 2);
+				destination = new Point(mgfd.x, mgfd.y + mgfd.height / 2);
+				
+				if((alarmObj.isExpsh == "1" || alarmObj.isPreMsg == "1") && alarmObj.isMaintenancePro == "1")
+					lineColor = 0xFF8000;
+				this.drawArrow();
+				
+				lineColor = 0x808080;
+				var node:FlowNode = new FlowNode();
+				node.text = "告警知识库";
+				node.height = 30;
+				node.y = origin.y - node.height;
+				node.x = origin.x - node.width;
+				
+				if(alarmObj.isExpsh == "1" && alarmObj.isMaintenancePro == "1")
+					node.currentState = "through";
+				
+				node.buttonMode  = true;
+				node.addEventListener(MouseEvent.CLICK , toExpsh);
+				viewGroup.addElement(node);
+				node = new FlowNode();
+				node.text = "告警预处理信息";
+				node.height = 30;
+				node.y = origin.y;
+				node.x = origin.x - node.width;
+				
+				if(alarmObj.isPreMsg == "1" && alarmObj.isMaintenancePro == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, showAlarmDetail);
+				}
+				else
+					node.enabled = false;
+				
+				viewGroup.addElement(node);
+				
+				setTimeout(isAlarmClear2, interval);
+			}
+			
+			
+			private var sheetShutdownNode:FlowNode;
+			private function isAlarmClear2(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength;
+				destination = new Point(centerX, currentY);
+				
+				//				if(alarmObj.isSheetClose == "1" || alarmObj.isClearManage == "1")
+				if(alarmObj.isAlarmClear == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				var node:FlowNodeShape = new FlowNodeShape();
+				node.text = "告警是否消除";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				
+				//				if(alarmObj.isSheetClose == "1" || alarmObj.isClearManage == "1")
+				if(alarmObj.isAlarmClear == "1")
+					node.currentState = "through";
+				
+				viewGroup.addElement(node);
+				
+				//系统派单到告警是否消除
+				origin = new Point(systemDispatchNode.x + systemDispatchNode.width, systemDispatchNode.y + systemDispatchNode.height);
+				destination = new Point(node.x + node.width/2 , node.y);
+				
+				if(alarmObj.isNotPre == "1")
+					lineColor = 0xFF8000;
+				
+				this.curvePercent = -.8;
+				
+				this.drawArrow();
+				
+				lineColor = 0x808080;
+				this.curvePercent = 0;
+				
+				
+				//是 箭头
+				origin = new Point(centerX + node.width / 2, currentY + node.height / 2);
+				destination = new Point(centerX + node.width / 2 + arrowLength + 40 + this.arrowLength, currentY + node.height / 2);
+				
+				if(alarmObj.isSheetClose == "1" &&　alarmObj.isClearManage == "0")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				var label:Label = new Label();
+				label.text = "是";
+				viewGroup.addElement(label);
+				label.x = origin.x + 50;
+				label.y = origin.y - 7;
+				
+				var node2:FlowNode = new FlowNode();
+				node2.text = "告警工单处理质量管控";
+				
+				if(alarmObj.isSheetManage == "1")
+				{
+					node2.currentState = "through";
+					node2.buttonMode = true;
+					node2.addEventListener(MouseEvent.CLICK, toEMOSSheet);
+				}
+				
+				node2.x = destination.x;
+				node2.y = destination.y - 80 + node2.height/2;
+				viewGroup.addElement(node2);
+				
+				sheetShutdownNode = node2;
+				
+				currentY += node2.height;
+				alarmSheetDealQaMonitor();
+				
+				setTimeout(alarmClearAckQAMonitor, interval + 300);
+			}
+			
+			
+			private function alarmSheetDealQaMonitor(state:String = null):void
+			{
+				origin = new Point(sheetShutdownNode.x + sheetShutdownNode.width/2, sheetShutdownNode.y + sheetShutdownNode.height);
+				destination = new Point(sheetShutdownNode.x + sheetShutdownNode.width/2, sheetShutdownNode.y + sheetShutdownNode.height + 79);
+				
+				if(alarmObj.isSheetManage == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				//非预处理结束节点
+				var node:FlowNodeShape = new FlowNodeShape();
+				node.text = "工单归档关闭";
+				node.shapeType = "eclipse";
+				viewGroup.addElement(node);
+				node.x = destination.x - sheetShutdownNode.width/2;
+				node.y = sheetShutdownNode.y + sheetShutdownNode.height + 47;
+				
+				if(alarmObj.isSheetClose == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, toEMOSSheet);
+				}
+				
+				viewGroup.addElement(node);
+			}
+			
+			private function alarmClearAckQAMonitor(state:String = null):void
+			{
+				origin = new Point(centerX, currentY);
+				currentY += arrowLength + 30;
+				destination = new Point(centerX, currentY);
+				
+				if(alarmObj.isClearManage == "1")
+					lineColor = 0xFF8000;
+				
+				this.drawArrow();
+				lineColor = 0x808080;
+				
+				var label:Label = new Label();
+				label.text = "否";
+				viewGroup.addElement(label);
+				label.y = origin.y + this.arrowLength / 2;
+				label.x = origin.x - 8;
+				
+				var node:FlowNode = new FlowNode();
+				node.text = "告警清除验证质量管控";
+				node.y = currentY;
+				node.x = centerX - node.width / 2;
+				viewGroup.addElement(node);
+				
+				if(alarmObj.isClearManage == "1")
+				{
+					node.currentState = "through";
+					node.buttonMode = true;
+					node.addEventListener(MouseEvent.CLICK, toEMOSSheet);
+				}
+				
+				currentY += node.height;
+				this.lineThickness = 3;
+				origin = new Point(node.x, node.y + node.height / 2);
+				destination = new Point(mgfd.x, mgfd.y + mgfd.height/2);
+				
+				if(alarmObj.isClearManage == "1" && alarmObj.isSheetClose == "1")
+					lineColor = 0xFF8000;
+				this.curvePercent = 0.5;
+				this.drawArrow();
+				this.curvePercent = 0;
+				lineColor = 0x808080;
+				this.lineThickness = 2;
+				
+				if(interval == 0)
+					currentY = 10;
+				else
+					setTimeout(function():void
+					{
+						flowRatio.value = .8;
+					},388);
+				
+				querybtn.enabled = true;
+			}
+			
+			protected function loadData():void
+			{
+				FlowDAO.getAlarmFlow(this.parentApplication.parameters.context,{'alarmuniqueid':this.alarmuniqueid},
+					function(result:Object):void
+					{
+						alarmObj = result;
+						showFlow();
+					});
+			}
+			
+			protected function showFlow():void
+			{
+				log.debug("interval = " + interval);
+				
+				if(interval == 0)
+					flowRatio.value = .8;
+				
+				centerX = this.viewGroup.width / 2;
+				currentY = 10;
+				
+//				if(interval == 0)
+//				{
+					viewGroup.graphics.clear();
+					viewGroup.removeAllElements();
+//				}
+				
+				begin();
+			}
+			
+			protected function module1_preinitializeHandler(event:FlexEvent):void
+			{
+				if(this.parentApplication.parameters.alarmuniqueid && this.parentApplication.parameters.alarmuniqueid != "null")
+					alarmuniqueid = this.parentApplication.parameters.alarmuniqueid;
+			}
+			
+			private function scrollView(event:MouseEvent):void
+			{
+				event.preventDefault();
+				var modifier:int = 10;
+				var delta:Number = Number(event.delta) * modifier;
+				var viewport:IViewport = sc.verticalScrollBar.viewport;
+				var vPos:Number = viewport.verticalScrollPosition;
+				var maximum:Number = sc.verticalScrollBar.maximum;
+				
+				if (delta < 0)
+				{
+					sc.verticalScrollBar.viewport.verticalScrollPosition =  Math.min(vPos - delta, maximum) ;
+				}
+				else
+				{
+					sc.verticalScrollBar.viewport.verticalScrollPosition = Math.max(vPos - delta, 0);
+				}
+				
+				log.debug(sc.verticalScrollBar.viewport.verticalScrollPosition);
+			}
+			
+			protected function init():void
+			{
+				querybtn.enabled = false;
+				
+				interval = 0;
+//				n1 = null;
+				n2 = null;
+				alarmObj = {};
+				showFlow();
+				
+				if(alarmuniqueid)
+					setTimeout(function():void
+					{
+						interval = 200;
+						loadData();
+					}, 800);
+			}
+			
+			protected function flowRatio_mouseWheelHandler(event:MouseEvent):void
+			{
+				event.preventDefault();
+				log.debug("----------------------");
+				log.debug(this.flowRatio.value);
+			}
+			
+			protected function sheetRuleWin_closeHandler(event:WindowEvent):void
+			{
+				sheetRuleWin.visible = false;
+				sheetRuleWin.includeInLayout = false
+				PopUpManager.removePopUp(sheetRuleWin);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<ailk_compts:Window width="100%"
+						height="100%"
+						closable="false"
+						styleName="window"
+						maximizable="false"
+						minimizable="false"
+						dragable="false"
+						fontSize="16"
+						fontFamily="微软雅黑"
+						title="故障处理流程图">
+		<s:Scroller id="sc"
+					width="100%"
+					height="100%"
+					mouseWheel="scrollView(event)"
+					verticalScrollPolicy="on">
+			<s:HGroup id="vg"
+					  width="100%"
+					  horizontalAlign="center">
+				<s:Group id="viewGroup"
+						 fontSize="16"
+						 fontFamily="微软雅黑"
+						 width="800"
+						 scaleX="{flowRatio.value}"
+						 scaleY="{flowRatio.value}"/>
+				<mx:Spacer height="20"/>
+			</s:HGroup>
+		</s:Scroller>
+		
+		<mx:Form height="100%"
+				 rollOut="{flowRatio.enabled = false}"
+				 rollOver="{flowRatio.enabled = true}">
+			<mx:FormItem label="告警流水号 ："
+						 fontSize="13">
+				<s:TextInput id="alarmTextInput"
+							 width="140"
+							 text="@{alarmuniqueid}"/>
+				<s:Button id="querybtn" label="查询" 
+						  doubleClickEnabled="false"
+						  click="init()"/>
+			</mx:FormItem>
+			<mx:Spacer height="50"/>
+			<mx:FormItem label="流程图缩放 ："
+						 fontSize="13">
+				<s:HGroup>
+					<s:Button label="全显"
+							  click="{flowRatio.value = vg.height / (viewGroup.height + 90)}"/>
+					<s:Button label="恢复"
+							  click="{flowRatio.value = .8}"/>
+				</s:HGroup>
+				<s:VSlider id="flowRatio"
+						   maximum="1"
+						   mouseWheel="flowRatio_mouseWheelHandler(event)"
+						   height="160"
+						   stepSize=".01"
+						   minimum=".10"/>
+			</mx:FormItem>
+		</mx:Form>
+	</ailk_compts:Window>
+	
+	<ailk_compts:Window id="sheetRuleWin"
+						width="380"
+						height="170"
+						title="派单规则"
+						visible="false"
+						includeInLayout="false"
+						close="sheetRuleWin_closeHandler(event)"
+						closable="true"
+						styleName="window"
+						maximizable="false"
+						minimizable="false"
+						dragable="true"
+						fontSize="16"
+						fontFamily="微软雅黑">
+		<s:HGroup width="100%"
+				  height="100%"
+				  horizontalAlign="center"
+				  verticalAlign="middle">
+			<s:Label id="sheetRule"/>
+		</s:HGroup>
+	</ailk_compts:Window>
+</s:Group>

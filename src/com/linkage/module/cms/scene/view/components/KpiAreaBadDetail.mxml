@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  height="20"
+		  gap="3"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  creationComplete="vgroup1_creationCompleteHandler(event)"
+		  textAlign="left">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-12-27
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(KpiAreaBadDetail);
+
+			[Bindable]
+			public var areaDataList:ArrayCollection;
+
+			[Bindable]
+			public var label:String;
+
+//			[Embed(source="../../img/circle.png")]
+			[Bindable]
+			private static var circle:String="img/circle.png";
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Bindable]
+			public var serialNum:String;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (areaDataGrid.visible == false)
+				{
+					areaDataGrid.visible = true;
+					areaDataGrid.includeInLayout = true;
+					this.height = 200;
+				}
+				else
+				{
+					areaDataGrid.visible = false;
+					areaDataGrid.includeInLayout = false;
+					this.height = 22;
+				}
+			}
+
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var cm:ContextMenu = new ContextMenu();
+				cm.hideBuiltInItems();
+				cm.addEventListener(ContextMenuEvent.MENU_SELECT, function(e:ContextMenuEvent):void
+					{
+						log.info("右键菜单");
+						cm.customItems = [];
+						var obj:Object = e.mouseTarget.parent as IListItemRenderer;
+						if (obj == null)
+							obj = e.mouseTarget as IListItemRenderer;
+						var item:Object = obj["data"];
+						log.info(item);
+						if (item["beginTime"] != item["gatherTime"])
+						{
+							log.info("两条不等！！！");
+							var cmi:ContextMenuItem = new ContextMenuItem("劣化历史");
+							cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, showBadTrend);
+							cm.customItems.push(cmi);
+						}
+
+					});
+				areaDataGrid.contextMenu = cm;
+			}
+
+			//劣化趋势图
+			public function showBadTrend(evt:ContextMenuEvent):void
+			{
+				log.info("抛出事件，查询劣化趋势");
+				var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+				if (obj == null)
+					obj = evt.mouseTarget as IListItemRenderer;
+				var item:Object = obj["data"];
+				var sie:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.CMS_SCENE_SCENEINTRO_AREAGETBADTREND);
+				sie.params = new Object();
+				sie.params.badType = "1";
+				sie.params.kpiId = item["kpiId"];
+				sie.params.moTypeId = item["moTypeId"];
+				sie.params.cityId = item["cityId"];
+				sie.params.gatherTime = item["gatherTime"];
+				sie.params.beginTime = item["beginTime"];
+				sie.params.areaId = item["areaId"];
+				sie.params.unit = item["unit"];
+				log.info(sie.params);
+//				dispatchEvent(sie);
+				requestServerUtil.addRequest(sie);
+			}
+		]]>
+	</fx:Script>
+	<s:Group width="100%">
+		<s:Button click="button1_clickHandler(event)"
+				  label="{label}"
+				  width="100%"/>
+		<s:Group width="20"
+				 height="20">
+			<mx:Image source="{circle}"
+					  width="100%"
+					  height="100%"/>
+			<s:Label text="{serialNum}"
+					 textAlign="center"
+					 verticalAlign="middle"
+					 width="100%"
+					 height="100%"/>
+		</s:Group>
+	</s:Group>
+	<mx:AdvancedDataGrid id="areaDataGrid"
+						 width="100%"
+						 height="100%"
+						 visible="false"
+						 includeInLayout="false"
+						 horizontalScrollPolicy="auto"
+						 styleName="sceneDG"
+						 verticalAlign="middle"
+						 dataProvider="{areaDataList}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="moTypeName"
+									   headerText="网元类型"
+									   width="100"/>
+			<mx:AdvancedDataGridColumn dataField="areaName"
+									   headerText="区域"
+									   width="250"/>
+			<mx:AdvancedDataGridColumn dataField="cityName"
+									   headerText="地市"
+									   width="250"/>
+			<mx:AdvancedDataGridColumn dataField="beginTime"
+									   headerText="开始时间"
+									   width="200"/>
+			<mx:AdvancedDataGridColumn dataField="gatherTime"
+									   headerText="采集时间"
+									   width="200"/>
+			<mx:AdvancedDataGridColumn dataField="kpiValue"
+									   headerText="指标值"
+									   width="80"/>
+			<mx:AdvancedDataGridColumn dataField="threshold"
+									   headerText="阈值"
+									   width="150"/>
+			<mx:AdvancedDataGridColumn dataField="warnLevel"
+									   headerText="劣化级别"
+									   width="100"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</s:VGroup>

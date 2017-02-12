@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				autoDrawBackground="false"
+				xmlns:parsley="http://www.spicefactory.org/parsley"
+				xmlns:view="com.linkage.module.cms.transferdevicepanel.view.*"
+				x="{data.x-leftLableGroup.width}"
+				y="{data.y-topLableGroup.height}">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.linkage.module.cms.transferdevicepanel.view.SlotComp;
+			
+			import mx.events.FlexEvent;
+			
+			import spark.components.Label;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.VerticalLayout;
+			import spark.layouts.supportClasses.LayoutBase;
+
+			private var log:ILogger=Log.getLoggerByClass(SlotItemRender);
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			[Bindable]
+			private var label1:String;
+			[Bindable]
+			private var label2:String;
+
+			private var ly:LayoutBase;
+			private var labels:Array;
+			private var fontdirections:Array;
+			override public function set data(value:Object):void{
+				super.data=value;
+				if(!data){
+					return;
+				}
+				leftLableGroup.removeAllElements();
+				topLableGroup.removeAllElements();
+				rightLableGroup.removeAllElements();
+				bottomLableGroup.removeAllElements();
+				labels = String(data.slot_no).split(",");
+				fontdirections = String(data.fontdirection).split(",");
+				for(var i:Number=0;i<labels.length;i++){
+					if(!StringUtils.isNullStr(labels[i])){
+						var label:Label = new Label();
+						label.text = labels[i];
+						switch(fontdirections[i]){
+							case "left":
+								leftLableGroup.addElement(label);
+								break;
+							case "top":
+								topLableGroup.addElement(label);
+								break;
+							case "right":
+								rightLableGroup.addElement(label);
+								break;
+							case "bottom":
+								bottomLableGroup.addElement(label);
+								break;
+						}
+					}
+				}
+			}
+			
+		]]>
+	</fx:Script>
+
+	<s:SkinnableContainer>
+		<s:layout>
+			<s:VerticalLayout/>
+		</s:layout>
+		<s:HGroup verticalAlign="middle" horizontalAlign="center">
+			<s:HGroup width="{leftLableGroup.width}">
+			</s:HGroup>
+			<s:HGroup id="topLableGroup" verticalAlign="middle" horizontalAlign="center" width="{data.width}">
+			</s:HGroup>
+			<s:HGroup width="{rightLableGroup.width}">
+			</s:HGroup>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle" horizontalAlign="center">
+			<s:VGroup id="leftLableGroup" verticalAlign="middle" horizontalAlign="center">
+			</s:VGroup>
+			<view:SlotComp data="{data}"
+						   width="{data.width}"
+						   height="{data.height}"/>
+			<s:VGroup id="rightLableGroup" verticalAlign="middle" horizontalAlign="center">
+			</s:VGroup>
+		</s:HGroup>
+		
+		<s:HGroup verticalAlign="middle" horizontalAlign="center">
+			<s:HGroup width="{leftLableGroup.width}">
+			</s:HGroup>
+			<s:HGroup id="bottomLableGroup" verticalAlign="middle" horizontalAlign="center" width="{data.width}">
+			</s:HGroup>
+			<s:HGroup width="{rightLableGroup.width}">
+			</s:HGroup>
+		</s:HGroup>
+	</s:SkinnableContainer>
+
+</s:ItemRenderer>

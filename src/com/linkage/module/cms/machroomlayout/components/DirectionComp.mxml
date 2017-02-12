@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					  xmlns:s="library://ns.adobe.com/flex/spark" 
+					  xmlns:mx="library://ns.adobe.com/flex/mx">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+
+
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:states>
+		<s:State name="common"/>
+		<s:State name="edit"/>
+	</s:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			[Bindable]
+			public var direction:String="北";
+			protected function direction_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				directionLabel.visible=false;
+				directionLabel.includeInLayout=false;
+				directionInput.visible=true;
+				directionInput.includeInLayout=true;
+			}
+
+			protected function directionInput_enterHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				direction = TextInput(event.currentTarget).text;
+				directionLabel.visible=true;
+				directionLabel.includeInLayout=true;
+				directionInput.visible=false;
+				directionInput.includeInLayout=false;
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup horizontalAlign="center" verticalAlign="middle">
+		<s:Label id="directionLabel" text="{direction}" color="0xffffff" click.edit="direction_clickHandler(event)"/>
+		<s:TextInput id="directionInput" text="{direction}" visible="false" includeInLayout="false" width="24" enter="directionInput_enterHandler(event)"/>
+		<mx:Image width="24" height="24" source="@Embed(source='com/linkage/module/cms/machroomlayout/assets/direction.png')"/>
+	</s:VGroup>
+</s:SkinnableContainer>

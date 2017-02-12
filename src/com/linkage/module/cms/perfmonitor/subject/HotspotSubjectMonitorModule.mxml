@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%"
+		   xmlns:flow="com.linkage.module.cms.perfmonitor.subject.flow.*" 
+		   xmlns:mapview="com.linkage.module.cms.perfmonitor.subject.mapview.*" 
+		   xmlns:tree="com.linkage.module.cms.perfmonitor.subject.tree.*"
+		   creationComplete="module_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectHotSpotService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectHotSpotServiceImp;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommServiceImp;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			
+			[Bindable]
+			private var commonService:SubjectInterfaceCommService;
+			
+			[Bindable]
+			private var hotspotService:SubjectHotSpotService;
+			
+			//日志
+			public var log:ILogger = null;
+			
+			private var hotspotType:String = "1";
+			
+			//是否调试
+			[Bindable]
+			private var isDebug:Boolean = false;
+			
+			[Bindable]
+			public var parameters:Object;
+			
+			//选定热点范围中的网元列表
+			public var hotspotMoList:ArrayCollection = new ArrayCollection();
+			
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+				var target:ILoggingTarget = new DeMonsterTarget();
+				target.level = LogEventLevel.INFO;
+				target.filters=["com.linkage.module.cms.perfmonitor.subject*"];
+				Log.addTarget(target);
+				log = Log.getLogger("com.linkage.module.cms.perfmonitor.subject.HotspotSubjectMonitor");
+				
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				
+				if (this.parameters.debug != null && this.parameters.debug == "true")
+				{
+					isDebug = true;
+				}
+				commonService = new SubjectInterfaceCommServiceImp(this.parameters.context);
+				hotspotService = new SubjectHotSpotServiceImp(this.parameters.context);
+				
+				if (this.parameters.hotspotType != null && this.parameters.hotspotType != "null" && this.parameters.hotspotType != "")
+				{
+					hotspotType = this.parameters.hotspotType;
+				}
+				
+				this.hotspotTree.initTree("00","属地树",locationCity,hotspotType);
+				
+				//添加网元点击事件
+				this.hotspotDataFlow.resourceFlow.addMoClickEvent(this.hotspotMap.locationMo);
+				
+				this.hotspotMap.initData(hotspotType);
+				this.hotspotDataFlow.initData(hotspotType,"");
+			}
+			
+			
+			public function locationCity(id:String,hotspotName:String,cityName:String,level:String,cityId:String):void
+			{
+				if (level != "99")
+				{
+					var cityObj:Object = this.hotspotTree.cityObjMap[id];
+					this.hotspotMap.mapDirection(cityObj.longitude,cityObj.latitude,cityObj.scale);
+					
+					hotspotMoList = new ArrayCollection();
+					hotspotMap.reloadData(hotspotMoList);
+					hotspotDataFlow.reloadData(hotspotMoList);
+				}
+				else
+				{
+					//查询热点网元
+					loadAreaInfo(id);
+				}
+			}
+			
+			//加载指定的热点网元
+			public function loadAreaInfo(areaId:String):void
+			{
+				var paramMap:Object = new Object();
+				paramMap.area_id = areaId;
+				hotspotService.getHotSportNeGis(paramMap,loadAreaNeSucc,null,loadAreaNeErr);
+			}
+			
+			public function loadAreaNeSucc(obj:Object, areaId:String):void
+			{
+				if (obj != null)
+				{
+					log.info("加载热点网元数据成功！");
+					hotspotMoList.removeAll();
+					for each (var mo:Object in obj)
+					{
+						hotspotMoList.addItem(mo.mo_id);
+					}
+					log.info("热点网元数量：" + hotspotMoList.length);
+					
+					hotspotMap.reloadData(hotspotMoList, areaId);
+					hotspotDataFlow.reloadData(hotspotMoList);
+				}
+				else
+				{
+					log.info("加载热点网元数据为空！");
+				}
+			}
+			
+			public function loadAreaNeErr(obj:Object):void
+			{
+				log.info("加载热点网元数据失败！" + obj);
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:VDividedBox width="100%" height="100%">
+		<mapview:HotspotMap id="hotspotMap" width="100%" height="70%" 
+                            hotspotService="{hotspotService}" 
+                            commonService="{commonService}" 
+                            context="{this.parameters.context}" isDebug="{isDebug}"/>
+		<flow:HotspotDataFlow id="hotspotDataFlow" width="100%" height="30%" 
+                              hotspotService="{hotspotService}" 
+                              commonService="{commonService}" 
+                              param="{this.parameters}" isDebug="{isDebug}"/>
+	</mx:VDividedBox>
+	<tree:HotspotTreeDiv id="hotspotTree" commonService="{commonService}" hotspotService="{hotspotService}" isDebug="{isDebug}">
+	</tree:HotspotTreeDiv>
+</mx:Module>

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:component="com.linkage.module.cms.alarm.countflow.component.*"
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   xmlns:mdi="com.linkage.module.cms.alarm.countflow.component.mdi.*"
+		   creationComplete="application_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Style source="com/linkage/module/cms/alarm/countflow/resource/css/statStyle.css"/>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.countflow.core.CountManagerNew;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+
+			import mx.events.FlexEvent;
+			import mx.logging.Log;
+			// 下面的分隔条向下样式
+			private static const STYPE_BOTTOM_GO_BOTTOM:String = "bottomGoBottomDivider";
+			// 下面的分隔条向上样式
+			private static const STYPE_BOTTOM_GO_TOP:String = "bottomGoTopDivider";
+			//统计管理类
+			private var _countManager:CountManagerNew = null;
+			//流水是否打开
+			private var _flowIsOpen:Boolean = false;
+
+			[Bindable]
+			public var parameters:Object;
+
+			//窗口创建完成
+			protected function application_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				//1.初始化logger
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = this.parameters.logLevel;
+				target.filters = [this.parameters.filters];
+				com.linkage.system.logging.Log.addTarget(target);
+
+				var target2:DeMonsterTarget = new DeMonsterTarget();
+				target2.level = this.parameters.logLevel;
+				target2.filters = [this.parameters.filters];
+				mx.logging.Log.addTarget(target2);
+				//2.初始化样式信息
+				if(this.parameters.local == "true")
+				{
+					styleManager.loadStyleDeclarations2("./css/common/show/ui.swf");
+				}
+				else
+				{
+					styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				}
+
+
+				System.useCodePage = true;
+				//初始化统计管理类
+				_countManager = new CountManagerNew(this.parameters);
+				_countManager.relationStat = relationStat;
+				_countManager.countAlarmflow = this;
+				_countManager.sheetStat = sheetStat;
+				_countManager.warnStatNew = warnStatNew;
+				_countManager.alarmFlow = this;
+				_countManager.start();
+
+				//初始化流水
+				if(this.parameters.local == "true")
+				{
+					//flowAlarm.localTest();
+				}
+				else
+				{
+					flowAlarm.initInfo(null, 0);
+				}
+
+				//窗口布局
+				windowManager.tile();
+			}
+
+			// 点击隐藏/显示告警流水
+			public function bottomDivider_clickHandler(isVisible:Boolean = false):void
+			{
+				if(!_flowIsOpen || isVisible)
+				{
+					_flowIsOpen = true;
+					flowAlarm.visible = true;
+					flowAlarm.includeInLayout = true;
+					bottomDivider.styleName = STYPE_BOTTOM_GO_BOTTOM
+				}
+				else
+				{
+					_flowIsOpen = false;
+					flowAlarm.visible = false;
+					flowAlarm.includeInLayout = false;
+					bottomDivider.styleName = STYPE_BOTTOM_GO_TOP
+				}
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mdi:WindowManager width="100%"
+					   height="100%"
+					   versionType="3"
+					   id="windowManager">
+		<mdi:addwindows>
+			<component:AlarmCountPanelNew id="warnStatNew"
+										  width="100%"
+										  height="33%"
+										  rowCount="6"
+										  title="告警统计"/>
+			<component:AlarmCountPanel id="sheetStat"
+									   width="100%"
+									   height="33%"
+									   rowCount="6"
+									   title="派单统计"/>
+			<component:RelationCountPanel id="relationStat"
+										  width="100%"
+										  height="34%"
+										  rowCount="4"
+										  title="关联告警统计"/>
+		</mdi:addwindows>
+	</mdi:WindowManager>
+	<s:VGroup id="flow"
+			  width="100%"
+			  minHeight="10"
+			  bottom="0">
+		<s:SkinnableContainer width="100%"
+							  height="100%"
+							  backgroundAlpha="1"
+							  styleName="bgstyle1">
+			<s:HGroup height="5"
+					  width="100%"
+					  horizontalAlign="center">
+				<s:Button id="bottomDivider"
+						  styleName="{STYPE_BOTTOM_GO_TOP}"
+						  buttonMode="true"
+						  click="bottomDivider_clickHandler()"/>
+			</s:HGroup>
+			<pubflow:alarm id="flowAlarm"
+						   width="100%"
+						   height="260"
+						   visible="false"
+						   includeInLayout="false"
+						   moduleKey="statflowalarm"
+						   params="{parentApplication.parameters}"/>
+		</s:SkinnableContainer>
+	</s:VGroup>
+</mx:Module>

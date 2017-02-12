@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:local="*"
+		 xmlns:roam="com.linkage.module.cms.scene.view.components.roam.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.roam.RoamEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.logging.LogEventLevel;
+			import mx.rpc.events.ResultEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(RoamView);
+
+			[Inject("roamViewPM")]
+			[Bindable]
+			public var pm:RoamViewPM;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			//江苏地图数组
+			private var jsMapArray:Array=new Array;
+
+			//世界地图数据
+			private var _chinaMapArray:Array=new Array();
+
+			//中国地图数据
+			private var _worldMapArray:Array=new Array();
+
+			private var mapObjArray:Object=new Object();
+
+
+
+//			//提供给外部条用加载的入口方法
+//			[Init]
+//			[MessageHandler(selector="aa")]
+//			public function loadData(event:SceneEvent=null):void
+//			{
+//				initRoam();
+//			}
+
+			public function initRoam():void
+			{
+				// TODO Auto-generated method stub
+				log.info("begin to load initRoam");
+				roamConfigHttpService.send();
+				/******************* 江苏 *********************/
+				jsMapArray["0100_a"]=js_nanjing_a;
+				jsMapArray["0100_b"]=js_nanjing_b;
+				jsMapArray["0200_a"]=js_suzhou_a;
+				jsMapArray["0200_b"]=js_suzhou_b;
+				jsMapArray["0300_a"]=js_wuxi_a;
+				jsMapArray["0300_b"]=js_wuxi_b;
+				jsMapArray["0400_a"]=js_changzhou_a;
+				jsMapArray["0400_b"]=js_changzhou_b;
+				jsMapArray["0500_a"]=js_zhenjiang_a;
+				jsMapArray["0500_b"]=js_zhenjiang_b;
+				jsMapArray["0600_a"]=js_yangzhou_a;
+				jsMapArray["0600_b"]=js_yangzhou_b;
+				jsMapArray["0700_a"]=js_nantong_a;
+				jsMapArray["0700_b"]=js_nantong_b;
+				jsMapArray["0800_a"]=js_taizhou_a;
+				jsMapArray["0800_b"]=js_taizhou_b;
+				jsMapArray["0900_a"]=js_xuzhou_a;
+				jsMapArray["0900_b"]=js_xuzhou_b;
+				jsMapArray["1000_a"]=js_huaian_a;
+				jsMapArray["1000_b"]=js_huaian_b;
+				jsMapArray["1100_a"]=js_yancheng_a;
+				jsMapArray["1100_b"]=js_yancheng_b;
+				jsMapArray["1200_a"]=js_lianyungang_a;
+				jsMapArray["1200_b"]=js_lianyungang_b;
+				jsMapArray["1300_a"]=js_suqian_a;
+				jsMapArray["1300_b"]=js_suqian_b;
+
+				/******************* 中国 *********************/
+				_chinaMapArray["12_a"]=china_anhui;
+				_chinaMapArray["01_a"]=china_beijing;
+				_chinaMapArray["23_a"]=china_chongqing;
+				_chinaMapArray["13_a"]=china_fujian;
+				_chinaMapArray["28_a"]=china_gansu;
+				_chinaMapArray["19_a"]=china_guangdong;
+				_chinaMapArray["20_a"]=china_guangxi;
+				_chinaMapArray["24_a"]=china_guizhou;
+				_chinaMapArray["21_a"]=china_hainan;
+				_chinaMapArray["03_a"]=china_hebei;
+				_chinaMapArray["08_a"]=china_heilongjiang;
+				_chinaMapArray["16_a"]=china_henan;
+				_chinaMapArray["32_a"]=china_hongkong;
+				_chinaMapArray["18_a"]=china_hunan;
+				_chinaMapArray["10_a"]=china_jiangsu;
+				_chinaMapArray["14_a"]=china_jiangxi;
+				_chinaMapArray["07_a"]=china_jilin;
+				_chinaMapArray["06_a"]=china_liaoning;
+				_chinaMapArray["33_a"]=china_macau;
+				_chinaMapArray["05_a"]=china_neimeng;
+				_chinaMapArray["30_a"]=china_ningxia;
+				_chinaMapArray["29_a"]=china_qinghai;
+				_chinaMapArray["27_a"]=china_shaanxi;
+				_chinaMapArray["04_a"]=china_shanxi;
+				_chinaMapArray["22_a"]=china_sichuan;
+				_chinaMapArray["34_a"]=china_taiwan;
+				_chinaMapArray["02_a"]=china_tianjing;
+				_chinaMapArray["31_a"]=china_xinjiang;
+				_chinaMapArray["26_a"]=china_xizang;
+				_chinaMapArray["25_a"]=china_yunnan;
+				_chinaMapArray["11_a"]=china_zhejiang;
+				_chinaMapArray["09_a"]=china_shanghai;
+				_chinaMapArray["15_a"]=china_shandong;
+				_chinaMapArray["17_a"]=china_hubei;
+				_chinaMapArray["border"]=china_border;
+
+				/******************* 世界 *********************/
+				_worldMapArray["worldOther"]=world_other;
+				_worldMapArray["76_a"]=world_uk;
+				_worldMapArray["10_a"]=world_sudan;
+				_worldMapArray["50_a"]=world_spain;
+				_worldMapArray["106_a"]=world_southKorea;
+				_worldMapArray["13_a"]=world_saudiArabia;
+				_worldMapArray["1_a"]=world_russia;
+				_worldMapArray["14_a"]=world_mexico;
+				_worldMapArray["9_a"]=world_kazakhstan;
+				_worldMapArray["60_a"]=world_japan;
+				_worldMapArray["69_a"]=world_italy;
+				_worldMapArray["7_a"]=world_india;
+				_worldMapArray["129_a"]=world_holland;
+				_worldMapArray["12_a"]=world_congo;
+				_worldMapArray["3_a"]=world_china;
+				_worldMapArray["2_a"]=world_canada;
+				_worldMapArray["5_a"]=world_brazil;
+				_worldMapArray["6_a"]=world_australia;
+				_worldMapArray["8_a"]=world_argentina;
+				_worldMapArray["4_a"]=world_america;
+				_worldMapArray["11_a"]=world_algeria;
+				_worldMapArray["border"]=world_border;
+
+				mapObjArray["2"]=_chinaMapArray;
+				mapObjArray["1"]=_worldMapArray;
+			}
+
+			protected function roamConfigHttpService_resultHandler(event:ResultEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("enter roamConfigHttpService_resultHandler：" + event.result);
+				var mapArray:Array=new Array();
+				var config:XML=new XML(event.result);
+				log.info("config");
+				log.info(config);
+				for each (var tabinfo:XML in config.children())
+				{
+					//log.info("config def:" + config.@def + ",tabInfo id:" + tabinfo.@id + "," + (tabinfo.@id == config.@def));
+					//log.info("config def:" + config.@def + ",tabInfo id:" + tabinfo.@id + "," + (tabinfo.@id == config.@def));
+					if (tabinfo.@id == config.@def)
+					{
+						var tabBarData:ArrayCollection=new ArrayCollection();
+						for each (var tab:XML in tabinfo.tab)
+						{
+//							//log.info("tab id:" + tab.@id + ",label:" + tab.@label + ",defCityId:" + tab.@defCityId + ",mapUrl:" + tab.@mapUrl);
+//							//log.info("tab id:" + tab.@a + ",label:" + tab.@b + ",defCityId:" + tab.@c + ",mapUrl:" + tab.@d);
+							switch (String(tabinfo.@id))
+							{
+								case "jiangsu":
+									mapArray=jsMapArray;
+									break;
+								case "guangdong":
+									//例子方便以后扩展其他省市
+									//mapArray = gdMapArray;
+									break;
+								default:
+									mapArray=jsMapArray;
+									break;
+							}
+							mapObjArray["3"]=mapArray;
+//							//tabBarData.addItem({"id": tab.@id, "label": tab.@label, "defCityId": tab.@defCityId, "mapUrl": tab.@mapUrl, "mapArray": mapObjArray[tab.@id]});
+							tabBarData.addItem({"id": tab.@a, "label": tab.@b, "defCityId": tab.@c, "mapUrl": tab.@d, "mapArray": mapObjArray[tab.@a]});
+						}
+						pm.dm.tabBarData.addAll(tabBarData as IList);
+						//log.info(pm.dm.tabBarData);
+						break;
+					}
+				}
+				dispatchMsg(new RoamEvent(RoamEvent.INIT));
+				log.debug("out roamConfigHttpService_resultHandler");
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<parsley:Configure/>
+
+		<!-- 将非可视元素（例如服务、值对象）放在此处-->
+		<s:HTTPService id="roamConfigHttpService"
+					   url="xml/roam_config.xml"
+					   method="get"
+					   resultFormat="e4x"
+					   result="roamConfigHttpService_resultHandler(event)">
+		</s:HTTPService>
+		<!-- 江苏 -->
+		<local:nanjing_a id="js_nanjing_a"/>
+		<local:nanjing_b id="js_nanjing_b"/>
+		<local:wuxi_a id="js_wuxi_a"/>
+		<local:wuxi_b id="js_wuxi_b"/>
+		<local:changzhou_a id="js_changzhou_a"/>
+		<local:changzhou_b id="js_changzhou_b"/>
+		<local:zhenjiang_a id="js_zhenjiang_a"/>
+		<local:zhenjiang_b id="js_zhenjiang_b"/>
+		<local:suzhou_a id="js_suzhou_a"/>
+		<local:suzhou_b id="js_suzhou_b"/>
+		<local:yangzhou_a id="js_yangzhou_a"/>
+		<local:yangzhou_b id="js_yangzhou_b"/>
+		<local:huaian_a id="js_huaian_a"/>
+		<local:huaian_b id="js_huaian_b"/>
+		<local:suqian_a id="js_suqian_a"/>
+		<local:suqian_b id="js_suqian_b"/>
+		<local:xuzhou_a id="js_xuzhou_a"/>
+		<local:xuzhou_b id="js_xuzhou_b"/>
+		<local:nantong_a id="js_nantong_a"/>
+		<local:nantong_b id="js_nantong_b"/>
+		<local:yancheng_a id="js_yancheng_a"/>
+		<local:yancheng_b id="js_yancheng_b"/>
+		<local:taizhou_a id="js_taizhou_a"/>
+		<local:taizhou_b id="js_taizhou_b"/>
+		<local:lianyungang_a id="js_lianyungang_a"/>
+		<local:lianyungang_b id="js_lianyungang_b"/>
+
+		<!-- 中国地图对象 -->
+		<local:anhui id="china_anhui"/>
+		<local:beijing id="china_beijing"/>
+		<local:chongqing id="china_chongqing"/>
+		<local:fujian id="china_fujian"/>
+		<local:gansu id="china_gansu"/>
+		<local:guangdong id="china_guangdong"/>
+		<local:guangxi id="china_guangxi"/>
+		<local:guizhou id="china_guizhou"/>
+		<local:hainan id="china_hainan"/>
+		<local:hebei id="china_hebei"/>
+		<local:heilongjiang id="china_heilongjiang"/>
+		<local:henan id="china_henan"/>
+		<local:hongkong id="china_hongkong"/>
+		<local:hunan id="china_hunan"/>
+		<local:jiangsu id="china_jiangsu"/>
+		<local:jiangxi id="china_jiangxi"/>
+		<local:jilin id="china_jilin"/>
+		<local:liaoning id="china_liaoning"/>
+		<local:macau id="china_macau"/>
+		<local:neimeng id="china_neimeng"/>
+		<local:ningxia id="china_ningxia"/>
+		<local:qinghai id="china_qinghai"/>
+		<local:shaanxi id="china_shaanxi"/>
+		<local:shanxi id="china_shanxi"/>
+		<local:sichuan id="china_sichuan"/>
+		<local:taiwan id="china_taiwan"/>
+		<local:tianjing id="china_tianjing"/>
+		<local:xinjiang id="china_xinjiang"/>
+		<local:xizang id="china_xizang"/>
+		<local:yunnan id="china_yunnan"/>
+		<local:zhejiang id="china_zhejiang"/>
+		<local:shanghai id="china_shanghai"/>
+		<local:shandong id="china_shandong"/>
+		<local:hubei id="china_hubei"/>
+		<local:borderChina id="china_border"/>
+
+		<!-- 世界地图对象 -->
+		<local:worldOther id="world_other"/>
+		<local:UnitedKingdom id="world_uk"/>
+		<local:Sudan id="world_sudan"/>
+		<local:Spain id="world_spain"/>
+		<local:SouthKorea id="world_southKorea"/>
+		<local:SaudiArabia id="world_saudiArabia"/>
+		<local:Russia id="world_russia"/>
+		<local:Mexico id="world_mexico"/>
+		<local:Kazakhstan id="world_kazakhstan"/>
+		<local:Japan id="world_japan"/>
+		<local:Italy id="world_italy"/>
+		<local:India id="world_india"/>
+		<local:Holland id="world_holland"/>
+		<local:Congo id="world_congo"/>
+		<local:China id="world_china"/>
+		<local:Canada id="world_canada"/>
+		<local:Brazil id="world_brazil"/>
+		<local:Australia id="world_australia"/>
+		<local:Argentina id="world_argentina"/>
+		<local:America id="world_america"/>
+		<local:Algeria id="world_algeria"/>
+		<local:worldBorder id="world_border"/>
+	</fx:Declarations>
+
+	<roam:RoamGroup id="roamGroup"
+					width="100%"
+					height="100%"/>
+</s:Group>

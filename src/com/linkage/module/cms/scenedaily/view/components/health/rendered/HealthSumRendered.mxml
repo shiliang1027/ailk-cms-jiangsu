@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true"
+								  height="100%"
+								  width="100%"
+								  xmlns:parsley="http://www.spicefactory.org/parsley"
+								  dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)"
+								  creationComplete="mxadvanceddatagriditemrenderer1_creationCompleteHandler(event)">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.health.HealthReportEvent;
+
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(HealthSumRendered);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			protected function mxadvanceddatagriditemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				try
+				{
+					if(data)
+					{
+						if(data.showmedicalcard)
+						{
+							if("1" == data.showmedicalcard)
+							{
+								l1.buttonMode = true;
+								l1.addEventListener(MouseEvent.CLICK, toMedicalCard);
+							}
+							else
+							{
+								l1.buttonMode = false;
+								l1.removeEventListener(MouseEvent.CLICK, toMedicalCard);
+							}
+						}
+					}
+				}
+				catch(e:Error)
+				{
+
+				}
+
+			}
+
+			private function toMedicalCard(event:MouseEvent):void
+			{
+//				log.info(user);
+//				var url:String = "/cms/cms/scenedaily/MedicalCardView.jsp?resType=1&moTypeId=" + user.moTypeId + "&cityId=" + user.cityId + "&perfTypeId=" + user.perfTypeId + "&timeGranular=" + user.timeGranular + "&stateTime=" + user.stateTime + "&resId=" + user.resId;
+//				navigateToURL(new URLRequest(url));
+				dispatchEvent(new HealthReportEvent(HealthReportEvent.CHANGE_HEALTHREPORT_RENDERED, true, true));
+			}
+
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				try
+				{
+					if(data)
+					{
+						if(data.showmedicalcard)
+						{
+							if("1" == data.showmedicalcard)
+							{
+								l1.buttonMode = true;
+								l1.addEventListener(MouseEvent.CLICK, toMedicalCard);
+							}
+							else
+							{
+								l1.buttonMode = false;
+								l1.removeEventListener(MouseEvent.CLICK, toMedicalCard);
+							}
+						}
+					}
+				}
+				catch(e:Error)
+				{
+
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:RichText text="{data.sumvalue}"
+					id="l1"
+					width="100%"
+					height="100%"/>
+		<s:RichText text="{data.prevalue}"
+					id="l2"
+					color="red"
+					width="100%"
+					height="100%"/>
+	</s:VGroup>
+</s:MXAdvancedDataGridItemRenderer>

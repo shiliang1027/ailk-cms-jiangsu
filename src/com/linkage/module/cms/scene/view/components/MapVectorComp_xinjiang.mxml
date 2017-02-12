@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Scroller xmlns:fx="http://ns.adobe.com/mxml/2009"
+			xmlns:s="library://ns.adobe.com/flex/spark"
+			xmlns:mx="library://ns.adobe.com/flex/mx"
+			xmlns:parsley="http://www.spicefactory.org/parsley"
+			width="100%"
+			height="100%"
+			styleName="sceneScroller"
+			verticalScrollPolicy="auto"
+			xmlns:local="*"
+			xmlns:ailk="http://www.ailk.com/2011/ailk">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-10-14
+		 @langversion 3.0
+		 @player version Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<!-- 江苏 -->
+		<local:nanjing_a id="js_nanjing_a"/>
+		<local:nanjing_b id="js_nanjing_b"/>
+		<local:wuxi_a id="js_wuxi_a"/>
+		<local:wuxi_b id="js_wuxi_b"/>
+		<local:changzhou_a id="js_changzhou_a"/>
+		<local:changzhou_b id="js_changzhou_b"/>
+		<local:zhenjiang_a id="js_zhenjiang_a"/>
+		<local:zhenjiang_b id="js_zhenjiang_b"/>
+		<local:suzhou_a id="js_suzhou_a"/>
+		<local:suzhou_b id="js_suzhou_b"/>
+		<local:yangzhou_a id="js_yangzhou_a"/>
+		<local:yangzhou_b id="js_yangzhou_b"/>
+		<local:huaian_a id="js_huaian_a"/>
+		<local:huaian_b id="js_huaian_b"/>
+		<local:suqian_a id="js_suqian_a"/>
+		<local:suqian_b id="js_suqian_b"/>
+		<local:xuzhou_a id="js_xuzhou_a"/>
+		<local:xuzhou_b id="js_xuzhou_b"/>
+		<local:nantong_a id="js_nantong_a"/>
+		<local:nantong_b id="js_nantong_b"/>
+		<local:yancheng_a id="js_yancheng_a"/>
+		<local:yancheng_b id="js_yancheng_b"/>
+		<local:taizhou_a id="js_taizhou_a"/>
+		<local:taizhou_b id="js_taizhou_b"/>
+		<local:lianyungang_a id="js_lianyungang_a"/>
+		<local:lianyungang_b id="js_lianyungang_b"/>
+		<!-- 新疆 -->
+		<local:hetian_a id="xj_hetian_a"/>
+		<local:kashi_a id="xj_kashi_a"/>
+		<local:bazhou_a id="xj_bazhou_a"/>
+		<local:kezhou_a id="xj_kezhou_a"/>
+		<local:akesu_a id="xj_akesu_a"/>
+		<local:yili_a id="xj_yili_a"/>
+		<local:bozhou_a id="xj_bozhou_a"/>
+		<local:kuitun_a id="xj_kuitun_a"/>
+		<local:tulufan_a id="xj_tulufan_a"/>
+		<local:wulumuqi_a id="xj_wulumuqi_a"/>
+		<local:kelamayi_a id="xj_kelamayi_a"/>
+		<local:shihezi_a id="xj_shihezi_a"/>
+		<local:tacheng_a id="xj_tacheng_a"/>
+		<local:hami_a id="xj_hami_a"/>
+		<local:aletai_a id="xj_aletai_a"/>
+		<local:changji_a id="xj_changji_a"/>
+
+		<local:hetian_b id="xj_hetian_b"/>
+		<local:kashi_b id="xj_kashi_b"/>
+		<local:bazhou_b id="xj_bazhou_b"/>
+		<local:kezhou_b id="xj_kezhou_b"/>
+		<local:akesu_b id="xj_akesu_b"/>
+		<local:yili_b id="xj_yili_b"/>
+		<local:bozhou_b id="xj_bozhou_b"/>
+		<local:kuitun_b id="xj_kuitun_b"/>
+		<local:tulufan_b id="xj_tulufan_b"/>
+		<local:wulumuqi_b id="xj_wulumuqi_b"/>
+		<local:kelamayi_b id="xj_kelamayi_b"/>
+		<local:shihezi_b id="xj_shihezi_b"/>
+		<local:tacheng_b id="xj_tacheng_b"/>
+		<local:hami_b id="xj_hami_b"/>
+		<local:aletai_b id="xj_aletai_b"/>
+		<local:changji_b id="xj_changji_b"/>
+
+		<local:xjall_a id="zx_a"/>
+		<local:xjall_b id="zx_b"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.components.dummymap.MapNode;
+			import com.linkage.module.cms.components.dummymap.MapNodeEvent;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.MapVectorEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+
+			import flash.utils.setTimeout;
+
+			import mx.messaging.channels.StreamingAMFChannel;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+
+			import spark.components.Label;
+
+			private var log:ILogger = Log.getLoggerByClass(MapVectorComp);
+
+			[Inject("mapVectorCompPM")]
+			[Bindable]
+			public var pm:MapVectorCompPM;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			private var jsMapArray:Array = new Array;
+			private var jsMapIdNameArr:Array = new Array();
+			/*新疆*/
+			private var mapArray:Array = new Array();
+
+			[Bindable]
+			private var mapFinished:Boolean = false;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			public function mapWork_creationCompleteHandler():void
+			{
+				log.info("地图初始化………………");
+				/******************* 江苏 *********************/
+				jsMapArray["0100_a"] = js_nanjing_a;
+				jsMapArray["0100_b"] = js_nanjing_b;
+				jsMapArray["0200_a"] = js_suzhou_a;
+				jsMapArray["0200_b"] = js_suzhou_b;
+				jsMapArray["0300_a"] = js_wuxi_a;
+				jsMapArray["0300_b"] = js_wuxi_b;
+				jsMapArray["0400_a"] = js_changzhou_a;
+				jsMapArray["0400_b"] = js_changzhou_b;
+				jsMapArray["0500_a"] = js_zhenjiang_a;
+				jsMapArray["0500_b"] = js_zhenjiang_b;
+				jsMapArray["0600_a"] = js_yangzhou_a;
+				jsMapArray["0600_b"] = js_yangzhou_b;
+				jsMapArray["0700_a"] = js_nantong_a;
+				jsMapArray["0700_b"] = js_nantong_b;
+				jsMapArray["0800_a"] = js_taizhou_a;
+				jsMapArray["0800_b"] = js_taizhou_b;
+				jsMapArray["0900_a"] = js_xuzhou_a;
+				jsMapArray["0900_b"] = js_xuzhou_b;
+				jsMapArray["1000_a"] = js_huaian_a;
+				jsMapArray["1000_b"] = js_huaian_b;
+				jsMapArray["1100_a"] = js_yancheng_a;
+				jsMapArray["1100_b"] = js_yancheng_b;
+				jsMapArray["1200_a"] = js_lianyungang_a;
+				jsMapArray["1200_b"] = js_lianyungang_b;
+				jsMapArray["1300_a"] = js_suqian_a;
+				jsMapArray["1300_b"] = js_suqian_b;
+				jsMapIdNameArr["0100"] = "南京";
+				jsMapIdNameArr["0200"] = "苏州";
+				jsMapIdNameArr["0300"] = "无锡";
+				jsMapIdNameArr["0400"] = "常州";
+				jsMapIdNameArr["0500"] = "镇江";
+				jsMapIdNameArr["0600"] = "扬州";
+				jsMapIdNameArr["0700"] = "南通";
+				jsMapIdNameArr["0800"] = "泰州";
+				jsMapIdNameArr["0900"] = "徐州";
+				jsMapIdNameArr["1000"] = "淮安";
+				jsMapIdNameArr["1100"] = "盐城";
+				jsMapIdNameArr["1200"] = "连云港";
+				jsMapIdNameArr["1300"] = "宿迁";
+				/*新疆*/ /****************新疆**********/
+				mapArray["0100_a"] = xj_wulumuqi_a;
+				mapArray["0100_b"] = xj_wulumuqi_b;
+				mapArray["0200_a"] = xj_hami_a;
+				mapArray["0200_b"] = xj_hami_b
+				mapArray["0300_a"] = xj_kelamayi_a;
+				mapArray["0300_b"] = xj_kelamayi_b;
+				mapArray["0400_a"] = xj_shihezi_a;
+				mapArray["0400_b"] = xj_shihezi_b;
+				mapArray["0500_a"] = xj_changji_a;
+				mapArray["0500_b"] = xj_changji_b;
+				mapArray["0600_a"] = xj_bazhou_a;
+				mapArray["0600_b"] = xj_bazhou_b;
+				mapArray["0700_a"] = xj_tulufan_a;
+				mapArray["0700_b"] = xj_tulufan_b;
+				mapArray["0800_a"] = xj_akesu_a;
+				mapArray["0800_b"] = xj_akesu_b;
+				mapArray["0900_a"] = xj_kashi_a;
+				mapArray["0900_b"] = xj_kashi_b;
+				mapArray["1000_a"] = xj_bozhou_a;
+				mapArray["1000_b"] = xj_bozhou_b;
+				mapArray["1100_a"] = xj_kezhou_a;
+				mapArray["1100_b"] = xj_kezhou_b;
+				mapArray["1200_a"] = xj_yili_a;
+				mapArray["1200_b"] = xj_yili_b;
+				mapArray["1300_a"] = xj_kuitun_a;
+				mapArray["1300_b"] = xj_kuitun_b;
+				mapArray["1400_a"] = xj_aletai_a;
+				mapArray["1400_b"] = xj_aletai_b;
+				mapArray["1500_a"] = xj_tacheng_a;
+				mapArray["1500_b"] = xj_tacheng_b;
+				mapArray["1600_a"] = xj_hetian_a;
+				mapArray["1600_b"] = xj_hetian_b;
+				//通过http请求xml文件
+				var httpService:HTTPService = new HTTPService();
+				httpService.method = "get";
+				httpService.resultFormat = "e4x";
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				//httpService.url = "xml/map_jiangsu.xml";
+				/*新疆*/
+				httpService.url = "xml/map_xinjiang.xml";
+				httpService.send();
+			}
+
+			//加载xml文件地图生成
+			private function httpService_resultHandler(event:ResultEvent):void
+			{
+				log.info("mapWork.xmlData:" + event.result);
+				//mapWork.mapObjArray = jsMapArray;
+				/*新疆*/
+				mapWork.mapObjArray = mapArray;
+				mapWork.xmlData = event.result as XML;
+
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOVER, onMapNodeOverHandler);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOUT, onMapNodeOutHandler);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onMapNodeClickHandler);
+
+				mapWork.showMap();
+				mapFinished = true;
+//				mapDyeHandler();
+			}
+
+
+			[MessageHandler(selector="AREAORMO_MAPVECTOR_DATACHANGE")]
+			[MessageHandler(selector="KPI_CHANGE")]
+			[MessageHandler(selector="RENDER_VECTOR_MAP")]
+			[MessageHandler(selector="CHANGE_VIEW")]
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function mapDyeHandler(e:SceneEvent = null):void
+			{
+				log.info("矢量地图渲染事件：{0}。", e);
+				if (user.currentMapType == "1")
+				{
+					if (mapFinished)
+						pm.getDyeMap();
+					else
+					{
+						setTimeout(mapDyeHandler, 500);
+					}
+				}
+			}
+
+			//地图偏移立体效果
+			private function onMapNodeOverHandler(event:MapNodeEvent):void
+			{
+				var mapNode:MapNode = event.mapNode;
+				mapNode.x = mapNode.x - 2;
+				mapNode.y = mapNode.y - 2;
+
+				//添加提示功能
+				log.debug("GIS地图提示信息...");
+				var cityId:String = event.mapNode.id.split("_")[0];
+				if (user.isNew == "1")
+				{
+					user.labelTypeId = "408";
+					setTimeout(function():void
+						{
+							var obj:Object = new Object;
+							var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+							obj.labelId = "408";
+							obj.cityId = cityId;
+							obj.rendeType = user.rendeType;
+							e.obj = obj;
+							log.debug("参数信息...");
+							log.info(e.obj);
+							msgDispatcher(e);
+						}, 3000);
+				}
+			}
+
+			//地图位置恢复
+			private function onMapNodeOutHandler(event:MapNodeEvent):void
+			{
+				var mapNode:MapNode = event.mapNode;
+				mapNode.x = mapNode.x + 2;
+				mapNode.y = mapNode.y + 2;
+			}
+
+			//点击地市，抛出事件以进入地市视图
+			private function onMapNodeClickHandler(event:MapNodeEvent):void
+			{
+
+				var evt:SceneEvent = new SceneEvent(SceneEvent.CHANGE_MAPVIEW);
+				//todo user中加入cityId,抛出事件
+				var cityId:String = event.mapNode.id.split("_")[0];
+				log.info("cityId:{0}", cityId);
+				user.cityName = jsMapIdNameArr[cityId];
+				user.cityId = cityId;
+
+				user.currentMapType = "0";
+				user.level = "3";
+
+				user.refreshPolygon = false;
+
+				var obj:Object = pm.dm.dyeMap[user.cityId];
+
+				log.info(user);
+				log.info(pm.dm.dyeMap[user.cityId]);
+				evt.param = new Object;
+				evt.param.centerlongitude = pm.dm.dyeMap[user.cityId]["centerlongitude"];
+				evt.param.centerlatitude = pm.dm.dyeMap[user.cityId]["centerlatitude"];
+				msgDispatcher(evt);
+			}
+
+			private var labelMap:Object = new Object; //存放渲染的label
+
+			//todo 渲染地图
+			[MessageHandler(selector="CMS_SCENE_GENERAL_MAPVECTOR_DYEMAP")]
+			public function dyeMapHandler(e:MapVectorEvent):void
+			{
+				log.info("[矢量地图]传过来的数据集为map");
+				var gisMap:Object = pm.dm.dyeMap;
+				var cityId:String;
+				var sLabel:SmallMapVectorLabelTip;
+				//循环地图，寻找MapNodeA，
+				for each (var obj:Object in mapWork.elementBox.elements)
+				{
+					if (obj is MapNode && String(obj.id).indexOf("_a") != -1)
+					{
+						var mn:MapNode = obj as MapNode;
+						mn.toolTip = "";
+						cityId = (mn.id).split("_")[0];
+						//给地图填充颜色
+						if (gisMap.hasOwnProperty(cityId) && gisMap[cityId])
+						{
+							if (gisMap[cityId].hasOwnProperty("kpi_id") && gisMap[cityId]["kpi_id"])
+								mn.toolTip = gisMap[cityId]["kpi_name"] + ":" + gisMap[cityId]["value"];
+							if (labelMap.hasOwnProperty(cityId) && labelMap[cityId])
+							{
+								//如果已经存在，需要赋值后调用初始化方法
+								sLabel = labelMap[cityId] as SmallMapVectorLabelTip;
+								sLabel.text = gisMap[cityId].nums;
+
+								if (gisMap[cityId].hasOwnProperty("color"))
+									mn.fillColor(Number(gisMap[cityId].color));
+								else
+									mn.fillColor(0x00ff00);
+							}
+							else
+							{
+								//如果不存在，创建后赋值即可
+								sLabel = new SmallMapVectorLabelTip();
+								sLabel.x = mn.centerPoint.x - 18;
+								sLabel.y = mn.centerPoint.y + 14;
+								sLabel.text = gisMap[cityId].nums;
+
+								if (gisMap[cityId].hasOwnProperty("color"))
+									mn.fillColor(Number(gisMap[cityId].color));
+								else
+									mn.fillColor(0x00ff00);
+
+								newLayer.addElement(sLabel);
+								labelMap[cityId] = sLabel;
+							}
+						}
+						else
+						{ //否则，恢复原状，清空数据
+							mn.fillColor(0x0f9cb3);
+							mn.toolTip = "";
+							if (labelMap.hasOwnProperty(cityId) && labelMap[cityId])
+							{
+								sLabel = labelMap[cityId] as SmallMapVectorLabelTip;
+								sLabel.text = "";
+							}
+						}
+					}
+				}
+				log.info("[矢量地图]渲染地图完成！！");
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup id="mapGroup"
+			  width="100%"
+			  height="100%"
+			  horizontalAlign="center"
+			  verticalAlign="middle">
+		<s:BorderContainer minWidth="547"
+						   minHeight="492"
+						   borderAlpha="0">
+			<s:Group width="100%"
+					 height="100%"
+					 left="-70"
+					 top="20">
+				<ailk:MapWork id="mapWork"
+							  width="100%"
+							  height="100%"/>
+				<s:Group id="newLayer"
+						 width="100%"
+						 height="100%"/>
+			</s:Group>
+		</s:BorderContainer>
+	</s:HGroup>
+</s:Scroller>

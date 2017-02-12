@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.roamtopic.event.RoamTopicEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var log:ILogger=Log.getLoggerByClass(LegendsView);
+			
+			[Inject("roamTopicPM")]
+			[Bindable]
+			public var pm:RoamTopicPM;
+			[Bindable]
+			private var isshow:Boolean = false;
+			
+			[Bindable]
+			private var desc1:String = new String();
+			[Bindable]
+			private var desc2:String = new String();
+			[Bindable]
+			private var num1:String = new String();
+			[Bindable]
+			private var num2:String = new String();
+			[Bindable]
+			private var num3:String = new String();
+			[Bindable]
+			private var num4:String = new String();
+			
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			
+			private var tabArray:ArrayCollection = new ArrayCollection([{"roamType":"manru","name":"漫入"},{"roamType":"manchu","name":"漫出"}]);
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			[Bindable]
+			private var tipDatas:ArrayCollection = new ArrayCollection();
+			
+			[MessageHandler(selector="REFRESH_ROMTOPIC")]
+			[MessageHandler(selector="REFRESH_ROMTOPIC_CONFIG")]
+			public function refreshRoamLegends(event:RoamTopicEvent):void{
+				log.info("REFRESH_ROMTOPIC_CONFIG~~~~");
+				log.info(pm.dm.text1+"--------"+pm.dm.text2+"------"+pm.dm.text3+"---------"+pm.dm.text4);
+				tipDatas.addItem({"x":0,
+								  "y":22,
+								  "log_nums":"登记用户数",
+								  "huanbi":"较日常变化率",
+								  "manchu":"漫出用户数",
+								  "user_num":"漫入用户数"});
+				if("2" == pm.dm.roamTopicType){
+					isshow = false;
+					desc1="漫游用户=省内地市间漫游";
+					desc2="地图渲染：用户数较日常变化率";
+				/* 	num1="≥10%";
+					num2="≥5%";
+					num3="≥3%";
+					num4="＜3%"; */
+					num1="≥"+pm.dm.text1 +"%";
+					num2="≥"+pm.dm.text2 +"%";
+					num3="≥"+pm.dm.text3 +"%";
+					num4="＜"+pm.dm.text4 +"%";
+					//hgroup1.height = label1.height;
+					hgroup2.height = label1.height;
+					if(roamSituationTabBar.selectedIndex == 0){	
+						datagroup.itemRenderer = new ClassFactory(TuLiRenderer);
+					}else if(roamSituationTabBar.selectedIndex == 1){
+						datagroup.itemRenderer = new ClassFactory(TuLiMRenderer);
+					}
+					
+				}
+				if("1" == pm.dm.roamTopicType){
+					isshow = false;
+					//hgroup1.height = 1;
+					hgroup2.height = 0;
+					/* num1="≥5万";
+					num2="≥1万";
+					num3="≥5000";
+					num4="＜5000"; */
+					
+					if(Number(pm.dm.text1) >= 10000){
+						num1= "≥"+Math.floor(parseFloat(pm.dm.text1.toString())/1000)/10 + "万";
+					}else{
+						num1="≥"+pm.dm.text1;
+					}
+					
+					if(Number(pm.dm.text2) >= 10000){
+						num2= "≥"+Math.floor(parseFloat(pm.dm.text2.toString())/1000)/10 + "万";
+					}else{
+						num2="≥"+pm.dm.text2;
+					}
+					
+					if(Number(pm.dm.text3) >= 10000){
+						num3 ="≥"+ Math.floor(parseFloat(pm.dm.text3.toString())/1000)/10 + "万";
+					}else{
+						num3="≥"+pm.dm.text3;
+					}
+					
+					if(Number(pm.dm.text4) >= 10000){
+						num4 ="＜"+ Math.floor(parseFloat(pm.dm.text4.toString())/1000)/10 + "万";
+					}else{
+						num4="＜"+pm.dm.text4;
+					}
+					
+					desc1="漫游用户=省际漫游";
+					if(roamSituationTabBar.selectedIndex == 0){						
+						desc2="地图渲染：省际漫入用户数";						
+						if("2" == pm.dm.parameters.type || "4" == pm.dm.parameters.type){
+							desc1="漫游用户=省际漫入用户数";
+						}
+						datagroup.itemRenderer = new ClassFactory(TuLi_shengRenderer);
+					}else if(roamSituationTabBar.selectedIndex == 1){
+						desc2="地图渲染：省际漫出用户数";
+						
+						if("2" == pm.dm.parameters.type || "4" == pm.dm.parameters.type){
+							desc1="漫游用户=省际漫出用户数";
+						}
+						datagroup.itemRenderer = new ClassFactory(TuLi_shengMRenderer);
+					}
+					
+			
+				}
+			}
+//			<s:HGroup gap="0" width="90%" visible="{isshow}" id="hgroup1">
+//				<s:Button label="登记用户数" width="50%" accentColor="0xDCDCDC" emphasized="true"/>
+//				<s:Button label="较日常变化率" width="50%" accentColor="0xB6B6B6" emphasized="true"/>
+//			</s:HGroup>
+//			<s:Button label="漫入用户数" width="90%" accentColor="0xDCDCDC" emphasized="true"/>
+			
+			protected function roamSituationTabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub	
+				pm.dm.parameters = this.parentApplication.parameters;
+				if(''==pm.dm.parameters.type || null==pm.dm.parameters.type){
+					pm.dm.parameters.type = "1";
+				}
+				dateFormatter.formatString = "YYYY-MM-DD JJ";
+				var d:Date = new Date();
+				if(d.getMinutes() < 10)
+				{
+					d.setHours(d.getHours() - 7)
+				}else{
+					d.setHours(d.getHours() - 6)
+				}
+				pm.dm.parameters.time=dateFormatter.format(d) + ":00:00";
+				//pm.dm.parameters.time="2014-12-22 12:00:00";
+//				pm.dm.roamTopicType = pm.dm.parameters.type;
+				pm.dm.time = pm.dm.parameters.time;
+				pm.dm.provinceId = "10";
+				pm.dm.provinceName = "江苏省";
+//								pm.dm.provinceId = "31";
+//								pm.dm.provinceName = "新疆";
+				if(roamSituationTabBar.selectedIndex == 0){
+					pm.dm.selectIndex = 0;
+					pm.dm.parameters.selectIndex = 0;
+				}
+					
+				else if(roamSituationTabBar.selectedIndex == 1){
+					pm.dm.parameters.selectIndex = 1;
+					pm.dm.selectIndex = 1;
+				}
+				else{
+					pm.dm.selectIndex = 0;
+					pm.dm.parameters.selectIndex = 0;
+				}
+				
+				dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+				dispatchMsg(new RoamTopicEvent("LOAD_DATA"));
+			}
+			 
+			protected function peizhi_clickHandler(event:MouseEvent):void
+			{
+				dispatchMsg(new RoamTopicEvent("REFRESH_ROMTOPIC_CONFIG_POP"));
+			} 
+			
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" id="group" gap="10" x="4">
+		<s:TabBar id="roamSituationTabBar"
+				  styleName="sceneTabBar"
+				  selectedIndex="0"
+				  width="100%" buttonMode="true"
+				  dataProvider="{tabArray}" labelField="name" change="roamSituationTabBar_changeHandler(event)"/>
+		<s:DataGroup id="datagroup" dataProvider="{tipDatas}">
+			
+		</s:DataGroup>
+		<s:Label text="{desc1}" id="label1" fontSize="12" fontFamily="微软雅黑" fontStyle="normal" fontWeight="normal"/>
+		<s:Label text="省内地市间漫游" visible="{isshow}" id="hgroup2" fontSize="12" fontFamily="微软雅黑" fontStyle="normal" fontWeight="normal"/>
+		<s:Label text="{desc2}"/> 
+		<s:HGroup width="90%" fontSize="12" fontFamily="微软雅黑" fontStyle="normal" fontWeight="normal" gap="5">
+			<mx:Image source="@Embed('../img/u230_normal.png')"/><s:Label text="{num1}"/>
+			<mx:Image source="@Embed('../img/u233_normal.png')"/><s:Label text="{num2}"/>
+			<mx:Image source="@Embed('../img/u236_normal.png')"/><s:Label text="{num3}"/>
+			<mx:Image source="@Embed('../img/u239_normal.png')"/><s:Label text="{num4}"/>
+			<mx:Image source="@Embed('../img/u2.png')" click="peizhi_clickHandler(event)" id="peizhi" buttonMode="true" toolTip="配置"/>
+		</s:HGroup>
+	</s:VGroup>
+</s:Group>

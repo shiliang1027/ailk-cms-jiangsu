@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 width="100%"
+		 height="100%">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CalendarLayoutChangeEvent;
+			
+			import spark.components.HGroup;
+			
+			private var _compareDate:String;
+			
+			private var log:ILogger = Log.getLoggerByClass(CompareDateVGroup);
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			
+			
+			protected function compareDateDel():void
+			{
+				add.removeAllElements();
+				log.info("删除此日期控件" + compareDateDel);
+				var e:SceneEvent = new SceneEvent(SceneEvent.DELETE_COMPARE_DATE);
+				
+				e.param['date'] = compareDateC;
+				
+				_compareDate = null;
+				
+				
+				dispatchMsg(e);
+				
+			}
+			
+			private function dateChange(event:CalendarLayoutChangeEvent):void
+			{
+				_compareDate = compareDateC.text;
+				
+				var e:SceneEvent = new SceneEvent(SceneEvent.COMPARE_DATE);
+				e.param = new Object();
+				e.param['date'] = compareDateC;
+				
+				log.info("compareDateC.text" + compareDateC.text);
+				
+				dispatchMsg(e);
+				
+				log.info(dispatchMsg);
+			}
+			
+			public function get compareDate():String
+			{
+				return _compareDate;
+			}
+			
+			[Bindable]
+			public function set compareDate(value:String):void
+			{
+				_compareDate = value;
+			}
+		]]>
+	</fx:Script>
+	<s:Group id="add">
+		<s:HGroup verticalAlign="middle">
+			<mx:DateField id="compareDateC"
+						  width="150"
+						  formatString="YYYY-MM-DD"
+						  change="dateChange(event)"/>
+			<mx:Image source="@Embed('../../img/u7.png')"
+					  toolTip="删除"
+					  buttonMode="true"
+					  click="compareDateDel()"/>
+		</s:HGroup>
+	</s:Group>
+</s:Group>

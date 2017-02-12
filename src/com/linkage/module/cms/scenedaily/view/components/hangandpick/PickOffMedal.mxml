@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					styleName="window"
+					title="摘牌查询"
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					close="window1_closeHandler(event)"
+					maximize="window1_maximizeHandler(event)"
+					restore="window1_restoreHandler(event)"
+					minimizable="false"
+					creationComplete="loadData()"
+					dragable="true">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-8-31
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scenedaily.event.hangandpick.GedalDetailEvent;
+			import com.linkage.module.cms.scenedaily.view.DelistingMoView;
+
+			import flash.net.navigateToURL;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			private var log:ILogger = Log.getLoggerByClass(PickOffMedal);
+			[Inject("pickOffMedalPM")]
+			[Bindable]
+			public var pickOffMedalPM:PickOffMedalPM;
+			[Inject("delistingMoView")]
+			public var delistingMoView:DelistingMoView;
+
+			[Inject("hangPlateList")]
+			public var hangPlateList:HangPlateList;
+
+
+			/**
+			 * 初始化入口方法
+			 */
+			public function loadData():void
+			{
+				log.debug("[摘牌页面]:begin...");
+				var startTime:String = startTimeField.text;
+				var endTime:String = endTimeField.text;
+				log.debug("startTime=" + startTime);
+				log.debug("endTime=" + endTime);
+				pickOffMedalPM.getPickOffInfo(startTime, endTime);
+			}
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+
+			//创建时间
+			protected function createTime(event:FlexEvent, remote:int):void
+			{
+				var date:Date = new Date();
+				date.month = date.getMonth() - remote;
+				event.currentTarget.text = dateFormatter.format(date);
+			}
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			//点击查询
+			protected function button_clickHandler(event:MouseEvent):void
+			{
+				var startTime:String = startTimeField.text;
+				var endTime:String = endTimeField.text;
+				log.debug("查询startTime=" + startTime);
+				log.debug("查询endTime=" + endTime);
+				if (startTime >= endTime)
+				{
+					Alert.show("开始时间必须小于结束时间!", "提示");
+					return;
+				}
+				else
+				{
+					pickOffMedalPM.getPickOffInfo(startTime, endTime);
+				}
+			}
+
+			[MessageHandler(selector="SHOW_PICK_OFF_CHAR_INFO")]
+			public function showPickOffChar(e:GedalDetailEvent):void
+			{
+				log.debug("[摘牌图表]:begin...");
+				var p1:SerialParam = new SerialParam('delistednum', '摘牌数');
+				p1.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+				var p2:SerialParam = new SerialParam('listednum', '挂牌数');
+				p2.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+				var charParam:ChartParam = new ChartParam();
+				//设置横坐标参数
+				charParam.xAxisProperty = "cityname";
+				charParam.use3DColumn = false;
+				charParam.showLegend = true;
+				pickOffChar.chartParam = charParam;
+				pickOffChar.noDataMsg = "查询无数据!";
+				pickOffChar.series = new ArrayCollection([p1, p2]);
+
+				pickOffChar.chartData(pickOffMedalPM.medalDetailDM.pickOffMedalChar, true);
+			}
+
+			protected function pickOffDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				if (event.columnIndex == 1)
+				{
+					if (pickOffDataGrid.selectedIndex < pickOffMedalPM.medalDetailDM.pickOffMedalInfo.length - 1)
+					{
+						var cityid:String = pickOffDataGrid.selectedItem['cityid'];
+						log.debug("to 网元列表cityid=" + cityid);
+//						navigateToURL(new URLRequest("/cms/cms/scenedaily/DelistingMoView.jsp?cityId=" + cityid));
+						PopUpManager.addPopUp(delistingMoView, this.parent as DisplayObject);
+						delistingMoView.pm.param.cityId = cityid;
+						delistingMoView.pm.param.startTime = startTimeField.text;
+						delistingMoView.pm.param.endTime = endTimeField.text;
+						delistingMoView.init();
+						delistingMoView.width = 700;
+						delistingMoView.height = 400;
+						delistingMoView.x = (this.stage.width - delistingMoView.width) / 2;
+						delistingMoView.y = (this.stage.height - delistingMoView.height) / 2 - 50;
+					}
+				}
+				else if (event.columnIndex == 2)
+				{
+					if (pickOffDataGrid.selectedIndex < pickOffMedalPM.medalDetailDM.pickOffMedalInfo.length - 1)
+					{
+						var cityid:String = pickOffDataGrid.dataProvider[event.rowIndex]["cityid"];
+						log.debug("to 网元列表cityid=" + cityid);
+
+						PopUpManager.addPopUp(hangPlateList, this.parent as DisplayObject);
+						hangPlateList.param = new Object;
+						hangPlateList.param.cityId = cityid;
+						hangPlateList.param.startTime = startTimeField.text;
+						hangPlateList.param.endTime = endTimeField.text;
+						hangPlateList.init();
+						hangPlateList.width = 700;
+						hangPlateList.height = 400;
+						hangPlateList.x = (this.stage.width - hangPlateList.width) / 2;
+						hangPlateList.y = (this.stage.height - hangPlateList.height) / 2 - 50;
+					}
+
+				}
+
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				this.closeButton.visible = false;
+
+			}
+
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				this.width = 700;
+				this.height = 400;
+				this.x = (this.parentApplication.width - this.width) / 2
+				this.y = (this.parentApplication.height - this.height) / 2 - 50;
+				this.closeButton.visible = true;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  horizontalAlign="center"
+				  verticalAlign="middle">
+			<s:Label text="开始时间"/>
+			<ailk_compts:UXDateField id="startTimeField"
+									 color="0x000000"
+									 creationComplete="createTime(event,1)"
+									 labelFunction="formatDate"
+									 yearNavigationEnabled="true"
+									 width="190"/>
+			<s:Label text="结束时间"/>
+			<ailk_compts:UXDateField id="endTimeField"
+									 color="0x000000"
+									 creationComplete="createTime(event,0)"
+									 labelFunction="formatDate"
+									 yearNavigationEnabled="true"
+									 width="190"/>
+			<s:Button label="查询"
+					  click="button_clickHandler(event)"/>
+		</s:HGroup>
+		<mx:AdvancedDataGrid dataProvider="{pickOffMedalPM.medalDetailDM.pickOffMedalInfo}"
+							 id="pickOffDataGrid"
+							 width="100%"
+							 height="100%"
+							 textAlign="center"
+							 verticalScrollPolicy="auto"
+							 itemClick="pickOffDataGrid_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="cityname"
+										   headerText="地市"/>
+				<mx:AdvancedDataGridColumn dataField="delistednum"
+										   headerText="摘牌数"/>
+				<mx:AdvancedDataGridColumn dataField="listednum"
+										   headerText="挂牌数"/>
+				<mx:AdvancedDataGridColumn dataField="rate"
+										   headerText="摘牌率"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<ailk_chart:PrettyChart id="pickOffChar"
+								width="100%"
+								height="180">
+		</ailk_chart:PrettyChart>
+	</s:VGroup>
+</ailk_compts:Window>

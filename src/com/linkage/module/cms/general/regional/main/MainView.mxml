@@ -1,0 +1,652 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" 
+		 xmlns:main="com.linkage.module.cms.general.regional.main.*" 
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 width="100%"
+		 height="100%" xmlns:panel="com.linkage.system.component.panel.*" 
+		 >
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.LineInfo;
+			import com.linkage.module.cms.general.regional.data.GisServ;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.EffectEvent;
+			import mx.events.ResizeEvent;
+			import mx.formatters.DateFormatter;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			import spark.events.IndexChangeEvent;
+			
+			[Embed(source="assets/shiftBtn1_1.png")]
+			[Bindable]
+			private static var pic11:Class;
+			
+			[Embed(source="assets/shiftBtn1_2.png")]
+			[Bindable]
+			private static var pic12:Class;
+			
+			[Embed(source="assets/shiftBtn1_3.png")]
+			[Bindable]
+			private static var pic13:Class;
+			
+			[Embed(source="assets/shiftBtn1_4.png")]
+			[Bindable]
+			private static var pic14:Class;
+			
+			[Embed(source="assets/shiftBtn2_1.png")]
+			[Bindable]
+			private static var pic21:Class;
+			
+			[Embed(source="assets/shiftBtn2_2.png")]
+			[Bindable]
+			private static var pic22:Class;
+			
+			[Embed(source="assets/shiftBtn2_3.png")]
+			[Bindable]
+			private static var pic23:Class;
+			
+			[Embed(source="assets/shiftBtn2_4.png")]
+			[Bindable]
+			private static var pic24:Class;
+			
+			[Embed(source="assets/shiftBtn3_1.png")]
+			[Bindable]
+			private static var pic31:Class;
+			
+			[Embed(source="assets/shiftBtn3_2.png")]
+			[Bindable]
+			private static var pic32:Class;
+			
+			[Embed(source="assets/shiftBtn3_3.png")]
+			[Bindable]
+			private static var pic33:Class;
+			
+			[Embed(source="assets/shiftBtn3_4.png")]
+			[Bindable]
+			private static var pic34:Class;
+			
+			[Embed(source="assets/shiftBtn4_1.png")]
+			[Bindable]
+			private static var pic41:Class;
+			
+			[Embed(source="assets/shiftBtn4_2.png")]
+			[Bindable]
+			private static var pic42:Class;
+			
+			[Embed(source="assets/shiftBtn4_3.png")]
+			[Bindable]
+			private static var pic43:Class;
+			
+			[Embed(source="assets/shiftBtn4_4.png")]
+			[Bindable]
+			private static var pic44:Class;
+			
+			//数据接口
+			[Bindable]
+			private var _gisServ:GisServ = null;
+			
+			//调试标志
+			private var _isDebug:Boolean = false;
+			
+			//当前显示的场景编号
+			[Bindable]
+			private var _monitorId:String = null;
+			
+			//页面参数
+			[Bindable]
+			private var _params:Object = null;
+			
+			//管线数据查询接口
+			[Bindable]
+			private var _lineInfo:LineInfo = null;
+			
+			private var _perfId:Object = null;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.main.MainView");
+			
+			//主视图
+			private var _regionalView:Object = null;
+			
+			//是否显示多维视图
+			private var _showMulti:Boolean = true;
+			
+			//是否初始化多维视图
+			private var initMulti:Boolean = true;
+			
+			public function get showMulti():Boolean
+			{
+				return _showMulti;
+			}
+
+			public function set showMulti(value:Boolean):void
+			{
+				_showMulti = value;
+			}
+
+			public function get regionalView():Object
+			{
+				return _regionalView;
+			}
+
+			public function set regionalView(value:Object):void
+			{
+				_regionalView = value;
+			}
+
+			public function get lineInfo():LineInfo
+			{
+				return _lineInfo;
+			}
+
+			public function set lineInfo(value:LineInfo):void
+			{
+				_lineInfo = value;
+			}
+
+			public function get params():Object
+			{
+				return _params;
+			}
+
+			public function set params(value:Object):void
+			{
+				_params = value;
+			}
+
+			public function get monitorId():String
+			{
+				return _monitorId;
+			}
+
+			public function set monitorId(value:String):void
+			{
+				_monitorId = value;
+			}
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get gisServ():GisServ
+			{
+				return _gisServ;
+			}
+
+			public function set gisServ(value:GisServ):void
+			{
+				_gisServ = value;
+			}
+
+			public function init():void
+			{
+				this.nowMapView.isDebug = _isDebug;
+				this.oldMapView.isDebug = _isDebug;
+				this.miniMap.isDebug = _isDebug;
+				
+				//初始化				this.nowMapView.monitorId = _monitorId;
+				this.nowMapView.perfId = _perfId;
+				this.nowMapView.params = _params;
+				this.nowMapView.regionalView = _regionalView;
+				this.nowMapView.initData();
+				this.miniMap.monitorId = _monitorId;
+				this.miniMap.perfId = _perfId;
+				this.miniMap.init(this);
+				this.miniMap.showMap();
+				//this.multi.initView(_params);
+				
+				//初始化流水窗口
+				flowView.monitorId = _monitorId;
+				flowView.gisServ = _gisServ;
+				flowView.params = _params;
+				flowView.init();
+			}
+			
+			public function hideView():void
+			{
+				this.nowMapView.hideView();
+				this.multi.hideView();
+				this.flowView.hideView();
+			}
+			
+			public function showView(isFirst:Boolean=false):void
+			{
+				this.nowMapView.showView();
+				if(!isFirst && !initMulti)
+				{
+					this.multi.showView();
+				}
+			}
+			
+			public function resizeWindow(type:int):void
+			{
+				//缩略图操作
+				if (type == 1)
+				{
+					if (img1.name == "1_down")
+					{
+						img1.name = "1_up";
+						img1.source = pic12;
+						this.miniMap.height = 100;
+						this.miniMap.visible = true;
+						this.miniMap.includeInLayout = true;
+						
+						this.img3Group.visible = false;
+						this.img3Group.includeInLayout = false;
+					}
+					else if (img1.name == "1_up")
+					{
+						img1.name = "1_down";
+						img1.source = pic14;
+						this.miniMap.height = 0;
+						this.miniMap.visible = false;
+						this.miniMap.includeInLayout = false;
+						
+						if(!this.img4Group.visible && _showMulti)
+						{
+							this.img3Group.visible = true;
+							this.img3Group.includeInLayout = true;
+						}
+					}
+				}
+				//告警流水操作
+				else if (type == 2)
+				{
+					if (img2.name == "2_up")
+					{
+						img2.name = "2_down";
+						img2.source = pic24;
+						takePWin.visible = true;
+						this.flowView.visible = true;
+						this.flowView.includeInLayout = true;
+						this.flowShowGroup.height = 300;
+						this.flowShowGroup.y = this.height - 300;
+						this.img2Group.y = 0;
+						
+						this.flowView.showView();
+					}
+					else
+					{
+						img2.name = "2_up";
+						img2.source = pic22;
+						takePWin.visible = false;
+						this.flowView.visible = false;
+						this.flowView.includeInLayout = false;
+						this.flowShowGroup.height = 5;
+						this.img2Group.y = 0;
+						
+						this.flowView.hideView();
+					}
+				}
+				//多维视图操作
+				else if (type == 3)
+				{
+					if (img3.name == "3_left")
+					{
+						img3.name = "3_right";
+						img3.source = pic32;
+						this.multiView.percentWidth = 30;
+						this.gisView.percentWidth = 70;
+						this.multiView.visible = true;
+						this.multiView.includeInLayout = true;
+						this.img5Group.visible = true;
+						this.img5Group.includeInLayout = true;
+						this.img1Group.visible = false;
+						this.img1Group.includeInLayout = false;
+						
+						if (initMulti)
+						{
+							this.multi.initView(_params);
+							initMulti = false;
+						}
+						this.multi.showView();
+						
+						nowMapView.showGeneralInfo = true;//多维视图展示的时候 打开概况信息窗口
+						nowMapView.filterObject("", 'ensure', 'general', true);
+					}
+					else
+					{
+						img3.name = "3_left";
+						img3.source = pic34;
+						this.multiView.percentWidth = 0;
+						this.gisView.percentWidth = 100;
+						this.multiView.visible = false;
+						this.multiView.includeInLayout = false;
+						this.img5Group.visible = false;
+						this.img5Group.includeInLayout = false;
+						this.img1Group.visible = true;
+						this.img1Group.includeInLayout = true;
+						
+						this.multi.hideView();
+					}
+				}
+				//历史视图隐藏
+				else if (type == 4)
+				{
+					this.img4Group.visible = false;
+					this.img4Group.includeInLayout = false;
+					
+					resize.target = oldMapView;
+					resize.widthTo = 0;
+					resize.addEventListener(EffectEvent.EFFECT_END, function():void
+					{
+						if(img1.name == "1_down")//只有当缩略图收起来的时候 可以出现多维视图弹出按钮。
+						{
+							img3Group.visible = true;
+							img3Group.includeInLayout = true;
+						}
+						oldMapView.visible = false;
+						oldMapView.includeInLayout = false;
+						
+						nowMapView.visible = true;
+						nowMapView.includeInLayout = true;
+						nowMapView.percentWidth = 100;
+						resizeMap();
+					});
+					resize.play();
+					
+				}
+				//隐藏GIS视图
+				else if (type == 5)
+				{
+					if (img5.name == "5_left")
+					{
+						img5.name = "5_right";
+						img5.source = pic32;
+						this.multiView.percentWidth = 100;
+						this.gisView.percentWidth = 0;
+						this.multiView.visible = true;
+						this.multiView.includeInLayout = true;
+						this.img5Group.visible = true;
+						this.img5Group.includeInLayout = true;
+						this.gisView.visible = false;
+						this.gisView.includeInLayout = false;
+						this.img3Group.visible = false;
+						this.img3Group.includeInLayout = false;
+					}
+					else
+					{
+						img5.name = "5_left";
+						img5.source = pic34;
+						this.multiView.percentWidth = 30;
+						this.gisView.percentWidth = 70;
+						this.img5Group.visible = false;
+						this.img5Group.includeInLayout = false;
+						this.gisView.visible = true;
+						this.gisView.includeInLayout = true;
+						this.img3Group.visible = true;
+						this.img3Group.includeInLayout = true;
+					}
+				}//当前视图隐藏
+				else if (type == 6)
+				{
+					resize.target = nowMapView;
+					resize.widthTo = 0;
+					log.info("当前窗口宽度width="+this.width);
+					resize.addEventListener(EffectEvent.EFFECT_END, function():void
+					{
+						oldMapView.visible = true;
+						oldMapView.includeInLayout = true;
+						
+						curTimeStr.visible=false;
+						nowMapView.visible = false;
+						nowMapView.includeInLayout = false;
+						oldMapView.percentWidth = 100;
+						//oldMapView.mapWork.map.viewRefresh();
+					});
+					resize.play();
+					
+				}
+			}
+			
+			public function showHistory(time:String):void
+			{
+				this.oldMapView.mapWork.map.clearAll();
+				this.oldMapView.visible = true;
+				this.oldMapView.includeInLayout = true;
+				this.img4Group.visible = true;
+				this.img4Group.includeInLayout = true;
+				this.oldMapView.percentWidth = 50;
+				this.nowMapView.percentWidth = 50;
+				
+				this.nowMapView.visible = true;
+				this.curTimeStr.visible = true;
+				this.nowMapView.includeInLayout = true;
+				
+				//显示历史数据时，不能看多维视图				this.img3Group.visible = false;
+				this.img3Group.includeInLayout = false;
+				this.img5Group.visible = false;
+				this.img5Group.includeInLayout = false;
+				this.img4Group.visible = true;
+				this.img4Group.includeInLayout = true;
+				this.multiView.visible = false;
+				this.multiView.includeInLayout = false;
+				this.multiView.percentWidth = 0;
+				this.gisView.percentWidth = 100;
+				
+				//初始化历史数据				this.oldMapView.monitorId = _monitorId;
+				this.oldMapView.params = _params;
+				this.oldMapView.regionalView = _regionalView;
+				this.oldMapView.initHistoryData(time);
+				
+				setTimeout(resizeMap,500,time);
+			}
+			
+			private function showTimeDropList(time:String):void
+			{
+				log.info("显示的时间" + time);
+				
+				//如果已经初始化过了，则不再初始化
+				if (this.timeSelect.dataProvider == null || this.timeSelect.dataProvider.length == 0)
+				{
+					var arr:ArrayCollection = new ArrayCollection();
+					var dateFormatter:DateFormatter = new DateFormatter();
+					dateFormatter.formatString="YYYY-MM-DD JJ:NN:SS";
+					for each (var timeNum:String in this.miniMap.timeArr)
+					{
+						var item:Object = new Object();
+						item.id = timeNum;
+						item.name = getTime(timeNum);
+						arr.addItem(item);
+					}
+					
+					this.timeSelect.dataProvider = arr;
+					this.timeSelect.x = this.oldMapView.width - 160;
+					this.timeSelect.y = this.miniMap.height + 20;
+					
+					this.curTimeStr.right = 10;
+					this.curTimeStr.y = this.miniMap.height + 20;
+					var d:Date = new Date();
+					this.curTimeStr.text = "当前时间：" + dateFormatter.format(d);
+				}
+				
+				for each(var t:Object in this.timeSelect.dataProvider)
+				{
+					//当前选中的
+					if (t.id == time)
+					{
+						this.timeSelect.selectedItem = t;
+						break;
+					}
+				}
+				
+				//显示
+				this.timeSelect.visible = true;
+				this.timeSelect.includeInLayout = true;
+				this.curTimeStr.visible = true;
+				this.curTimeStr.includeInLayout = true;
+			}
+			
+			private var dateFormatter:DateFormatter = new DateFormatter(); 
+			private function getTime(time:String):String
+			{
+				var d:Date = new Date(Number(time)*1000);
+				dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+//				var timeStr:String = d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate() + " " + d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds();
+				var timeStr:String = dateFormatter.format(d);
+				return timeStr;
+			}
+			
+			private function resizeMap(time:String=null):void
+			{
+				//this.oldMapView.mapWork.map.viewRefresh();
+				//this.nowMapView.mapWork.map.viewRefresh();
+				
+				//显示时间下拉框
+				if (time != null)
+				{
+					showTimeDropList(time);
+				}
+				else
+				{
+					this.timeSelect.visible = false;
+					this.timeSelect.includeInLayout = false;
+					this.curTimeStr.visible = false;
+					this.curTimeStr.includeInLayout = false;
+				}
+			}
+
+			protected function timeSelect_changeHandler(event:IndexChangeEvent):void
+			{
+				//取当前选中的时间
+				showHistory(this.timeSelect.selectedItem.id);
+			}
+
+			public function get perfId():Object
+			{
+				return _perfId;
+			}
+
+			public function set perfId(value:Object):void
+			{
+				_perfId = value;
+			}
+
+
+
+			protected function flowShowGroup_resizeHandler(event:ResizeEvent):void
+			{
+				if(flowShowGroup.height > 85)
+				{
+					var flag:Boolean = flowView.visible;
+					
+					img2.name = "2_down";
+					img2.source = pic24;
+					takePWin.visible = true;
+					this.flowView.visible = true;
+					this.flowView.includeInLayout = true;
+					this.flowShowGroup.y = this.height - flowShowGroup.height;
+					this.img2Group.y = 0;
+					
+					if(!flag)
+						this.flowView.showView();
+				}
+				else if(flowShowGroup.height > 30)
+				{
+					var flag:Boolean = flowView.visible;
+					
+					img2.name = "2_up";
+					img2.source = pic22;
+					takePWin.visible = true;
+					this.flowView.visible = false;
+					this.flowView.includeInLayout = false;
+					this.img2Group.y = 0;
+					
+					if(flag)
+						this.flowView.hideView();
+				}
+				else
+				{
+					img2.name = "2_up";
+					img2.source = pic22;
+					takePWin.visible = false;
+					this.flowView.visible = false;
+					this.flowView.includeInLayout = false;
+					this.flowShowGroup.height = 5;
+					this.img2Group.y = 0;
+					
+					this.flowView.hideView();
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Resize id="resize"/>
+	</fx:Declarations>
+	<s:HGroup width="100%" height="100%" gap="0">
+		<s:VGroup id="img5Group" width="5" height="100%" verticalAlign="middle" visible="false" includeInLayout="false">
+			<mx:Image id="img5" name="5_left" source="{pic34}" click="resizeWindow(5);" buttonMode="true"
+					  mouseOver="this.img5.name=='5_left' ? this.img5.source=pic33 : this.img5.source=pic31;" 
+					  mouseOut="this.img5.name=='5_left' ? this.img5.source=pic34 :  this.img5.source=pic32;"/>
+		</s:VGroup>
+		
+		<s:VGroup id="gisView" width="100%" height="100%" gap="0">
+			
+			<main:MiniMapView id="miniMap" width="100%" height="20%" gisServ="{_gisServ}"/>
+			
+			<s:HGroup id="img1Group" height="5" width="100%" horizontalAlign="center">
+				<mx:Image id="img1" source="{pic12}" name="1_up" click="resizeWindow(1);" buttonMode="true" mouseOver="this.img1.name=='1_up'? this.img1.source=pic11 : this.img1.source=pic13;" mouseOut="this.img1.name=='1_up' ? this.img1.source=pic12 : this.img1.source=pic14;"/>
+			</s:HGroup>
+			
+			<s:HGroup id="mapView" width="100%"  height="100%">
+				<main:MapView id="oldMapView" width="0%" height="100%" visible="false" includeInLayout="false" gisServ="{_gisServ}" lineInfo="{_lineInfo}" history="true"/>
+				<s:VGroup id="img4Group" width="5" verticalAlign="middle" height="100%" visible="false" includeInLayout="false">
+					<mx:Image id="img4" source="{pic42}" click="resizeWindow(4);" buttonMode="true" mouseOver="this.img4.source=pic41;" mouseOut="this.img4.source=pic42;"/>
+					<mx:Image id="img44" source="{pic44}" click="resizeWindow(6);" buttonMode="true" mouseOver="this.img44.source=pic43;" mouseOut="this.img44.source=pic44;"/>
+				</s:VGroup>
+				<main:MapView id="nowMapView" width="100%" height="100%" gisServ="{_gisServ}" lineInfo="{_lineInfo}"/>
+			</s:HGroup>
+			
+		</s:VGroup>
+		
+		<s:VGroup id="img3Group" width="5" height="100%" verticalAlign="middle" visible="false" includeInLayout="false">
+			<mx:Image id="img3" name="3_left" source="{pic34}" click="resizeWindow(3);" buttonMode="true" 
+					  mouseOver="this.img3.name=='3_left' ? this.img3.source=pic33 : this.img3.source=pic31;" 
+					  mouseOut="this.img3.name=='3_left' ? this.img3.source=pic34 :  this.img3.source=pic32;"/>
+		</s:VGroup>
+		
+		<s:Group id="multiView" width="0%" height="100%" visible="false" includeInLayout="false">
+			<main:MultiView id="multi" width="100%" height="100%"/>
+		</s:Group>
+		
+	</s:HGroup>
+	
+	<mx:VDividedBox width="100%" dividerColor="gray"
+					height="100%">
+		<s:Group width="100%" height="100%" visible="false"/>
+		<s:Group id="flowShowGroup" width="100%" height="5" resize="flowShowGroup_resizeHandler(event)">
+			<panel:Window id="takePWin" width="100%" height="100%" visible="false" closable="false" minimizable="false" maximizable="false"/>
+			<main:FlowView id="flowView" width="100%" height="100%" visible="false" includeInLayout="false"/>
+			<s:HGroup id="img2Group" height="5" width="100%" horizontalAlign="center">
+				<mx:Image id="img2" source="{pic24}" name="2_up" click="resizeWindow(2);" buttonMode="true" 
+						  mouseOver="img2.name=='2_up' ? img2.source=pic23 : img2.source=pic21;" 
+						  mouseOut="img2.name=='2_up' ? img2.source=pic24 :  img2.source=pic22;"/>
+			</s:HGroup>
+		</s:Group>
+	</mx:VDividedBox>
+	
+	<s:DropDownList width="155" id="timeSelect" labelField="name" color="0x000000" visible="false" includeInLayout="false" change="timeSelect_changeHandler(event)"/>
+	
+	<s:Label width="200" height="20" id="curTimeStr" color="red" visible="false" 
+			 includeInLayout="false" backgroundColor="0x00FF00" backgroundAlpha="0.6"
+			 textAlign="center" paddingTop="3" fontWeight="bold"/>
+</s:Group>

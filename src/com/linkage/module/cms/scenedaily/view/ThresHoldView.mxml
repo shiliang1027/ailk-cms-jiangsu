@@ -1,0 +1,2317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  width="100%"
+		  height="100%"
+		  gap="0"
+		  xmlns:threshold="com.linkage.module.cms.scenedaily.view.components.threshold.*"
+		  creationComplete="group1_creationCompleteHandler(event)"
+		  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 华伟 (Ailk No.)
+		 @version 1.0
+		 @date 2012-9-5
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.event.threshold.ThresHoldEvent;
+			import com.linkage.module.cms.scenedaily.view.components.threshold.ThresHoldAddPanel;
+			import com.linkage.module.cms.scenedaily.view.components.threshold.ThresHoldDelPanel;
+			import com.linkage.module.cms.scenedaily.view.components.util.FileUpDownLoad;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(ThresHoldView);
+
+			private var fileRefer:FileReference = new FileReference();
+			private var fileUpDownLoad:FileUpDownLoad;
+
+			[Inject("thresHoldViewPM")]
+			[Bindable]
+			public var pm:ThresHoldViewPM;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			public function init():void
+			{
+				dispatchMsg(new ThresHoldEvent(ThresHoldEvent.LOAD_THRESHOLD_CITY));
+			}
+
+			//类别
+			public var resType:String = "0";
+			//采集粒度
+			public var timeType:String = "0";
+
+			//页面X  Y和当前页配置页个数的对应关系
+			private var flag:Object = new Object();
+
+			//页面XY与当前页面存放配置页面的VGROUP的对应关系
+			private var vgroup:Object = new Object();
+
+			//存放传递参数
+			public var dataMap:Object = new Object();
+
+			//存放填写的数据集
+			public var dataList:ArrayCollection = new ArrayCollection();
+
+			//存放指标单位
+			public var danweiMap:Object = new Object();
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				flag["0_0"] = 0;
+				flag["0_1"] = 0;
+				flag["0_2"] = 0;
+				flag["0_3"] = 0;
+				flag["0_4"] = 0;
+
+				flag["1_0"] = 0;
+				flag["1_1"] = 0;
+				flag["1_2"] = 0;
+				flag["1_3"] = 0;
+				flag["1_4"] = 0;
+
+				flag["2_0"] = 0;
+				flag["2_1"] = 0;
+				flag["2_2"] = 0;
+				flag["2_3"] = 0;
+				flag["2_4"] = 0;
+
+				vgroup["0_0"] = proviceget;
+				vgroup["0_1"] = proviceget2;
+				vgroup["0_2"] = proviceget3;
+				vgroup["0_3"] = proviceget4;
+				vgroup["0_4"] = proviceget5;
+
+				vgroup["1_0"] = cityget1;
+				vgroup["1_1"] = cityget2;
+				vgroup["1_2"] = cityget3;
+				vgroup["1_3"] = cityget4;
+				vgroup["1_4"] = cityget5;
+
+				vgroup["2_0"] = moget1;
+				vgroup["2_1"] = moget2;
+				vgroup["2_2"] = moget3;
+				vgroup["2_3"] = moget4;
+				vgroup["2_4"] = moget5;
+
+			}
+			private var defaultMoTypeId:String = "5";//默认选中网元类型id=5，“MSC server”。
+			//查询指标名称
+			protected function perfTypePro1_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				(vgroup[resType + "_" + timeType] as VGroup).removeAllElements();
+				var evt:ThresHoldEvent = new ThresHoldEvent(ThresHoldEvent.LOAD_KPI_NAMES);
+				var param:Object = new Object();
+				param.resType = String(int(resType) + 1);
+				if ("0" == resType)
+				{
+					if ("0" == timeType)
+					{
+						if ("0" == perfTypePro1.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypePro1.selectedItem.key;
+					}
+					else if ("1" == timeType)
+					{
+						if ("0" == perfTypePro2.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypePro2.selectedItem.key;
+					}
+					else if ("2" == timeType)
+					{
+						if ("0" == perfTypePro3.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypePro3.selectedItem.key;
+					}
+					else if ("3" == timeType)
+					{
+						if ("0" == perfTypePro4.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypePro4.selectedItem.key;
+					}
+					else if ("4" == timeType)
+					{
+						if ("0" == perfTypePro5.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypePro5.selectedItem.key;
+					}
+				}
+				else if ("1" == resType)
+				{
+					if ("0" == timeType)
+					{
+						if ("0" == perfTypeCity1.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeCity1.selectedItem.key;
+					}
+					else if ("1" == timeType)
+					{
+						if ("0" == perfTypeCity2.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeCity2.selectedItem.key;
+					}
+					else if ("2" == timeType)
+					{
+						if ("0" == perfTypeCity3.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeCity3.selectedItem.key;
+					}
+					else if ("3" == timeType)
+					{
+						if ("0" == perfTypeCity4.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeCity4.selectedItem.key;
+					}
+					else if ("4" == timeType)
+					{
+						if ("0" == perfTypeCity5.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeCity5.selectedItem.key;
+					}
+				}
+				else if ("2" == resType)
+				{
+					if ("0" == timeType)
+					{
+						if ("0" == perfTypeMo1.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeMo1.selectedItem.key;
+						if(queryMoTypesFlag&&moTypeList1.selectedItem&&moTypeList1.selectedItem.moTypeId){
+							param.moTypeId = moTypeList1.selectedItem.moTypeId;
+						}else{
+							//设置默认的网元类型。2013-8-28
+							setParamsOfDefaultMoType(param,pm.dm.moTypeList1);
+						}
+					}
+					else if ("1" == timeType)
+					{
+						if ("0" == perfTypeMo2.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeMo2.selectedItem.key;
+						if(queryMoTypesFlag&&moTypeList2.selectedItem&&moTypeList2.selectedItem.moTypeId){
+							param.moTypeId = moTypeList2.selectedItem.moTypeId;
+						}else{
+							//设置默认的网元类型。2013-8-28
+							setParamsOfDefaultMoType(param,pm.dm.moTypeList2);
+						}
+					}
+					else if ("2" == timeType)
+					{
+						if ("0" == perfTypeMo3.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeMo3.selectedItem.key;
+						if(queryMoTypesFlag&&moTypeList3.selectedItem&&moTypeList3.selectedItem.moTypeId){
+							param.moTypeId = moTypeList3.selectedItem.moTypeId;
+						}else{
+							//设置默认的网元类型。2013-8-28
+							setParamsOfDefaultMoType(param,pm.dm.moTypeList3);
+						}
+					}
+					else if ("3" == timeType)
+					{
+						if ("0" == perfTypeMo4.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeMo4.selectedItem.key;
+						if(queryMoTypesFlag&&moTypeList4.selectedItem&&moTypeList4.selectedItem.moTypeId){
+							param.moTypeId = moTypeList4.selectedItem.moTypeId;
+						}else{
+							//设置默认的网元类型。2013-8-28
+							setParamsOfDefaultMoType(param,pm.dm.moTypeList4);
+						}
+						
+					}
+					else if ("4" == timeType)
+					{
+						if ("0" == perfTypeMo5.selectedItem.key)
+						{
+							Alert.show("请选择指标分类");
+							return;
+						}
+						param.perfType = perfTypeMo5.selectedItem.key;
+						if(queryMoTypesFlag&&moTypeList5.selectedItem&&moTypeList5.selectedItem.moTypeId){
+							param.moTypeId = moTypeList5.selectedItem.moTypeId;
+						}else{
+							//设置默认的网元类型。2013-8-28
+							setParamsOfDefaultMoType(param,pm.dm.moTypeList5);
+						}
+						
+					}
+					log.info("网元查询参数:param.perfType--->"+param.perfType + ",param.moTypeId--->" + param.moTypeId);
+				}
+				evt.param = param;
+				dispatchMsg(evt);
+			}
+			/**
+			 * 设置默认的网元类型。2013-8-28
+			 **/
+			private function setParamsOfDefaultMoType(param:Object,data:ArrayCollection):void{
+				
+				if(data&&data.length>0){
+					param.moTypeId = data.getItemAt(0).moTypeId;
+				}else{
+					param.moTypeId = defaultMoTypeId;
+				}
+			}
+			//查到指标组名称后返回处理
+			[MessageHandler(selector="loadThresHoldKpiNamesComp")]
+			public function loadThresHoldKpiNamesComp(event:ThresHoldEvent):void
+			{
+				var evt:ThresHoldEvent = new ThresHoldEvent(ThresHoldEvent.LOAD_THRESHOLD_VALUES);
+				var param:Object = new Object();
+				param.resType = String(int(resType) + 1);
+				param.timeType = String(int(timeType) + 1);
+				if ("0" == resType)
+				{
+					param.resId = "00";
+					if ("0" == timeType)
+					{
+						pm.dm.proKpiNames1.removeAll();
+						pm.dm.proKpiNames1.addAll(event.param as IList);
+						pm.dm.proKpiNames1.refresh();
+						perfGroupIdPro1.selectedIndex = 0;
+						param.perfType = perfTypePro1.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro1.selectedItem.perfGroupId;
+					}
+					else if ("1" == timeType)
+					{
+						pm.dm.proKpiNames2.removeAll();
+						pm.dm.proKpiNames2.addAll(event.param as IList);
+						pm.dm.proKpiNames2.refresh();
+						perfGroupIdPro2.selectedIndex = 0;
+						param.perfType = perfTypePro2.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro2.selectedItem.perfGroupId;
+					}
+					else if ("2" == timeType)
+					{
+						pm.dm.proKpiNames3.removeAll();
+						pm.dm.proKpiNames3.addAll(event.param as IList);
+						pm.dm.proKpiNames3.refresh();
+						perfGroupIdPro3.selectedIndex = 0;
+						param.perfType = perfTypePro3.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro3.selectedItem.perfGroupId;
+					}
+					else if ("3" == timeType)
+					{
+						pm.dm.proKpiNames4.removeAll();
+						pm.dm.proKpiNames4.addAll(event.param as IList);
+						pm.dm.proKpiNames4.refresh();
+						perfGroupIdPro4.selectedIndex = 0;
+						param.perfType = perfTypePro4.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro4.selectedItem.perfGroupId;
+					}
+					else if ("4" == timeType)
+					{
+						pm.dm.proKpiNames5.removeAll();
+						pm.dm.proKpiNames5.addAll(event.param as IList);
+						pm.dm.proKpiNames5.refresh();
+						perfGroupIdPro5.selectedIndex = 0;
+						param.perfType = perfTypePro5.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro5.selectedItem.perfGroupId;
+					}
+				}
+				else if ("1" == resType)
+				{
+					if ("0" == timeType)
+					{
+						param.resId = cityList1.selectedItem.cityId;
+						pm.dm.cityKpiNames1.removeAll();
+						pm.dm.cityKpiNames1.addAll(event.param as IList);
+						pm.dm.cityKpiNames1.refresh();
+						perfGroupIdCity1.selectedIndex = 0;
+						param.perfType = perfTypeCity1.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity1.selectedItem.perfGroupId;
+					}
+					else if ("1" == timeType)
+					{
+						param.resId = cityList2.selectedItem.cityId;
+						pm.dm.cityKpiNames2.removeAll();
+						pm.dm.cityKpiNames2.addAll(event.param as IList);
+						pm.dm.cityKpiNames2.refresh();
+						perfGroupIdCity2.selectedIndex = 0;
+						param.perfType = perfTypeCity2.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity2.selectedItem.perfGroupId;
+					}
+					else if ("2" == timeType)
+					{
+						param.resId = cityList3.selectedItem.cityId;
+						pm.dm.cityKpiNames3.removeAll();
+						pm.dm.cityKpiNames3.addAll(event.param as IList);
+						pm.dm.cityKpiNames3.refresh();
+						perfGroupIdCity3.selectedIndex = 0;
+						param.perfType = perfTypeCity3.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity3.selectedItem.perfGroupId;
+					}
+					else if ("3" == timeType)
+					{
+						param.resId = cityList4.selectedItem.cityId;
+						pm.dm.cityKpiNames4.removeAll();
+						pm.dm.cityKpiNames4.addAll(event.param as IList);
+						pm.dm.cityKpiNames4.refresh();
+						perfGroupIdCity4.selectedIndex = 0;
+						param.perfType = perfTypeCity4.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity4.selectedItem.perfGroupId;
+					}
+					else if ("4" == timeType)
+					{
+						param.resId = cityList5.selectedItem.cityId;
+						pm.dm.cityKpiNames5.removeAll();
+						pm.dm.cityKpiNames5.addAll(event.param as IList);
+						pm.dm.cityKpiNames5.refresh();
+						perfGroupIdCity5.selectedIndex = 0;
+						param.perfType = perfTypeCity5.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity5.selectedItem.perfGroupId;
+					}
+				}
+				else if (("2" == resType)&&!queryMoTypesFlag)
+				{//表示点击指标类型后刷新的指标名称，需要重新查询网元类型。
+				 //当queryMoTypesFlag为true时，表示是点击网元类型触发的指标名称过滤，已经对阀值进行了阈值数据查询，该处不用重新查询。
+				 //2013-8-26，mod by 汪炜。
+					
+					log.info("点击指标类型后刷新的指标名称，需要重新查询网元类型。");
+					evt = new ThresHoldEvent(ThresHoldEvent.LOAD_THRESHOLD_MOTYPE);
+					if ("0" == timeType)
+					{
+						pm.dm.moKpiNames1.removeAll();
+						pm.dm.moKpiNames1.addAll(event.param as IList);
+						pm.dm.moKpiNames1.refresh();
+						perfGroupIdMo1.selectedIndex = 0;
+						param.perfType = perfTypeMo1.selectedItem.key;
+					}
+					else if ("1" == timeType)
+					{
+						pm.dm.moKpiNames2.removeAll();
+						pm.dm.moKpiNames2.addAll(event.param as IList);
+						pm.dm.moKpiNames2.refresh();
+						perfGroupIdMo2.selectedIndex = 0;
+						param.perfType = perfTypeMo2.selectedItem.key;
+					}
+					else if ("2" == timeType)
+					{
+						pm.dm.moKpiNames3.removeAll();
+						pm.dm.moKpiNames3.addAll(event.param as IList);
+						pm.dm.moKpiNames3.refresh();
+						perfGroupIdMo3.selectedIndex = 0;
+						param.perfType = perfTypeMo3.selectedItem.key;
+					}
+					else if ("3" == timeType)
+					{
+						pm.dm.moKpiNames4.removeAll();
+						pm.dm.moKpiNames4.addAll(event.param as IList);
+						pm.dm.moKpiNames4.refresh();
+						perfGroupIdMo4.selectedIndex = 0;
+						param.perfType = perfTypeMo4.selectedItem.key;
+					}
+					else if ("4" == timeType)
+					{
+						pm.dm.moKpiNames5.removeAll();
+						pm.dm.moKpiNames5.addAll(event.param as IList);
+						pm.dm.moKpiNames5.refresh();
+						perfGroupIdMo5.selectedIndex = 0;
+						param.perfType = perfTypeMo5.selectedItem.key;
+					}
+				}else if (("2" == resType)&&queryMoTypesFlag)
+				{
+					//表示点击网元类型后刷新的指标名称。
+					//当queryMoTypesFlag为true时，表示是点击网元类型触发的指标名称过滤，已经对阀值进行了阈值数据查询，该处不用重新查询。
+					//2013-8-26，mod by 汪炜。
+					
+					log.info("点击网元类型后刷新的指标名称，不需要重新查询网元类型。");
+					if ("0" == timeType)
+					{
+						pm.dm.moKpiNames1.removeAll();
+						pm.dm.moKpiNames1.addAll(event.param as IList);
+						pm.dm.moKpiNames1.refresh();
+						perfGroupIdMo1.selectedIndex = 0;
+					}
+					else if ("1" == timeType)
+					{
+						pm.dm.moKpiNames2.removeAll();
+						pm.dm.moKpiNames2.addAll(event.param as IList);
+						pm.dm.moKpiNames2.refresh();
+						perfGroupIdMo2.selectedIndex = 0;
+					}
+					else if ("2" == timeType)
+					{
+						pm.dm.moKpiNames3.removeAll();
+						pm.dm.moKpiNames3.addAll(event.param as IList);
+						pm.dm.moKpiNames3.refresh();
+						perfGroupIdMo3.selectedIndex = 0;
+					}
+					else if ("3" == timeType)
+					{
+						pm.dm.moKpiNames4.removeAll();
+						pm.dm.moKpiNames4.addAll(event.param as IList);
+						pm.dm.moKpiNames4.refresh();
+						perfGroupIdMo4.selectedIndex = 0;
+					}
+					else if ("4" == timeType)
+					{
+						pm.dm.moKpiNames5.removeAll();
+						pm.dm.moKpiNames5.addAll(event.param as IList);
+						pm.dm.moKpiNames5.refresh();
+						perfGroupIdMo5.selectedIndex = 0;
+					}
+					queryMoTypesFlag = false;
+					//查询阀值。
+					perfGroupIdPro1_changeHandler(null);
+					return;//其他情况，直接返回，不触发事件。
+				}
+				danweiMap[resType + "_" + timeType] = (event.param as IList).getItemAt(0).unit;
+				evt.param = param;
+				dispatchMsg(evt);
+				queryMoTypesFlag = false;
+			}
+
+			//查到加载网元类型后返回处理
+			[MessageHandler(selector="loadThresHoldMoTypeComp")]
+			public function loadThresHoldMoTypeComp(event:ThresHoldEvent):void
+			{
+				var evt:ThresHoldEvent = new ThresHoldEvent(ThresHoldEvent.LOAD_THRESHOLD_VALUES);
+				var param:Object = new Object();
+				param.resType = String(int(resType) + 1);
+				param.timeType = String(int(timeType) + 1);
+				if ("0" == timeType)
+				{
+					pm.dm.moTypeList1.removeAll();
+					pm.dm.moTypeList1.addAll(event.param as IList);
+					pm.dm.moTypeList1.refresh();
+					moTypeList1.selectedIndex = 0;
+					param.resId = moTypeList1.selectedItem.moTypeId;
+					param.moTypeId = moTypeList1.selectedItem.moTypeId;
+					param.perfType = perfTypeMo1.selectedItem.key;
+					param.perfGroupId = perfGroupIdMo1.selectedItem.perfGroupId;
+				}
+				else if ("1" == timeType)
+				{
+					pm.dm.moTypeList2.removeAll();
+					pm.dm.moTypeList2.addAll(event.param as IList);
+					pm.dm.moTypeList2.refresh();
+					moTypeList2.selectedIndex = 0;
+					param.resId = moTypeList2.selectedItem.moTypeId;
+					param.moTypeId = moTypeList2.selectedItem.moTypeId;
+					param.perfType = perfTypeMo2.selectedItem.key;
+					param.perfGroupId = perfGroupIdMo2.selectedItem.perfGroupId;
+				}
+				else if ("2" == timeType)
+				{
+					pm.dm.moTypeList3.removeAll();
+					pm.dm.moTypeList3.addAll(event.param as IList);
+					pm.dm.moTypeList3.refresh();
+					moTypeList3.selectedIndex = 0;
+					param.resId = moTypeList3.selectedItem.moTypeId;
+					param.moTypeId = moTypeList3.selectedItem.moTypeId;
+					param.perfType = perfTypeMo3.selectedItem.key;
+					param.perfGroupId = perfGroupIdMo3.selectedItem.perfGroupId;
+				}
+				else if ("3" == timeType)
+				{
+					pm.dm.moTypeList4.removeAll();
+					pm.dm.moTypeList4.addAll(event.param as IList);
+					pm.dm.moTypeList4.refresh();
+					moTypeList4.selectedIndex = 0;
+					param.resId = moTypeList4.selectedItem.moTypeId;
+					param.moTypeId = moTypeList4.selectedItem.moTypeId;
+					param.perfType = perfTypeMo4.selectedItem.key;
+					param.perfGroupId = perfGroupIdMo4.selectedItem.perfGroupId;
+				}
+				else if ("4" == timeType)
+				{
+					pm.dm.moTypeList5.removeAll();
+					pm.dm.moTypeList5.addAll(event.param as IList);
+					pm.dm.moTypeList5.refresh();
+					moTypeList5.selectedIndex = 0;
+					param.resId = moTypeList5.selectedItem.moTypeId;
+					param.moTypeId = moTypeList5.selectedItem.moTypeId;
+					param.perfType = perfTypeMo5.selectedItem.key;
+					param.perfGroupId = perfGroupIdMo5.selectedItem.perfGroupId;
+				}
+				evt.param = param;
+				dispatchMsg(evt);
+			}
+			private var queryMoTypesFlag:Boolean = false;//是否为点击选中网元类型选择框的标识，默认为false。2013-8-26，汪炜。
+
+			//根据指标名 地市 网元类型称查询阈值数据
+			protected function perfMoTypesPro1_changeHandler(event:IndexChangeEvent):void
+			{
+					log.info("当前点击网元类型选择框!");
+					queryMoTypesFlag=true;
+					perfTypePro1_changeHandler(event);
+				
+			}
+			//根据指标名 地市 网元类型称查询阈值数据
+			protected function perfGroupIdPro1_changeHandler(event:IndexChangeEvent):void
+			{
+				//1.查询阈值
+				(vgroup[resType + "_" + timeType] as VGroup).removeAllElements();
+				var evt:ThresHoldEvent = new ThresHoldEvent(ThresHoldEvent.LOAD_THRESHOLD_VALUES);
+				var param:Object = new Object();
+				param.resType = String(int(resType) + 1);
+				param.timeType = String(int(timeType) + 1);
+				if ("0" == resType)
+				{
+					param.resId = "00";
+					if ("0" == timeType)
+					{
+						param.perfType = perfTypePro1.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro1.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdPro1.selectedItem.unit;
+					}
+					else if ("1" == timeType)
+					{
+						param.perfType = perfTypePro2.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro2.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdPro2.selectedItem.unit;
+					}
+					else if ("2" == timeType)
+					{
+						param.perfType = perfTypePro3.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro3.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdPro3.selectedItem.unit;
+					}
+					else if ("3" == timeType)
+					{
+						param.perfType = perfTypePro4.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro4.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdPro4.selectedItem.unit;
+					}
+					else if ("4" == timeType)
+					{
+						param.perfType = perfTypePro5.selectedItem.key;
+						param.perfGroupId = perfGroupIdPro5.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdPro5.selectedItem.unit;
+					}
+
+				}
+				else if ("1" == resType)
+				{
+					if ("0" == timeType)
+					{
+						param.resId = cityList1.selectedItem.cityId;
+						param.perfType = perfTypeCity1.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity1.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdCity1.selectedItem.unit;
+					}
+					else if ("1" == timeType)
+					{
+						param.resId = cityList2.selectedItem.cityId;
+						param.perfType = perfTypeCity2.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity2.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdCity2.selectedItem.unit;
+					}
+					else if ("2" == timeType)
+					{
+						param.resId = cityList3.selectedItem.cityId;
+						param.perfType = perfTypeCity3.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity3.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdCity3.selectedItem.unit;
+					}
+					else if ("3" == timeType)
+					{
+						param.resId = cityList4.selectedItem.cityId;
+						param.perfType = perfTypeCity4.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity4.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdCity4.selectedItem.unit;
+					}
+					else if ("4" == timeType)
+					{
+						param.resId = cityList5.selectedItem.cityId;
+						param.perfType = perfTypeCity5.selectedItem.key;
+						param.perfGroupId = perfGroupIdCity5.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdCity5.selectedItem.unit;
+					}
+
+				}
+				else if ("2" == resType)
+				{
+					if ("0" == timeType)
+					{
+						param.resId = moTypeList1.selectedItem.moTypeId;
+						param.moTypeId = moTypeList1.selectedItem.moTypeId;
+						param.perfType = perfTypeMo1.selectedItem.key;
+						param.perfGroupId = perfGroupIdMo1.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdMo1.selectedItem.unit;
+					}
+					else if ("1" == timeType)
+					{
+						param.resId = moTypeList2.selectedItem.moTypeId;
+						param.moTypeId = moTypeList2.selectedItem.moTypeId;
+						param.perfType = perfTypeMo2.selectedItem.key;
+						param.perfGroupId = perfGroupIdMo2.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdMo2.selectedItem.unit;
+					}
+					else if ("2" == timeType)
+					{
+						param.resId = moTypeList3.selectedItem.moTypeId;
+						param.moTypeId = moTypeList3.selectedItem.moTypeId;
+						param.perfType = perfTypeMo3.selectedItem.key;
+						param.perfGroupId = perfGroupIdMo3.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdMo3.selectedItem.unit;
+					}
+					else if ("3" == timeType)
+					{
+						param.resId = moTypeList4.selectedItem.moTypeId;
+						param.moTypeId = moTypeList4.selectedItem.moTypeId;
+						param.perfType = perfTypeMo4.selectedItem.key;
+						param.perfGroupId = perfGroupIdMo4.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdMo4.selectedItem.unit;
+					}
+					else if ("4" == timeType)
+					{
+						param.resId = moTypeList5.selectedItem.moTypeId;
+						param.moTypeId = moTypeList5.selectedItem.moTypeId;
+						param.perfType = perfTypeMo5.selectedItem.key;
+						param.perfGroupId = perfGroupIdMo5.selectedItem.perfGroupId;
+						danweiMap[resType + "_" + timeType] = perfGroupIdMo5.selectedItem.unit;
+					}
+				}
+				evt.param = param;
+				dispatchMsg(evt);
+
+			}
+
+			//加载完阈值根据阈值创建页面
+			[MessageHandler(selector="loadThresHoldValuesComp")]
+			public function initPanel(event:ThresHoldEvent):void
+			{
+				log.info("阈值  创建页面开始");
+				var delThr:ThresHoldDelPanel = null;
+				//(vgroup[resType + "_" + timeType] as VGroup).removeAllElements();
+				flag[resType + "_" + timeType] = (event.param as ArrayCollection).length;
+				var first:Boolean = true;
+				if ((event.param as ArrayCollection).length == 0)
+				{
+					var delPan:ThresHoldDelPanel = new ThresHoldDelPanel();
+					delPan.addShow = true;
+					delPan.delShow = false;
+					delPan.resType = String(int(resType) + 1);
+					delPan.timeType = String(int(timeType) + 1);
+					delPan.unit = danweiMap[resType + "_" + timeType];
+					delPan.index = flag[resType + "_" + timeType] + 1;
+					delPan.index_id = delPan.relation[String(flag[resType + "_" + timeType] + 1)];
+					//delPan.index_id=delPan.relation[String(flag[resType + "_" + timeType])];
+					(vgroup[resType + "_" + timeType] as VGroup).addElement(delPan);
+					flag[resType + "_" + timeType] = flag[resType + "_" + timeType] + 1;
+				}
+				else
+				{
+					for each (var temp:Object in event.param)
+					{
+						var restypetemp:String = String(int(temp.res_type) - 1);
+						var timetypetemp:String = String(int(temp.timetype) - 1);
+						delThr = new ThresHoldDelPanel();
+						if (first)
+						{
+							delThr.addShow = true;
+							delThr.delShow = false;
+							first = false;
+						}
+						else
+						{
+							delThr.addShow = false;
+							delThr.delShow = true;
+						}
+						delThr.isCreatFlag = true;
+						delThr.unit = danweiMap[restypetemp + "_" + timetypetemp];
+						delThr.param = temp;
+						//(vgroup[resType + "_" + timeType] as VGroup).addElement(delThr);
+						(vgroup[restypetemp + "_" + timetypetemp] as VGroup).addElement(delThr);
+					}
+				}
+				log.info("阈值  创建页面结束");
+
+			}
+
+			//添加
+			[MessageHandler(selector="addThresHoldPag")]
+			public function addPanel(event:ThresHoldEvent):void
+			{
+				var delPan:ThresHoldDelPanel = new ThresHoldDelPanel();
+				delPan.addShow = false;
+				delPan.delShow = true;
+				delPan.resType = String(int(resType) + 1);
+				delPan.timeType = String(int(timeType) + 1);
+				delPan.unit = danweiMap[resType + "_" + timeType];
+				delPan.index = flag[resType + "_" + timeType] + 1;
+				delPan.index_id = delPan.relation[String(flag[resType + "_" + timeType] + 1)];
+				//delPan.index_id=delPan.relation[String(flag[resType + "_" + timeType])];
+				(vgroup[resType + "_" + timeType] as VGroup).addElement(delPan);
+				flag[resType + "_" + timeType] = flag[resType + "_" + timeType] + 1;
+			}
+
+			//删除
+			[MessageHandler(selector="delThresHoldPag")]
+			public function delPanel(event:ThresHoldEvent):void
+			{
+				var resTemp:String = String(int(event.param.resType) - 1);
+				var timeTemp:String = String(int(event.param.timeType) - 1);
+				flag[resTemp + "_" + timeTemp] = flag[resTemp + "_" + timeTemp] - 1;
+				var index:int = event.param.index;
+				for (var i:int = index - 1; i < flag[resTemp + "_" + timeTemp]; i++)
+				{
+					var indexTemp:int = ((vgroup[resTemp + "_" + timeTemp] as VGroup).getElementAt(i) as ThresHoldDelPanel).index;
+					((vgroup[resTemp + "_" + timeTemp] as VGroup).getElementAt(i) as ThresHoldDelPanel).index = indexTemp - 1;
+					((vgroup[resTemp + "_" + timeTemp] as VGroup).getElementAt(i) as ThresHoldDelPanel).index_id = ((vgroup[resType + "_" + timeType] as VGroup).getElementAt(i) as ThresHoldDelPanel).relation[String(indexTemp - 1)]
+				}
+			}
+
+			//点击导航按钮
+			protected function tabbar_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				timeType = "0";
+				if (event.newIndex == 0)
+				{
+					proviceAcc.selectedIndex = 0;
+				}
+				else if (event.newIndex == 1)
+				{
+					cityAcc.selectedIndex = 0;
+				}
+				else if (event.newIndex == 2)
+				{
+					moAcc.selectedIndex = 0;
+				}
+				resType = String(event.newIndex);
+			}
+
+			protected function acc_changeHandler(event:IndexChangedEvent):void
+			{
+				// TODO Auto-generated method stub
+				timeType = String(event.newIndex);
+			}
+
+			//保存
+			protected function save_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("save data begin");
+				dataMap = new Object;
+				dataList.removeAll();
+				dataList.refresh();
+				var evt:ThresHoldEvent = new ThresHoldEvent(ThresHoldEvent.SAVE_THRESHOLD_VALUES);
+				if ("0" == resType)
+				{
+					if (perfGroupIdPro1.selectedItem)
+					{
+						Alert.show("是否将当前的采集粒度阈值设置里配置信息同步给当前所有的时间粒度？", "同步提示", Alert.YES | Alert.NO, null, closeDeleteHandler);
+					}
+					else
+					{
+						if (!colAll())
+						{
+							return;
+						}
+						dataMap.data = dataList;
+						evt.param = dataMap;
+						dispatchMsg(evt);
+					}
+				}
+				else if ("1" == resType)
+				{
+					if (perfGroupIdCity1.selectedItem)
+					{
+						Alert.show("是否将当前的采集粒度阈值设置里配置信息同步给当前所有的时间粒度？", "同步提示", Alert.YES | Alert.NO, null, closeDeleteHandler);
+					}
+					else
+					{
+						if (!colAll())
+						{
+							return;
+						}
+						dataMap.data = dataList;
+						evt.param = dataMap;
+						dispatchMsg(evt);
+					}
+				}
+				else if ("2" == resType)
+				{
+					if (perfGroupIdMo1.selectedItem)
+					{
+						Alert.show("是否将当前的采集粒度阈值设置里配置信息同步给当前所有时间粒度？", "同步提示", Alert.YES | Alert.NO, null, closeDeleteHandler);
+					}
+					else
+					{
+						if (!colAll())
+						{
+							return;
+						}
+						dataMap.data = dataList;
+						evt.param = dataMap;
+						dispatchMsg(evt);
+					}
+				}
+				log.info("save data end");
+			}
+
+			//点击是否同步按钮后
+			private function closeDeleteHandler(event:CloseEvent):void
+			{
+				if (Alert.YES == event.detail)
+				{
+					var vg:VGroup;
+					var length:int = 0;
+					var perfType:String;
+					var perfGroupId:String;
+					var res_id:String;
+					var moTypeId:String = null;
+					var timetype:String;
+
+					dataMap.resType = String(int(resType) + 1);
+					//1表示同步
+					dataMap.isSync = "1";
+					dataMap.times = "1,2,3,4,5";
+					//dataMap.spaces="1,2,3";
+
+					if ("0" == resType)
+					{
+						dataMap.spaces = "1";
+						vg = proviceget;
+						length = flag["0_0"];
+						perfType = perfTypePro1.selectedItem.key;
+						perfGroupId = perfGroupIdPro1.selectedItem.perfGroupId;
+						res_id = "00";
+						moTypeId = null;
+						timetype = "1";
+					}
+					else if ("1" == resType)
+					{
+						vg = cityget1;
+						dataMap.spaces = "2";
+						length = flag["1_0"];
+						perfType = perfTypeCity1.selectedItem.key;
+						perfGroupId = perfGroupIdCity1.selectedItem.perfGroupId;
+						res_id = cityList1.selectedItem.cityId;
+						moTypeId = null;
+						timetype = "1";
+					}
+					else if ("2" == resType)
+					{
+						vg = moget1;
+						dataMap.spaces = "3";
+						length = flag["2_0"];
+						perfType = perfTypeMo1.selectedItem.key;
+						perfGroupId = perfGroupIdMo1.selectedItem.perfGroupId;
+						res_id = moTypeList1.selectedItem.moTypeId;
+						moTypeId = moTypeList1.selectedItem.moTypeId;
+						timetype = "1";
+					}
+					if (!collectionData(vg, length, perfType, perfGroupId, res_id, timetype, moTypeId))
+					{
+						return;
+					}
+
+				}
+				else
+				{
+					if (!colAll())
+					{
+						return;
+					}
+				}
+				dataMap.data = dataList;
+				var evt:ThresHoldEvent = new ThresHoldEvent(ThresHoldEvent.SAVE_THRESHOLD_VALUES);
+				evt.param = dataMap;
+				dispatchMsg(evt);
+
+			}
+
+			//搜集一页所有数据
+			private function colAll():Boolean
+			{
+				dataMap.resType = String(int(resType) + 1);
+				//0表示不同步
+				dataMap.isSync = "0";
+				if ("0" == resType)
+				{
+					if (flag["0_0"] > 0)
+					{
+						if (!collectionData(proviceget, flag["0_0"], perfTypePro1.selectedItem.key, perfGroupIdPro1.selectedItem.perfGroupId, "00", "1"))
+						{
+							return false;
+						}
+					}
+					if (flag["0_1"] > 0)
+					{
+						if (!collectionData(proviceget2, flag["0_1"], perfTypePro2.selectedItem.key, perfGroupIdPro2.selectedItem.perfGroupId, "00", "2"))
+						{
+							return false;
+						}
+
+					}
+					if (flag["0_2"] > 0)
+					{
+						if (!collectionData(proviceget3, flag["0_2"], perfTypePro3.selectedItem.key, perfGroupIdPro3.selectedItem.perfGroupId, "00", "3"))
+						{
+							return false;
+						}
+
+					}
+					if (flag["0_3"] > 0)
+					{
+						if (!collectionData(proviceget4, flag["0_3"], perfTypePro4.selectedItem.key, perfGroupIdPro4.selectedItem.perfGroupId, "00", "4"))
+						{
+							return false;
+						}
+
+
+					}
+					if (flag["0_4"] > 0)
+					{
+						if (!collectionData(proviceget5, flag["0_4"], perfTypePro5.selectedItem.key, perfGroupIdPro5.selectedItem.perfGroupId, "00", "5"))
+						{
+							return false;
+						}
+					}
+				}
+				else if ("1" == resType)
+				{
+					if (flag["1_0"] > 0)
+					{
+						if (!collectionData(cityget1, flag["1_0"], perfTypeCity1.selectedItem.key, perfGroupIdCity1.selectedItem.perfGroupId, cityList1.selectedItem.cityId, "1"))
+						{
+							return false;
+						}
+
+					}
+					if (flag["1_1"] > 0)
+					{
+						if (!collectionData(cityget2, flag["1_1"], perfTypeCity2.selectedItem.key, perfGroupIdCity2.selectedItem.perfGroupId, cityList2.selectedItem.cityId, "2"))
+						{
+							return false;
+						}
+
+					}
+					if (flag["1_2"] > 0)
+					{
+						if (!collectionData(cityget3, flag["1_2"], perfTypeCity3.selectedItem.key, perfGroupIdCity3.selectedItem.perfGroupId, cityList3.selectedItem.cityId, "3"))
+						{
+							return false;
+						}
+
+					}
+					if (flag["1_3"] > 0)
+					{
+						if (!collectionData(cityget4, flag["1_3"], perfTypeCity4.selectedItem.key, perfGroupIdCity4.selectedItem.perfGroupId, cityList4.selectedItem.cityId, "4"))
+						{
+							return false;
+						}
+
+					}
+					if (flag["1_4"] > 0)
+					{
+						if (!collectionData(cityget5, flag["1_4"], perfTypeCity5.selectedItem.key, perfGroupIdCity5.selectedItem.perfGroupId, cityList5.selectedItem.cityId, "5"))
+						{
+							return false;
+						}
+
+					}
+				}
+				else if ("2" == resType)
+				{
+					if (flag["2_0"] > 0)
+					{
+						if (!collectionData(moget1, flag["2_0"], perfTypeMo1.selectedItem.key, perfGroupIdMo1.selectedItem.perfGroupId, moTypeList1.selectedItem.moTypeId, "1", moTypeList1.selectedItem.moTypeId))
+						{
+							return false;
+						}
+
+					}
+					if (flag["2_1"] > 0)
+					{
+						if (!collectionData(moget2, flag["2_1"], perfTypeMo2.selectedItem.key, perfGroupIdMo2.selectedItem.perfGroupId, moTypeList2.selectedItem.moTypeId, "2", moTypeList2.selectedItem.moTypeId))
+						{
+							return false;
+						}
+
+					}
+					if (flag["2_2"] > 0)
+					{
+						if (!collectionData(moget3, flag["2_2"], perfTypeMo3.selectedItem.key, perfGroupIdMo3.selectedItem.perfGroupId, moTypeList3.selectedItem.moTypeId, "3", moTypeList3.selectedItem.moTypeId))
+						{
+							return false;
+						}
+
+					}
+					if (flag["2_3"] > 0)
+					{
+						if (!collectionData(moget4, flag["2_3"], perfTypeMo4.selectedItem.key, perfGroupIdMo4.selectedItem.perfGroupId, moTypeList4.selectedItem.moTypeId, "4", moTypeList4.selectedItem.moTypeId))
+						{
+							return false;
+						}
+
+					}
+					if (flag["2_4"] > 0)
+					{
+						if (!collectionData(moget5, flag["2_4"], perfTypeMo5.selectedItem.key, perfGroupIdMo5.selectedItem.perfGroupId, moTypeList5.selectedItem.moTypeId, "5", moTypeList5.selectedItem.moTypeId))
+						{
+							return false;
+						}
+					}
+				}
+				return true;
+			}
+
+			//校验一个粒度内数据类不能有交集
+			private function checkNoRela(vg:VGroup, length:int, title:String):Boolean
+			{
+				var tempi:Object;
+				var tempj:Object;
+				var up_operi:int;
+				var up_thresholdi:Number;
+				var down_operi:int;
+				var down_thresholdi:Number;
+				var up_operj:int;
+				var up_thresholdj:Number;
+				var down_operj:int;
+				var down_thresholdj:Number;
+				if (length > 1)
+				{
+					for (var i:int = 0; i < length - 1; i++)
+					{
+						log.info("i" + i);
+						for (var j:int = i + 1; j < length; j++)
+						{
+							log.info("j" + j);
+							if (vg.getElementAt(i))
+							{
+								tempi = vg.getElementAt(i) as ThresHoldDelPanel;
+							}
+							if (vg.getElementAt(j))
+							{
+								tempj = vg.getElementAt(j) as ThresHoldDelPanel;
+							}
+							up_operi = int(tempi.up_oper.selectedItem.key);
+							if ("" == tempi.up_threshold.text)
+							{
+								up_thresholdi = 100000000000000000000000000000000;
+							}
+							else
+							{
+								up_thresholdi = int(tempi.up_threshold.text);
+							}
+
+							down_operi = int(tempi.down_oper.selectedItem.key);
+							if ("" == tempi.down_threshold.text)
+							{
+								down_thresholdi = -1;
+							}
+							else
+							{
+								down_thresholdi = int(tempi.down_threshold.text);
+							}
+
+							up_operj = int(tempj.up_oper.selectedItem.key);
+							if ("" == tempj.up_threshold.text)
+							{
+								up_thresholdj = 100000000000000000000000000000000;
+							}
+							else
+							{
+								up_thresholdj = int(tempj.up_threshold.text);
+							}
+
+							down_operj = int(tempj.down_oper.selectedItem.key);
+							if ("" == tempj.down_threshold.text)
+							{
+								down_thresholdj = -1;
+							}
+							else
+							{
+								down_thresholdj = int(tempj.down_threshold.text);
+							}
+
+							//符号和数字成对出现
+							if ((-1 == up_operi && "" != tempi.up_threshold.text) || (-1 != up_operi && "" == tempi.up_threshold.text))
+							{
+								Alert.show(title + "第" + (i + 1) + "组上限阈值配置选择了符号就必须填写阈值，填写了阈值必须选择符号，请重新配置");
+								return false;
+							}
+							if ((-1 == down_operi && "" != tempi.down_threshold.text) || (-1 != down_operi && "" == tempi.down_threshold.text))
+							{
+								Alert.show(title + "第" + (i + 1) + "组下限阈值配置选择了符号就必须填写阈值，填写了阈值必须选择符号，请重新配置");
+								return false;
+							}
+							if ((-1 == up_operj && "" != tempj.up_threshold.text) || (-1 != up_operj && "" == tempj.up_threshold.text))
+							{
+								Alert.show(title + "第" + (j + 1) + "组上限阈值配置选择了符号就必须填写阈值，填写了阈值必须选择符号，请重新配置");
+								return false;
+							}
+							if ((-1 == down_operj && "" != tempj.down_threshold.text) || (-1 != down_operj && "" == tempj.down_threshold.text))
+							{
+								Alert.show(title + "第" + (j + 1) + "组下限阈值配置选择了符号就必须填写阈值，填写了阈值必须选择符号，请重新配置");
+								return false;
+							}
+							//上下限不同时为空
+							if ("" == tempi.up_threshold.text && "" == tempi.down_threshold.text)
+							{
+								Alert.show(title + "第" + (i + 1) + "组不能同时不配置上限和下限，请重新配置");
+								return false;
+							}
+							if ("" == tempj.up_threshold.text && "" == tempj.down_threshold.text)
+							{
+								Alert.show(title + "第" + (j + 1) + "组不能同时不配置上限和下限，请重新配置");
+								return false;
+							}
+							log.info("i-->down_thresholdi:"+down_thresholdi +",up_thresholdi:"+up_thresholdi);
+							log.info("j-->down_thresholdj:"+down_thresholdj +",up_thresholdj:"+up_thresholdj);
+							//在多组数据中 下限不能大于上限
+							if (down_thresholdi >= up_thresholdi)
+							{
+								Alert.show(title + "第" + (i + 1) + "组的数据上限必须大于下限，请重新配置");
+								return false;
+							}
+							if (down_thresholdj >= up_thresholdj)
+							{
+								Alert.show(title + "第" + (j + 1) + "组的数据上限必须大于下限，请重新配置");
+								return false;
+							}
+							//数据不能交集
+							if (pm.mixed(up_thresholdi, up_operi, down_thresholdj, down_operj, up_thresholdj, up_operj))
+							{
+								Alert.show(title + "第" + (i + 1) + "和" + (j + 1) + "组数据有交集");
+								return false;
+							}
+							if (pm.mixed(down_thresholdi, down_operi, down_thresholdj, down_operj, up_thresholdj, up_operj))
+							{
+								Alert.show(title + "第" + (i + 1) + "和" + (j + 1) + "组数据有交集");
+								return false;
+							}
+							if (pm.mixed(down_thresholdj, down_operj, down_thresholdi, down_operi, up_thresholdi, up_operi))
+							{
+								Alert.show(title + "第" + (i + 1) + "和" + (j + 1) + "组数据有交集");
+								return false;
+							}
+							if (pm.mixed(up_thresholdj, up_operj, down_thresholdi, down_operi, up_thresholdi, up_operi))
+							{
+								Alert.show(title + "第" + (i + 1) + "和" + (j + 1) + "组数据有交集");
+								return false;
+							}
+							//指标颜色如果存在，必选验证，2013-9-2，mod by 汪炜。
+							log.info("tempi.colorsel.visible:"+tempi.colorsel.visible + ",tempi.colorsel.selectedItem.key:"+tempi.colorsel.selectedItem.key);
+							if  (tempi.colorsel.visible && ("" == tempi.colorsel.selectedItem.key 
+								|| "-1" == tempi.colorsel.selectedItem.key))
+							{
+								Alert.show(title + "第" + (i + 1) + "组必需配置指标渲染颜色，请重新配置");
+								return false;
+							}
+							log.info("tempj.colorsel.visible:"+tempj.colorsel.visible + ",tempj.colorsel.selectedItem.key:"+tempj.colorsel.selectedItem.key);
+							if  (tempj.colorsel.visible && ("" == tempj.colorsel.selectedItem.key 
+								|| "-1" == tempj.colorsel.selectedItem.key))
+							{
+								Alert.show(title + "第" + (j + 1) + "组必需配置指标渲染颜色，请重新配置");
+								return false;
+							}
+
+						}
+					}
+				}
+				else if (length == 1)
+				{
+					var temp:ThresHoldDelPanel;
+					var up_oper:int;
+					var up_threshold:Number;
+					var down_oper:int;
+					var down_threshold:int;
+					if (vg.getElementAt(0))
+					{
+						temp = vg.getElementAt(0) as ThresHoldDelPanel;
+					}
+					up_oper = int(temp.up_oper.selectedItem.key);
+					if ("" == temp.up_threshold.text)
+					{
+						up_threshold = 100000000000000000000000000000000;
+					}
+					else
+					{
+						up_threshold = int(temp.up_threshold.text);
+					}
+
+					down_oper = int(temp.down_oper.selectedItem.key);
+					if ("" == temp.down_threshold.text)
+					{
+						down_threshold = -1;
+					}
+					else
+					{
+						down_threshold = int(temp.down_threshold.text);
+					}
+					if ((-1 == up_oper && "" != temp.up_threshold.text) || (-1 != up_oper && "" == temp.up_threshold.text))
+					{
+						Alert.show(title + "第" + (i + 1) + "组上限阈值配置选择了符号就必须填写阈值，填写了阈值必须选择符号，请重新配置");
+						return false;
+					}
+					if ((-1 == down_oper && "" != temp.down_threshold.text) || (-1 != down_oper && "" == temp.down_threshold.text))
+					{
+						Alert.show(title + "第" + (i + 1) + "组下限阈值配置选择了符号就必须填写阈值，填写了阈值必须选择符号，请重新配置");
+						return false;
+					}
+					//指标颜色如果存在，必选验证，2013-9-2，mod by 汪炜。
+					log.info("temp.colorsel.visible:"+temp.colorsel.visible + ",temp.colorsel.selectedItem.key:"+temp.colorsel.selectedItem.key);
+					if (temp.colorsel.visible && ("" == temp.colorsel.selectedItem.key 
+						|| "-1" == temp.colorsel.selectedItem.key))
+					{
+						Alert.show(title + "第" + (i + 1) + "组必需配置指标渲染颜色，请重新配置");
+						return false;
+					}
+				}
+				return true;
+			}
+
+
+			//搜集数据的方法
+			private function collectionData(vg:VGroup, length:int, perfType:String, perfGroupId:String, res_id:String, timetype:String, moTypeId:String = null):Boolean
+			{
+				if (length == 0)
+				{
+					Alert.show("当前的采集粒度还未进行配置");
+					return false;
+				}
+				if (!checkNoRela(vg, length, pm.liduReMap[timetype]))
+				{
+					return false;
+				}
+
+				for (var i:int = 0; i < length; i++)
+				{
+					log.info("collectionData   i" + i);
+					var param:Object = new Object();
+					param.perfType = perfType;
+					param.perfGroupId = perfGroupId;
+					param.res_id = res_id;
+					if (moTypeId)
+					{
+						param.moTypeId = moTypeId;
+					}
+					param.timetype = timetype;
+
+					if (vg.getElementAt(i))
+					{
+						var del:ThresHoldDelPanel = (vg.getElementAt(i) as ThresHoldDelPanel);
+					}
+					param.index_id = String(del.index);
+					param.up_oper = del.up_oper.selectedItem.key;
+					if("" == del.up_threshold.text){
+						param.up_threshold = null;
+					}else{
+						param.up_threshold = del.up_threshold.text;
+					}
+					
+					param.down_oper = del.down_oper.selectedItem.key;
+					if("" == del.down_threshold.text){
+						param.down_threshold = null;
+					}else{
+						param.down_threshold = del.down_threshold.text;
+					}
+					
+					param.isalarm = del.isalarm.selectedItem.key;
+					param.isdispatch = del.isSheet.selectedItem.key; //和后台一致，使用“isdispatch”关键字，汪炜，2013-8-26。
+					if ("1" == del.isalarm.selectedItem.key)
+					{
+						param.warning_level = del.warning_level.selectedItem.key;
+						param.rendingcolor = "";
+					}
+					else
+					{
+						param.warning_level = "1";
+//						param.rendingcolor = "0x" + del.rendingcolor.selectedColor.toString(16);
+						param.rendingcolor = del.colorsel.selectedItem.key;
+					}
+//							}
+					dataList.addItem(param);
+				}
+				return true;
+			}
+
+			//导入
+			protected function import_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				pm.importData();
+			}
+
+
+			//导出
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				pm.exportData();
+			}
+
+			protected function downLoadMod_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				navigateToURL(new URLRequest("/cms/cms/warn/doc/thresoldTemplate.xls"));
+			}
+		]]>
+	</fx:Script>
+
+	<s:TabBar dataProvider="{viewStack}"
+			  styleName="sceneTabBar1"
+			  change="tabbar_changeHandler(event)"
+			  left="10"/>
+	<mx:ViewStack id="viewStack"
+				  width="100%"
+				  left="10"
+				  creationPolicy="all"
+				  height="100%">
+		<s:NavigatorContent width="100%"
+							height="100%"
+							styleName="navigatorContent1"
+							label="省">
+			<s:SkinnableContainer width="100%"
+								  height="100%"
+								  id="proviceSki">
+				<s:layout>
+					<s:VerticalLayout gap="5"/>
+				</s:layout>
+				<mx:Accordion id="proviceAcc"
+							  width="100%"
+							  creationPolicy="all"
+							  change="acc_changeHandler(event)"
+							  height="95%">
+					<mx:Box width="100%"
+							height="100%"
+							label="采集粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypePro1">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.dm.proKpiNames1}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdPro1">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="proviceget">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="小时粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypePro2">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.dm.proKpiNames2}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdPro2">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="proviceget2">
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="日粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypePro3">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.dm.proKpiNames3}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdPro3">
+									</s:DropDownList>
+								</s:HGroup>
+
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="proviceget3"/>
+
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="周粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypePro4">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.dm.proKpiNames4}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdPro4">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="proviceget4">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="月粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypePro5">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="25%"/>
+									<s:DropDownList dataProvider="{pm.dm.proKpiNames5}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdPro5">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="proviceget5">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+				</mx:Accordion>
+				<s:HGroup width="100%"
+						  height="5%"
+						  horizontalAlign="right">
+					<s:Button label="导入"
+							  click="import_clickHandler(event)"/>
+					<s:Button label="导出"
+							  click="export_clickHandler(event)"/>
+					<s:Button label="下载模板"
+							  click="downLoadMod_clickHandler(event)"/>
+					<s:Button label="保存"
+							  click="save_clickHandler(event)"/>
+				</s:HGroup>
+			</s:SkinnableContainer>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent width="100%"
+							height="100%"
+							label="地市">
+			<s:SkinnableContainer width="100%"
+								  height="100%"
+								  id="citySki">
+				<s:layout>
+					<s:VerticalLayout gap="5"/>
+				</s:layout>
+				<mx:Accordion id="cityAcc"
+							  width="100%"
+							  change="acc_changeHandler(event)"
+							  height="95%">
+					<mx:Box width="100%"
+							height="100%"
+							label="采集粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeCity1">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityKpiNames1}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdCity1">
+									</s:DropDownList>
+									<s:Label text="地市"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityList}"
+													labelField="cityName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="cityList1">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="cityget1">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="小时粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeCity2">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityKpiNames2}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdCity2">
+									</s:DropDownList>
+									<s:Label text="地市"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityList}"
+													labelField="cityName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="cityList2">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="cityget2">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="日粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeCity3">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityKpiNames3}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdCity3">
+									</s:DropDownList>
+									<s:Label text="地市"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityList}"
+													labelField="cityName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="cityList3">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="cityget3">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="周粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeCity4">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityKpiNames4}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdCity4">
+									</s:DropDownList>
+									<s:Label text="地市"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityList}"
+													labelField="cityName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="cityList4">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="cityget4">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="月粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeCity5">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityKpiNames5}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdCity5">
+									</s:DropDownList>
+									<s:Label text="地市"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.cityList}"
+													labelField="cityName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="cityList5">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="cityget5">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+				</mx:Accordion>
+				<s:HGroup width="100%"
+						  height="5%"
+						  horizontalAlign="right">
+					<s:Button label="导入"
+							  click="import_clickHandler(event)"/>
+					<s:Button label="导出"
+							  click="export_clickHandler(event)"/>
+					<s:Button label="下载模板"
+							  click="downLoadMod_clickHandler(event)"/>
+					<s:Button label="保存"
+							  click="save_clickHandler(event)"/>
+				</s:HGroup>
+			</s:SkinnableContainer>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent width="100%"
+							height="100%"
+							label="网元">
+			<s:SkinnableContainer width="100%"
+								  height="100%"
+								  id="moSki">
+				<s:layout>
+					<s:VerticalLayout gap="5"/>
+				</s:layout>
+				<mx:Accordion id="moAcc"
+							  width="100%"
+							  change="acc_changeHandler(event)"
+							  height="95%">
+					<mx:Box width="100%"
+							height="100%"
+							label="采集粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeMo1">
+									</s:DropDownList>
+									<s:Label text="网元类型"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moTypeList1}"
+													labelField="moTypeName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfMoTypesPro1_changeHandler(event)"
+													id="moTypeList1">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moKpiNames1}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdMo1">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="moget1">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="小时粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeMo2">
+									</s:DropDownList>
+									<s:Label text="网元类型"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moTypeList2}"
+													labelField="moTypeName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfMoTypesPro1_changeHandler(event)"
+													id="moTypeList2">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moKpiNames2}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdMo2">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="moget2">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="日粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeMo3">
+									</s:DropDownList>
+									<s:Label text="网元类型"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moTypeList3}"
+													labelField="moTypeName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfMoTypesPro1_changeHandler(event)"
+													id="moTypeList3">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moKpiNames3}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdMo3">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="moget3">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="周粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeMo4">
+									</s:DropDownList>
+									<s:Label text="网元类型"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moTypeList4}"
+													labelField="moTypeName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfMoTypesPro1_changeHandler(event)"
+													id="moTypeList4">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moKpiNames4}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdMo4">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="moget4">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+					<mx:Box width="100%"
+							height="100%"
+							label="月粒度阀值设置">
+						<s:Scroller width="100%"
+									height="100%">
+							<s:Group width="100%"
+									 height="100%">
+								<s:layout>
+									<s:VerticalLayout gap="5"/>
+								</s:layout>
+								<s:HGroup width="100%"
+										  height="10%"
+										  paddingTop="5"
+										  verticalAlign="middle">
+									<s:Label text="指标分类"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.kpiTypeList}"
+													labelField="value"
+													width="140"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfTypePro1_changeHandler(event)"
+													id="perfTypeMo5">
+									</s:DropDownList>
+									<s:Label text="网元类型"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moTypeList5}"
+													labelField="moTypeName"
+													width="160"
+													selectedIndex="0"
+													requireSelection="true"
+													change="perfMoTypesPro1_changeHandler(event)"
+													id="moTypeList5">
+									</s:DropDownList>
+									<s:Label text="指标名称"
+											 textAlign="center"
+											 width="15%"/>
+									<s:DropDownList dataProvider="{pm.dm.moKpiNames5}"
+													labelField="perfGroupName"
+													width="160"
+													selectedIndex="0"
+													change="perfGroupIdPro1_changeHandler(event)"
+													id="perfGroupIdMo5">
+									</s:DropDownList>
+								</s:HGroup>
+								<s:VGroup width="100%"
+										  gap="5"
+										  height="90%"
+										  paddingTop="5"
+										  id="moget5">
+									<!--<threshold:ThresHoldAddPanel width="100%"/>-->
+								</s:VGroup>
+							</s:Group>
+						</s:Scroller>
+					</mx:Box>
+				</mx:Accordion>
+				<s:HGroup width="100%"
+						  height="30"
+						  verticalAlign="middle"
+						  horizontalAlign="right">
+					<s:Button label="导入"
+							  click="import_clickHandler(event)"/>
+					<s:Button label="导出"
+							  click="export_clickHandler(event)"/>
+					<s:Button label="下载模板"
+							  click="downLoadMod_clickHandler(event)"/>
+					<s:Button label="保存"
+							  click="save_clickHandler(event)"/>
+				</s:HGroup>
+			</s:SkinnableContainer>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+</s:VGroup>

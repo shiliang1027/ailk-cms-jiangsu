@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   preinitialize="application_preinitializeHandler(event)"
+			   creationComplete="application_creationCompleteHandler(event)"
+			   preloader="com.linkage.module.cms.components.downloadprogress.LoadingProgressBar"
+			   xmlns:view="com.linkage.module.cms.alarm.pubflow.view.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.module.server.source.DefaultCollection;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.alarm.flow.FlowAlarm");
+			/**
+			 * 数据控制类
+			 */
+			private var _windowId:String=null;
+			/**
+			 * 数据控制类
+			 */
+			private var _alarmAction:AlarmAction=null;
+
+			//初始化系统信息
+			protected function application_preinitializeHandler(event:FlexEvent):void
+			{
+				//1.初始化logger
+				var target:ILoggingTarget=new MonsterTarget2();
+				target.level=this.parameters.logLevel;
+				target.filters=[this.parameters.filters];
+				Log.addTarget(target);
+				//2.初始化样式信息
+				if (this.parameters.local == "true")
+				{
+					styleManager.loadStyleDeclarations2("./css/common/blank/ui.swf");
+				}
+				else
+				{
+					styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				}
+				//3.修正输入法
+				addEventListener(MouseEvent.ROLL_OUT, setSRF);
+			}
+
+			//初始化告警信息
+			protected function application_creationCompleteHandler(event:FlexEvent):void
+			{
+				System.useCodePage=true;
+				if (this.parameters.local == "true")
+				{
+					localTest();
+				}
+				else
+				{
+					initFlowWindow();
+				}
+			}
+
+			//修改输入法
+			private function setSRF(event:MouseEvent):void
+			{
+				if (Capabilities.hasIME)
+				{
+					try
+					{
+						if (!IME.enabled)
+						{
+							IME.enabled=true;
+						}
+						IME.conversionMode="CHINESE";
+					}
+					catch (error:Error)
+					{
+
+					}
+				}
+			}
+
+			//初始化告警控制类并把数据注入视图
+			private function initFlowWindow():void
+			{
+				_alarmAction=new AlarmAction(this.parameters, DefaultCollection);
+				_alarmAction.regListener(new ArrayList(), function():void
+					{
+						//1.初始化窗口ID
+						var winJsons:Array=_alarmAction.alarmParamMo.winJsons;
+						var uniqueKey:String=(winJsons.length > 0) ? winJsons[0].windowUniquekey : '';
+						_windowId=(winJsons.length > 0) ? winJsons[0].windowId : "1";
+						log.info("当前展示窗口Id=" + _windowId);
+						//2.活动告警窗口
+						activeView.alarmAction=_alarmAction;
+						activeView.windowUniquekey=uniqueKey;
+						activeView.windowId=_windowId;
+						activeView.initView();
+						//3.清除告警窗口
+						clearView.alarmAction=_alarmAction;
+						clearView.windowUniquekey=uniqueKey;
+						clearView.windowId=_windowId;
+						clearView.initView();
+					});
+			}
+
+			//本地测试
+			private function localTest():void
+			{
+				//1.初始化告警控制类并把数据注入视图
+				_alarmAction=new AlarmAction(this.parameters, DefaultCollection);
+				_alarmAction.regListenerDefaultTest();
+				_alarmAction.sendAlarmTest();
+				//2.活动告警窗口
+				activeView.alarmAction=_alarmAction;
+				activeView.windowId="91"
+				activeView.initView();
+				//3.清除告警窗口
+				clearView.alarmAction=_alarmAction;
+				clearView.windowId="91"
+				clearView.initView();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:Group top="-25"
+				 width="100%"
+				 height="100%">
+			<mx:ViewStack id="myViewStack"
+						  width="100%"
+						  height="100%"
+						  top="23"
+						  creationPolicy="all"
+						  paddingBottom="2"
+						  paddingLeft="2"
+						  paddingRight="2"
+						  paddingTop="2">
+				<s:NavigatorContent label="活动告警">
+					<s:Scroller width="100%"
+								height="100%"
+								verticalScrollPolicy="auto"
+								horizontalScrollPolicy="auto">
+						<view:AlarmSceneView id="activeView"
+										windowType="1"/>
+					</s:Scroller>
+				</s:NavigatorContent>
+				<s:NavigatorContent label="清除告警">
+					<s:Scroller width="100%"
+								height="100%"
+								verticalScrollPolicy="auto"
+								horizontalScrollPolicy="auto">
+						<view:AlarmSceneView id="clearView"
+										windowType="0"/>
+					</s:Scroller>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+			<s:TabBar dataProvider="{myViewStack}"
+					  buttonMode="true"
+					  styleName="commonTabBar"/>
+		</s:Group>
+	</s:Scroller>
+</s:Application>

@@ -1,0 +1,735 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:CompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					titleIcon="@Embed(source='../img/title_ico02.png')"
+					title="场景概述"
+					height.allNetState="300"
+					height.OtherState="300"
+					height.LTEState="300"
+					height.ZDState="300"
+					creationComplete="Init();">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.KpiAreaOrMoBadTrendCompNew;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroAlarmStatsNew;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroAreaWin;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroInfoWin;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroKPIDetailNew;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroMoWin;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroQuitDetailNew;
+			import com.linkage.module.cms.gsscene.viewnew.sceneintronew.SceneIntroQuitNew;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Bindable]
+			private var userStr:String;
+			[Bindable]
+			private var telephoneStr:String;
+			[Bindable]
+			private var telephoneStr1:String;
+			[Bindable]
+			private var quitServiceStr:String;
+			[Bindable]
+			private var btsCount:String;
+			[Bindable]
+			private var warnStr:String;
+			[Bindable]
+			private var provinceStr:int;
+			[Bindable]
+			private var areaStr:int;
+			[Bindable]
+			private var unitStr:int;
+			//流量数据
+			[Bindable]
+			private var gsmFlow:String;
+			[Bindable]
+			private var tdFlow:String;
+			[Bindable]
+			private var lteFlow:String;
+			[Bindable]
+			private var stringStr:String;
+			
+			
+			
+			//3G话务量是否显示
+			[Bindable]
+			private var oneTalkVisible:Boolean=true;
+			//2G流量是否显示
+			[Bindable]
+			private var gsmFlowVisible:Boolean=true;
+			//3G流量是否显示
+			[Bindable]
+			private var tdFlowVisible:Boolean=true;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneIntroNew);
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			[MessageHandler(selector = "PAUSE_NEWS")]
+			public function gridGroup_mouseOverHandler(e:SceneEvent = null):void
+			{
+				gridMove.pause();
+			}
+			
+			[MessageHandler(selector = "RESUME_NEWS")]
+			public function gridGroup_mouseOutHandler(e:SceneEvent = null):void
+			{
+				gridMove.resume();
+				
+			}
+			/**
+			 * 初始化方法
+			 **/ 
+			public function Init():void{
+				switch(user.logicalType)
+				{
+					case "1":
+					{
+						this.currentState= 'allNetState';
+						break;
+					}
+					case "2":
+					{
+						this.currentState= 'LTEState';
+						break;
+					}
+					default:
+					{
+						this.currentState= 'OtherState';
+						break;
+					}
+				}
+				
+				switch(user.sceneId){
+					case "1001"://高铁场景
+					case "1011"://LTE
+						oneTalkVisible=false;
+						gsmFlowVisible=false;
+						tdFlowVisible=false;
+						break;
+					case "2017":
+					case "2027":
+						quitGroup.visible=false;
+						quitGroup.includeInLayout=false;
+						break;
+				}
+			}
+			[Inject("sceneIntroKPIDetailNew")]
+			public var sceneIntroKPIDetail:SceneIntroKPIDetailNew;
+			protected function person_hgroup_clickHandler(event:MouseEvent):void
+			{
+				log.info("加载用户数");
+				sceneIntroKPIDetail.title ="总用户数";
+				sceneIntroKPIDetail.cityChartLabel="用户数";
+				sceneIntroKPIDetail.historyChartLabel="用户数";
+				PopUpManager.addPopUp(sceneIntroKPIDetail, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(sceneIntroKPIDetail);//居中显示;
+				parentApplication.loadManager.showLoading();
+				//msgDispatcher(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_PERSONS_DATA));
+				requestServerUtil.addRequest(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_PERSONS_DATA));
+			}
+			
+			protected function traffic_hgroup_clickHandler(event:MouseEvent):void
+			{
+				log.info("加载总话务量");
+				sceneIntroKPIDetail.title ="总话务量";
+				sceneIntroKPIDetail.cityChartLabel="话务量";
+				sceneIntroKPIDetail.historyChartLabel="话务量";
+				PopUpManager.addPopUp(sceneIntroKPIDetail, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(sceneIntroKPIDetail);//居中显示;
+				parentApplication.loadManager.showLoading();
+				//msgDispatcher(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_TRAFFIC_DATA));
+				requestServerUtil.addRequest(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_TRAFFIC_DATA));
+			}
+			[Inject("sceneIntroQuitNew")]
+			public var sceneIntroQuitNew:SceneIntroQuitNew;
+			protected function quitService_hgroup_clickHandler(event:MouseEvent):void
+			{
+				log.info("SceneIntro 显示sceneIntroQuit");
+				sceneIntroQuitNew.title="退服基站";
+				sceneIntroQuitNew.doDrillAlarm = quitDetailService_clickHandler;
+				PopUpManager.addPopUp(sceneIntroQuitNew, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(sceneIntroQuitNew);//居中显示;
+				//msgDispatcher(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_QUIT_DATA));
+				requestServerUtil.addRequest(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_QUIT_DATA));
+			}
+			[Inject("sceneIntroQuitDetailNew")]
+			public var sceneIntroQuitDetailNew:SceneIntroQuitDetailNew;
+			protected function quitDetailService_clickHandler(param:Object=null):void
+			{
+				log.info("SceneIntro sceneIntroQuitDetail");
+				PopUpManager.addPopUp(sceneIntroQuitDetailNew, this.parentApplication as DisplayObject);
+				sceneIntroQuitDetailNew.visible = true;
+				PopUpManager.centerPopUp(sceneIntroQuitDetailNew);//居中显示;
+				sceneIntroQuitDetailNew.queryFirstPageData(param);
+			}
+			
+			[Inject("sceneIntroAlarmStatsNew")]
+			public var sceneIntroAlarmStatsNew:SceneIntroAlarmStatsNew;
+			protected function sceneIntroAlarmStats_clickHandler(event:MouseEvent=null):void
+			{
+				log.info("SceneIntro sceneIntroAlarmStats");
+				sceneIntroAlarmStatsNew.title="告警信息";
+				PopUpManager.addPopUp(sceneIntroAlarmStatsNew, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(sceneIntroAlarmStatsNew);//居中显示;
+				//msgDispatcher(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_ALARMSTATS_DATA));
+				requestServerUtil.addRequest(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_ALARMSTATS_DATA));
+			}
+			
+			protected function sceneIntro_mouseOverHandler(event:MouseEvent):void
+			{
+//				childOverFlag = true;
+//				
+//				//				log.info("sceneIntro_mouseOverHandler");
+//				if (user.isNew == "1")
+//				{
+//					mx = event.stageX;
+//					my = event.stageY;
+//					
+//					setTimeout(function():void
+//					{
+//						showSignInfo(event.stageX, event.stageY, event.target as Label);
+//					}, 3000);
+//				}
+//				else
+//				{
+//					PopUpManager.removePopUp(itip);
+//				}
+			}
+			/**
+			 * 弹出区域级指标信息窗口
+			 */
+			[Inject("sceneIntroAreaWin")]
+			public var sceneIntroAreaWin:SceneIntroAreaWin;
+			protected function label1_clearHandler(event:Event = null):void
+			{
+				log.debug("区域级指标信息...");
+				PopUpManager.addPopUp(sceneIntroAreaWin, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(sceneIntroAreaWin);//居中显示;
+				dispatchMsg(new SceneIntroEvent("SCENEINTROAREA_SHOWDATA"));
+			}
+			
+			
+			/**
+			 * 弹出网元级指标信息窗口
+			 */
+			[Inject("sceneIntroMoWin")]
+			public var sceneIntroMoWin:SceneIntroMoWin;
+			protected function label2_clickHandler(event:MouseEvent = null):void
+			{
+				log.debug("网元级指标信息...");
+				PopUpManager.addPopUp(sceneIntroMoWin, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(sceneIntroMoWin);//居中显示;
+				dispatchMsg(new SceneIntroEvent("SCENEINTROMO_SHOWDATA"));
+			}
+			
+			[Inject("kpiAreaOrMoBadTrendCompNew")]
+			public var kpiAreaOrMoBadTrendCompNew:KpiAreaOrMoBadTrendCompNew;
+			[MessageHandler(selector = "CMS_SCENE_SCENEINTRO_SHOWAREAORMOBADTRENDGRID")]
+			public function showBadTrend(e:SceneIntroEvent):void
+			{
+				log.info("劣化趋势！！");
+				log.info(e.params);
+				kpiAreaOrMoBadTrendCompNew.param = e.params.param;
+				kpiAreaOrMoBadTrendCompNew.startTime.text = e.params.param.beginTime;
+				kpiAreaOrMoBadTrendCompNew.endTime.text = e.params.param.gatherTime;
+				kpiAreaOrMoBadTrendCompNew.trendGrid.dataProvider = e.params.result;
+				PopUpManager.addPopUp(kpiAreaOrMoBadTrendCompNew, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(kpiAreaOrMoBadTrendCompNew);//居中显示;
+			}
+			
+			[MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				loadA();
+			}
+			
+			private function loadA():void
+			{
+//				itip.visible = false;
+//				itip.includeInLayout = false;
+				
+				log.info("场景介绍 加载数据！");
+				requestServerUtil.addRequest(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINFO_DATA));
+				requestServerUtil.addRequest(new SceneIntroEvent(SceneIntroEvent.SHOW_UNIT_KPI_INFO));
+				
+				var obj:Object = new Object();
+				
+				obj.sceneId = user.sceneId;
+				obj.level = user.level;
+				obj.cityId = user.cityId;
+				obj.labelId = 101;
+				
+				//提示信息
+				var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+				e.obj = obj;
+				log.info("loadA()");
+				log.info(e.obj);
+				//                dispatchMsg(e);
+				requestServerUtil.addRequest(e);
+			}
+			[MessageHandler(selector = "CMS_SCENE_SCENEINTRO_SCENEINTROSTRING")]
+			public function dealSceneIntroString(e:SceneIntroEvent):void
+			{
+				log.info("--滚动场景介绍--");
+				stringStr = e.params.sceneIntroString;
+//				setTimeout(function():void
+//				{
+					log.info("todayGroup.height acDG.height:{0},{1}", todayGroup.height, gridGroup.height);
+					gridMove.stop();
+					gridMove.yFrom = todayGroup.height;
+					gridMove.yTo = -gridGroup.height;
+					gridMove.easer = null;
+					gridMove.repeatCount = 0;
+					gridMove.repeatDelay = 0;
+					gridMove.duration = Math.ceil(gridGroup.height / 7) * 1000;
+					gridMove.play([gridGroup]);
+//				}, 12000);
+			}
+			[Inject("sceneIntroInfoWin")]
+			public var sceneIntroInfoWin:SceneIntroInfoWin;
+			protected function gridGroup_doubleClickHandler(e:MouseEvent):void
+			{
+				log.info("双击：进入编辑窗口");
+				sceneIntroInfoWin.stringStr = this.stringStr;
+				PopUpManager.addPopUp(sceneIntroInfoWin, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(sceneIntroInfoWin);//居中显示;
+			}
+			[MessageHandler(selector = "SHOW_SCENE_GAME_ACTIVE")]
+			public function showSceneGameActive(e:SceneIntroEvent):void
+			{
+				log.info(scenePM.sceneIntroDM.kpiData);
+				log.info("scenePM.sceneIntroDM.kpiData['btsCount']-->"+scenePM.sceneIntroDM.kpiData['btsCount']);
+				userStr = scenePM.sceneIntroDM.kpiData['userNum'];
+				telephoneStr = scenePM.sceneIntroDM.kpiData['callNum'];
+				telephoneStr1 = scenePM.sceneIntroDM.kpiData['callNum1'];
+				quitServiceStr = scenePM.sceneIntroDM.kpiData['quitMo'];
+				btsCount = scenePM.sceneIntroDM.kpiData['btsCount'];
+				warnStr = scenePM.sceneIntroDM.kpiData['alarm1MoNument'];
+				
+				gsmFlow = scenePM.sceneIntroDM.kpiData['gsmFlow'];
+				tdFlow = scenePM.sceneIntroDM.kpiData['tdFlow'];
+				lteFlow = ((scenePM.sceneIntroDM.kpiData['lteFlow']) * 4).toString();
+				
+			}
+			
+			[MessageHandler(selector = "SHOW_MO_KPI_INFO")]
+			public function showSceneIntroMo(e:SceneIntroEvent):void
+			{
+				
+				provinceStr = scenePM.sceneIntroDM.areaNums;
+				areaStr = scenePM.sceneIntroDM.areaBadNums;
+				unitStr = scenePM.sceneIntroDM.moBadNums;
+				
+//				if (sceneIntroAreaWin.visible == true)
+//				{
+//					label1_clearHandler();
+//				}
+//				
+//				if (unitWindow.visible == true)
+//				{
+//					label2_clickHandler();
+//				}
+				
+			}
+			
+			private function openUrl():void
+			{
+				if (user.sceneTypeId == "3")
+					navigateToURL(new URLRequest(user.context + "/cms/scene/venue/sports.action?sceneId=" + user.sceneId + "&level=" + user.level), "_blank");
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Move id="gridMove"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<viewnew:states>
+		<s:State name="allNetState"/><!--//日常节假日-->
+		<s:State name="LTEState"/><!--//LTE-->
+		<s:State name="ZDState"/><!--//重大活动-->
+		<s:State name="OtherState"/><!--//Other-->
+	</viewnew:states>
+	<s:VGroup width="100%">
+		<s:Group width="100%">
+			<s:SkinnableContainer width="100%"
+								  height="68"
+								  styleName="sceneNewsMainBg"
+								  left="1"
+								  right="1">
+				<s:Group id="todayGroup"
+						 clipAndEnableScrolling="true"
+						 top="3"
+						 left="3"
+						 width="100%"
+						 height="100%">
+					<s:VGroup id="gridGroup"
+							  width="100%"
+							  height="100%"
+							  right="1"
+							  left="1"
+							  mouseOver="gridGroup_mouseOverHandler()"
+							  mouseOut="gridGroup_mouseOutHandler()">
+						<s:Label width="100%" buttonMode="true" styleName="sceneNewsLable2" text="{stringStr}"
+								 doubleClickEnabled="true" doubleClick="gridGroup_doubleClickHandler(event)"/>
+					</s:VGroup>
+					<!--<s:Button label="编辑"
+					id="editSceneActivityInfo"
+					click="editSceneActivityInfo_clickHandler()"
+					bottom="5"
+					left="5"/>-->
+				</s:Group>
+			</s:SkinnableContainer>
+		</s:Group>
+		
+		<s:SkinnableContainer id="maingroup" width="100%" height="200" >
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			
+			<mx:HRule width="100%" height="1" />
+			<s:HGroup width="100%" height="100%" gap="0" paddingLeft="5" paddingRight="5" clipAndEnableScrolling="true">
+				<s:HGroup id="person_hgroup"
+						  mouseChildren.allNetState="true"
+						  useHandCursor.allNetState="true"
+						  buttonMode.allNetState="true"
+						  click.allNetState="person_hgroup_clickHandler(event)"
+						  width="100%"
+						  height="100%"
+						  width.LTEState="50%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/用户数.png')"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="用户数"
+								 id="userNum"
+								 mouseOver="sceneIntro_mouseOverHandler(event)"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label id="userNumStr" text="{userStr}" 
+									 textDecoration.allNetState="underline"
+									 styleName="sceneNewsLable4"/>
+							<s:Label text="[万人]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				<s:HGroup id="traffic_hgroup"
+						  mouseChildren.allNetState="true"
+						  useHandCursor.allNetState="true"
+						  buttonMode.allNetState="true"
+						  click.allNetState="traffic_hgroup_clickHandler(event)"
+						  width="100%"
+						  width.LTEState="50%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/话务量.png')"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="2G话务量(时)"
+								 text.LTEState="流量"
+								 id="phoneNum"
+								 mouseOver="sceneIntro_mouseOverHandler(event)"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label id="phoneNumStr" text="{telephoneStr}"
+									 textDecoration.allNetState="underline"
+									 styleName="sceneNewsLable4"/>
+							<s:Label id="unitLabel"
+									 text="[ERL]"
+									 text.LTEState="[MB]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				<s:HGroup width="100%"
+						  id="oneTalkGroup"
+						  height="100%"
+				visible="{oneTalkVisible}"
+				includeInLayout="{oneTalkVisible}"
+						  verticalAlign="middle"
+						  clipAndEnableScrolling="true"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/话务量.png')"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="VoLTE语音总流量"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label text="{telephoneStr1}"
+									 styleName="sceneNewsLable4"/>
+							<s:Label text="[MB]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+			</s:HGroup>
+			
+			<mx:HRule width="100%" height="1" 
+					  visible="{gsmFlowVisible}"
+					  includeInLayout="{gsmFlowVisible}"/>
+			<s:HGroup width="100%"
+					  height="100%"
+					  visible="{gsmFlowVisible}"
+					  includeInLayout="{gsmFlowVisible}"
+					  gap="0" paddingLeft="5" paddingRight="5" clipAndEnableScrolling="true">
+				<s:HGroup  width="100%"
+						   height="100%"
+						   verticalAlign="middle"
+						   horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/话务量.png')"
+							  left="0"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="2G流量(时)" styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label text="{gsmFlow}" styleName="sceneNewsLable4"/>
+							<s:Label text="[M]" styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				<s:HGroup width="100%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left" 
+						  visible="{tdFlowVisible}"
+						  includeInLayout="{tdFlowVisible}">
+					<mx:Image source="@Embed(source='../img/话务量.png')"
+							  left="0"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="VoLTE视频总流量"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label text="{tdFlow}" styleName="sceneNewsLable4"/>
+							<s:Label text="[MB]" styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				<s:HGroup width="100%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/话务量.png')"
+							  left="0"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="4G流量(时)" styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label text="{lteFlow}" styleName="sceneNewsLable4"/>
+							<s:Label text="[M]" styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+			</s:HGroup>
+			<mx:HRule width="100%" height="1" />
+			<s:HGroup width="100%"
+					  height="100%"
+					  id="quitGroup"
+					  gap="0">
+				
+				<s:HGroup id="quitService_hgroup"
+						  mouseChildren.allNetState="true"
+						  useHandCursor.allNetState="true"
+						  buttonMode.allNetState="true"
+						  click.allNetState="quitService_hgroup_clickHandler(event)"
+						  click.LTEState="quitService_hgroup_clickHandler(event)"
+						  width="50%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/退服基站.png')"
+							  left="4"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="退服基站"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label id="quitServiceId" text="{quitServiceStr}"
+									 textDecoration.allNetState="underline"
+									 textDecoration.LTEState="underline"
+									 styleName="sceneNewsLable4"/>
+							<s:Label text="[个]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				<mx:VRule width="1" height="100%" />
+				<s:HGroup id="sceneIntroAlarmGroupId"
+						  mouseChildren.allNetState="true"
+						  useHandCursor.allNetState="true"
+						  buttonMode.allNetState="true"
+						  click.allNetState="sceneIntroAlarmStats_clickHandler(event)"
+						  width="50%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/一级告警网元.png')"
+							  left="4"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="一级告警网元"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label id="warnStrId" text="{warnStr}"
+									 textDecoration.allNetState="underline"
+									 styleName="sceneNewsLable4"/>
+							<s:Label text="[个]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				
+			</s:HGroup>
+			
+			<mx:HRule width="100%" height="1" />
+			<s:HGroup width="100%"
+					  height="100%"
+					  gap="0">
+				
+				<s:HGroup width="50%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/全省保障区域.png')"
+							  left="4"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="保障区域"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label text="{provinceStr}"
+									 styleName="sceneNewsLable4"/>
+							<s:Label text="[个]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				<mx:VRule width="1" height="100%" />
+				<s:HGroup width="50%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/区域级劣化指标.png')"
+							  left="4"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="场景级劣化指标"
+								 id="sceneKPI"
+								 mouseOver="sceneIntro_mouseOverHandler(event)"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label text="{areaStr}"
+									 click="label1_clearHandler(event)"
+									 textDecoration="underline"
+									 buttonMode="true"
+									 styleName="sceneNewsLable4"/>
+							<s:Label text="[个]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				
+			</s:HGroup>
+			
+			<mx:HRule width="100%" height="1" />
+			<s:HGroup width="100%"
+					  height="100%"
+					  gap="0">
+				<s:HGroup id="jizhan_hgroup"
+						  width="50%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/退服基站.png')"
+							  left="4"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="基站数"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label id="jizhanId" text="{btsCount}"
+									 styleName="sceneNewsLable4"/>
+							<s:Label text="[个]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+				<mx:VRule width="1" height="100%" />
+				<s:HGroup width="50%"
+						  height="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="left">
+					<mx:Image source="@Embed(source='../img/网元级劣化指标.png')"
+							  left="4"/>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="网元级劣化指标"
+								 id="moKPI"
+								 mouseOver="sceneIntro_mouseOverHandler(event)"
+								 styleName="sceneNewsLable3"/>
+						<s:HGroup gap="0">
+							<s:Label text="{unitStr}"
+									 click="label2_clickHandler(event)"
+									 textDecoration="underline"
+									 buttonMode="true"
+									 styleName="sceneNewsLable4"/>
+							<s:Label text="[个]"
+									 styleName="sceneNewsLable5"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:HGroup>
+			</s:HGroup>
+		</s:SkinnableContainer>
+		
+	</s:VGroup>
+</viewnew:CompWindow>

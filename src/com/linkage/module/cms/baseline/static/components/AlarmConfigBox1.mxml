@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:components="com.linkage.module.cms.baseline.static.components.*" 
+					 width="100%"
+					 height="98%"
+					 cornerRadius="5"
+					 backgroundAlpha="0.4"
+					 borderVisible="false">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.static.components.AlarmConfigBox1");
+			/**
+			 *回调函数，预览阀值 
+			 **/
+			public var configViewFun:Function;
+			/**
+			 *回调函数，预览阀值 
+			 **/
+			public var saveConfigFun:Function;
+			/**
+			 *配置阀值数据集
+			 **/
+			public var configParams:ArrayCollection=new ArrayCollection();
+			
+			public function initData(result:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				arr.addAll(result.datas as IList);
+				//阀值设置清空
+				one.reset_clickHandler();
+				two.reset_clickHandler();
+				three.reset_clickHandler();
+				//阀值设置反填
+				one.initData(arr);
+				two.initData(arr);
+				three.initData(arr);
+				//预览阀值设置
+				view_Handler();
+			}
+			/**
+			 *view阀值配置 
+			 ***/
+			var viewParams:Object = {};
+			private function doPreLoadData():void
+			{
+				viewParams = {};
+				configParams.removeAll();
+				var oneParam:Object = one.getParams();
+				var twoParam:Object = two.getParams();
+				var threeParam:Object = three.getParams();
+				if(oneParam.hasOwnProperty("thresholdDown")||oneParam.hasOwnProperty("thresholdUp")){
+					if(oneParam.hasOwnProperty("thresholdDown")&&""!=oneParam.thresholdDown){
+						viewParams['oneField1'] = oneParam.thresholdDown;
+					}
+					if(oneParam.hasOwnProperty("thresholdUp")&&""!=oneParam.thresholdUp){
+						viewParams['oneField2'] = oneParam.thresholdUp;
+					}
+					oneParam.watchTimeAlarm = this.watchTimeAlarm.text;
+					oneParam.watchTime = this.watchTimeClear.text;
+					configParams.addItem(oneParam);
+				}
+				if(twoParam.hasOwnProperty("thresholdDown")||twoParam.hasOwnProperty("thresholdUp")){
+					if(twoParam.hasOwnProperty("thresholdDown")&&""!=twoParam.thresholdDown){
+						viewParams['twoField1'] = twoParam.thresholdDown;
+					}
+					if(twoParam.hasOwnProperty("thresholdUp")&&""!=twoParam.thresholdUp){
+						viewParams['twoField2'] = twoParam.thresholdUp;
+					}
+					twoParam.watchTimeAlarm = this.watchTimeAlarm.text;
+					twoParam.watchTime = this.watchTimeClear.text;
+					configParams.addItem(twoParam);
+				}
+				if(threeParam.hasOwnProperty("thresholdDown")||threeParam.hasOwnProperty("thresholdUp")){
+					if(threeParam.hasOwnProperty("thresholdDown")&&""!=threeParam.thresholdDown){
+						viewParams['threeField1'] = threeParam.thresholdDown;
+					}
+					if(threeParam.hasOwnProperty("thresholdUp")&&""!=threeParam.thresholdUp){
+						viewParams['threeField2'] = threeParam.thresholdUp;
+					}
+					threeParam.watchTimeAlarm = this.watchTimeAlarm.text;
+					threeParam.watchTime = this.watchTimeClear.text;
+					configParams.addItem(threeParam);
+					
+				}
+				log.info(configParams);
+			}
+			
+			protected function view_Handler():void
+			{
+				doPreLoadData();
+				configViewFun(viewParams);
+			}
+			protected function ok_clickHandler():void
+			{
+				log.info("ok");
+				
+				doPreLoadData();
+				log.info(configParams);
+				if(one.checkCompData()&&two.checkCompData()&&three.checkCompData()){
+					saveConfigFun(configParams);
+				}else{
+					Alert.show("阀值配置时，是否派单和是否发告警为必选项，请维护后保存！");
+				}
+			}
+			
+			protected function reset_clickHandler():void
+			{
+				one.reset_clickHandler();
+				two.reset_clickHandler();
+				three.reset_clickHandler();
+				view_Handler();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%">
+		<s:HGroup width="100%" height="80%" verticalAlign="middle" horizontalAlign="center">
+			<s:VGroup height="100%">
+				<s:HGroup width="100%" height="33%" verticalAlign="middle">
+					<s:Label text="观察期(告警):" width="100"/>
+					<s:TextInput id="watchTimeAlarm" width="100" restrict="0-9\."/>
+					<s:Label text="分钟" />
+				</s:HGroup>
+				<s:HGroup width="100%" height="33%" verticalAlign="middle">
+					<s:Label text="观察期(清除):" width="100"/>
+					<s:TextInput id="watchTimeClear" width="100" restrict="0-9\."/>
+					<s:Label text="分钟" />
+				</s:HGroup>
+				<s:HGroup width="100%" height="33%" verticalAlign="middle">
+					<s:Label text="日常/节假日:" width="80"/>
+					<mx:DateField id="startTime"
+								  width="120"
+								  formatString="YYYY-MM-DD"/>
+					<s:Label text="~" />
+					<mx:DateField id="endTime"
+								  width="120"
+								  formatString="YYYY-MM-DD"/>
+				</s:HGroup>
+				<s:HGroup width="100%" height="33%" verticalAlign="middle">
+					<s:Label text="分母限制:" width="80"/>
+					<s:TextInput id="denominatorLimit" width="100" restrict="0-9\."/>
+				</s:HGroup>
+			</s:VGroup>
+			<s:VGroup height="100%">
+				<components:AlarmConfigBoxItem1 height="33%" width="99%" id="one" alarmTitle="一级" alarmColor="0XFF0000" warningLevel="1"/>
+				<components:AlarmConfigBoxItem1 height="33%" width="99%" id="two" alarmTitle="二级" alarmColor="0xFA8714" warningLevel="2"/>
+				<components:AlarmConfigBoxItem1 height="33%" width="99%" id="three" alarmTitle="三级" alarmColor="0xFFFF00" warningLevel="3" alarmTitleColor="0X000000"/>
+			</s:VGroup>
+		</s:HGroup>
+		<s:HGroup width="100%" height="20%" verticalAlign="middle" horizontalAlign="center">
+			<s:Button id="view" label="预览" width="80" height="20" click="view_Handler()"/>
+			<s:Button id="ok" label="确定" width="80" height="20" click="ok_clickHandler()"/>
+			<s:Button id="reset" label="重置" width="80" height="20" click="reset_clickHandler()"/>
+		</s:HGroup>
+	</s:VGroup>
+</s:BorderContainer>

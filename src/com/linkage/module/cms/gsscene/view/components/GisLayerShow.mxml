@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+               xmlns:s="library://ns.adobe.com/flex/spark"
+               xmlns:mx="library://ns.adobe.com/flex/mx"
+               width="100%"
+               height="100%"
+               preinitialize="loadLayersCfg()"
+               xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis">
+    <fx:Script>
+        <![CDATA[
+            import com.adobe.serialization.json.JSON;
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.ILoggingTarget;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.logging.LogEventLevel;
+            import com.ailk.common.system.logging.targets.MonsterTarget2;
+            import com.ailk.common.system.logging.targets.monster.MonsterDebugger;
+            import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+            import com.ailk.common.ui.gis.core.GisDynamicServiceLayer;
+            import com.ailk.common.ui.gis.core.GisFeature;
+            import com.ailk.common.ui.gis.core.metry.GisPoint;
+            import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+            import com.ailk.common.ui.gis.event.GisExtentEvent;
+            import com.linkage.module.cms.scene.view.util.ImageFactory;
+
+            import mx.collections.ArrayCollection;
+            import mx.controls.Alert;
+            import mx.events.FlexEvent;
+            import mx.rpc.events.FaultEvent;
+            import mx.rpc.events.ResultEvent;
+            import mx.rpc.http.HTTPService;
+            import mx.rpc.remoting.RemoteObject;
+
+            private var log:ILogger = Log.getLoggerByClass(GisLayerShow);
+
+            private var layerCache:Object = {};
+            private var cityId:String = "00";
+            private var ly:GisDynamicServiceLayer;
+            private var levelLayerIdMap:Object = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 1, 8: 3, 9: 4, 10: 4, 11: 4};
+
+            protected function loadLayersCfg():void
+            {
+
+                var newLogTarget:ILoggingTarget = new MonsterTarget2();
+                newLogTarget.level = LogEventLevel.DEBUG;
+                newLogTarget.filters = ["*"];
+                Log.addTarget(newLogTarget);
+
+                var httpService:HTTPService = new HTTPService();
+                httpService.method = "get";
+                httpService.resultFormat = "e4x";
+                httpService.addEventListener(ResultEvent.RESULT, catchLayerCfg);
+                httpService.url = "xml/GisLayersConfig.xml";
+                httpService.send();
+            }
+
+            private function catchLayerCfg(event:ResultEvent):void
+            {
+                var xml:XML = event.result as XML;
+                var layerList:XMLList = xml.child('layer');
+
+                for each (var layer:XML in layerList)
+                {
+                    var cityId:String = String(layer.@cityId);
+                    var layerUrl:String = String(layer.@layerUrl);
+                    var showIds:* = JSON.decode(String(layer.@showIds));
+                    var moTypeMap:* = JSON.decode(String(layer.@moTypeMap));
+
+                    if (!layerCache.hasOwnProperty(cityId))
+                        layerCache[cityId] = {};
+
+                    layerCache[cityId].layerUrl = layerUrl;
+                    layerCache[cityId].showIds = showIds;
+                    layerCache[cityId].moTypeMap = moTypeMap;
+                }
+            }
+
+            private var mapReady:Boolean = false;
+
+            protected function mapWork_creationCompleteHandler():void
+            {
+                ly = new GisDynamicServiceLayer(layerCache[cityId]['layerUrl'].toString(), new ArrayCollection([layerCache[cityId]['showIds'][0]['all']]));
+
+                log.debug("mapWork_creationCompleteHandler");
+                log.debug(ly);
+
+                mapWork.map.addGisLayer(ly);
+
+                mapReady = true;
+            }
+
+            protected function mapWork_extent_changeHandler(event:GisExtentEvent):void
+            {
+                if (mapReady)
+                {
+                    mapWork.map.removeAllGisLayers();
+
+                    var moTypeName:String = "BTS";
+                    var url:String = layerCache[cityId]['moTypeMap'][moTypeName]['layerUrl'];
+                    var id:Object = layerCache[cityId]['moTypeMap'][moTypeName]['showIds'][levelLayerIdMap[mapWork.map.level]];
+                    var showIds:ArrayCollection = new ArrayCollection([id]);
+                    ly = new GisDynamicServiceLayer(url, showIds);
+                    mapWork.map.addGisLayer(ly);
+
+                    moTypeName = "NodeB";
+                    url = layerCache[cityId]['moTypeMap'][moTypeName]['layerUrl'];
+                    id = layerCache[cityId]['moTypeMap'][moTypeName]['showIds'][levelLayerIdMap[mapWork.map.level]];
+                    showIds = new ArrayCollection([id]);
+                    ly = new GisDynamicServiceLayer(url, showIds);
+                    mapWork.map.addGisLayer(ly);
+                }
+            }
+
+            private function getLevelLayers(level:Number):Object
+            {
+                log.debug("getLevelLayers" + level);
+                log.debug(levelLayerIdMap[int(level)]);
+                log.debug(levelLayerIdMap[level]);
+
+                return layerCache[cityId]['showIds'][levelLayerIdMap[int(level)]];
+            }
+
+            private function getMotypeLayers(cache:Object):ArrayCollection
+            {
+                log.debug("getMotypeLayers");
+                log.debug(cache);
+
+                var ac:ArrayCollection = new ArrayCollection;
+
+                var motypeName:String = "BTS";
+                //BTS
+                ac.addItem(cache[motypeName]);
+
+                return ac;
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <ailk_gis:MapWork id="mapWork"
+                      defaultMapId="00"
+                      mapCreationComplete="mapWork_creationCompleteHandler()"
+                      extent_change="mapWork_extent_changeHandler(event)"
+                      width="100%"
+                      height="100%">
+
+    </ailk_gis:MapWork>
+</s:Application>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 xmlns:component="com.linkage.module.cms.general.regional.mss.view.*"
+		 width="100%"
+		 height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.mss.controller.MsgAction;
+			/**
+			 * 信息发布
+			 */
+			private var msgAction:MsgAction=null;
+
+			//初始化窗口信息
+			public function initView(params:Object):void
+			{
+				//初始化信息发布
+				msgAction=new MsgAction(params);
+
+				//初始化各个选项卡信息
+				cTemplate.msgAction=msgAction;
+				cTemplate.initView(this);
+
+				cSend.msgAction=msgAction;
+				cSend.initView();
+
+				sTemplate.msgAction=msgAction;
+				sTemplate.initView(this);
+
+				sSend.msgAction=msgAction;
+				sSend.initView();
+			}
+
+			public function loadCMsgTemplate():void
+			{
+				if (cTemplate != null)
+				{
+					cTemplate.loadTemplateData();
+				}
+				if (cSend != null)
+				{
+					cSend.loadTemplateData();
+				}
+			}
+
+			public function loadSMsgTemplate():void
+			{
+				if (sTemplate != null)
+				{
+					sTemplate.loadTemplateData();
+				}
+				if (sSend != null)
+				{
+					sSend.loadTemplateData();
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:ViewStack id="myViewStack"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  creationPolicy="all"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2">
+		<s:NavigatorContent label="彩信模板">
+			<component:CMsgTemplate id="cTemplate"
+									width="100%"
+									height="100%"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="发送彩信">
+			<component:CMsgSend id="cSend"
+								width="100%"
+								height="100%"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="短信模板">
+			<component:SMsgTemplate id="sTemplate"
+									width="100%"
+									height="100%"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="发送短信">
+			<component:SMsgSend id="sSend"
+								width="100%"
+								height="100%"/>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar dataProvider="{myViewStack}"
+			  buttonMode="true"
+			  styleName="commonTabBar"/>
+</s:Group>

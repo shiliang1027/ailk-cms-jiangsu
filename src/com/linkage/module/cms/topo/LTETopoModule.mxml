@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:linkage_compts="http://www.ailk.com/2011/ailk/components"
+		   layout="absolute" 
+		   creationComplete="module1_creationCompleteHandler(event)"
+		   width="100%" 
+		   height="100%" 
+		   xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components" 
+		   xmlns:topo="com.linkage.module.topo.framework.view.*" 
+		   xmlns:hawkeye="com.linkage.module.topo.framework.view.component.hawkeye.*" 
+		   xmlns:toolbar="com.linkage.module.topo.framework.view.component.toolbar.*" 
+		   xmlns:action="com.linkage.module.topo.framework.view.component.toolbar.action.*" 
+		   xmlns:operation="com.linkage.module.topo.framework.view.component.toolbar.operation.*" 
+		   xmlns:panel="com.linkage.module.topo.framework.view.component.panel.*" 
+		   xmlns:component="com.linkage.module.topo.framework.view.component.*" xmlns:container="com.linkage.module.cms.topo.container.*" xmlns:component1="com.linkage.module.cms.topo.component.*">
+	
+	
+	<mx:states>
+		<s:State name="map"/>
+		<s:State name="topo"/>
+	</mx:states>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.dummymap.IData;
+			import com.ailk.common.ui.components.dummymap.MapNode;
+			import com.ailk.common.ui.components.dummymap.MapNodeEvent;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.event.perfEvent;
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.cms.topo.data.http.CmsHttpDataSource;
+			import com.linkage.module.cms.topo.data.remoting.CmsRemoteDataSource;
+			import com.linkage.module.cms.topo.event.TopoEventTypes;
+			import com.linkage.module.cms.topo.service.extend.CmsExtendService;
+			import com.linkage.module.cms.topo.service.extend.TopoLocateService;
+			import com.linkage.module.cms.topo.util.CmsLoadingInfo;
+			import com.linkage.module.cms.topo.util.LinkMove;
+			import com.linkage.module.cms.topo.view.component.AttributePanel;
+			import com.linkage.module.cms.topo.view.component.AutoCreateLinkPanel;
+			import com.linkage.module.cms.topo.view.component.ImportDeviceInViewPanel;
+			import com.linkage.module.cms.topo.view.component.ImportDevicePanel;
+			import com.linkage.module.cms.topo.view.component.NodeModifyPanel;
+			import com.linkage.module.cms.utils.vectormap.MapBean;
+			import com.linkage.module.cms.utils.vectormap.VectorMapFactory;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.core.model.alarm.IAlarm;
+			import com.linkage.module.topo.framework.core.parser.XmlParserFactory;
+			import com.linkage.module.topo.framework.core.style.StyleFactory;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.data.http.HttpDataSource;
+			import com.linkage.module.topo.framework.data.remotimg.RemoteDataSource;
+			import com.linkage.module.topo.framework.service.ServiceContainer;
+			import com.linkage.module.topo.framework.service.extend.HightLightService;
+			import com.linkage.module.topo.framework.service.extend.alarm.DefaultAlarmRefService;
+			import com.linkage.module.topo.framework.service.extend.data.DefaultDataService;
+			import com.linkage.module.topo.framework.service.extend.menu.DefaultMenuService;
+			import com.linkage.module.topo.framework.service.extend.msg.DefaultMsgService;
+			import com.linkage.module.topo.framework.util.AlarmConstants;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.util.TopoUtil;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.view.component.CanvasPanelCache;
+			import com.linkage.module.topo.framework.view.component.panel.AlarmRendererConfigPanel;
+			import com.linkage.module.topo.framework.view.component.panel.AutoLayoutPanel;
+			import com.linkage.module.topo.framework.view.component.panel.CreateViewPanel;
+			import com.linkage.module.topo.framework.view.component.panel.ElementPropertyConfigPanel;
+			import com.linkage.module.topo.framework.view.component.panel.GroupModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.HLinkLayerModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.LineModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.LinkModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.PicModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.SegmentMirrorModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.SegmentModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.ShapeModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.TPGridModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.TPViewModifyPanel;
+			import com.linkage.module.topo.framework.view.component.panel.TextModifyPanel;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.CollectionEvent;
+			import mx.events.CollectionEventKind;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			private var mapBean:MapBean;
+			private var log:ILogger = Log.getLoggerByClass(LTETopoModule);
+			private var _loadingInfo:CmsLoadingInfo = new CmsLoadingInfo();
+			[Bindable]
+			private var _iconContext:String = null;
+			// 填充图标上下文
+			[Bindable]
+			private var _iconFillContext:String = null;
+			// url上下文
+			[Bindable]
+			private var _urlContext:String = null;
+			// 业务逻辑容器
+			[Bindable]
+			private var serviceContainer:ServiceContainer;
+			// 画布面板容器
+			private var _canvasPanelCache:CanvasPanelCache;
+			// 数据源
+			[Bindable]
+			private var _dataSource:IDataSource = null;
+			// CMS数据源
+			[Bindable]
+			private var _dataSourceCms:ICmsDataSource = null;
+			// 搜索类型
+			[Bindable]
+			private var _searchType:String = Constants.SEARCH_TYPE_ALL;
+			// 集客搜索的toponame过滤的正则表达式
+			[Bindable]
+			private var _searchTopoNamesRegex:String = null;
+			
+			private var parameters:Object;
+
+			private var perfMonitorDAO:PerfMonitorDAO = PerfMonitorDAO.getInstance();
+			private var _loading:ILoadingInfo = null;
+			private var dataList:ArrayCollection = new ArrayCollection();
+			private var topoId:String = "1/410dc726-6303-4904-91c5-62463d7993c6";
+			private var mapTopoConfig:Object = {"0100":"1/ba44e580-744d-4669-be23-ab6ed66bc7a8",
+				"0200":"1/5937f7a0-f6f4-47a0-85b7-56d9caf8c380",
+				"0300":"1/c18e0405-43bb-4766-b2af-ab6696ecb76b",
+				"0400":"1/2b4f77cc-7286-47e7-9d65-7768e8bfd35d",
+				"0500":"1/b9cde934-9bdb-40c5-bf6d-c92735d38d5e",
+				"0600":"1/d44808e1-d98e-409c-a398-7fdb81dc1768",
+				"0700":"1/f70b0c24-6d9b-4308-acb4-7b5b3ed282a9",
+				"0800":"1/ac807066-46aa-4543-9efc-c48eb880d010",
+				"0900":"1/f9600413-3726-4de7-9ea6-28a1ccbe8a26",
+				"1000":"1/9af349c5-f52e-4caa-9e1f-4f7089169c9e",
+				"1100":"1/1c5a00cd-a4e7-41d5-b8aa-25d9e6a3a52f",
+				"1200":"1/051d3400-6a89-46a4-8938-0d2e1e69577f",
+				"1300":"1/13bf182d-a620-462e-a562-7f410605e2e7"};
+			
+			private var _defColor:uint = 0x00ff00;
+			private var context:String = "";
+			[Bindable]
+			private var _topoName:String="";
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				parameters = parentApplication.parameters;
+				context = this.parentApplication.parameters['context'];
+				log.info("context===="+context);
+				PerfMonitorDAO.context = context;
+				try
+				{
+					// 加载样式
+					styleManager.loadStyleDeclarations2(this.parameters.styleUrl);
+					styleManager.loadStyleDeclarations2(this.parameters.topoStyle);
+				}
+				catch (e:Error)
+				{
+					log.error("加载样式时异常 {0}: {1}", e.message, e.getStackTrace());
+				}
+				this.currentState = "map";
+				getVectorMap("00");
+				topoContainer.topoCanvas.alarmArrayCollection.addEventListener(CollectionEvent.COLLECTION_CHANGE,onCollectionChange);
+				this.parameters[Constants.PARAM_TOPOID] = topoId;
+				_topoName = this.parameters[Constants.PARAM_TOPONAME];
+				topoContainer.initTopoContainer(this.parameters,false);
+				timer.addEventListener(TimerEvent.TIMER,onTimerHandler);
+				topoContainer.topoCanvas.addEventListener(TopoEventTypes.SHOW_CHART_COMPONENT, topoEventHandler_showData);
+				topoContainer.ruleAlarmService.start();
+				topoContainer.allAlarmService.start();
+				topoContainer.ruleAlarm = _ruleAlarm;
+				_ruleAlarm?topoContainer.allAlarmService.pause():topoContainer.ruleAlarmService.pause();
+				
+			}
+			
+			private function onCollectionChange(event:CollectionEvent):void{
+				log.info("[onCollectionChange]{0},{1}",event.kind);
+//				log.info(event.items);
+				switch (event.kind)
+				{
+					case CollectionEventKind.ADD:
+						//TODO创建面板
+						try{
+							mapWork.forEach(function(data:IData):void{
+								if(data.label == event.items[0].name){
+									var alarm:IAlarm = event.items[0]["alarm"];
+									if(alarm != null && alarm.hasAlarm()){
+										switch (alarm.maxLevel())
+										{
+											case AlarmConstants.LEVEL1:
+												MapNode(data).fillColor(AlarmConstants.LEVEL1_COLOR);
+												break;
+											case AlarmConstants.LEVEL2:
+												MapNode(data).fillColor(AlarmConstants.LEVEL2_COLOR);
+												break;
+											case AlarmConstants.LEVEL3:
+												MapNode(data).fillColor(AlarmConstants.LEVEL3_COLOR);
+												break;
+											case AlarmConstants.LEVEL4:
+												MapNode(data).fillColor(AlarmConstants.LEVEL4_COLOR);
+												break;
+											default:
+												log.error("渲染节点告警异常: (未知告警等级) {0}", alarm.maxLevel());
+												break;
+										}
+										//								}else{
+										//									if(data is MapNode  && String(data.id).indexOf("_a") != -1){
+										//										MapNode(data).reset();
+										//									}
+									}
+								}
+							});
+						}catch(e:Error){
+							log.error(e);
+						}
+						break;
+					case CollectionEventKind.REMOVE:
+						break;
+					case CollectionEventKind.REFRESH:
+					case CollectionEventKind.RESET:
+						mapWork.refleshMap();
+//						mapWork.forEach(function(data:IData):void{
+//							if(data is MapNode  && String(data.id).indexOf("_a") != -1){
+//								MapNode(data).fillColor(_defColor);
+//							}
+//						});
+						break;
+				}
+			}
+			
+			private function getVectorMap(city_id:String):void{
+				mapBean = VectorMapFactory.getMapDictionary("jiangsu_ltetopo","xml/map/jiangsu_ltetopo/").getMapVector(city_id)
+				//通过http请求xml文件
+				var httpService:HTTPService=new HTTPService();
+				httpService.method="get";
+				httpService.resultFormat="e4x";
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				httpService.url=mapBean.XML_URL;
+				httpService.send();
+			}
+			
+			//加载xml文件地图生成
+			private function httpService_resultHandler(event:ResultEvent):void
+			{
+				mapWork.xmlData=event.result as XML;
+				mapWork.mapObjArray=mapBean.VcetorArr;
+				//mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOVER, onMapNodeOverHandler);
+				//				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOUT, onMapNodeOutHandler);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onMapNodeClickHandler);
+				mapWork.showMap();
+			}
+			
+			private var timer:Timer = new Timer(800);
+			private function onMapNodeClickHandler(event:MapNodeEvent):void
+			{
+				var cityId:String = event.mapNode.id.split("_")[0];
+				
+				var topoId:String = mapTopoConfig[cityId];
+				log.debug("[onMapNodeClickHandler]{0},topoId:{1}",cityId,topoId);
+//				topoContainer.topoCanvas.alarmArrayCollection.removeEventListener(CollectionEvent.COLLECTION_CHANGE,onCollectionChange);
+				topoContainer.topoCanvas.clearGoBackPaths();
+				topoContainer.topoCanvas.loadTopo(topoId,parameters[Constants.PARAM_TOPONAME]);
+				timer.start();
+			}
+			
+			private function onTimerHandler(event:TimerEvent):void{
+				timer.stop();
+				timer.reset();
+				this.currentState = "topo";
+			}
+			
+			
+			protected function backBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+//				topoContainer.topoCanvas.alarmArrayCollection.addEventListener(CollectionEvent.COLLECTION_CHANGE,onCollectionChange);
+				topoContainer.topoCanvas.clearGoBackPaths();
+				topoContainer.topoCanvas.loadTopo(topoId,parameters[Constants.PARAM_TOPONAME]);
+				this.currentState = "map";
+			}
+			
+			//业务流向暂停，开启
+			protected function pauseStartBtn_clickHandler(event:MouseEvent):void
+			{
+				var moves:Array = this.topoContainer.moves;
+				//针对空的业务流向。直接返回
+//				if(null==moves || moves.length == 0){
+//					return;
+//				}
+				this.pauseStart.buttonMode = false;
+				if(this.pauseStart.label=="停止"){
+					this.pauseStart.label="开启";
+					for(var i:uint = 0; i < moves.length;i++){
+						LinkMove(moves[i]).destroy();
+					}
+					this.topoContainer.moves = new Array();
+				}else{
+					this.pauseStart.label="停止";
+//					for(var i:uint = 0; i < moves.length;i++){
+//						LinkMove(moves[i]).resume();
+//					}
+					this.topoContainer.doQueryTopoLinkObject();
+				}
+				this.pauseStart.buttonMode = true;
+			}
+			
+			
+			private function topoEventHandler_showData(event:TopoEvent):void
+			{
+//				chartWin.x = 200;
+//				chartWin.y = 60;
+//				chartWin.visible = true;
+//				chartWin.includeInLayout = true;
+				//二次开发
+				timeChartWin.visible = true;
+				timeChartWin.includeInLayout = true;
+				timeChartWin.moList.visible = false;
+				timeChartWin.moList.includeInLayout = false;
+				timeChartWin.allMos.removeAll();
+				PopUpManager.addPopUp(timeChartWin,this,true);
+				PopUpManager.centerPopUp(timeChartWin);
+				timeChartWin.init();
+				var moId:String = event.getProperty("moId");
+				var moTypeId:String = event.getProperty("moTypeId");
+				log.info(" --moId:"+moId+"--moTypeId:"+moTypeId+"--moId2:");
+				timeChartWin.setMoTypeId(moId,moTypeId);
+//				chartParam.moId = moId;
+//				chartParam.moTypeId = moTypeId;
+//				timeChartWin.moId = moId;
+//				timeChartWin.moTypeId = moTypeId;
+				
+				//测试用
+//				dataList.removeAll();
+				
+				//获取数据
+//				log.info(chartParam);
+//				perfMonitorDAO.queryPerConf(chartParam, function(result:Object):void
+//				{
+//					log.info("result=======queryPerConf==============");
+//					dataList.addAll(result as IList);
+//					log.info(dataList);
+////				timeChartWin.modatas=dataList;
+//				timeChartWin.modatas=dataList;
+//					
+//				timeChartWin.modataList.selectedIndex=0;
+//				timeChartWin.getDataPers(dataList);
+//				});
+			}
+			
+			
+			
+			//关闭弹窗
+			private function chartWin_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(timeChartWin);
+				timeChartWin.visible = false;
+				timeChartWin.includeInLayout=false; 
+			}
+			[Bindable]
+			private var _ruleAlarm:Boolean=true;
+			protected function alarmradiobutton_changeHandler(event:Event):void
+			{
+				log.info(RadioButton(event.target).value);
+				_ruleAlarm=RadioButton(event.target).value;
+				topoContainer.ruleAlarm = _ruleAlarm;
+				if(!_ruleAlarm){
+					topoContainer.allAlarmService.restore();
+					topoContainer.ruleAlarmService.pause();
+				}else{
+					topoContainer.ruleAlarmService.restore();
+					topoContainer.allAlarmService.pause();
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	
+	<s:Scroller width="100%" height="100%" visible.topo="false">
+			<s:HGroup width="100%" height="100%" horizontalAlign="center" verticalAlign="middle">
+				<ailk_compts:VectorMapWork id="mapWork"/>
+			</s:HGroup>
+	</s:Scroller>
+	<container:LTETopoContainer id="topoContainer" visible.map="false"/>
+	<s:VGroup left="10" top="10">
+		<s:HGroup visible.map="false" includeInLayout.map="false">
+			<s:Button label="返回" click="backBtn_clickHandler(event)"/>
+			<s:Button label="开启" id="pauseStart" click="pauseStartBtn_clickHandler(event)"/>
+		</s:HGroup>
+		<s:HGroup>
+			<s:RadioButton label="全量告警" selected="{!_ruleAlarm}"  value="false" groupName="alarm" change="alarmradiobutton_changeHandler(event)"/>
+			<s:RadioButton label="规则告警" selected="{_ruleAlarm}" value="ture" groupName="alarm" change="alarmradiobutton_changeHandler(event)"/>
+		</s:HGroup>
+	</s:VGroup>
+	
+	
+	<!--<ailk_compts:Window id="chartWin"
+						width="100%"
+						height="100%"
+						styleName="window"
+						minimizable="false"
+						maximizable="false"
+						visible="false"
+						includeInLayout="false"
+						dragable="true"
+						close="chartWin_closeHandler(event)">
+		<s:Label id="winLable"
+				 top="-15"/>
+		<s:VGroup>-->
+			<mx:Box visible="false" includeInLayout="false">
+			<component1:ChartComponent id="timeChartWin"
+								width="900"
+								height="350"/>
+			</mx:Box>
+				<!--</s:VGroup>
+	</ailk_compts:Window>-->
+</mx:Module>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="300" height="100" dragable="true" closable="true" close="window1_closeHandler(event)" minimizable="false" maximizable="false"
+			  title="网元过滤">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			private var _callBack:Function = null;
+			
+			public function get callBack():Function
+			{
+				return _callBack;
+			}
+			
+			public function set callBack(value:Function):void
+			{
+				_callBack = value;
+			}
+			
+			private function refreshView():void
+			{
+				if (_callBack != null)
+				{
+					_callBack.call(null);
+				}
+			}
+			
+			public function filterObject(obj:Object):Boolean
+			{
+				var flag:Boolean = false;
+				var type:String = obj.type;
+//				
+//				if (type == "2")
+//				{
+//					if (this.ap_quit.selected)
+//					{
+//						flag = true;
+//					}
+//				}
+//				else if (type == "4")
+//				{
+//					if (this.wlan_zero.selected)
+//					{
+//						flag = true;
+//					}
+//				}
+//				else if (type == "1")
+//				{
+//					if (this.ap_all.selected)
+//					{
+//						flag = true;
+//					}
+//				}
+//				else if (type == "3")
+//				{
+//					if (this.wlan_all.selected)
+//					{
+//						flag = true;
+//					}
+//				}
+				
+				return flag;
+			}
+			
+			//省级视图 不出现  “全部热点”  “全部AP” 的选择项。
+			public function provinceFlag(flag:Boolean):void
+			{
+//				wlan_all.visible = !flag;
+//				ap_all.visible = !flag;
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				this.visible = false;
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%">
+		<s:HGroup verticalAlign="middle" horizontalAlign="left">
+			<s:CheckBox id="wlan_zero" width="90" selected="true" click="refreshView()" label="零业务热点"/>
+			<s:CheckBox id="wlan_all" width="90" selected="false" click="refreshView()" label="全部热点"/>
+		</s:HGroup>
+		<mx:HRule width="100%" height="2"/>
+		<s:HGroup verticalAlign="middle" horizontalAlign="left">
+			<s:CheckBox id="ap_quit" width="90" selected="true" click="refreshView()" label="退服AP"/>
+			<s:CheckBox id="ap_all" width="90" selected="false" click="refreshView()" label="全部AP"/>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

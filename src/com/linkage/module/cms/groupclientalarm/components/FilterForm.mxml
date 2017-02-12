@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Form xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" creationComplete="filterForm_creationCompleteHandler(event)">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="formInit", type="com.linkage.module.cms.groupclientalarm.event.FilterFormEvent")]
+		[Event(name="query", type="com.linkage.module.cms.groupclientalarm.event.FilterFormEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclientalarm.event.FilterFormEvent;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientalarm.control.GroupMonitorModuleControl");
+			
+			protected function filterForm_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(FilterFormEvent.CITYCHANGE,onCityChange);
+				this.addEventListener(FilterFormEvent.SERVTYPECHANGE,onServTypeChange);
+				this.addEventListener(FilterFormEvent.SERVLEVELCHANGE,onServLevelChange);
+				this.dispatchEvent(new FilterFormEvent(FilterFormEvent.INIT));
+			}
+			
+			private function onCityChange(event:FilterFormEvent):void{
+				var result:Object = event.param;
+				var dataArray:ArrayCollection = new ArrayCollection();
+				dataArray.addItem({city_name:"全部",city_id:"00",parent_id:"00"});
+				for each(var data:Object in result){
+					log.info("[筛选器属地列表]"+data.city_id+","+data.city_name+","+data.parent_id);
+					dataArray.addItem(data);
+				}
+				cityDropDownList.dataProvider = dataArray;
+				cityDropDownList.selectedIndex=0;
+			}
+			
+			private function onServTypeChange(event:FilterFormEvent):void{
+				var result:Object = event.param;
+				var dataArray:ArrayCollection = new ArrayCollection();
+				dataArray.addItem({cust_serv_type_name:"全部",cust_serv_type_id:"-1"});
+				for each(var data:Object in result){
+					dataArray.addItem(data);
+				}
+				servTypeDropDownList.dataProvider = dataArray;
+				servTypeDropDownList.selectedIndex=0;
+				
+			}
+			
+			private function onServLevelChange(event:FilterFormEvent):void{
+				var result:Object = event.param;
+				var dataArray:ArrayCollection = new ArrayCollection();
+				dataArray.addItem({comm_name:"全部",order_by:"-1"});
+				for each(var data:Object in result){
+					dataArray.addItem(data);
+				}
+				leverDropDownList.dataProvider = dataArray;
+				leverDropDownList.selectedIndex=0;
+			}
+			
+			
+			protected function custName_keyUpHandler(event:KeyboardEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (event.keyCode == 13)
+				{
+					queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+			protected function servName_keyUpHandler(event:KeyboardEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (event.keyCode == 13)
+				{
+					queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+			protected function queryBtn_clickHandler(event:MouseEvent):void
+			{
+				if(cityDropDownList.selectedIndex<0){
+					Alert.show("请选择地市","提示");
+					return;
+				}
+				if(servTypeDropDownList.selectedIndex<0){
+					Alert.show("请选择业务类型","提示");
+					return;
+				}
+				if(leverDropDownList.selectedIndex<0){
+					Alert.show("请选择服务级别","提示");
+					return;
+				}
+				var cityId:String = String(cityDropDownList.selectedItem["city_id"]);
+				var cityName:String = String(cityDropDownList.selectedItem["city_name"]);
+				var cityLever:String = "1";
+				var parentCityId:String = String(cityDropDownList.selectedItem["parent_id"]);
+				if(parentCityId == "00"){
+					cityLever = "1";
+				}else{
+					cityLever = "2";
+				}
+				var servType:String = String(servTypeDropDownList.selectedItem["cust_serv_type_id"]);
+				var servTypeName:String = String(servTypeDropDownList.selectedItem["cust_serv_type_name"]);
+				var leverId:String = String(leverDropDownList.selectedItem["order_by"]);
+				var custName:String = custName.text;
+				var servName:String = servName.text;
+				var cust_no:String = custNo.text;
+				var prod_no:String = prodNo.text;
+				
+				if(!StringUtils.isEmpty(cityId)){
+					var groupCusStaticParam:Object = new Object();
+					groupCusStaticParam.cityId = cityId;
+					groupCusStaticParam.cityName = cityName;
+					groupCusStaticParam.cityLever = cityLever;
+					if(!StringUtils.isEmpty(leverId) && leverId != "-1"){
+						groupCusStaticParam.servLevel=leverId;
+					}
+					if(!StringUtils.isEmpty(servType) && servType != "-1"){
+						groupCusStaticParam.servType = servType;
+						groupCusStaticParam.servTypeName = servTypeName;
+					}
+					if(!StringUtils.isEmpty(custName)){
+						groupCusStaticParam.cusName = custName;
+					}
+					if(!StringUtils.isEmpty(servName)){
+						groupCusStaticParam.servName = servName;
+					}
+					if(!StringUtils.isEmpty(cust_no)){
+						groupCusStaticParam.cust_no = cust_no;
+					}
+					if(!StringUtils.isEmpty(prod_no)){
+						groupCusStaticParam.prod_no = prod_no;
+					}
+					log.info("queryBtn_clickHandler");
+					log.info(groupCusStaticParam);
+					var evt:FilterFormEvent = new FilterFormEvent(FilterFormEvent.QUERY);
+					evt.param = groupCusStaticParam;
+					this.dispatchEvent(evt);
+				}
+			}
+
+			protected function custNo_keyUpHandler(event:KeyboardEvent):void
+			{
+				if (event.keyCode == 13)
+				{
+					queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+			protected function prodNo_keyUpHandler(event:KeyboardEvent):void
+			{
+				if (event.keyCode == 13)
+				{
+					queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:FormItem label="地市：">
+		<s:DropDownList id="cityDropDownList"
+						itemRenderer="com.linkage.module.cms.groupclientalarm.renderer.CityDropDownListRenderer"
+						prompt="选择地市"
+						labelField="city_name"
+						contentBackgroundAlpha="1"
+						width="120"/>
+	</mx:FormItem>
+	<mx:FormItem label="业务类型：">
+		<s:DropDownList id="servTypeDropDownList"
+						prompt="选择业务类型"
+						labelField="cust_serv_type_name"
+						contentBackgroundAlpha="1"
+						width="120"/>
+	</mx:FormItem>
+	<mx:FormItem label="服务级别：">
+		<s:DropDownList id="leverDropDownList"
+						prompt="选择服务级别"
+						labelField="comm_name"
+						contentBackgroundAlpha="1"
+						width="120"/>
+	</mx:FormItem>
+	<mx:FormItem label="客户编号：">
+		<s:TextInput id="custNo"
+					 keyUp="custNo_keyUpHandler(event)"
+					 width="120"/>
+	</mx:FormItem>
+	<mx:FormItem label="客户名称：">
+		<s:TextInput id="custName"
+					 keyUp="custName_keyUpHandler(event)"
+					 width="120"/>
+	</mx:FormItem>
+	<mx:FormItem label="业务名称：">
+		<s:TextInput id="servName"
+					 keyUp="servName_keyUpHandler(event)"
+					 width="120"/>
+	</mx:FormItem>
+	<mx:FormItem label="产品实例标识：">
+		<s:TextInput id="prodNo"
+					 keyUp="prodNo_keyUpHandler(event)"
+					 width="120"/>
+	</mx:FormItem>
+	<mx:FormItem label="">
+		<s:Button label="查询"
+				  id="queryBtn"
+				  click="queryBtn_clickHandler(event)"
+				  buttonMode="true"/>
+	</mx:FormItem>
+</mx:Form>

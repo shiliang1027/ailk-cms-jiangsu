@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+								  xmlns:s="library://ns.adobe.com/flex/spark" 
+								  xmlns:mx="library://ns.adobe.com/flex/mx" 
+								  focusEnabled="true" creationComplete="mxadvanceddatagriditemrenderer1_creationCompleteHandler()"
+								  dataChange="mxadvanceddatagriditemrenderer1_creationCompleteHandler()">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.baseline.static.event.ADGridEditEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			protected function mxadvanceddatagriditemrenderer1_creationCompleteHandler():void
+			{
+				var dataField:String = listData["dataField"];
+				if('1'==data[dataField+'Status']){
+					lblData.setStyle('color',0XFF0000);
+				}else{
+					lblData.setStyle('color',0X000000);
+				}
+				if('upBaseline'==dataField||'downBaseline'==dataField){
+					lblData.addEventListener(MouseEvent.DOUBLE_CLICK,lblData_doubleClickHandler);
+				}
+			}
+			
+			[Bindable]
+			private var labelFlag:Boolean = true;
+			protected function lblData_doubleClickHandler(event:MouseEvent):void
+			{
+				var eve:ADGridEditEvent = new ADGridEditEvent(ADGridEditEvent.EDITBUTTONCHANGE,true,true);
+				dispatchEvent(eve);
+				labelFlag = false;
+			}
+			protected function cancelbtn_clickHandler(event:MouseEvent):void
+			{
+				labelFlag = true;
+			}
+			protected function btn_clickHandler(event:MouseEvent):void
+			{
+				var params:Object = {};
+				var dataField:String = listData["dataField"];
+				var editValue:String = lbledit.text;
+				this.data[dataField] = editValue;
+				params = this.data;
+				params["dataField"] = dataField;
+				var eve:ADGridEditEvent = new ADGridEditEvent(ADGridEditEvent.EDITBUTTONEDITOK,true);
+				eve.param = params;
+				dispatchEvent(eve);
+				labelFlag = true;
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Label id="lblData" width="100%" height="100%" fontWeight="normal" visible="{labelFlag}" includeInLayout="{labelFlag}" lineBreak="explicit" text="{listData.label}"/>
+	<s:HGroup visible="{!labelFlag}" includeInLayout="{!labelFlag}" >
+		<s:TextInput id="lbledit" text="{listData.label}" width="70"/>
+		<s:Button id="btn" label="确定"  click="btn_clickHandler(event)" width="50"/>
+		<s:Button id="cancelbtn" label="取消"  click="cancelbtn_clickHandler(event)" width="50"/>
+	</s:HGroup>
+</s:MXAdvancedDataGridItemRenderer>

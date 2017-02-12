@@ -1,0 +1,778 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		 xmlns:gis="com.linkage.gis.*"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 creationComplete="gisMapWork_creationCompleteHandler(event)"
+		 name="GroupGis">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:states>
+		<s:State name="viewLayer"/>
+		<s:State name="viewLayer_1" stateGroups="view1State"/>
+		<s:State name="viewLayer_2" stateGroups="view2State"/>
+		<s:State name="viewLayer_3" stateGroups="view3State"/>
+		<s:State name="backEnable" stateGroups="view1State,view2State,view3State"/>
+		<s:State name="backDisable" stateGroups="view1State,view2State,view3State"/>
+	</s:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="init", type="com.linkage.module.cms.groupclient.event.GisMapWorkEvent")]
+		[Event(name="viewBack", type="com.linkage.module.cms.groupclient.event.GisMapWorkEvent")]
+		[Event(name="cityLocationSelected", type="com.linkage.module.cms.groupclient.event.GisMapWorkEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.GisLayer;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.metry.GisRegion;
+			import com.linkage.gis.core.styles.GisFillPredefinedStyle;
+			import com.linkage.gis.core.styles.GisLinePredefinedStyle;
+			import com.linkage.gis.core.styles.GisLineStyle;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.core.styles.GisTextStyle;
+			import com.linkage.gis.event.GisFeatureEvent;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.groupclient.event.GisMapWorkEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			import spark.filters.GlowFilter;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.GroupTotalModuleControl");
+			[Bindable]
+			[Embed(source="./../assets/u46.png")]
+			public var lever1:Class;
+			[Bindable]
+			[Embed(source="./../assets/u48.png")]
+			public var lever2:Class;
+			[Bindable]
+			[Embed(source="./../assets/u50.png")]
+			public var lever3:Class;
+			[Bindable]
+			[Embed(source="./../assets/u52.png")]
+			public var lever4:Class;
+			[Bindable]
+			[Embed(source="./../assets/u65.png")]
+			public var promIcon:Class;
+			[Bindable]
+			public var gisMapDefaultId:String;
+			private var cityOfGis:Array;
+//			private var gisFeatureArray:Array; 
+			private var gisLayer:GisLayer;
+			private var currentSelectGisFeature:GisFeature;
+			private var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0xFFFFFF, 0, 0);
+			private var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 0.6, borderStyle);
+			private var polygonStyle1:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0xffffff, 0, borderStyle);
+			private var polygonStyle2:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x00ff00, 0.3, borderStyle);
+			
+			private var glowFilter:GlowFilter = new GlowFilter(0xffffff,0.4,15,15,2,1,true);
+			private var glowFilter1:GlowFilter = new GlowFilter(0xffffff,0,15,15,2);
+			
+			private var view2QueryParam:Object;
+			private var view3QueryParam:Object;
+			private var user:Object;
+			
+			public static const CITY_LAYER1:Number = 1;
+			public static const CITY_LAYER2:Number = 2;
+			public static const CITY_LAYER3:Number = 3;
+			public static const VIEW_LAYER1:Number = 1;
+			public static const VIEW_LAYER2:Number = 2;
+			public static const VIEW_LAYER3:Number = 3;
+			private var currentView:Number=2;
+			private var currentCityId:String;
+			
+			private var cityAlarmData:Array = new Array;
+			private var suspInfoData:Array=new Array;
+			
+			[Bindable]
+			private var isOpenCustomerScaleBar:Boolean = false;
+			[Bindable]
+			private var isOpenBusinessScaleBar:Boolean = false;
+			[Bindable]
+			private var isOpenAlarmScaleBar:Boolean = false;
+			
+			protected function gisMapWork_creationCompleteHandler(event:FlexEvent):void
+			{
+//				Alert.show("this.parent.parent.width:"+this.parent.parent.width);
+				customerScaleBar.content.minHeight=0;
+				alarmScaleBar.content.minHeight=0;
+				this.addEventListener(GisMapWorkEvent.VIEWINIT,onViewInit);
+				this.addEventListener(GisMapWorkEvent.ALARMINFODATACHANGE,onAlarmInfoDataChange);
+				this.addEventListener(GisMapWorkEvent.ALARMNUMDATACHANGE,onAlarmNumDataChange);
+				this.addEventListener(GisMapWorkEvent.CUSTOMERSCALE, onCustomerScale);
+				this.addEventListener(GisMapWorkEvent.BUSINESSSCALE, onBusinessScale);
+				this.addEventListener(GisMapWorkEvent.ALARMSCALE, onAlarmScale);
+			}
+			
+			private var suspInfoSuccess:Boolean=false;
+			private function onAlarmInfoDataChange(event:GisMapWorkEvent):void{
+				var result:Object = event.param;
+				for(var key:String in result){
+					log.info("getSuspInfo data---->["+key+"]"+result[key]);
+					suspInfoData[key]=result[key];
+				}
+				suspInfoSuccess=true;
+				log.info("[告警提示信息]"+ currentCityId);
+				showPromptByCity(currentCityId);
+				
+			}
+			private function onAlarmNumDataChange(event:GisMapWorkEvent):void{
+				var result:Object = event.param;
+				buildAlarm(result);
+			}
+			
+			private function buildAlarm(result:Object):void{
+				if(!suspInfoSuccess){
+					setTimeout(buildAlarm,500,result);
+				}else{
+					gisWork.map.removeAllGisFeature();
+					for each(var data:Object in result){
+						log.info("getCityAlarmStatHandler ---->[city_id:"+data.city_id+"][maxserverite:"+data.maxseverity+"][maxnum:"+data.maxnum+"][longitude:"+data.longitude+"][latitude:"+data.latitude+"]");
+						drawAlarm(data);
+					}
+				}
+			}
+			
+			private var viewLayer2_center:GisPoint;
+			public function drawAlarm(data:Object):void{
+				if(Number(data.maxseverity)<=0){
+					return;
+				}
+				if(currentView == VIEW_LAYER2){
+					viewLayer2_center = new GisPoint(Number(data.longitude),Number(data.latitude));
+					if(viewLayer2_center && String(data.city_id)!="all"){
+						log.info("[draw]"+currentView+",cityId:"+data.city_id+",maxnum:"+data.maxnum+",x:"+viewLayer2_center.x+",y:"+viewLayer2_center.y);
+						var picFeature:GisFeature = new GisFeature(viewLayer2_center,new GisMarkerPictureStyle(getSource(Number(data.maxseverity))));
+						var textFeature:GisFeature = new GisFeature(viewLayer2_center,new GisTextStyle(data.maxnum,0xffffff,false,0,false,0xffffff,0,"middle",0,4));
+						var attr:Object = new Object();
+						attr.city_id = String(data.city_id);
+						picFeature.attributes = attr;
+						textFeature.attributes = attr;
+						gisWork.map.addGisFeature(picFeature);
+						gisWork.map.addGisFeature(textFeature);
+						showPromptByCity(String(data.city_id));
+					}
+				}else if(currentView == VIEW_LAYER3){
+					viewLayer2_center = currentSelectGisFeature.gisMetry.gisExtent.center;
+					if(viewLayer2_center && String(data.city_id)!="all"){
+						log.info("[draw]"+currentView+",cityId:"+data.city_id+",maxnum:"+data.maxnum+",x:"+viewLayer2_center.x+",y:"+viewLayer2_center.y);
+						var picFeature1:GisFeature = new GisFeature(viewLayer2_center,new GisMarkerPictureStyle(getSource(Number(data.maxseverity))));
+						var textFeature1:GisFeature = new GisFeature(viewLayer2_center,new GisTextStyle(data.maxnum,0xffffff,false,0,false,0xffffff,0,"middle",0,4));
+						var attr1:Object = new Object();
+						attr1.city_id = String(data.city_id);
+						picFeature1.attributes = attr1;
+						textFeature1.attributes = attr1;
+						gisWork.map.addGisFeature(picFeature1);
+						gisWork.map.addGisFeature(textFeature1);
+						showPromptByCity(String(data.city_id));
+					}
+				}
+			}
+			private function showPromptByCity(cityId:String):void{
+				var data:Object = suspInfoData[cityId];
+				if(data && data.length>0){
+					promptBC.removeAllElements();
+					for each(var info:Object in data){
+						log.info("info--->"+info["serv_type"]+","+info["total"]);
+						var hgroup:HGroup = new HGroup();
+						hgroup.verticalAlign = "middle";
+						var image:Image = new Image();
+						image.source = promIcon;
+						var label:Label = new Label();
+						label.text = info["serv_type"]+"："+info["total"];
+						hgroup.addElement(image);
+						hgroup.addElement(label);
+						promptBC.addElement(hgroup);
+					}
+//					promptBC.x=10;
+//					promptBC.y=20;
+					promptBC.x = viewLayer2_center.x;
+					promptBC.y = viewLayer2_center.y;
+					promptBC.visible=true;
+				}else{
+					promptBC.visible=false;
+				}
+			}
+			/**
+			 *根据告警级别取相应图标 
+			 * @param alarmLever
+			 * @return 
+			 * 
+			 */		
+			private function getSource(alarmLever:Number=0):Object{
+				if(alarmLever == 1){
+					return lever1;
+				}else if(alarmLever == 2){
+					return lever2;
+				}else if(alarmLever == 3){
+					return lever3;
+				}else if(alarmLever == 4){
+					return lever4;
+				}
+				return null;
+			}
+			
+			protected function gisWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				this.dispatchEvent(new GisMapWorkEvent(GisMapWorkEvent.INIT));
+				this.addEventListener(GisMapWorkEvent.CITYLOCATIONCHANGE,onCityLocationChange);
+				this.addEventListener(GisMapWorkEvent.CITYCHANGE,onCityChange);
+				if(gisLayer){
+					gisWork.map.removeGisLayer(gisLayer);
+				}
+				gisLayer = new GisLayer();
+				gisWork.map.addGisLayer(gisLayer,2);
+			}
+			
+			private function onViewInit(event:GisMapWorkEvent):void{
+				user = event.param.user;
+				view2QueryParam = new Object;
+				view2QueryParam.city_id=String(event.param.city_id);
+				view2QueryParam.city_layer = String(CITY_LAYER2);
+				view2QueryParam.view_layer=String(VIEW_LAYER2);
+				currentView = Number(VIEW_LAYER2);
+				if(currentView>Number(user.view_layer)){
+					this.currentState = "backEnable";
+				}else{
+					this.currentState = "backDisable";
+				}
+				log.info("[GIS地图]状态:"+this.currentState);
+				if(gisMapDefaultId != String(event.param.city_id)){
+					gisWork.map.mapChange(String(event.param.city_id));
+				}
+			}
+
+			protected function mapviewbackBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				currentView = VIEW_LAYER2;
+				currentCityId = gisMapDefaultId;
+				var evt:GisMapWorkEvent = new GisMapWorkEvent(GisMapWorkEvent.VIEWBACK);
+				this.dispatchEvent(evt);
+				if(currentSelectGisFeature){
+					for each(var feature:GisFeature in gisLayer.gisFeatures){
+						feature.gisStyle = polygonStyle1;
+						feature.filters = [glowFilter1];
+						gisLayer.updateFeature(feature);
+					}
+					currentSelectGisFeature=null;
+				}
+			}
+
+			private function onCityChange(event:GisMapWorkEvent):void{
+				currentCityId = String(event.param);
+				gisMapDefaultId = String(event.param);
+				gisWork.map.mapChange(gisMapDefaultId);
+			}
+			
+			private function onCityLocationChange(event:GisMapWorkEvent):void{
+				var result:Object = event.param;
+//				log.info("[区域高亮]result length:"+result.length);
+				var gisIds:Array = new Array();
+				cityOfGis = new Array();
+				for each(var cityLocation:Object in result){
+//					log.info("[区域高亮]type:"+cityLocation.type+",cityId:"+cityLocation.city_id+",gisId:"+cityLocation.gis_id+",border:"+cityLocation.border_info);
+					if(Number(cityLocation.type) == 1){
+//						log.info("[区域高亮]gisMapDefaultId:"+gisMapDefaultId+",city_id:"+String(cityLocation.city_id));
+						if(gisMapDefaultId == String(cityLocation.city_id)){
+						}else{
+//							log.info("[区域高亮]gis_id:"+cityLocation.gis_id);
+							gisIds.push(String(cityLocation.gis_id));
+						}
+						cityOfGis[String(cityLocation.gis_id)]=String(cityLocation.city_id);
+					}else if(Number(cityLocation.type) == 2){
+						var areaPoints:Array = new Array();
+						for each(var point:Object in cityLocation.border_info){
+//							log.info("[区域高亮]point:"+point.meridian+","+point.dimension);
+							areaPoints.push(new GisPoint(point.meridian,point.dimension));
+						}
+						var gisFeature:GisFeature = new GisFeature(new GisRegion(areaPoints),polygonStyle1);
+						var attObj:Object = new Object();
+						attObj["city_id"]=String(cityLocation.city_id);
+						gisFeature.attributes=attObj;
+						gisFeature.onClick=onGisFeatureClick;
+						gisLayer.addGisFeature(gisFeature);
+						log.info("[区域高亮]gisFeature:"+gisFeature.id);
+					}
+				}
+				if(gisIds.length>0){
+					gisWork.map.queryGisFeaturesByAreaIds(gisIds,getGisFeaturesHandler);
+				}
+			}
+			
+			private function getGisFeaturesHandler(gisFeatures:Array):void{
+				for each(var gisFeature:GisFeature in gisFeatures){
+					gisFeature.gisStyle = polygonStyle1;
+					gisFeature.filters = [glowFilter1];
+					gisFeature.onClick=onGisFeatureClick;
+					gisLayer.addGisFeature(gisFeature);
+					log.info("[区域高亮]gisFeature:"+gisFeature.id);
+				}
+			}
+			
+			private function onGisFeatureClick(gisFeature:GisFeature,event:MouseEvent):void{
+				var gis_id:String = String(gisFeature.attributes.gis_id);
+				var city_id:String;
+				var evt:GisMapWorkEvent;
+				if(currentSelectGisFeature){
+					if(currentSelectGisFeature.id != gisFeature.id){
+						currentSelectGisFeature.gisStyle = polygonStyle;
+						currentSelectGisFeature.filters = [glowFilter];
+						gisFeature.gisStyle = polygonStyle1;
+						gisFeature.filters = [glowFilter1];
+						gisLayer.updateFeature(gisFeature);
+						gisLayer.updateFeature(currentSelectGisFeature);
+						if(gis_id != "undefined"){
+							city_id = cityOfGis[gis_id];
+						}else{
+							city_id = String(gisFeature.attributes["city_id"]);
+						}
+						currentCityId = city_id;
+						view3QueryParam = new Object;
+						view3QueryParam.city_id=city_id;
+						view3QueryParam.city_layer = String(CITY_LAYER3);
+						view3QueryParam.view_layer=String(VIEW_LAYER3);
+						currentView = Number(VIEW_LAYER3);
+						evt = new GisMapWorkEvent(GisMapWorkEvent.CITYLOCATIONSELECTED);
+						evt.param = view3QueryParam;
+						this.dispatchEvent(evt);
+					}
+				}else{
+					for each(var feature:GisFeature in gisLayer.gisFeatures){
+						feature.gisStyle = polygonStyle;
+						feature.filters = [glowFilter];
+						gisLayer.updateFeature(feature);
+					}
+					gisFeature.gisStyle = polygonStyle1;
+					gisFeature.filters = [glowFilter1];
+					gisLayer.updateFeature(gisFeature);
+					if(gis_id != "undefined"){
+						city_id = cityOfGis[gis_id];
+					}else{
+						city_id = String(gisFeature.attributes["city_id"]);
+					}
+					currentCityId = city_id;
+					view3QueryParam = new Object;
+					view3QueryParam.city_id=city_id;
+					view3QueryParam.city_layer = String(CITY_LAYER3);
+					view3QueryParam.view_layer=String(VIEW_LAYER3);
+					currentView = Number(VIEW_LAYER3);
+					evt = new GisMapWorkEvent(GisMapWorkEvent.CITYLOCATIONSELECTED);
+					evt.param = view3QueryParam;
+					this.dispatchEvent(evt);
+				}
+				currentSelectGisFeature = gisFeature;
+			}
+		
+			private function onCustomerScale(event:GisMapWorkEvent):void
+			{
+				
+				log.info("GisMapWorkEvent onCustomerScale:");
+				log.info(event.param.dataList);
+				var data:ArrayCollection = ArrayCollection(event.param.dataList); 
+				customerScaleBC.removeAllElements();
+				log.info(data[0]);
+				//				{merits_num=50667, sum=61628, copper_num=4614, silver_num=3458, gold_num=2889
+				
+				if(data[0].hasOwnProperty("sum"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="客户数"+ "：" +data[0]["sum"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					customerScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("gold_num"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="金牌客户数"+ "：" +data[0]["gold_num"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					customerScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("silver_num"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="银牌客户数"+ "：" +data[0]["silver_num"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					customerScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("copper_num"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="铜牌客户数"+ "：" +data[0]["copper_num"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					customerScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("merits_num"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="标准客户数"+ "：" +data[0]["merits_num"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					customerScaleBC.addElement(hgroup);
+				}
+				//				showcustomerScaleBC();
+			}
+			private function onBusinessScale(event:GisMapWorkEvent):void
+			{
+				log.info("GisMapWorkEvent onBusinessScale:");
+				log.info(event.param.dataList);
+				var data:ArrayCollection = ArrayCollection(event.param.dataList); 
+				businessScaleBC.removeAllElements();
+				log.info(data[0]);
+				
+				//				gprs=395, mss=0, trans=33819, voice=37757, sum=113647, msg=9799, internet=31877}
+				if(data[0].hasOwnProperty("sum"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="业务数"+ "：" +data[0]["sum"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					businessScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("internet"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="互联网专线"+ "：" +data[0]["internet"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					businessScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("voice"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="语音专线"+ "：" +data[0]["voice"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					businessScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("trans"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="传输专线"+ "：" +data[0]["trans"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					businessScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("gprs"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="GPRS专线"+ "：" +data[0]["gprs"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					businessScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("msg"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="短信专线"+ "：" +data[0]["msg"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					businessScaleBC.addElement(hgroup);
+				}
+				if(data[0].hasOwnProperty("mss"))
+				{
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="彩信专线"+ "：" +data[0]["mss"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					businessScaleBC.addElement(hgroup);
+				}
+			}
+			private function onAlarmScale(event:GisMapWorkEvent):void
+			{
+				
+				log.info("GisMapWorkEvent onAlarmScale:");
+				log.info(event.param.dataList);
+				var data:ArrayCollection = ArrayCollection(event.param.dataList); 
+				alarmScaleBC.removeAllElements();
+				log.info(data[0]);
+				
+				//				isCity=4625, isSum=4815, isProv=95, isTransProv=95
+				if(data[0].hasOwnProperty("isCity"))
+				{
+					log.info("isCity");
+					var hgroup:HGroup=new HGroup();
+					hgroup.verticalAlign="middle";
+					var image:Image=new Image();
+					image.source=promIcon;
+					var label:Label=new Label();
+					label.text="全市告警数"+ "：" +data[0]["isCity"];
+					hgroup.addElement(image);
+					hgroup.addElement(label);
+					alarmScaleBC.addElement(hgroup);
+					log.info("isCity  end");
+				}
+				
+				//				showcustomerScaleBC();
+			}
+			
+			
+			private function showcustomerScaleBC():void
+			{
+				customerScaleBC.x = 10;
+				customerScaleBC.y = 10;
+			}
+			
+			protected function customerScaleBar_clickHandler(event:MouseEvent):void
+			{
+				//				log.info("customerScaleBar_clickHandler    isOpenCustomerScaleBar ："+isOpenCustomerScaleBar+"---isOpenBusinessScaleBar:"+isOpenBusinessScaleBar);
+				// TODO Auto-generated method stub
+				if(isOpenCustomerScaleBar == true)
+				{
+					log.info("1     1  关闭");
+					businessScaleBar.y = 102;
+					if(isOpenBusinessScaleBar == true)
+					{
+						//						log.info("1    1  关闭 2关闭");
+						alarmScaleBar.y = 279;
+					}else{
+						//						log.info("1    1 关闭 2关闭");
+						alarmScaleBar.y = 204;
+					}
+					isOpenCustomerScaleBar = false;
+					
+				}else
+				{
+					
+					//					log.info("1     1  打开");
+					businessScaleBar.y = 127;
+					
+					if(isOpenBusinessScaleBar == true)
+					{
+						//						log.info("1    1 打开  2打开");
+						alarmScaleBar.y = 299;
+					}else{
+						//						log.info("1    1  打开  2关闭");
+						alarmScaleBar.y = 229;
+					}
+					isOpenCustomerScaleBar = true;
+				}
+				
+			}
+			
+			protected function businessScaleBar_clickHandler(event:MouseEvent):void
+			{
+				//				log.info("businessScaleBar_clickHandler  isOpenCustomerScaleBar ："+isOpenCustomerScaleBar+"---isOpenBusinessScaleBar ："+isOpenBusinessScaleBar);
+				//false时是打开，TRUE是关闭
+				if(isOpenBusinessScaleBar == true)
+				{
+					//					log.info("2    2  关闭");
+					
+					if(isOpenCustomerScaleBar == true)
+					{
+						//						log.info("2   1  打开 2  关闭");
+						alarmScaleBar.y = 229; 
+					}else{
+						//						log.info("2   1 关闭 2  关闭");
+						alarmScaleBar.y = 204; 
+					}
+					isOpenBusinessScaleBar = false;
+					
+				}else
+				{
+					//					log.info("2   2 打开");
+					if(isOpenCustomerScaleBar == true)
+					{
+						//						log.info("2   1 打开2  打开");
+						alarmScaleBar.y = 299; 
+					}else{
+						//						log.info("2    1 关闭 2  打开");
+						alarmScaleBar.y = 279; 
+					}
+					isOpenBusinessScaleBar = true;
+				}
+				
+				
+			}
+			
+			protected function alarmScaleBar_clickHandler(event:MouseEvent):void
+			{
+				if(isOpenAlarmScaleBar == true)
+				{
+					isOpenAlarmScaleBar = false;
+				}else
+				{
+					isOpenAlarmScaleBar = true;
+				}
+				
+				log.info("isOpenCustomerScaleBar ："+isOpenCustomerScaleBar+"---isOpenBusinessScaleBar ："+isOpenBusinessScaleBar+"---isOpenAlarmScaleBar:"+isOpenAlarmScaleBar);
+				if(isOpenAlarmScaleBar == true && isOpenBusinessScaleBar == true && isOpenCustomerScaleBar == true)
+				{
+					log.info("~~~~0");
+					alarmScaleBar.depth = 20;
+					alarmTip.depth = 10;
+					alarmTip.y = 320;
+				} else{
+					log.info("~~~~1");
+					alarmTip.bottom = 15;
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<gis:MapWork id="gisWork" defaultMapId="{gisMapDefaultId}" width="100%" height="100%" 
+				 showOverView="false" 
+				 showZoomSlider="false" 
+				 showToolBar="false" 
+				 mapCreationComplete="gisWork_mapCreationCompleteHandler(event)">
+	</gis:MapWork>
+	<s:VGroup left="10"
+			  bottom="15" id="alarmTip">
+		<s:HGroup verticalAlign="middle">
+			<mx:Image source="{lever1}"/>
+			<s:Label text="一级告警"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<mx:Image source="{lever2}"/>
+			<s:Label text="二级告警"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<mx:Image source="{lever3}"/>
+			<s:Label text="三级告警"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<mx:Image source="{lever4}"/>
+			<s:Label text="四级告警"/>
+		</s:HGroup>
+	</s:VGroup>
+	<ailk_compts:NavBar id="customerScaleBar"
+						location="right"
+						styleName="sceneNavBar"
+						title="客户规模"
+						x="0"
+						y="0"
+						click="customerScaleBar_clickHandler(event)">
+		<s:BorderContainer id="customerScaleBC"
+						   styleName="promptBC">
+			<s:layout>
+				<s:VerticalLayout paddingLeft="15"
+								  paddingRight="10"
+								  paddingTop="5"
+								  paddingBottom="5"/>
+			</s:layout>
+		</s:BorderContainer>
+	</ailk_compts:NavBar>
+	<ailk_compts:NavBar id="businessScaleBar"
+						location="right"
+						styleName="sceneNavBar"
+						title="业务规模"
+						x="0"
+						y="102" 
+						click="businessScaleBar_clickHandler(event)">
+		<s:BorderContainer id="businessScaleBC"
+						   styleName="promptBC">
+			<s:layout>
+				<s:VerticalLayout paddingLeft="15"
+								  paddingRight="10"
+								  paddingTop="5"
+								  paddingBottom="5"/>
+			</s:layout>
+		</s:BorderContainer>
+	</ailk_compts:NavBar>
+	<ailk_compts:NavBar id="alarmScaleBar"
+						location="right"
+						styleName="sceneNavBar"
+						title="告警统计"
+						x="0"
+						y="204" 
+						click="alarmScaleBar_clickHandler(event)">
+		<s:BorderContainer id="alarmScaleBC"
+						   styleName="promptBC">
+			<s:layout>
+				<s:VerticalLayout paddingLeft="15"
+								  paddingRight="10"
+								  paddingTop="5"
+								  paddingBottom="5"/>
+			</s:layout>
+		</s:BorderContainer>
+	</ailk_compts:NavBar>
+	<s:BorderContainer id="promptBC" styleName="promptBC"
+					   visible="false">
+		<s:layout>
+			<s:VerticalLayout paddingLeft="15"
+							  paddingRight="10"
+							  paddingTop="5"
+							  paddingBottom="5"/>
+		</s:layout>
+		
+	</s:BorderContainer>
+	<s:Button id="mapviewbackBtn"
+			  visible.backDisable="false"
+			  visible.backEnable="true" 
+			  label="返回" 
+			  right="15"
+			  top="10"
+			  buttonMode="true"
+			  click="mapviewbackBtn_clickHandler(event)"/>
+</s:Group>

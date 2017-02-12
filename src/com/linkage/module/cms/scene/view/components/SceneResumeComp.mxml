@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  width="100%"
+					  height="100%"
+					  styleName="skinnableContainer1"
+					  creationComplete="skinnablecontainer1_creationCompleteHandler(event)"
+					  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hrw (Ailk No.)
+		 @version 1.0
+		 @date 2012-8-1
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+		<s:Move id="newsMove"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.SceneResumeEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.events.FlexEvent;
+
+
+
+			private var log:ILogger = Log.getLoggerByClass(SceneResumeComp);
+
+			[Inject("sceneResumeCompPM")]
+			[Bindable]
+			public var pm:SceneResumeCompPM;
+			
+			[Inject("user")]
+			public var user:IUser;
+
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				log.info("SceneResumeComp init");
+				pm.getSceneGeneralInfo();
+//				setTimeout(pm.getSceneGeneralInfo,100);
+			}
+
+			//当前显示的天气下标
+			private var curIndex:uint = 0;
+
+			private var timer:Timer = null;
+
+			//生成场景概要
+			[MessageHandler(selector="CREATE_SCENERESUME_LAYOUT")]
+			public function createSceneResume(e:SceneResumeEvent):void
+			{
+				log.info("createSceneResume ");
+				var obj:Object = pm.dm.data;
+				log.info(obj);
+
+				//如果新闻不为空，那么拼接新闻 用 ；分割 触发移动效果
+				if (obj && obj.news)
+				{
+					for each (var news:Object in obj.news)
+					{
+						sceneNews.text += news.title + "；";
+					}
+
+					setTimeout(function():void
+						{
+							log.info("vgroup.width showGroup.width:{0},{1}", vgroup.width, showGroup.width);
+							newsMove.xFrom = vgroup.width;
+							newsMove.xTo = - showGroup.width;
+							newsMove.easer = null;
+							newsMove.repeatCount = 0;
+							newsMove.repeatDelay = 0;
+							newsMove.duration = Math.ceil(showGroup.width / 35) * 1000;
+							newsMove.play([showGroup]);
+						}, 7000);
+				}
+
+				if (obj && obj.weathers)
+				{
+					if (timer && timer.running)
+					{
+						timer.stop();
+					}
+					else
+						timer = new Timer(4000);
+					timerHandler();
+					timer.addEventListener(TimerEvent.TIMER, timerHandler);
+                    
+    			    timer.start();
+				}
+
+			}
+
+
+			private function timerHandler(e:TimerEvent = null):void
+			{
+				var obj:Object = pm.dm.data;
+				if (obj && obj.weathers)
+				{
+					if (curIndex >= obj.weathers.length)
+						curIndex = 0;
+
+					cityName.text = obj.weathers[curIndex].cityName;
+					weatherImg.source = user.context +　obj.weathers[curIndex].weatherImg;
+					temperature.text = obj.weathers[curIndex].temperature;
+					curIndex++;
+				}
+			}
+
+			protected function skinnablecontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("SceneResumeComp skinnablecontainer1_creationCompleteHandler");
+				pm.getSceneGeneralInfo();
+			}
+			
+		]]>
+	</fx:Script>
+
+	<s:HGroup width="100%"
+			  height="100%">
+		<s:Group width="70%"
+				 id="vgroup"
+				 height="100">
+			<s:VGroup width="100%"
+					  height="80"
+					  gap="6">
+				<mx:Image source="@Embed('../../img/new.png')"
+						  height="8"/>
+				<s:Label id="sceneName"
+						 text="{pm.dm.sceneName}"
+						 height="26"
+						 verticalAlign="bottom"/>
+				<s:Group width="100%"
+						 clipAndEnableScrolling="true">
+					<s:HGroup id="showGroup"
+							  width="100%"
+							  height="30"
+							  verticalAlign="bottom">
+						<s:Label id="sceneNews"
+								 height="100%"
+								 verticalAlign="bottom"/>
+					</s:HGroup>
+				</s:Group>
+			</s:VGroup>
+			<mx:AdvancedDataGrid width="100%"
+								 styleName="advancedDG1"
+								 showHeaders="false"
+								 height="100%"
+								 rowHeight="40"
+								 verticalAlign="middle"
+								 rowCount="2">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn dataField="Region"
+											   headerText="客户"/>
+					<mx:AdvancedDataGridColumn dataField="Territory"
+											   headerText="服务级别"/>
+					<mx:AdvancedDataGridColumn dataField="Territory_Rep"
+											   headerText="业务名称"/>
+					<mx:AdvancedDataGridColumn dataField="Revenues"
+											   headerText="告警数"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+		</s:Group>
+		<s:VGroup width="30%"
+				  height="100%"
+				  id="sceneWeather"
+				  horizontalAlign="center" verticalAlign="top" gap="0">
+			<mx:Image id="weatherImg"
+					  width="60"
+					  height="60"
+					  autoLoad="true"/>
+			<s:HGroup gap="0"
+					  horizontalAlign="center"
+					  width="100%">
+				<s:Label id="cityName"
+						 verticalAlign="middle"
+						 left="15"
+						 height="100%"/>
+				<s:Label id="temperature"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:HGroup>
+</s:SkinnableContainer>

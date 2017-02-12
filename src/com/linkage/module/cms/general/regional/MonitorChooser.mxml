@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 width="100%"
+		 height="20">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Text;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.Label;
+
+			private var target:Object=null;
+
+			//日志
+			public var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.MonitorChooser");
+
+			public function initChooser(obj:Object, view:Object):void
+			{
+				target=view;
+				var index:Number=1;
+				var t:Label=new Label();
+//				t.setStyle("color", 0xFFFFFF);
+				t.text="已定义场景：";
+				this.moveGroup.addElement(t);
+
+				//计算文本的总长度
+				var font:Number=t.getStyle("fontSize");
+				var totalSize:Number=StringUtils.getStrLen(t.text) * font / 2;
+
+				for each (var info:Object in obj)
+				{
+					t=new Label();
+					t.text=index + "、" + info.monitor_name;
+//					t.setStyle("color", 0xFFFFFF);
+					t.buttonMode=true;
+					var monitorId:String=String(info.monitor_id);
+					var relevantView:String=String(info.relevant_view);
+					var monitorName:String=String(info.monitor_name);
+					var weather:String=String(info.icon);
+					this.moveGroup.addElement(t);
+
+					index++;
+					totalSize+=StringUtils.getStrLen(t.text) * font / 2;
+				}
+
+				//开始播放
+				complete(totalSize);
+			}
+
+			private function complete(size:Number=0):void
+			{
+//				move_up.xFrom = cs.width - 6;
+//				move_up.xTo = 0 - size + 6;
+//				move_up.repeatCount = 0; //loop 
+//				move_up.repeatDelay = 0; //loop time 
+//				move_up.duration = size*100; //the time of scroll once 
+//				move_up.play();
+			}
+
+			private function move_pause():void
+			{
+				//move_up.pause(); //pause 
+			}
+
+			private function move_resume():void
+			{
+				//move_up.resume(); //start from the pause position 
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<!--<mx:Move id="move_up" target="{moveGroup}"/> -->
+	</fx:Declarations>
+	<mx:Canvas id="cs"
+			   width="100%"
+			   height="20"
+			   verticalScrollPolicy="off"
+			   horizontalScrollPolicy="off"
+			   buttonMode="true"
+			   mouseOver="move_pause()"
+			   mouseOut="move_resume()">
+		<s:HGroup id="moveGroup"
+				  width="100%"
+				  height="100%"
+				  buttonMode="true"
+				  horizontalAlign="right"
+				  paddingRight="5"
+				  gap="15"/>
+	</mx:Canvas>
+</s:Group>

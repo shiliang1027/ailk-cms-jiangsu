@@ -1,0 +1,541 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    height="320"
+                    width="500"
+                    styleName="windowScene"
+                    closable="true"
+                    resizable="true"
+                    dragable="true"
+                    minimizable="true"
+                    maximizable="false"
+                    close="window1_closeHandler(event)"
+                    creationComplete="window1_creationCompleteHandler(event)">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.mapview.MapViewDM;
+			import com.linkage.module.cms.gsscene.view.components.mapview.ViewLayerCfgPM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			
+			import spark.components.CheckBox;
+			import spark.components.RadioButton;
+			import spark.components.supportClasses.ToggleButtonBase;
+
+            private var log:ILogger = Log.getLoggerByClass(ViewLayerCfg);
+
+            [Inject("viewLayerCfgPM")]
+            public var pm:ViewLayerCfgPM;
+
+            [Inject("mapViewDM")]
+            public var mapViewDM:MapViewDM;
+
+            private var cbCache:Object = new Object();
+
+            private var kpiIdList:ArrayList = new ArrayList;
+
+            private var kpiCache:Object = {};
+
+            protected function window1_closeHandler(event:WindowEvent):void
+            {
+                this.visible = false;
+            }
+			
+			public var layerCallback:Function;
+
+            protected function clickHandler(event:MouseEvent, all:Number = -1, type:String = null):void
+            {
+                var obj:ToggleButtonBase = (event.target as ToggleButtonBase);
+
+                log.info("图层点击处理：" + type + " :: " + obj.name);
+
+                //动态生成 重点指标选项 特殊处理一下  不需要全选处理， 同时要更新泰森多边形
+                if (obj.name == 'kpiCb')
+                {
+                    all = 1;
+                    type = "kpi";
+                }
+
+                if (all == 0)
+                {
+                    var isSelected:Boolean = obj.selected;
+
+                    //取父节点下所有的内容
+                    var num:int = obj.parent.numChildren;
+
+                    for (var i:int = 0; i < num; i++)
+                    {
+                        var tmp:ToggleButtonBase = (obj.parent.getChildAt(i) as ToggleButtonBase);
+                        tmp.selected = isSelected;
+
+                        if (type == 'kpi')
+                        {
+                            if (obj.selected)
+                                kpiIdList.addItem(tmp.id);
+                            else
+                                for (var i:int = 0; i < kpiIdList.length; i++)
+                                {
+                                    if (kpiIdList.getItemAt(i) == tmp.id)
+                                        kpiIdList.removeItem(kpiIdList.getItemAt(i));
+                                }
+                        }
+                    }
+                }
+
+                if (type == 'kpi')
+                {
+                    log.info("refresh gis layer!");
+
+                    if (obj.selected && all != 0)
+                        kpiIdList.addItem(obj.id);
+                    else if (all != 0)
+                    {
+                        for (var i:int = 0; i < kpiIdList.length; i++)
+                        {
+                            if (kpiIdList.getItemAt(i) == obj.id)
+                                kpiIdList.removeItem(kpiIdList.getItemAt(i));
+                        }
+                    }
+
+                    pm.user.kpiIdList = "";
+                    pm.user.moTypeIdList = "";
+
+                    for (var index:int = 0; index < kpiIdList.length; index++)
+                    {
+                        if (pm.user.kpiIdList == "")
+                        {
+                            pm.user.kpiIdList += kpiIdList.getItemAt(index);
+                            pm.user.moTypeIdList += kpiCache[kpiIdList.getItemAt(index)];
+                        }
+                        else
+                        {
+                            pm.user.kpiIdList += "," + kpiIdList.getItemAt(index);
+                            pm.user.moTypeIdList += "," + kpiCache[kpiIdList.getItemAt(index)];
+                        }
+                    }
+
+                    pm.refreshPolygon();
+                }
+                else if (type == 'perfLevel')
+                {
+                    log.info("filter gis features!");
+                    pm.viewLayerCfgChange(type);
+                }
+                else
+                {
+                    log.info("filter gis features!");
+                    pm.viewLayerCfgChange("mo");
+                }
+            }
+
+            public function filterFeature(mo:Object, filterType:String = null):Boolean
+            {
+                if (!mo)
+                    return true;
+
+                var flag:Boolean = false;
+
+                if (filterType == "ts")
+                {
+                    //过滤泰森多边形
+//					return cbCache['perf_' + mo['perfLevel']].selected;
+                    flag = cbCache[mo['moTypeName']].selected && cbCache[mo['warnLevel']].selected;
+                }
+
+
+                if (mo['quitType'])
+                    flag = cbCache[mo['moTypeName']].selected && cbCache[mo['warnLevel']].selected && cbCache[mo['quitType']].selected;
+                else
+                    flag = cbCache[mo['moTypeName']].selected && cbCache[mo['warnLevel']].selected;
+
+                return flag;
+            }
+
+            [MessageHandler(selector = "ENABLE_VIEW_CFG")]
+            public function enableCheckboxs(e:SceneEvent):void
+            {
+                log.info("生效 图层配置选项！");
+            }
+
+            [MessageHandler(selector = "DEAL_IMP_KPI")]
+            public function dealImpKpi(e:SceneEvent):void
+            {
+                log.info("处理imp kpi " + mapViewDM.impKpiList.length);
+
+                kpiIdList.removeAll();
+
+                kpiGroup.removeAllElements();
+                var c:CheckBox = new CheckBox();
+                c.label = '性能渲染';
+                c.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+                {
+                    clickHandler(event, 0, 'kpi');
+                });
+
+                kpiGroup.addElement(c);
+
+                if (pm.user.kpiId == null)
+                {
+                    pm.user.kpiIdList = "";
+                    pm.user.moTypeIdList = "";
+                }
+                else
+                {
+                    pm.user.kpiIdList = pm.user.kpiId;
+                    pm.user.moTypeIdList = pm.user.moTypeId;
+                }
+
+                for each (var kpi:Object in mapViewDM.impKpiList)
+                {
+                    var cb:CheckBox = new CheckBox();
+                    cb.id = kpi['kpiId'];
+                    cb.label = kpi['kpiName'];
+                    cb.name = "kpiCb";
+                    cb.width = 140;
+                    cb.addEventListener(MouseEvent.CLICK, clickHandler);
+
+                    kpiCache[kpi['kpiId']] = kpi['moTypeId'];
+
+                    cb.selected = true;
+                    kpiIdList.addItem(cb.id);
+
+                    if (pm.user.kpiIdList == "")
+                    {
+                        pm.user.kpiIdList += cb.id;
+                        pm.user.moTypeIdList += kpi['moTypeId'];
+                    }
+                    else
+                    {
+                        pm.user.kpiIdList += "," + cb.id;
+                        pm.user.moTypeIdList += "," + kpi['moTypeId'];
+                    }
+
+                    kpiGroup.addElement(cb);
+                }
+
+                log.debug(pm.user);
+            }
+
+            protected function window1_creationCompleteHandler(event:FlexEvent):void
+            {
+                cbCache['jizhanCb'] = jizhanCb;
+                cbCache['BTS'] = btsCb;
+                cbCache['NodeB'] = nodebCb;
+
+                cbCache['xiaoquCb'] = xiaoquCb;
+                cbCache['CELL'] = cellCb;
+                cbCache['UTRANCELL'] = utrancellCb;
+
+//                cbCache['BSC'] = bscCb;
+//                cbCache['RNC'] = rncCb;
+
+                cbCache['eNodeB'] = eNodeBCb;
+                cbCache['EUtranCell'] = eucellCb;
+
+//                cbCache['AP'] = apCb;
+//                cbCache['WLAN'] = wlanCb;
+//
+//                cbCache['GGSN'] = ggsnCb;
+//                cbCache['SGSN'] = sgsnCb;
+
+/*                 cbCache['emergencyRes'] = emergencyRes;
+                cbCache['oil'] = oil;
+                cbCache['car'] = car; */
+
+                cbCache['moAlarmCb'] = moAlarmCb;
+                cbCache['1'] = moFaultCb;
+                cbCache['2'] = moFaultCb;
+                cbCache['3'] = moFaultCb;
+                cbCache['4'] = moFaultCb;
+                cbCache['0'] = moNormalCb;
+
+                cbCache['perfLevelCb'] = moAlarmCb;
+//                cbCache['perf_1'] = perfLevelCb_1;
+//                cbCache['perf_2'] = perfLevelCb_2;
+//                cbCache['perf_3'] = perfLevelCb_3;
+//                cbCache['perf_4'] = perfLevelCb_4;
+//                cbCache['perf_0'] = perfLevelCb_0;
+
+                cbCache['市电停电'] = noPowerCb;
+                cbCache['直流欠压'] = lowPowerCb;
+                cbCache['传输中断'] = transInterruptCb;
+                cbCache['一次下电'] = oneCutCb;
+                cbCache['水浸'] = waterCb;
+                cbCache['蓄电池供电'] = wirelessCb;
+                cbCache['烟感'] = smokeCb;
+                cbCache['基站退服'] = btsQuitCb;
+
+//				cbCache['alarmAllCb'] = alarmAllCb;
+//				cbCache['alarmColumnCb'] = alarmColumnCb;
+//				cbCache['alarmAreaCb'] = alarmAreaCb;
+				var flag:Boolean = "2"!=pm.user.logicalType;
+				log.info("不是lte场景："+flag);
+				btsCb.selected = flag;
+				nodebCb.selected = flag;
+				
+				
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <parsley:Configure/>
+    </fx:Declarations>
+    <s:VGroup width="100%"
+              height="100%"
+              paddingTop="2"
+              paddingLeft="3"
+              paddingRight="3"
+              paddingBottom="5"
+              gap="2">
+        <mx:Accordion id="mainAccor"
+                      creationPolicy="all"
+                      width="100%"
+                      height="100%">
+            <mx:VBox width="100%"
+                     height="100%"
+                     creationPolicy="all"
+                     label="对象图层">
+                <mx:Spacer height="8"/>
+                <s:HGroup width="100%">
+                    <s:CheckBox width="75"
+                                id="jizhanCb"
+                                label="基站"
+                                click="clickHandler(event, 0);layerCallback(['BTS','NodeB','eNodeB']);"/>
+                    <s:CheckBox width="75"
+                                id="btsCb"
+                                label="BTS"
+                                click="clickHandler(event, 1);layerCallback(['BTS']);"/>
+                    <s:CheckBox width="75"
+								id="nodebCb"
+                                label="NodeB"
+                                click="clickHandler(event, 1);layerCallback(['NodeB']);"/>
+					<s:CheckBox width="75"
+								id="eNodeBCb"
+								label="eNodeB"
+								selected="true"
+								click="clickHandler(event, 1);layerCallback(['eNodeB']);"/>
+                </s:HGroup>
+                <mx:HRule width="100%"
+                          height="2"/>
+                <s:HGroup width="100%">
+                    <s:CheckBox width="75"
+                                id="xiaoquCb"
+                                label="小区"
+                                click="clickHandler(event, 0)"/>
+                    <s:CheckBox width="75"
+                                id="cellCb"
+                                label="CELL"
+                                selected="true"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox id="utrancellCb"
+                                label="UTRANCELL"
+								selected="true"
+                                click="clickHandler(event, 1)"/>
+					<s:CheckBox id="eucellCb"
+								label="EUtranCell"
+								selected="true"
+								click="clickHandler(event, 1)"/>
+                </s:HGroup>
+                <mx:HRule width="100%"
+                          height="2"/>
+				<s:HGroup width="100%">
+					<s:CheckBox width="75"
+								id="jlCb1"
+								label="机楼"
+								click="clickHandler(event, 0)"/>
+					<s:CheckBox id="jlCb2"
+								label="机楼"
+								click="clickHandler(event, 1)"/>
+				</s:HGroup>
+<!--				<mx:HRule width="100%"
+						  height="2"/>
+                <s:HGroup width="100%">
+                    <s:CheckBox width="75"
+                                id="apCb"
+                                label="AP"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox id="wlanCb"
+                                label="WLAN"
+                                click="clickHandler(event, 1)"/>
+                </s:HGroup>
+                <mx:HRule width="100%"
+                          height="2"/>
+                <s:HGroup width="100%">
+                    <s:CheckBox width="75"
+                                id="ggsnCb"
+                                label="GGSN"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox id="sgsnCb"
+                                label="SGSN"
+                                click="clickHandler(event, 1)"/>
+                </s:HGroup>-->
+				
+				<mx:HRule width="100%"
+						  height="2"/>
+				<s:HGroup width="100%">
+					<s:CheckBox width="75"
+								id="emergencyRes"
+								label="应急资源"
+								click="clickHandler(event, 0)"/>
+					<s:CheckBox id="car"
+								label="应急通信车"
+								click="clickHandler(event, 1)"/>
+					<s:CheckBox id="oil"
+								label="应急油机"
+								click="clickHandler(event, 1)"/>
+					<s:CheckBox id="resource3"
+								label="应急人员"
+								click="clickHandler(event, 1)"/>
+				</s:HGroup>
+            </mx:VBox>
+
+            <mx:VBox width="100%"
+                     height="100%"
+                     creationPolicy="all"
+                     label="状态图层">
+                <mx:Spacer height="8"/>
+                <s:HGroup width="100%">
+                    <s:CheckBox width="75"
+                                id="moAlarmCb"
+                                label="网元状态"
+                                click="clickHandler(event, 0);layerCallback(['quitCfg','normalCfg']);"/>
+                    <s:CheckBox width="75"
+                                id="moFaultCb"
+                                label="故障"
+                                selected="false"
+                                click="clickHandler(event, 1);layerCallback(['quitCfg']);"/>
+                    <s:CheckBox id="moNormalCb"
+                                label="正常"
+                                selected="true"
+                                click="clickHandler(event, 1);layerCallback(['normalCfg']);"/>
+                </s:HGroup>
+ <!--               <mx:HRule width="100%"
+                          height="2"/>
+                <s:HGroup width="100%">
+                    <s:CheckBox width="85"
+                                id="perfLevelCb"
+                                label="性能劣化级别"
+                                click="clickHandler(event, 0, 'perfLevel')"/>
+                    <s:CheckBox width="75"
+                                id="perfLevelCb_1"
+                                label="一级劣化"
+                                selected="true"
+                                click="clickHandler(event, 1, 'perfLevel')"/>
+                    <s:CheckBox width="75"
+                                id="perfLevelCb_2"
+                                label="二级劣化"
+                                selected="true"
+                                click="clickHandler(event, 1, 'perfLevel')"/>
+                    <s:CheckBox width="75"
+                                id="perfLevelCb_3"
+                                label="三级劣化"
+                                selected="true"
+                                click="clickHandler(event, 1, 'perfLevel')"/>
+                    <s:CheckBox width="75"
+                                id="perfLevelCb_4"
+                                label="四级劣化"
+                                selected="true"
+                                click="clickHandler(event, 1, 'perfLevel')"/>
+                    <s:CheckBox width="75"
+                                id="perfLevelCb_0"
+                                label="正常"
+                                selected="true"
+                                click="clickHandler(event, 1, 'perfLevel')"/>
+                </s:HGroup>-->
+                <mx:HRule width="100%"
+                          height="2"/>
+                <s:HGroup width="100%">
+                    <s:CheckBox width="75"
+                                id="quitCb"
+                                label="退服原因"
+                                click="clickHandler(event, 0)"/>
+                    <s:CheckBox width="75"
+                                id="oneCutCb"
+                                label="一次下电"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox width="75"
+                                id="lowPowerCb"
+                                label="直流欠压"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox width="75"
+                                id="wirelessCb"
+                                label="蓄电池供电"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox width="75"
+                                id="noPowerCb"
+                                label="市电停电"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox id="transInterruptCb"
+                                label="传输中断"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox width="75"
+                                id="waterCb"
+                                label="水浸"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox width="75"
+                                id="smokeCb"
+                                label="烟感"
+                                click="clickHandler(event, 1)"/>
+                    <s:CheckBox width="75"
+                                id="btsQuitCb"
+                                label="基站退服"
+                                click="clickHandler(event, 1)"/>
+                </s:HGroup>
+				<mx:HRule width="100%"
+						  height="2"/>
+				<s:HGroup width="100%">
+					<s:CheckBox width="75"
+								id="curr"
+								label="工程状态"
+								click="clickHandler(event, 0)"/>
+					<s:CheckBox width="75"
+								id="x1"
+								label="现网"
+								click="clickHandler(event, 1)"/>
+					<s:CheckBox width="75"
+								id="x2"
+								label="工程有业务"
+								click="clickHandler(event, 1)"/>
+					<s:CheckBox width="75"
+								id="x3"
+								label="工程无业务"
+								click="clickHandler(event, 1)"/>
+				</s:HGroup>
+            </mx:VBox>
+            <mx:VBox width="100%"
+                     height="100%"
+                     creationPolicy="all"
+                     label="渲染图层">
+                <mx:Spacer height="8"/>
+                <s:TileGroup id="kpiGroup"
+                             width="100%"
+                             orientation="rows">
+                </s:TileGroup>
+                <!--<mx:HRule width="100%"
+                     height="2"/>
+                     <s:HGroup width="100%">
+                     <s:CheckBox width="75"
+                     id="alarmAllCb"
+                     label="告警渲染"/>
+                     <s:RadioButton width="95"
+                     id="alarmColumnCb"
+                     label="告警柱状图"
+                     click="clickHandler(event, 1)"/>
+                     <s:RadioButton id="alarmAreaCb"
+                     label="故障影响范围"
+                     click="clickHandler(event, 1)"/>
+                     </s:HGroup>-->
+            </mx:VBox>
+        </mx:Accordion>
+    </s:VGroup>
+
+</ailk_compts:Window>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  close="windowOpenClose()"
+			  title="赛事信息"
+			  minimizable="false"
+			  maximizable="false"
+			  dragable="true"
+			  width="100%"
+			  height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+			
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			/**
+			 * 日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.important.scene.view.component.EnsurePlan");
+			/**
+			 * 场馆监控控制器
+			 */
+			private var _monitorAction:MonitorAction=null;
+
+			//加载赛事信息
+			public function loadSportsInfo(venueId:String):void
+			{
+				monitorAction.getVenueRaceInfo(venueId, function(result:Object):void
+					{
+						sportsInfo.dataProvider=result;
+					});
+			}
+
+			//打开关闭当前窗口
+			public function windowOpenClose():void
+			{
+				if (visible)
+				{
+					visible=false;
+					includeInLayout=false;
+				}
+				else
+				{
+					visible=true;
+					includeInLayout=true;
+				}
+			}
+
+			public function set monitorAction(monitorAction:MonitorAction):void
+			{
+				_monitorAction=monitorAction;
+			}
+
+			public function get monitorAction():MonitorAction
+			{
+				return _monitorAction;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="sportsInfo"
+				 width="100%"
+				 height="100%">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn headerText="赛事名称"
+							   dataField="race_name"/>
+			<mx:AdvancedDataGridColumn headerText="开始时间"
+							   dataField="race_start"/>
+			<mx:AdvancedDataGridColumn headerText="结束时间"
+							   dataField="race_end"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</panel:Window>

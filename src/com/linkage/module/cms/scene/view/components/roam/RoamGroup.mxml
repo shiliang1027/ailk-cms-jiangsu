@@ -1,0 +1,641 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  width="100%"
+					  height="100%"
+					  styleName="skinnableContainer1"
+					  xmlns:parsley="http://www.spicefactory.org/parsley"
+					  xmlns:dummymap="com.linkage.module.cms.components.dummymap.*"
+					  xmlns:chart="com.linkage.module.component.chart.*"
+					  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					  xmlns:ns="http://www.asiainfo-linkage.com.cn/flex/chart">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.components.dummymap.MapLabel;
+			import com.linkage.module.cms.components.dummymap.MapNode;
+			import com.linkage.module.cms.components.dummymap.MapNodeEvent;
+			
+			import com.linkage.module.cms.scene.event.roam.RoamEvent;
+			import com.linkage.tools.graphics.DrawArrowCurveLine;
+			import com.linkage.tools.graphics.DrawColumnar;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import spark.events.IndexChangeEvent;
+
+			[Inject("roamGroupPM")]
+			[Bindable]
+			public var pm:RoamGroupPM;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			private var log:ILogger=Log.getLoggerByClass(RoamGroup);
+
+			private var httpService:HTTPService;
+
+			[Bindable]
+			private var inoroutName:String="漫入";
+
+			//初始化
+			[MessageHandler(selector="initSceneRoam")]
+			public function onInit(event:RoamEvent):void
+			{
+				log.debug("enter onInit");
+				httpService=new HTTPService();
+				httpService.method="get";
+				httpService.resultFormat="e4x";
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				var date:Date=new Date();
+				var df:DateFormatter=new DateFormatter();
+				df.formatString="YYYY-MM-DD";
+				startTime.text=df.format(date);
+				startTime.selectedDate=date;
+				hourTime.selectedIndex=0;
+				var indexEvent:IndexChangeEvent=new IndexChangeEvent(IndexChangeEvent.CHANGE);
+				indexEvent.newIndex=0;
+				roamTabBar.dispatchEvent(indexEvent);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onMapNodeClick);
+				log.debug("OUT onInit");
+			}
+
+			//HTTP请求题图配置文件后的处理事件
+			protected function httpService_resultHandler(event:ResultEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("map xml");
+				log.info(event.result as XML);
+				mapWork.xmlData=event.result as XML;
+				mapWork.showMap();
+				var param:Object=new Object();
+				param.type=String(roamTabBar.selectedItem.id);
+				param.defCityId=String(roamTabBar.selectedItem.defCityId);
+				param.date=startTime.selectedDate;
+				param.hour=hourTime.selectedItem.hour;
+				if (roam_in.selected)
+				{
+					param.roam="0";
+				}
+				else
+				{
+					param.roam="1";
+				}
+
+//				if ("10" == param.defCityId)
+//				{
+//					pm.cityName="江苏省";
+//				}
+//				else if ("0100" == param.defCityId)
+//				{
+//					pm.cityName="南京";
+//				}
+//				else if ("3" == param.defCityId)
+//				{
+//					pm.cityName="中国";
+//				}
+				pm.onRoamTabChange(param);
+
+			}
+
+			//点击地图改变趋势图
+			private function onMapNodeClick(event:MapNodeEvent):void
+			{
+				if (event.mapNode && event.mapNode.id)
+				{
+					log.info("点击地图地市" + String(mapWork.getAreaId(event.mapNode.id)));
+					pm.loadDataByCity(String(mapWork.getAreaId(event.mapNode.id)));
+				}
+			}
+
+			//点击列表改变趋势图
+			protected function roamgGrid_itemClickHandler(event:ListEvent):void
+			{
+				log.info("点击列表地市ID" + pm.dm.mapDadaList[event.rowIndex].city_id);
+				if (pm.dm.mapDadaList[event.rowIndex].city_id)
+				{
+					pm.loadDataByCity(String(pm.dm.mapDadaList[event.rowIndex].city_id));
+				}
+			}
+
+
+			//导航菜单变化处理事件
+			protected function roamTabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("=============tabBarData");
+				log.info(pm.dm.tabBarData);
+				mapWork.mapObjArray=pm.dm.tabBarData.getItemAt(event.newIndex).mapArray;
+				httpService.url=pm.dm.tabBarData.getItemAt(event.newIndex).mapUrl;
+				httpService.send();
+			}
+
+			//按事件查询
+			protected function roamQueryBtn_clickHandler(event:MouseEvent):void
+			{
+				var param:Object=new Object();
+				param.date=startTime.selectedDate;
+				param.hour=hourTime.selectedItem.hour;
+				pm.queryByTime(param);
+			}
+
+			//初始化图标配置面板
+			protected function legendWindow_configHandler(event:WindowEvent=null):void
+			{
+				// TODO Auto-generated method stub
+				legendGroup.removeAllElements();
+				if (!pm.dm.colorLegends || pm.dm.colorLegends.length <= 0)
+				{
+					var colorConfigGroup:RoamColorConfigGroup=new RoamColorConfigGroup();
+					colorConfigGroup.defCity=String(pm.queryParam.defCity);
+					colorConfigGroup.colorPicker.selectedColor=0x000000;
+					legendGroup.addElement(colorConfigGroup);
+				}
+				else
+				{
+					for each (var data:Object in pm.dm.colorLegends)
+					{
+						var colorConfigGroup1:RoamColorConfigGroup=new RoamColorConfigGroup();
+						//colorConfigGroup.defCity=String(pm.queryParam.defCity);
+						colorConfigGroup1.colorPicker.selectedColor=Number("0x" + data.color);
+						colorConfigGroup1.leftTextInput.text=String(data.left);
+						colorConfigGroup1.rightTextInput.text=String(data.right);
+						legendGroup.addElement(colorConfigGroup1);
+					}
+				}
+				legendConfigWindow.visible=!legendConfigWindow.visible;
+				//legendConfigWindow.visible=true;
+				legendConfigWindow.x=(this.width - legendConfigWindow.width) / 2;
+			}
+
+			protected function legendWindow_restoreHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				legendWindow.clearStyle("height");
+			}
+
+
+			//图例数据加载后的处理事件画出图例
+			[MessageHandler(selector="loadSceneLegendDataComplete")]
+			public function onRoamLegendQueryHandler(event:RoamEvent):void
+			{
+				var i:Number=0;
+				leftColorGroup.removeAllElements();
+				rightColorGroup.removeAllElements();
+				for each (var data:Object in pm.dm.colorLegends)
+				{
+					var roamColorGP:RoamColorGroup=new RoamColorGroup();
+					roamColorGP.color=Number("0x" + data.color);
+					roamColorGP.legendLabel=String(data.legend_name);
+					if (i % 2 == 0)
+					{
+						leftColorGroup.addElement(roamColorGP);
+					}
+					else
+					{
+						rightColorGroup.addElement(roamColorGP);
+					}
+					i++;
+				}
+				//加载地图数据
+				var evt:RoamEvent=new RoamEvent(RoamEvent.LOAD_ROAM_DATA);
+				evt.param=pm.queryParam;
+//				dispatchMsg(evt);
+				requestServerUtil.addRequest(evt);
+			}
+
+			//加载地图列表数据返回处理事件
+			[MessageHandler(selector="creatSceneRoamMapRecl")]
+			public function creatMapRecl(event:RoamEvent):void
+			{
+				//把数据的最大值作为每个柱子的参考值
+				var columnarMaxNum:Number=0;
+				var columnarDataArray:Array=new Array();
+				//给地区填充颜色 
+				var roamNum:Number;
+				for each (var roamObj:Object in pm.dm.mapDadaList)
+				{
+					if ("0" == pm.queryParam.roam)
+					{
+						roamNum=Number(roamObj.in_num);
+					}
+					else
+					{
+						roamNum=Number(roamObj.out_num);
+					}
+					var color:uint=pm.getRoamColor(roamNum);
+					log.info("[color]" + color);
+					mapWork.fillMapById(String(roamObj.city_id), color);
+					columnarMaxNum=(columnarMaxNum > roamNum) ? columnarMaxNum : roamNum;
+					columnarDataArray[String(roamObj.city_id)]=roamNum;
+					log.info("city_id:" + roamObj.city_id + ",color:" + color + ",roamNum:" + roamNum + ",columnarMaxNum:" + columnarMaxNum);
+				}
+				//画柱子
+				var columnarHeight:Number=50;
+				var targets:Array=new Array();
+				//var curveTargets:Array=new Array();
+				//mapWork.fillMapById(String(pm.queryParam.defCity), pm.defColor);
+				if (pm.columnarGroup)
+				{
+					try
+					{
+						mapWork.removeElement(pm.columnarGroup);
+					}
+					catch (e:Error)
+					{
+					}
+				}
+
+				pm.columnarGroup=new Group();
+				mapWork.addElement(pm.columnarGroup);
+				var defMapNode:MapNode=mapWork.elementBox.getElementById(String(pm.queryParam.defCity) + "_a") as MapNode;
+				var defMapLabel:MapLabel=mapWork.elementBox.getElementById(String(pm.queryParam.defCity) + "_label") as MapLabel;
+				for (var cityId:String in columnarDataArray)
+				{
+					var mapNode:MapNode=mapWork.elementBox.getElementById(cityId + "_a") as MapNode;
+					var mapLabel:MapLabel=mapWork.elementBox.getElementById(cityId + "_label") as MapLabel;
+					if (!mapNode)
+					{
+						continue;
+					}
+					var columnarUI:UIComponent=new UIComponent();
+					columnarUI.x=mapNode.x;
+					columnarUI.y=mapNode.y;
+					columnarUI.toolTip=mapLabel.text + inoroutName + "," + columnarDataArray[cityId];
+					var sy:Number=0;
+					if (columnarMaxNum > 0)
+					{
+						sy=Number(columnarDataArray[cityId]) / columnarMaxNum;
+					}
+					log.info("drawColumnar heigh------->" + columnarHeight * sy);
+					var drawColumnar:DrawColumnar=new DrawColumnar(columnarUI.graphics, 12, columnarHeight * sy);
+					drawColumnar.draw();
+					pm.columnarGroup.addElement(columnarUI);
+					targets.push(columnarUI);
+						//					if (String(roamTabBar.selectedItem.id) == "2")
+						//					{
+						//						continue;
+						//					}
+						//					var xs:Number=0;
+						//					var ys:Number=0;
+						//					if (String(roamTabBar.selectedItem.id) == "3")
+						//					{
+						//						xs=10;
+						//						ys=20;
+						//					}
+						//					else
+						//					{
+						//						xs=30;
+						//						ys=10;
+						//					}
+						//					var yss:Number=20;
+						//					var curveUI:UIComponent=new UIComponent();
+						//					var fromPoint:Point;
+						//					var endPoint:Point;
+						////					if (String(pm.queryParam.roamType) == String(pm.dm.roamTypes.roam_in))
+						////					{
+						//					fromPoint=new Point(mapNode.x, mapNode.y + ys);
+						//					endPoint=new Point(defMapNode.x + xs, defMapNode.y + yss);
+						//					curveUI.toolTip=mapLabel.text + "漫入" + defMapLabel.text + "用户数：" + columnarDataArray[cityId];
+						////					}
+						////					else
+						////					{
+						////						endPoint=new Point(mapNode.x, mapNode.y + ys);
+						////						fromPoint=new Point(defMapNode.x + xs, defMapNode.y + yss);
+						////						curveUI.toolTip=defMapLabel.text + "漫出" + mapLabel.text + "用户数：" + columnarDataArray[cityId];
+						////					}
+						//					var sc:Number=mapNode.x > defMapNode.x ? 20 : -20;
+						//					var controlPoint:Point=new Point(fromPoint.x + sc, fromPoint.y + sc);
+						//					var drawDoubleCurve:DrawArrowCurveLine=new DrawArrowCurveLine(curveUI.graphics, fromPoint, endPoint, controlPoint, 0xffff00, 3, 0.8, 10);
+						//					drawDoubleCurve.draw();
+						//					pm.columnarGroup.addElement(curveUI);
+				}
+				pm.animate.play(targets);
+
+				var evt:RoamEvent=new RoamEvent(RoamEvent.LOAD_RAOM_CHART_DATA);
+				//更改默认第一次展示数据，为漫游列表第一条数据
+				pm.queryParam.defCity=pm.dm.mapDadaList.getItemAt(0)['city_id'];
+				evt.param=pm.queryParam;
+				log.debug(pm.queryParam);
+				dispatchMsg(evt);
+			}
+
+			//配置面板增加配置项
+			protected function legendAddBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var roamColorConfigGroup:RoamColorConfigGroup=new RoamColorConfigGroup();
+				legendGroup.addElement(roamColorConfigGroup);
+			}
+
+			//保存图标配置
+			protected function legendSaveBtn_clickHandler(event:MouseEvent):void
+			{
+				var param:Object=new Object();
+				param.roam=pm.queryParam.roam;
+				//param.defCity=String(pm.queryParam.defCity);
+				param.type=pm.queryParam.type;
+				if (legendGroup.numElements > 0)
+				{
+					var dataList:ArrayList=new ArrayList();
+					for (var i:Number=0; i < legendGroup.numElements; i++)
+					{
+						var colorConfigGroup:RoamColorConfigGroup=legendGroup.getElementAt(i) as RoamColorConfigGroup;
+						if (StringUtils.isEmpty(colorConfigGroup.leftTextInput.text))
+						{
+							continue;
+						}
+						else if (Number(colorConfigGroup.leftTextInput.text) > Number(colorConfigGroup.rightTextInput.text))
+						{
+							continue;
+						}
+						var data:Object=new Object();
+						//data.legend_name=String(colorConfigGroup.leftTextInput.text+"~"+colorConfigGroup.rightTextInput.text);
+						data.left_oper="<=";
+						data.left_value=Number(colorConfigGroup.leftTextInput.text);
+						data.right_oper="<";
+						data.right_value=Number(colorConfigGroup.rightTextInput.text);
+						data.color=String(colorConfigGroup.colorPicker.selectedColor.toString(16));
+						//						if (pm.queryParam.roamType && pm.queryParam.roamType == String(pm.dm.roamTypes.roam_in))
+						//						{
+						//							data.roam_in_city=String(param.defCity);
+						//							data.roam_out_city="";
+						//						}
+						//						else
+						//						{
+						//							data.roam_out_city=String(param.defCity);
+						//							data.roam_in_city="";
+						//						}
+						data.roam_type=Number(pm.queryParam.type);
+						//log.info("[saveLegend]roam_in_city:" + data.roam_in_city + ",roam_out_city:" + data.roam_out_city + ",legend_name:" + data.legend_name + ",left_oper:" + data.left_oper + ",left_value:" + data.left_value + ",right_oper:" + data.right_oper + ",right_value:" + data.right_value + ",color:" + data.color + ",roam_type:" + data.roam_type);
+						dataList.addItem(data);
+					}
+					param.dataList=dataList;
+				}
+				else
+				{
+					param.dataList=null;
+				}
+				pm.saveLegend(param);
+			}
+
+			//画趋势图
+			[MessageHandler(selector="drowSceneRoamChart")]
+			public function drowChart(event:RoamEvent):void
+			{
+				log.info("roam chart Data length" + pm.dm.chartDataList.length);
+				if (pm.dm.chartDataList && pm.dm.chartDataList.length != 0)
+				{
+					log.info("draw roam chart");
+					var p1:SerialParam=new SerialParam("roamNum", inoroutName + "数");
+					p1.chartType=PrettyChartType.CHART_TYPE_LINE;
+					p1.yAxis="left";
+					var charParam:ChartParam=new ChartParam();
+					charParam.xAxisProperty="time";
+					charParam.xaxisSuffix="(h)";
+					charParam.use3DColumn=false;
+					charParam.useDarkColor=true;
+					charParam.showLegend=false;
+					charParam.labelStep=pm.dm.chartDataList.length / 3;
+					roamChart.chartParam=charParam;
+					roamChart.series=new ArrayCollection([p1]);
+					roamChart.chartData(pm.dm.chartDataList, true);
+					roamChart.visible=true;
+				}
+				else
+				{
+					roamChart.visible=false;
+					if ("0" == pm.queryParam.roam)
+					{
+						Alert.show("最近没有漫入趋势图数据");
+					}
+					else if ("1" == pm.queryParam.roam)
+					{
+						Alert.show("最近没有漫出趋势图数据");
+					}
+
+				}
+
+
+				//legendWindow_configHandler();
+			}
+
+
+			protected function roam_in_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				inoroutName="漫入";
+				pm.queryParam.roam="0";
+				pm.loadLegendData();
+			}
+
+			protected function roam_out_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				inoroutName="漫出";
+				pm.queryParam.roam="1";
+				pm.loadLegendData();
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="2">
+		<s:VGroup width="100%"
+				  height="68%"
+				  left="5"
+				  top="5"
+				  gap="0"
+				  right="5"
+				  bottom="5">
+			<s:TabBar dataProvider="{pm.dm.tabBarData}"
+					  id="roamTabBar"
+					  labelField="label"
+					  styleName="commonTabBar"
+					  buttonMode="true"
+					  change="roamTabBar_changeHandler(event)"/>
+			<mx:ViewStack width="100%"
+						  height="100%"
+						  top="23"
+						  styleName="commonViewStack"
+						  backgroundAlpha="0.8">
+				<s:NavigatorContent width="100%"
+									height="100%">
+					<s:Group width="100%"
+							 height="100%">
+
+						<s:Scroller width="100%"
+									height="100%"
+									verticalScrollPolicy="auto"
+									horizontalScrollPolicy="auto">
+							<s:VGroup width="100%"
+									  height="100%"
+									  paddingLeft="100"
+									  paddingTop="20">
+								<dummymap:MapWork id="mapWork"
+												  width="100%"
+												  height="100%">
+								</dummymap:MapWork>
+							</s:VGroup>
+						</s:Scroller>
+
+						<ailk_compts:Window title="图例"
+											styleName="window1"
+											id="legendWindow"
+											minHeight="30"
+											width="210"
+											bottom="10"
+											left="10"
+											maximizable="false"
+											closable="false"
+											configable="true"
+											config="legendWindow_configHandler(event)"
+											restore="legendWindow_restoreHandler(event)">
+							<s:HGroup top="-20"
+									  right="50">
+								<s:RadioButton label="漫入"
+											   id="roam_in"
+											   groupName="roamType"
+											   selected="true"
+											   click="roam_in_clickHandler(event)"/>
+								<s:RadioButton label="漫出"
+											   id="roam_out"
+											   groupName="roamType"
+											   click="roam_out_clickHandler(event)"/>
+							</s:HGroup>
+							<s:HGroup width="100%">
+								<s:VGroup width="100%"
+										  id="leftColorGroup">
+								</s:VGroup>
+								<s:VGroup width="100%"
+										  id="rightColorGroup">
+								</s:VGroup>
+							</s:HGroup>
+						</ailk_compts:Window>
+						<ailk_compts:Window title="图例配置"
+											styleName="window1"
+											id="legendConfigWindow"
+											visible="{pm.showLegendConfigWindow}"
+											minHeight="30"
+											minWidth="250"
+											maxHeight="500"
+											width="300"
+											y="100"
+											dragable="true"
+											maximizable="false"
+											close="legendConfigWindow.visible=false"
+											minimizableBottom="12"
+											minimizableRight="360">
+							<s:VGroup width="100%">
+								<s:Scroller width="100%"
+											maxHeight="220"
+											verticalScrollPolicy="auto">
+									<s:VGroup width="100%"
+											  id="legendGroup">
+									</s:VGroup>
+								</s:Scroller>
+								<s:HGroup width="100%"
+										  horizontalAlign="center">
+									<s:Button id="legendAddBtn"
+											  label="增加"
+											  styleName="content_title"
+											  buttonMode="true"
+											  click="legendAddBtn_clickHandler(event)"/>
+									<s:Button id="legendSaveBtn"
+											  label="保存"
+											  styleName="content_title"
+											  buttonMode="true"
+											  click="legendSaveBtn_clickHandler(event)"/>
+								</s:HGroup>
+							</s:VGroup>
+						</ailk_compts:Window>
+
+						<mx:Form width="100%"
+								 top="1">
+							<s:HGroup width="100%"
+									  verticalAlign="middle">
+								<mx:FormHeading label="历史查询"/>
+								<mx:FormItem label="查询时间">
+									<mx:DateField width="150"
+												  id="startTime"
+												  formatString="YYYY-MM-DD"
+												  color="0x000000"/>
+								</mx:FormItem>
+								<mx:FormItem>
+									<s:DropDownList id="hourTime"
+													dataProvider="{pm.dm.timeData}"
+													labelField="label"/>
+								</mx:FormItem>
+								<s:Button label="查询"
+										  id="roamQueryBtn"
+										  styleName="content_title"
+										  buttonMode="true"
+										  click="roamQueryBtn_clickHandler(event)"/>
+							</s:HGroup>
+						</mx:Form>
+					</s:Group>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+		</s:VGroup>
+
+		<s:HGroup height="32%"
+				  width="100%"
+				  verticalAlign="middle">
+			<s:VGroup verticalAlign="middle"
+					  height="100%"
+					  width="50%">
+				<s:Label text="漫入漫出数据列表"
+						 styleName="label"/>
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 styleName="advancedDG1"
+									 id="roamgGrid"
+									 rowCount="6"
+									 itemClick="roamgGrid_itemClickHandler(event)"
+									 dataProvider="{pm.dm.mapDadaList}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="地区"
+												   dataField="cityName"/>
+						<mx:AdvancedDataGridColumn headerText="漫入"
+												   dataField="in_num"/>
+						<mx:AdvancedDataGridColumn headerText="漫出"
+												   dataField="out_num"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:VGroup>
+			<s:VGroup verticalAlign="middle"
+					  height="100%"
+					  width="50%">
+
+				<s:Label id="roam7ChartTitle"
+						 styleName="label"
+						 visible="true"
+						 text="{inoroutName}数据趋势图"/>
+				<ns:PrettyChart width="770"
+								height="200"
+								id="roamChart"/>
+			</s:VGroup>
+		</s:HGroup>
+
+	</s:VGroup>
+</s:SkinnableContainer>

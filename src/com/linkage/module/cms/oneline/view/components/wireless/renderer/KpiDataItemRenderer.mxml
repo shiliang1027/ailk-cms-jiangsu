@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				autoDrawBackground="false"
+				width="100%"
+				xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+				creationComplete="pc_creationCompleteHandler(event)">
+
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+			
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+
+			private var horizontalLines:ArrayCollection;
+
+			private static var log:ILogger = Log.getLoggerByClass(KpiDataItemRenderer);
+			
+//			private var datas:ArrayCollection = new ArrayCollection([{"time":"01:00","24h":"123","lastWeek":"324"},{"time":"02:00","24h":"123","lastWeek":"324"},{"time":"03:00","24h":"123","lastWeek":"324"},{"time":"04:00","24h":"123","lastWeek":"324"}]);
+			
+//			private var threshold:ArrayCollection = new ArrayCollection([{down_value:"100",up_value:"200",color:"0x00ff00"},{down_value:"200",up_value:"300",color:"0xffff00"},{down_value:"300",up_value:"400",color:"0xff0000"}]);
+			protected function showHideThreshold_changeHandler(event:Event):void
+			{
+				resetChart();
+				
+			}
+			protected function showLastWeekDataCB_changeHandler(event:Event):void
+			{
+				resetChart();
+			}
+			
+			private function resetChart():void{
+				pc.chartParam.title = data.kpiName;
+				pc.chartParam.xAxisProperty = 'time';
+				if(showHideThresholdCB.selected)
+				{
+					pc.chartParam.horizontalLines = horizontalLines;
+				}
+				else
+				{
+					pc.chartParam.horizontalLines = new ArrayCollection();
+				}
+				var series:ArrayCollection = new ArrayCollection();
+				var sp:SerialParam;
+				if(showLastWeekDataCB.selected){
+					sp = new SerialParam("lastWeek","上周同期");
+					series.addItem(sp);
+					sp = new SerialParam("24h","最近1小时");
+					series.addItem(sp);
+				}else{
+					sp = new SerialParam("24h","最近1小时");
+					series.addItem(sp);
+				}
+				pc.series = series;
+				log.warn(pc.series);
+				pc.chartData(data.datas, true);
+			}
+
+			protected function pc_creationCompleteHandler(event:FlexEvent):void
+			{
+				pc.percentWidth = 100;
+				buildChart();
+			}
+
+			private function buildChart():void
+			{
+				/* log.info("data");
+				log.info(data);
+				log.info("data.datas");
+				log.info(data.datas);
+				log.info("data.threshold");
+				log.info(data.threshold); */
+				if(!data.datas){
+					return;
+				}
+				pc.xAxisFontSize = 13;
+				//				pc.defaultStyleURL = 'style.xml';
+				pc.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				var sp:SerialParam;
+				sp = new SerialParam("lastWeek","上周同期");
+				series.addItem(sp);
+				sp = new SerialParam("24h","最近1小时");
+				series.addItem(sp);
+				pc.series = series;
+				var chartParam:ChartParam = new ChartParam();
+				chartParam.title = data.kpiName;
+				chartParam.xAxisProperty = 'time';
+				chartParam.labelStep = uint(data.datas.length / 4);
+				
+				horizontalLines = new ArrayCollection();
+				for each(var hdata:Object in data.threshold)
+				{
+					log.info("hdata");
+					log.info(hdata);
+					var hl:HorizontalLine = new HorizontalLine();
+					hl.yValue = Number(hdata.value);
+					//hl.yValue = Number(hdata.down_value);
+					hl.lineColor = uint(hdata.color);
+					hl.lineThickness = 1;
+					hl.dashedLine = false;
+					horizontalLines.addItem(hl);
+
+					/* hl = new HorizontalLine();
+					hl.yValue = Number(hdata.up_value);
+					hl.lineColor = uint(hdata.color);
+					hl.lineThickness = 1;
+					hl.dashedLine = false;
+					horizontalLines.addItem(hl); */
+				}
+				chartParam.horizontalLines = horizontalLines;
+				pc.chartParam = chartParam;
+				pc.chartData(data.datas, false);
+				
+//				for each(var item:*in data.moOrAreas)
+//				{
+//					var sp:SerialParam = new SerialParam(item.id, item.name);
+//					series.addItem(sp);
+//				}
+//				pc.series = series;
+//				var chartParam:ChartParam = new ChartParam();
+//				chartParam.title = data.kpiName;
+//				chartParam.xAxisProperty = 'time';
+//				chartParam.labelStep = uint(data.datas.length / 4);
+//
+//				horizontalLines = new ArrayCollection();
+//
+//				for each(var hdata:Object in data.threshold)
+//				{
+//					var hl:HorizontalLine = new HorizontalLine();
+//					hl.yValue = Number(hdata.down_value);
+//					hl.lineColor = uint(hdata.color);
+//					hl.lineThickness = 1;
+//					hl.dashedLine = false;
+//					horizontalLines.addItem(hl);
+//
+//					hl = new HorizontalLine();
+//					hl.yValue = Number(hdata.up_value);
+//					hl.lineColor = uint(hdata.color);
+//					hl.lineThickness = 1;
+//					hl.dashedLine = false;
+//					horizontalLines.addItem(hl);
+//				}
+//
+//				if(showHideThresholdCB.selected)
+//				{
+//					chartParam.horizontalLines = horizontalLines;
+//				}
+//				pc.chartParam = chartParam;
+//				pc.chartData(data.datas, false);
+			}
+			
+			 private function pcDataTipFunc(hd:HitData):String
+			{
+				 /* log.info("hd.item");
+				 log.info(hd.item); */
+				var data:Object=hd.item;
+				return "最近一小时:"+ data["24h"] + "\n" + "上周同期:" + data["lastWeek"] + "\n" + "时间点:" + data["time"] + "\n" + "分母:" + data["deno_name"] + "\n"+ "分子:" + data["numberator_name"];
+			} 
+
+		]]>
+	</fx:Script>
+	<ailk_chart:PrettyChart clipAndEnableScrolling="true"
+							top="20"
+							id="pc"
+							width="100%"
+							height="180" 
+							dataTipFunc="pcDataTipFunc"/>
+	<s:HGroup right="10"
+			  top="0" visible="{data.datas.length>0?true:false}">
+		<s:CheckBox label="显隐阈值基线"
+					id="showHideThresholdCB"
+					change="showHideThreshold_changeHandler(event)"
+					selected="true"/>
+		<s:CheckBox label="显隐上周同期"
+					id="showLastWeekDataCB"
+					change="showLastWeekDataCB_changeHandler(event)"
+					selected="true"/>
+	</s:HGroup>
+	
+</s:ItemRenderer>

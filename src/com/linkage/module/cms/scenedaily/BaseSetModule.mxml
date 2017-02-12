@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   creationComplete="module1_creationCompleteHandler(event)"
+		   xmlns:view="com.linkage.module.cms.scenedaily.view.*"
+		   xmlns:setface="com.linkage.module.cms.scenedaily.view.components.setface.*">
+	<fx:Declarations>
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{SceneDailyModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+
+			import mx.events.FlexEvent;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			public var parameters:Object;
+
+			private var log:ILogger = Log.getLoggerByClass(BaseSetModule);
+
+			[Init]
+			public function moduleInit():void
+			{
+				if(log.infoEnabled)
+					log.info("--开始初始化用户信息！");
+
+				this.parameters = this.parentApplication.parameters;
+
+				if(log.infoEnabled)
+				{
+					log.debug(user);
+					log.info("--初始化用户信息完成！");
+				}
+				baseSet.init();
+			}
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("--开始加载样式！" + this.parameters["styleUrl"]);
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+
+				log.info("--加载样式完成！");
+			}
+		]]>
+	</fx:Script>
+	<setface:BaseSetView width="100%"
+						 height="100%"
+						 id="baseSet"/>
+</mx:Module>

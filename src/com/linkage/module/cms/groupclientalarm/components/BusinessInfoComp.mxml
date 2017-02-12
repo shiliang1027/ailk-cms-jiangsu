@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="客户业务数据"
+		 creationComplete="businessInfoComp_creationCompleteHandler(event)"
+		 xmlns:panel="com.linkage.system.component.panel.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="specInfodataQuery",type="com.linkage.module.cms.groupclientalarm.event.HealthInfoCompEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.linkage.module.cms.groupclientalarm.event.HealthInfoCompEvent;
+			import com.linkage.system.component.panel.Window;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.Label;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.core.ScrollPolicy;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			// log
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.groupclientalarm.components.BusinessInfoComp");
+			[Bindable]
+			private var specInfoData:Object=new Object();
+
+			protected function businessInfoComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(HealthInfoCompEvent.SPECINFOCHANGE, onSpecInfoDataChange);
+				this.addEventListener(HealthInfoCompEvent.REFRESH, onRefresh);
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.REFRESH));
+			}
+
+			private function onRefresh(event:HealthInfoCompEvent):void
+			{
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.SPECINFODATAQUERY));
+			}
+
+			/* private function onSpecInfoDataChange(event:ResourceCompEvent):void
+			   {
+			   var result:Object=event.param;
+			   for (var key:String in result)
+			   {
+			   log.info("[客户信息查询]key:" + key);
+			   for each (var custInfo:Object in result[key].dataList)
+			   {
+			   specInfoData=custInfo;
+			   log.info("specInfoData");
+			   log.info(specInfoData);
+			   }
+			   }
+			 } */
+
+			private var expData:ArrayCollection=new ArrayCollection;
+			var headerArr:Array=new Array();
+
+			private function onSpecInfoDataChange(event:HealthInfoCompEvent):void
+			{
+				expData.removeAll();
+				var result:Object=event.param;
+				specGroup.removeAllElements();
+				for (var key:String in result)
+				{
+					var window:Window=new Window();
+					window.title=key;
+					window.percentWidth=100;
+					window.height=200;
+					window.minHeight=30;
+					window.maximizable=false;
+					window.closable=false;
+
+					var dataGrid:AdvancedDataGrid=new AdvancedDataGrid();
+					dataGrid.percentWidth=100;
+					dataGrid.percentHeight=100;
+					dataGrid.horizontalScrollPolicy=ScrollPolicy.AUTO;
+					dataGrid.verticalScrollPolicy=ScrollPolicy.AUTO;
+					dataGrid.columns=buildColumns(result[key]);
+					dataGrid.dataProvider=result[key].dataList;
+					window.addElement(dataGrid);
+					if (key == "传输专线")
+					{
+						expData.addAll(result[key].dataList);
+						expData.refresh();
+						var expButton:Label=new Label();
+						expButton.buttonMode=true;
+						expButton.text="导出";
+						//expButton.height=16;
+						expButton.right=30;
+						expButton.top=-20;
+						expButton.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):void
+							{
+								ExcelUtil.exportSimpleExcel("传输专线", headerArr, expData);
+							});
+						window.addElement(expButton);
+					}else if (key == "互联网专线")
+					{
+						expData.addAll(result[key].dataList);
+						expData.refresh();
+						var expButton:Label=new Label();
+						expButton.buttonMode=true;
+						expButton.text="导出";
+						//expButton.height=16;
+						expButton.right=30;
+						expButton.top=-20;
+						expButton.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):void
+						{
+							ExcelUtil.exportSimpleExcel("互联网专线", headerArr, expData);
+						});
+						window.addElement(expButton);
+					}else if (key == "语音专线")
+					{
+						expData.addAll(result[key].dataList);
+						expData.refresh();
+						var expButton:Label=new Label();
+						expButton.buttonMode=true;
+						expButton.text="导出";
+						//expButton.height=16;
+						expButton.right=30;
+						expButton.top=-20;
+						expButton.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):void
+						{
+							ExcelUtil.exportSimpleExcel("语音专线", headerArr, expData);
+						});
+						window.addElement(expButton);
+					}else if (key == "GPRS专线")
+					{
+						expData.addAll(result[key].dataList);
+						expData.refresh();
+						var expButton:Label=new Label();
+						expButton.buttonMode=true;
+						expButton.text="导出";
+						//expButton.height=16;
+						expButton.right=30;
+						expButton.top=-20;
+						expButton.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):void
+						{
+							ExcelUtil.exportSimpleExcel("GPRS专线", headerArr, expData);
+						});
+						window.addElement(expButton);
+					}else if (key == "短信专线")
+					{
+						expData.addAll(result[key].dataList);
+						expData.refresh();
+						var expButton:Label=new Label();
+						expButton.buttonMode=true;
+						expButton.text="导出";
+						//expButton.height=16;
+						expButton.right=30;
+						expButton.top=-20;
+						expButton.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):void
+						{
+							ExcelUtil.exportSimpleExcel("短信专线", headerArr, expData);
+						});
+						window.addElement(expButton);
+					}
+					specGroup.addElement(window);
+				}
+			}
+
+			private function buildColumns(result:Object):Array
+			{
+				var columns:Array=new Array();
+				var i:Number=0;
+				headerArr.splice(0);
+				for each (var name:String in result.name)
+				{
+					log.info("[buildColumns]name:" + name + ",column:" + result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+					dataGridColumn.width=150;
+					dataGridColumn.headerText=name;
+					dataGridColumn.dataField=result.colum[i];
+					if(dataGridColumn.headerText =="业务类别" ||result.colum[i] == "serv_type")
+					{
+						dataGridColumn.dataField = "serv_type_null"
+					}
+					
+					columns.push(dataGridColumn);
+					headerArr.push({"id": result.colum[i], "name": name});
+					i++;
+				}
+
+				return columns;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%"
+				  gap="0">
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="specGroup"
+					  paddingLeft="2"
+					  paddingRight="2"
+					  paddingBottom="2"
+					  paddingTop="2"
+					  gap="2">
+			</s:VGroup>
+		</s:VGroup>
+	</s:Scroller>
+</mx:VBox>

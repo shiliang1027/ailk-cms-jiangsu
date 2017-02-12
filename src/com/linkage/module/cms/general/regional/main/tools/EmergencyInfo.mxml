@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  dragable="true" close="closeMe();">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.HSlider;
+			import mx.controls.Text;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			import spark.components.HGroup;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.main.tools.EmergencyInfo");
+
+			private function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			public function init(infoList:Object):void
+			{
+				var hg:HGroup = null;
+				var text:Text = null;
+				var hs:HSlider = null;
+				
+				if (infoList != null)
+				{
+					for each (var info:Object in infoList)
+					{
+						hg = new HGroup();
+						//名称
+						text = new Text();
+						text.text = info.name;
+						hg.addElement(text);
+						//使用情况
+						hs = new HSlider();
+						hs.minimum = 0;
+						hs.maximum = Number(info.total_num);
+						hs.value = Number(info.use_num);
+						hs.toolTip = info.desc;
+						hs.labels = [0,50,100];
+						hs.showDataTip = true;
+						hg.addElement(hs);
+						this.emergencyList.addElement(hg);
+					}
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="emergencyList" width="220" height="220">
+	</s:VGroup>
+</panel:Window>

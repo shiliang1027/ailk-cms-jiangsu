@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 width="100%" height="100%" creationComplete="module_creationCompleteHandler(event)"
+		 xmlns:components="com.linkage.module.cms.gsscene.view.components.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:states>
+		<s:State name="centerNormal"/>
+		<s:State name="centerMax"/>
+	</s:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneview.SceneConfigDM;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import mx.events.FlexEvent;
+			
+			import spark.core.NavigationUnit;
+			private var log:ILogger = Log.getLoggerByClass(SceneModuleNew);
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			private var parameters:Object;
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Bindable]
+			[Embed(source = "img/down.png")]
+			private var down:Class;
+			
+			[Bindable]
+			[Embed(source = "img/up.png")]
+			private var up:Class;
+			
+			[Embed(source = "img/up_gray.png")]
+			[Bindable]
+			private static var _up_gray:Class;
+			[Embed(source = "img/down_gray.png")]
+			[Bindable]
+			private static var _down_gray:Class;
+			
+			
+			
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+				
+				
+				var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+				e.param = new Object();
+				e.param.currentState = user.mapType=="0"?"gisMap":"vectorMap";
+				e.param.city_id=user.cityId;
+				e.param.logicalType=user.logicalType;
+				e.param.level=user.level;
+				dispatcher(e);
+				//				history.addHistory(e);
+			}
+			
+			[MessageHandler(selector = "MAIN_STATE_CHANGE")]
+			public function MAIN_STATE_CHANGE(e:SceneEvent):void
+			{
+				this.currentState = e.param.currentState;
+				
+				
+			}
+			
+			
+			protected function leftDown_clickHandler(event:MouseEvent = null):void
+			{
+				if (left.viewport.getVerticalScrollPositionDelta(NavigationUnit.END) > left.viewport.verticalScrollPosition)
+				{
+					left.viewport.verticalScrollPosition = left.viewport.getVerticalScrollPositionDelta(NavigationUnit.END);
+					leftImg.source = up;
+				}
+				else
+				{
+					left.viewport.verticalScrollPosition = left.viewport.getVerticalScrollPositionDelta(NavigationUnit.HOME);
+					leftImg.source = down;
+				}
+			}
+			
+			protected function rightDown_clickHandler(event:MouseEvent = null):void
+			{
+				if (right.viewport.getVerticalScrollPositionDelta(NavigationUnit.END) > right.viewport.verticalScrollPosition)
+				{
+					right.viewport.verticalScrollPosition = right.viewport.getVerticalScrollPositionDelta(NavigationUnit.END);
+					rightImg.source = up;
+				}
+				else
+				{
+					right.viewport.verticalScrollPosition = right.viewport.getVerticalScrollPositionDelta(NavigationUnit.HOME);
+					rightImg.source = down;
+				}
+			}
+			
+			protected function alarm_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (img.name == "down")
+				{
+					hideAlarm();
+				}
+				else if (img.name == "up")
+				{
+					showAlarm();
+				}
+			}
+			
+			private function hideAlarm(dura:Number = 100):void
+			{
+				dispatcher(new SceneEvent(SceneEvent.RESUME_NEWS));
+				//关闭流水
+				dispatcher(new SceneEvent("STOP_SCENE_ALARM"));
+				
+				resize.target = alarmVgroup;
+				resize.duration = dura;
+				resize.heightTo = 10;
+				resize.widthTo = Number.NaN;
+				resize.play();
+				
+				img.source = _up_gray;
+				img.name = "up";
+			}
+			
+			private function showAlarm(dura:Number = 100):void
+			{
+				//打开流水
+				dispatcher(new SceneEvent("LOAD_SCENE_ALARM"));
+				
+				resize.target = alarmVgroup;
+				
+				//	alarmComp.reloadAlarm();
+				
+				resize.duration = dura;
+				resize.heightTo = 247;
+				resize.widthTo = Number.NaN;
+				resize.play();
+				
+				img.source = _down_gray;
+				img.name = "down";
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		
+		
+		<s:Resize heightTo="0"
+				  id="resize"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:HGroup width="100%" height="100%">
+		<viewnew:CompsContainer id="left" width="300" height="100%" dataProvider="{scenePM.dm.leftPanelList}"
+								visible.centerMax="false" includeInLayout.centerMax="false"/>
+		
+		<viewnew:CenterComp id="center" width="100%" height="100%"/>
+		
+		<viewnew:CompsContainer id="right" width="300" height="100%" dataProvider="{scenePM.dm.rightPanelList}"
+								visible.centerMax="false" includeInLayout.centerMax="false"/>
+	</s:HGroup>
+	
+	<mx:VDividedBox id="mainVdbox" width="100%" height="100%"
+					visible.centerMax="false">
+		<s:Group id="arrowImgGroup" width="100%" height="100%">
+			<mx:Image id="leftImg" left="5" bottom="0" buttonMode="true"
+					  click="leftDown_clickHandler(event)" source="{down}"/>
+			<mx:Image id="rightImg" right="5" bottom="0" buttonMode="true"
+					  click="rightDown_clickHandler(event)" source="{down}"/>
+		</s:Group>
+		<!--告警流水-->
+		<s:VGroup id="alarmVgroup" width="100%" minHeight="10" height="10" gap="0" horizontalAlign="center">
+			<mx:Image id="img" buttonMode="true" name="up" source="{_up_gray}" click="alarm_clickHandler(event)"/>
+			<s:Group id="alarmFlowGroup" width="100%" height="100%">
+				<components:SceneAlarmFlow/>
+			</s:Group>
+		</s:VGroup>
+	</mx:VDividedBox>
+	
+	<!--<components:KpiCustomView id="kpiCustomView"/>-->
+	
+</s:Group>

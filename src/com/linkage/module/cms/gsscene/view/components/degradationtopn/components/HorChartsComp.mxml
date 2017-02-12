@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  height="100%">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-7-3
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChart;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+
+			import spark.components.Label;
+			import spark.components.VGroup;
+
+			private var log:ILogger = Log.getLoggerByClass(HorChartsComp);
+
+			private var _chartWidth:Number;
+
+			private var _chartHeight:Number;
+
+			private var _kpiName:String;
+
+			//加入chart 表格
+			public function addChart(topnData:ArrayCollection):void
+			{
+				log.info("表格处理开始：width:{0},height:{1}", chartWidth, chartHeight);
+
+				var vg:VGroup = new VGroup();
+				vg.width = chartWidth;
+				vg.height = this.height;
+				vg.horizontalAlign = "center";
+				this.addElement(vg);
+
+
+
+				var chart:PrettyChart = new PrettyChart();
+				chart.showXaxisTitle = false;
+				chart.showYaxisTitle = false;
+				chart.maxColumnWidth = 40;
+				chart.width = chartWidth - 8;
+				chart.height = chartHeight - 20;
+
+				vg.addElement(chart);
+
+				var colorArray:Array = new Array;
+				for each (var obj:Object in topnData)
+				{
+					colorArray.push(obj.color);
+					kpiName = obj["kpiName"];
+				}
+
+				var label:Label = new Label();
+				label.text = kpiName;
+				vg.addElement(label);
+
+				log.info("加入图表kpiName:{0} 开始", kpiName);
+				var p1:SerialParam = new SerialParam('kpiValue', kpiName);
+				p1.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+				p1.fillColorArray = colorArray;
+//				chart.width = this.width - 8;
+
+				var charParam:ChartParam = new ChartParam();
+				//设置横坐标参数
+				charParam.xAxisProperty = "moName";
+				charParam.use3DColumn = false;
+				charParam.showLegend = false;
+				charParam.itemClickEnable = true;
+				charParam.padding = 0;
+
+				charParam.useShowDataEffect = false;
+
+				chart.chartParam = charParam;
+				chart.dataTipFunc = topnTipFunc;
+
+				chart.series = new ArrayCollection([p1]);
+
+				chart.chartData(topnData, true);
+
+				log.info("加入图表kpiName:{0} 结束", kpiName);
+
+			}
+
+			public function topnTipFunc(hd:HitData):String
+			{
+				var data:Object = hd.item;
+				return "<B>" + data["kpiName"] + "</B>\n" + data["moName"] + "\n" + data["kpiValue1"] + "\n" + data["cityName"] + "\n" + data["areaName"] + "\n" + data["time"] + "\n" + data["numerator"] + "\n" + data["denominator"] + "\n" + data["calcute"];
+			}
+
+			public function get chartWidth():Number
+			{
+				return _chartWidth;
+			}
+
+			public function set chartWidth(value:Number):void
+			{
+				_chartWidth = value;
+			}
+
+			public function get chartHeight():Number
+			{
+				return _chartHeight;
+			}
+
+			public function set chartHeight(value:Number):void
+			{
+				_chartHeight = value;
+			}
+
+			public function get kpiName():String
+			{
+				return _kpiName;
+			}
+
+			public function set kpiName(value:String):void
+			{
+				_kpiName = value;
+			}
+		]]>
+	</fx:Script>
+</s:HGroup>

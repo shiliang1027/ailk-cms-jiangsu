@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:kpi="com.linkage.module.cms.perfmonitornew.kpi.*"
+			   width="100%" height="100%" creationComplete="main_creationCompleteHandler(event)"
+			   preinitialize="main_preinitializeHandler(event)"
+			   preloader="com.linkage.module.cms.components.downloadprogress.CustomPreloader"
+			   viewSourceURL="srcview/index.html">
+    <s:layout>
+        <s:BasicLayout/>
+    </s:layout>
+
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.ILoggingTarget;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.logging.LogEventLevel;
+            import com.ailk.common.system.logging.targets.MonsterTarget2;
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.system.logging.ILoggingTarget;
+            import com.linkage.system.logging.targets.MonsterTarget2;
+
+            import mx.charts.LineChart;
+            import mx.collections.ArrayList;
+            import mx.controls.Alert;
+            import mx.events.FlexEvent;
+
+
+            public var lm:LoadManager;
+
+            private var lc:LineChart;
+
+            private var alert:Alert;
+
+            private var levelMap:Object = new Object();
+
+            private static var log:ILogger = Log.getLoggerByClass(KPIMonitorApp);
+
+            protected function main_preinitializeHandler(event:FlexEvent):void
+            {
+                styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+            }
+
+
+            protected function main_creationCompleteHandler(event:FlexEvent):void
+            {
+                levelMap["info"] = LogEventLevel.INFO;
+                levelMap["debug"] = LogEventLevel.DEBUG;
+                levelMap["warn"] = LogEventLevel.WARN;
+                levelMap["error"] = LogEventLevel.ERROR;
+                levelMap["all"] = LogEventLevel.ALL;
+
+                lm = new LoadManager(this);
+                var moduleUrl:String = this.parameters["moduleUrl"];
+
+                var level:int = 0;
+
+                if (this.parameters["LogLevel"])
+                {
+                    if (int(this.parameters["LogLevel"]) != 0)
+                    {
+                        level = int(this.parameters["LogLevel"]);
+                    }
+                    else
+                    {
+                        level = levelMap[String(this.parameters["LogLevel"]).toLocaleLowerCase()];
+                    }
+
+                    if (int(this.parameters["LogType"]) == 0)
+                    {
+                        var logTarget:com.linkage.system.logging.ILoggingTarget = new com.linkage.system.logging.targets.MonsterTarget2();
+                        logTarget.level = level;
+
+                        if (this.parameters["LogFilters"])
+                        {
+                            logTarget.filters = String(this.parameters["LogFilters"]).split(",");
+                        }
+                        com.linkage.system.logging.Log.addTarget(logTarget);
+                    }
+                    else
+                    {
+                        var newLogTarget:com.ailk.common.system.logging.ILoggingTarget = new com.ailk.common.system.logging.targets.MonsterTarget2();
+                        newLogTarget.level = level;
+
+                        if (this.parameters["LogFilters"])
+                        {
+                            newLogTarget.filters = String(this.parameters["LogFilters"]).split(",");
+                        }
+                        com.ailk.common.system.logging.Log.addTarget(newLogTarget);
+                    }
+                }
+                ExternalInterface.addCallback("flashStart", flashStart);
+                ExternalInterface.addCallback("flashStop", flashStop);
+            }
+
+            private var startList:ArrayList = new ArrayList();
+            private var isRunning:Boolean = false;
+
+            public function flashStart():String
+            {
+                var message:Array = new Array();
+                startList.source.forEach(function(item:*, index:int, array:Array):void {
+                    try {
+                        if (!item.running) {
+                            item.start();
+                            message.push(item + "启动成功");
+                        } else {
+                            message.push(item + "已经启动");
+                        }
+                    } catch (e:Error) {
+                        message.push(e.getStackTrace());
+                    }
+                });
+                isRunning = true;
+                return message.join("\n") + isRunning;
+            }
+
+            public function flashStop():String
+            {
+                var message:Array = new Array();
+                startList.source.forEach(function(item:*, index:int, array:Array):void {
+                    try {
+                        if (item.running) {
+                            item.stop();
+                            message.push(item + "停止成功");
+                        } else {
+                            message.push(item + "已经停止");
+                        }
+
+                    } catch (e:Error) {
+                        message.push(e.getStackTrace());
+                    }
+                });
+                isRunning = false;
+                return message.join("\n") + isRunning;
+            }
+
+            public function remove(item:Object):void
+            {
+                startList.removeItem(item);
+            }
+
+            public function add(item:Object):void
+            {
+                if (startList.getItemIndex(item) < 0)
+                {
+                    startList.addItem(item);
+                }
+            }
+
+            public function clear():void
+            {
+                startList.removeAll();
+            }
+        ]]>
+    </fx:Script>
+
+    <kpi:KPIMonitor/>
+</s:Application>

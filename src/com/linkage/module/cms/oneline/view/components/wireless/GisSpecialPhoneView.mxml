@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:NavBar xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:pager="com.linkage.module.cms.components.pager.*"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					location="right"
+					styleName="sceneNavBar"
+					xmlns:parsley="http://www.spicefactory.org/parsley" creationComplete="zeroPage()">
+	<!--
+	***************************************
+	This is Content
+	@author 汪炜
+	@version 1.0
+	@date 2014-1-16
+	@langversion 3.0
+	@playerversion Flash 11
+	@productversion Flex 4
+	@copyright Ailk NBS-Network Mgt. RD Dept.
+	***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.oneline.GisHotModule;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			[Bindable]
+			public var datas:ArrayCollection;
+			[Bindable]
+			public var cityIds:Object;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Embed(source="assets/icon_export.png")]
+			[Bindable]
+			public static var iconExport:Class;
+			
+			private  var params:Object;
+			private var _specialPhoneType:String="";//2G、3G
+			public function set specialPhoneType(value:String):void{
+				_specialPhoneType = value;
+			}
+			public function get specialPhoneType():String{
+				return _specialPhoneType;
+			}
+			private var log:ILogger=Log.getLoggerByClass(GisHotHistoryView);
+			[MessageHandler(selector="LOADHOTSPOTCELLDATACOMPLETE")]
+			public function loadHotSpotCellDataCompleteHandler(e:GisHotEvent):void
+			{
+//				closeMe();
+			}
+			
+			[MessageHandler(selector="LOADGISINFODATACOMPLETE")]
+			public function loadGisInfoDataCompleteHandler(e:GisHotEvent):void
+			{
+//				closeMe();
+			}
+			
+			private function closeMe():void{
+				if(this.content.visible){
+					this.titleGroup.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+			public function queryPage():void{
+				Alert.show("分页");
+			}
+			
+			public function zeroPage():void
+			{
+				var nav:NavigatorContent = this.viewStack.selectedChild as NavigatorContent;
+				var phoneNav:NavigatorContent = this.viewPhoneStack.selectedChild as NavigatorContent;
+				if(null!=nav&&undefined!=nav&&null!=phoneNav&&undefined!=phoneNav){
+					params=new Object();
+					params["dayType"]=nav.id;
+					params["specialPhoneType"]=String(this.specialPhoneType+phoneNav.id).replace("phone","");
+					log.info(params);
+					var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADSPECIALPHONEDATA);
+					evt.param=params;
+					dispatcher(evt);
+				}
+			}
+			
+			protected function viewStack_changeHandler(event:IndexChangedEvent):void
+			{
+				var nav:NavigatorContent = this.viewStack.selectedChild as NavigatorContent;
+				var phoneNav:NavigatorContent = this.viewPhoneStack.selectedChild as NavigatorContent;
+				if(null!=nav&&undefined!=nav&&null!=phoneNav&&undefined!=phoneNav){
+				 params=new Object();
+					params["dayType"]=nav.id;
+					params["cityIds"]=cityIds;
+					params["specialPhoneType"]=String(this.specialPhoneType+phoneNav.id).replace("phone","");
+					log.info("getSpecialPhoneInfo参数:-->");
+					log.info(params);
+					var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADSPECIALPHONEDATA);
+					evt.param=params;
+					dispatcher(evt);
+  				}
+			}
+
+			protected function advanceddatagrid_itemClickHandler(event:ListEvent):void
+			{
+				log.info("hotLadata");
+				if(event.columnIndex>2){
+					return;
+				}
+				var nav:NavigatorContent = this.viewStack.selectedChild as NavigatorContent;
+				var param:Object=new Object();
+				param.day=nav.id;
+				param.mo_id=AdvancedDataGrid(event.currentTarget).selectedItem.moId;
+				param.moName=AdvancedDataGrid(event.currentTarget).selectedItem.moName;
+				param.cityIds=AdvancedDataGrid(event.currentTarget).selectedItem.cityId;
+				param.time=AdvancedDataGrid(event.currentTarget).selectedItem.specialPhone_times;
+				log.info("moId:" + param.moId + ",moName:" + param.moName + ",cityIds:"+param.cityIds + ",time:"+param.specialPhone_times);
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADNORMALCELLGISINFODATA);
+				evt.param=param;
+				dispatcher(evt);
+			}
+			
+			protected function button_clickHandler():void
+			{
+					var url:String = GisHotModule._context + "scenedaily/produce/hotmap/hotmap!exportSpecialPhoneInfo.action?dayType="+params.dayType+"&specialPhoneType="+params.specialPhoneType+"&areaId="+params.areaId;
+					navigateToURL(new URLRequest(url));
+					log.info("导出 params");
+					log.info(params);
+				export.toolTip="请稍等。。。";
+				export.buttonMode = false;
+				export.enabled = false;
+				setTimeout(function():void{
+					export.toolTip="查询结果导出";
+					export.buttonMode = true;
+					export.enabled = true;
+				},30000);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+		<s:Group width="100%" height="100%">
+			<s:SkinnableContainer id="specialPhoneWin" width="100%" height="100%">
+				<s:VGroup width="100%" height="100%" gap="0">
+					<s:TabBar id="tabPhoneBar" dataProvider="{viewPhoneStack}" styleName="commonTabBar"
+							  useHandCursor="true" buttonMode="true" />
+					<mx:ViewStack id="viewPhoneStack" change="viewStack_changeHandler(event)" selectedIndex="0" creationPolicy="all" width="100%" height="100%" backgroundAlpha="0">
+						<s:NavigatorContent id="phone110" label="110" width="100%" height="100%" creationPolicy="all">
+						</s:NavigatorContent>
+						<s:NavigatorContent id="phone119" label="119" width="100%" height="100%" creationPolicy="all">
+						</s:NavigatorContent>
+						<s:NavigatorContent id="phone120" label="120" width="100%" height="100%" creationPolicy="all">
+						</s:NavigatorContent>
+					</mx:ViewStack>
+				</s:VGroup>
+				<s:VGroup top="25" width="100%" height="100%" gap="0">
+					<s:TabBar id="tabBar" dataProvider="{viewStack}" styleName="commonTabBar"
+							  useHandCursor="true" buttonMode="true" />
+					<mx:ViewStack id="viewStack" change="viewStack_changeHandler(event)" selectedIndex="0" creationPolicy="all" width="100%" height="100%" backgroundAlpha="0">
+						<s:NavigatorContent id="currect" label="实时" width="100%" height="100%" creationPolicy="all">
+						</s:NavigatorContent>
+						<s:NavigatorContent id="today" label="今天" width="100%" height="100%" creationPolicy="all">
+						</s:NavigatorContent>
+					</mx:ViewStack>
+				</s:VGroup >
+				<s:VGroup top="26" right="10">
+					<mx:Image id="export" visible="{this.title=='2G'}"
+							  source="{iconExport}"
+							  autoLoad="true"
+							  toolTip="查询结果导出"
+							  buttonMode="true"
+							  click="button_clickHandler()"
+							  />
+						<!--<s:Button right="10"
+							      label="导出"
+								  buttonMode="true"
+								  click="button_clickHandler(event)"
+								   />-->
+					
+				</s:VGroup>
+			</s:SkinnableContainer>
+			<s:Scroller left="0" top="49" bottom="10" width="400" height="280" styleName="sceneScroller">
+				<s:Group width="100%" height="100%">
+					<mx:AdvancedDataGrid width="100%"
+										 height="100%"
+										 horizontalScrollPolicy="auto"
+										 verticalScrollPolicy="auto"
+										 dataProvider="{datas}"
+										 styleName="sceneDG" 
+										 itemClick="advanceddatagrid_itemClickHandler(event)"
+										 itemDoubleClick="advanceddatagrid_itemClickHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn dataField="index" dataTipField="index" showDataTips="true"
+													   headerText="排名"
+													   width="60" itemRenderer="mx.controls.Label"/>
+							<mx:AdvancedDataGridColumn dataField="cityName" dataTipField="cityName" showDataTips="true"
+													   headerText="地市"
+													   width="60" itemRenderer="mx.controls.Label"/>
+							<mx:AdvancedDataGridColumn dataField="moName" dataTipField="moName" showDataTips="true"
+													   width="140"
+													   headerText="小区名称" itemRenderer="mx.controls.Label"/>
+							<mx:AdvancedDataGridColumn dataField="specialPhone_time" dataTipField="specialPhone_time" showDataTips="true"
+													   headerText="拨打时间" itemRenderer="mx.controls.Label"
+													   width="160"/>
+							<mx:AdvancedDataGridColumn dataField="specialPhone_times" dataTipField="specialPhone_times" showDataTips="true"
+													   width="60"
+													   headerText="拨打次数"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</s:Group>
+			</s:Scroller>
+		</s:Group>
+</ailk_compts:NavBar>

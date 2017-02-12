@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk="http://www.ailk.com/2011/ailk"
+		 xmlns:components="com.linkage.module.cms.baseline.static.components.*" 
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 horizontalAlign="center"
+		 creationComplete="KPI_creationCompleteHandler(event)">
+		 
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[			
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.baseline.static.data.BaseLineDataManager;
+			import com.linkage.module.cms.baseline.static.data.BaseLineDataManagerBS;
+			import com.linkage.module.cms.baseline.static.demoData.DemoDatas;
+			import com.linkage.module.cms.baseline.static.event.BaseLineEvent;
+			import com.linkage.module.cms.baseline.static.staticData.BaseLineBean;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.static.components.KPIView");
+			public var lm:LoadManager = null;
+			public var parameters:Object;
+			[Bindable]
+			private var _showName:String = "aaa";
+			
+			public var showBaseLineViewFun:Function;
+			
+			private var queryParams:Object = new Object;//查询指标的参数
+			[Bindable]
+			private var initChartFlag:Boolean = false; 
+			[Bindable]
+			private var _datas:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			public var baseLineDataManager:BaseLineDataManager;
+			
+			[Bindable]
+			private var currentPage:int = 1;
+			[Bindable]
+			private var pageSize:int = 10;
+			[Bindable]
+			private var totalRowCount:int = 0;
+			
+			[Bindable]
+			private var baseLineStartTypeDP:ArrayCollection = new ArrayCollection([{label: '请选择', value: ''},{label: '启用', value: '1'},{label: '停用', value: '0'}]);
+			[Bindable]
+			private var baseLineCfgDP:ArrayCollection = new ArrayCollection([{label: '请选择', value: ''},{label: '已配置', value: '1'},{label: '未配置', value: '0'}]);
+			[Bindable]
+			private var moTypeDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: ''}]);
+			
+			protected function KPI_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("KPIView初始化！");
+				doInit();
+				//根据指定的网元Id加载左边的树
+				queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+			}
+			private function doInit():void{
+				baseLineDataManager.loadMoTypeList(queryParams,loadMoTypeListHandler);
+			}
+			private function loadMoTypeListHandler(result:Object):void{
+				log.info("查询网元类型列表success！");
+				this.moTypeDP.removeAll();
+				this.moTypeDP.addAll(result.datas as IList);
+			}
+			/**
+			 * 指标基线启用，停用状态更改
+			 * */
+			private function doChangeStatusHandler(event:BaseLineEvent):void{
+				log.info("指标基线启用，停用更新！");
+				log.info(event.param);
+				if('1'==event.param.isActive){
+					/* 停用 */
+					event.param.isActive="0";
+					baseLineDataManager.doChangeKPIBaseLineStatus(event.param,doStopKPIBaseLineStatusHandler);
+				}else if('0'==event.param.isActive){
+					/* 启用  */
+					event.param.isActive="1";
+					baseLineDataManager.doChangeKPIBaseLineStatus(event.param,doStartKPIBaseLineStatusHandler);
+				}
+			}
+			
+			private function doStopKPIBaseLineStatusHandler(result:Object):void{
+				log.info("停用KPI 动态基线状态success！");
+				if(result.flag){
+					Alert.show("停用成功！");
+					queryData();
+				}else{
+					Alert.show("停用失败！");
+				}
+			}
+			private function doStartKPIBaseLineStatusHandler(result:Object):void{
+				log.info("启用KPI 动态基线状态success！");
+				if(result.flag){
+					Alert.show("启用成功！");
+					queryData();
+				}else{
+					Alert.show("启用失败！");
+				}
+			}
+			/**
+			 * 
+			 * 查询指标列表
+			 **/
+			protected function queryData():void
+			{
+				lm.showLoading();
+				queryParams.curPage = quitPager.currentPage;
+				baseLineDataManager.loadKPIList(queryParams,loadKPIListHandler);
+			}
+			private function loadKPIListHandler(result:Object):void{
+				lm.hideLoading();
+				log.info("查询指标列表success！");
+				log.info(result.datas);
+				if(null!=result.datas&&""!=result.datas&&undefined!=result.datas&&"undefined"!=result.datas){
+					this._datas.removeAll();
+					this._datas.addAll(result.datas as IList);
+					this.totalRowCount = int(result.total);
+				}else{
+					this._datas.removeAll();
+					this.totalRowCount = 0;
+				}
+			}
+			protected function queryBtn_clickHandler():void
+			{
+				queryParams.perfTypeName=perfTypeName.text;
+//				queryParams.baseLineCfg=baseLineCfg.selectedItem['value'];
+//				queryParams.baseLineStartType=baseLineStartType.selectedItem['value'];
+				if (this.moTypeId.selectedItems.length > 0){
+					queryParams.moTypeId = getIds(moTypeId, "value");
+				}else{
+					queryParams.moTypeId = "";
+				}
+				quitPager.currentPage = 1;
+				queryParams.pageSize = pageSize;
+				this.queryData();
+			}
+			private function getIds(pcb:PrettyComboBox, id:String):String
+			{
+				var ids:String = "";
+				for each (var item:Object in pcb.selectedItems)
+				{
+					ids = ids + item[id] + ",";
+				}
+				return ids.substr(0, ids.length - 1);
+			}
+			protected function servName_keyUpHandler(event:KeyboardEvent):void
+			{
+				if (event.keyCode == 13)
+				{
+					queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+			protected function kpiGrid_itemClickHandler(event:ListEvent):void
+			{
+				var params:Object = event.target.selectedItem;
+				//基线定义维护
+				log.info("静态基线配置");
+				log.info(params);
+				BaseLineBean.setParams(params);
+				this.showBaseLineViewFun();
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:HGroup width="100%" height="30" gap="5" verticalAlign="middle" horizontalAlign="center">
+		<s:Label text="指标名称：" />
+		<s:TextInput id="perfTypeName" keyUp="servName_keyUpHandler(event)" width="100"/>
+		<s:Label text="网元类型：" />
+		<ailk_compts:PrettyComboBox id="moTypeId"
+									multiSlecteEnabled="true"
+									dataProvider="{moTypeDP}"/>
+<!--		<s:Label text="是否配置基线：" />
+		<s:DropDownList id="baseLineCfg"
+						width="150"
+						selectedIndex="1"
+						dataProvider="{baseLineCfgDP}"
+						contentBackgroundAlpha="1"/>-->
+		<!--<s:Label text="基线启用状态：" />
+		<s:DropDownList id="baseLineStartType"
+						width="150"
+						selectedIndex="0"
+						dataProvider="{baseLineStartTypeDP}"
+						contentBackgroundAlpha="1"/>-->
+		<s:Button label="查  询" width="60" id="queryBtn" click="queryBtn_clickHandler()" buttonMode="true"/>
+	</s:HGroup>
+	<s:VGroup width="98%" height="100%" verticalAlign="middle" horizontalAlign="center">
+		<s:Scroller width="100%" height="100%" id="dataScroller" verticalScrollPolicy="auto">
+			<s:Group width="100%" height="100%">
+				<!--列表展示基线信息-->
+				<components:KPIADGrid id="kpiGrid"
+									  rowCount="12"
+									  dataProvider="{_datas}"
+									  itemDoubleClick="kpiGrid_itemClickHandler(event)"/>
+			</s:Group>
+		</s:Scroller>
+		<s:HGroup width="100%" horizontalAlign="center">
+		<ailk_compts:Pagination id="quitPager" totalRowCount="{totalRowCount}" pageSize="{pageSize}" currentPage="{currentPage}" pageChange="queryData();"/>
+		</s:HGroup>
+	</s:VGroup>
+</s:VGroup>

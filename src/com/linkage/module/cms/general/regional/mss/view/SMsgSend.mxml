@@ -1,0 +1,481 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:date="com.linkage.module.cms.general.regional.mss.common.date.*"
+		  creationComplete="hgroup_creationCompleteHandler(event)"
+		  width="100%"
+		  height="100%"
+		  xmlns:component="com.linkage.module.cms.general.regional.mss.view.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.regional.mss.common.util.MssUtil;
+			import com.linkage.module.cms.general.regional.mss.controller.MsgAction;
+			import com.linkage.system.component.panel.Window;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter=new DateFormatter();
+			dateFormatter.formatString="YYYY-MM-DD JJ:NN:SS";
+			/**
+			 * 信息控制类
+			 */
+			private var _msgAction:MsgAction=null;
+			/**
+			 *加载管理
+			 */
+			private var loadManager:LoadManager=null;
+			[bindable]
+			/**
+			 *网元类型数组
+			 */
+			private var moTypeArray:ArrayCollection=new ArrayCollection([{mo_type_id: '101', mo_type_name: 'cell'}, {mo_type_id: '102', mo_type_name: 'utrancell'}]);
+			[bindable]
+			/**
+			 *网元指标
+			 */
+			private var perfClassArray:ArrayCollection=new ArrayCollection();
+			[bindable]
+			/**
+			 *模板名称
+			 */
+			private var comboArray:ArrayCollection=new ArrayCollection();
+
+			//初始化视图
+			public function initView():void
+			{
+				//1.初始化网元
+				initMoTypeData();
+
+				//2.获取模板信息
+				loadTemplateData();
+
+				//3.初始化加载管理
+				loadManager=new LoadManager(this);
+			}
+
+			//初始化网元类型数据
+			private function initMoTypeData():void
+			{
+				moTypeId.dataProvider=moTypeArray;
+				moTypeId.selectedIndex=0;
+
+				moTypeId_changeHandler();
+			}
+
+			//网元ID变更
+			protected function moTypeId_changeHandler():void
+			{
+				if (moTypeId.selectedIndex < 0)
+				{
+					return;
+				}
+				//1.拼装参数
+				var selectObj:Object=moTypeId.selectedItem;
+				var param:Object=new Object();
+				param["monitorId"]=msgAction.msgFO.monitorId;
+				param["perfClass"]="2";
+				param["moTypeId"]=selectObj.mo_type_id;
+
+				//2.获取数据
+				msgAction.getAllSegmentList(param, function(result:Object):void
+					{
+						perfClassArray.removeAll();
+						if (result)
+						{
+							for each (var data:Object in result)
+							{
+								perfClassArray.addItem(data);
+							}
+						}
+						prifName.dataProvider=perfClassArray;
+						prifName.selectedIndex=0;
+					});
+			}
+
+			//初始化模板信息
+			public function loadTemplateData():void
+			{
+				//1.拼装参数
+				var param:Object=new Object();
+				param["monitorId"]=msgAction.msgFO.monitorId;
+				param["msgTempType"]="2";
+
+				//2.获取数据
+				msgAction.getAllTemplateByType(param, function(result:Object):void
+					{
+						comboArray.removeAll();
+						if (result)
+						{
+							for each (var data:Object in result)
+							{
+								comboArray.addItem(data);
+							}
+						}
+						templateName.dataProvider=comboArray;
+						templateName.selectedIndex=0;
+						templateNameChange();
+					});
+			}
+
+			//模板变更事件
+			protected function templateNameChange():void
+			{
+				if (templateName.selectedItem == null)
+				{
+					return;
+				}
+				//1.拼装参数
+				var selectObj:Object=templateName.selectedItem;
+				var param:Object=new Object();
+				param["monitorId"]=msgAction.msgFO.monitorId;
+				param["msgTempId"]=selectObj.msg_temp_id;
+				param["msgTempType"]="2";
+
+				//2.获取数据
+				msgAction.getTemplateInfoByTempId(param, function(result:Object):void
+					{
+						initTemplateByTypeInfo(result);
+					});
+			}
+
+			//初始化模板信息
+			private function initTemplateByTypeInfo(data:Object):void
+			{
+				var tempData:Object=data["template"];
+				sendObj.text=tempData["send_target"];
+				msgTitle.text=tempData["msg_title"];
+				sendContent.text=tempData["msg_content"];
+
+				var chartData:Object=data["segmentList"];
+				smsgChart.initChart(chartData);
+			}
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			//创建时间
+			protected function createTime():void
+			{
+				timeField.text=dateFormatter.format(new Date());
+			}
+
+			//创建完成事件
+			protected function hgroup_creationCompleteHandler(event:FlexEvent):void
+			{
+				//1.设置指标颗粒
+				var klArray:ArrayCollection=new ArrayCollection();
+				klArray.addItem({id: '25', name: '天'});
+				klArray.addItem({id: '1', name: '1小时'});
+				klArray.addItem({id: '15', name: '15分钟'});
+				klArray.addItem({id: '1', name: '1分钟'});
+				klComboBox.dataProvider=klArray;
+				klComboBox.selectedIndex=0;
+			}
+
+			//保存信息
+			protected function send_clickHandler(event:MouseEvent):void
+			{
+				if (!checkForm())
+				{
+					return;
+				}
+				loadManager.showLoading();
+				//1.拼接参数
+				var param:Object=new Object();
+				param["phoneNumbers"]=sendObj.text;
+				param["messageTitle"]=msgTitle.text;
+				param["msgContent"]=sendContent.text + smsgChart.chartContent;
+
+				//2.发送短信
+				msgAction.sendShortMessage(param, function(result:Boolean):void
+					{
+						loadManager.hideLoading();
+						Alert.show("发送短信成功!");
+					}, function(event:FaultEvent):void
+					{
+						loadManager.hideLoading();
+						Alert.show("发送短信失败!");
+					});
+
+			}
+
+			//验证表单
+			private function checkForm():Boolean
+			{
+				//验证发送对象
+				if (sendObj.text == null || "" == sendObj.text)
+				{
+					Alert.show("请输入发送对象!");
+					return false;
+				}
+				else
+				{
+					if (!MssUtil.checkNum(sendObj.text))
+					{
+						Alert.show("发送对象输入格式有误!");
+						return false;
+					}
+				}
+				return true;
+			}
+
+			//清空按钮
+			protected function clear_clickHandler(event:MouseEvent):void
+			{
+				templateName.selectedIndex=-1;
+				sendObj.text="";
+				msgTitle.text="";
+				sendContent.text="";
+				smsgChart.clear();
+			}
+
+			//预览信息
+			protected function scan_clickHandle(event:MouseEvent):void
+			{
+				var window:Window=new Window();
+				window.title="指标实时统计";
+				window.percentWidth=100;
+				window.percentHeight=100;
+				smsgChart.height=460;
+				window.addElement(smsgChart);
+				window.minimizable=false;
+				window.maximizable=false;
+				window.dragable=true;
+				//弹出页面
+				PopUpManager.addPopUp(window, parentApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(window);
+				//添加关闭事件
+				window.addEventListener(WindowEvent.CLOSE, function(event:WindowEvent):void
+					{
+						var chartObj:SMsgChart=window.getElementAt(0) as SMsgChart;
+						if (chartObj)
+						{
+							chartObj.height=216;
+							chartGroup.addElement(chartObj);
+						}
+						PopUpManager.removePopUp(window);
+					});
+			}
+
+			//保存性能指标
+			protected function save_prefInfo(event:MouseEvent):void
+			{
+				//验证是否自定义
+				var selectObj:Object=templateName.selectedItem;
+				if (!selectObj.hasOwnProperty("msg_temp_id"))
+				{
+					Alert.show("请先保存模版!");
+					return;
+				}
+				else
+				{
+					if (templateName.selectedItem.msg_temp_id == "-1")
+					{
+						Alert.show("请选择模板名称!");
+						return;
+					}
+				}
+				if (prifName.selectedIndex < 0)
+				{
+					Alert.show("请选择指标名称!");
+					return;
+				}
+				loadManager.showLoading();
+				//1.拼装参数
+				var param:Object=new Object();
+				param["msg_temp_id"]=templateName.selectedItem.msg_temp_id;
+				param["mo_type_id"]=moTypeId.selectedItem.mo_type_id;
+				param["show_name"]=moTypeId.selectedItem.mo_type_name;
+				param["perf_type_id"]=prifName.selectedItem.perf_type_id;
+				param["time_interval"]=klComboBox.selectedItem.id;
+				param["perf_algorithm"]=prifName.selectedItem.perf_algorithm;
+				param["monitor_id"]=msgAction.msgFO.monitorId;
+				param["time"]=timeField.text;
+				param["perf_class"]="2";
+				param["unit"]="1";
+
+				//2.保存数据
+				msgAction.saveOrUpdateSegment(param, function(result:Object):void
+					{
+						loadManager.hideLoading();
+						Alert.show("插入指标信息成功!");
+						smsgChart.addChart(result);
+					}, function(event:FaultEvent):void
+					{
+						loadManager.hideLoading();
+						Alert.show("插入指标信息失败!");
+					});
+			}
+
+			public function set msgAction(msgAction:MsgAction):void
+			{
+				_msgAction=msgAction;
+			}
+
+			public function get msgAction():MsgAction
+			{
+				return _msgAction;
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="53%"
+				  height="100%"
+				  paddingTop="30"
+				  paddingLeft="30">
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="模板名称："/>
+				<s:DropDownList id="templateName"
+								width="236"
+								color="0x000000"
+								selectedIndex="0"
+								contentBackgroundAlpha="1"
+								labelField="msg_temp_name"
+								dataProvider="{comboArray}"
+								change="templateNameChange()"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="发送对象："/>
+				<s:TextInput id="sendObj"
+							 width="236"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="信息标题："/>
+				<s:TextInput id="msgTitle"
+							 width="236"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="发送内容："/>
+				<s:TextArea id="sendContent"
+							color="0x000000"
+							width="236"
+							height="39"/>
+			</s:HGroup>
+			<s:HGroup id="chartGroup"
+					  width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<component:SMsgChart id="smsgChart"
+									 width="476"
+									 height="196"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  paddingLeft="70"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Button label="发送"
+						  buttonMode="true"
+						  click="send_clickHandler(event)"/>
+				<s:Button label="清空"
+						  buttonMode="true"
+						  click="clear_clickHandler(event)"/>
+				<s:Button label="预览"
+						  buttonMode="true"
+						  click="scan_clickHandle(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:Scroller>
+
+	<s:VGroup width="1"
+			  height="100%">
+		<s:Rect top="0"
+				left="0"
+				bottom="0"
+				width="100%"
+				height="100%">
+			<s:stroke>
+				<s:SolidColorStroke color="0xffffff"/>
+			</s:stroke>
+		</s:Rect>
+	</s:VGroup>
+
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="46%"
+				  height="100%"
+				  paddingTop="30"
+				  paddingLeft="30">
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="插入指标"
+						 fontWeight="bold"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="网元类型："/>
+				<s:DropDownList id="moTypeId"
+								width="236"
+								color="0x000000"
+								selectedIndex="0"
+								contentBackgroundAlpha="1"
+								labelField="mo_type_name"
+								dataProvider="{moTypeArray}"
+								change="moTypeId_changeHandler()"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="指标名称："/>
+				<s:DropDownList id="prifName"
+								color="0x000000"
+								selectedIndex="0"
+								contentBackgroundAlpha="1"
+								labelField="show_name"
+								dataProvider="{perfClassArray}"
+								width="236"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="指标颗粒："/>
+				<s:DropDownList id="klComboBox"
+								labelField="name"
+								contentBackgroundAlpha="1"
+								color="0x000000"
+								width="236"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="left">
+				<s:Label text="时间选择："/>
+				<date:UXDateField id="timeField"
+								  color="0x000000"
+								  creationComplete="createTime()"
+								  yearNavigationEnabled="true"
+								  labelFunction="formatDate"
+								  width="150"/>
+				<s:Button label="插入"
+						  buttonMode="true"
+						  click="save_prefInfo(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:Scroller>
+</s:HGroup>

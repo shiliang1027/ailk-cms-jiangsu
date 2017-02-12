@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					styleName="windowScene"
+					minimizable="false"
+					maximizable="false"
+					resizable="false"
+					dragable="false"
+					close="window1_closeHandler(event)"
+					title="多指标TopN展示"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-7-2
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.MoreDegraTopNCompPM;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.event.MoreDegraTopNEvent;
+			
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+
+			private var log:ILogger = Log.getLoggerByClass(MoreDegraTopNComp);
+
+
+			[Inject("moreDegraTopNCompPM")]
+			[Bindable]
+			public var pm:MoreDegraTopNCompPM;
+
+			private var _isPopUpFlag:Boolean = false;
+
+
+			[Inject("moreDegraTopNConfigComp")]
+			public var moreDegraTopNConfigComp:MoreDegraTopNConfigComp;
+
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function initTopNCharts(e:SceneEvent = null):void
+			{
+				if (isPopUpFlag)
+					pm.getTopNCharts();
+			}
+
+
+			[MessageHandler(selector="CMS_SCENE_MOREDEGRATOPN_CHARTSSHOWHANDLER")]
+			public function chartsShowHandler(event:MoreDegraTopNEvent):void
+			{
+				log.info("加入图表开始");
+				moreTopN.removeAllElements();
+
+				if (pm.dm.topnCharts.length > 0)
+				{
+					var colNum:Number = 1;
+					if (pm.dm.colNum > 0)
+						colNum = pm.dm.colNum; //一行显示几列
+					var next:int = 0;
+
+					var chartWidth:Number = (moreTopN.width - 3 * colNum + 3) / colNum;
+//					var chartHeight:Number = (moreTopN.height - 3 * colNum + 3) / colNum;
+
+					log.info("chartW:{0},chartH:{1},w:{2},h:{3}", chartWidth, 205, moreTopN.width, moreTopN.height);
+					var hcc:HorChartsComp = null;
+					for each (var obj:Object in pm.dm.topnCharts)
+					{
+						if (next == 0 || next % colNum == 0)
+						{
+							hcc = new HorChartsComp();
+							hcc.width = moreTopN.width;
+							hcc.height = 230;
+							hcc.chartWidth = chartWidth;
+							hcc.chartHeight = 225;
+							moreTopN.addElement(hcc);
+						}
+						//按照顺序组装chart 放入group中
+
+						hcc.addChart(obj as ArrayCollection);
+						next++;
+					}
+				}
+				log.info("加入图表结束");
+
+			}
+
+			[MessageHandler(selector="CMS_SCENE_MOREDEGRATOPN_SAVETOPNCONFIGCOMPLETE")]
+			public function resetMoreDegraTopN(e:MoreDegraTopNEvent):void
+			{
+				log.info("重新加载数据");
+				PopUpManager.removePopUp(moreDegraTopNConfigComp);
+				initTopNCharts();
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				moreTopN.removeAllElements();
+				isPopUp = false;
+				PopUpManager.removePopUp(this);
+
+			}
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				moreDegraTopNConfigComp.width = 600;
+				moreDegraTopNConfigComp.height = 400;
+				PopUpManager.removePopUp(moreDegraTopNConfigComp);
+				PopUpManager.addPopUp(moreDegraTopNConfigComp, parent as DisplayObject);
+				PopUpManager.centerPopUp(moreDegraTopNConfigComp);
+				moreDegraTopNConfigComp.initTopNConfig();
+
+			}
+
+			public function get isPopUpFlag():Boolean
+			{
+				return _isPopUpFlag;
+			}
+
+			public function set isPopUpFlag(value:Boolean):void
+			{
+				_isPopUpFlag = value;
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="off"
+				styleName="sceneScroller">
+		<s:VGroup id="moreTopN">
+		</s:VGroup>
+	</s:Scroller>
+	<mx:Image buttonMode="true"
+			  right="30"
+			  top="-22"
+			  width="20"
+			  height="20"
+			  toolTip="展示指标配置"
+			  source="@Embed(source='../../../../img/u2.png')"
+			  click="image1_clickHandler(event)"/>
+</ailk_compts:Window>

@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+		 width="100%" height="100%">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.utils.StringUtils;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.linkage.module.cms.viewperformance.event.ViewPerformanceEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.ListEvent;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			private var log:ILogger=Log.getLoggerByClass(ViewPerformanceChart);
+			
+			[Bindable]
+			[Embed(source="../resource/images/icon_line.png")]
+			public static var lineChartImg:Class;
+			
+			[Bindable]
+			[Embed(source="../resource/images/icon_area.png")]
+			public static var areaChartImg:Class;
+			
+			[Inject("viewPerformancePM")]
+			[Bindable]
+			public var pm:ViewPerformancePM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			[MessageHandler(selector="VIEWPERF_QUERYPERFDATA_SUCC2")]
+			public function showKpiChart(event:ViewPerformanceEvent):void
+			{
+				log.info("1");
+				//调用方法船舰左侧的目录
+				initLeftMenuData();
+				log.info("2");
+				
+				//针对查不到数据的情况下
+				if(pm.dm.viewPerfCharData.length <1)
+				{
+					charDataSeries.chartData(new ArrayCollection(),true);
+					return;
+				}
+				var obj:Object = pm.dm.viewPerfCharData[pm.dm.selectIndex];
+				
+				log.info("3");
+				//获取新图例
+				initLengend(obj.data as ArrayCollection);
+				charDataSeries.xAxisFontSize = 13;
+				charDataSeries.justifyMaxValue = true;
+				charDataSeries.canDropLabels = false;
+				charDataSeries.series.removeAll();
+				
+				var series:ArrayCollection = new ArrayCollection();
+				var v1:ArrayCollection = pm.dm.rateKeyNameData;
+				if("2" == pm.dm.queryParam.type)
+				{
+					for(var i:int=0;i<v1.length;i++)
+					{
+						//初次加载没有selected属性，后期就有了，可以这样判断
+						if((!v1[i].hasOwnProperty("selected"))||v1[i].selected)
+						{
+							var p1:SerialParam = new SerialParam("value" + i, v1[i].value);
+							if(1 == pm.dm.lineOrAreaChart)
+							{
+								p1.chartType = PrettyChartType.CHART_TYPE_AREA;//面积图
+							}else
+							{
+								p1.chartType = PrettyChartType.CHART_TYPE_LINE;//折线图
+							}
+							p1.yAxis = "left";
+							p1.showDataDot = false;
+							series.addItem(p1);//添加一条线行货面积图线
+						}
+					}
+				}
+				else
+				{
+					var p2:SerialParam = new SerialParam("value0", "");
+					if(1 == pm.dm.lineOrAreaChart)
+					{
+						p2.chartType = PrettyChartType.CHART_TYPE_AREA;//面积图
+					}else
+					{
+						p2.chartType = PrettyChartType.CHART_TYPE_LINE;//折线图
+					}
+					p2.yAxis = "left";
+					p2.showDataDot = false;
+					series.addItem(p2);//添加一条线行货面积图线
+				}
+				charDataSeries.series=series;
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "gather_time";
+				charParam.use3DColumn = false;
+				charParam.showLegend = true;
+				var intLength:int = ((pm.dm.viewPerfCharData[0].data as ArrayCollection)[0].data as ArrayCollection).length;
+				//charParam.labelStep = Math.floor(intLength/24);
+				log.info("5");
+				charDataSeries.chartParam = charParam;
+				if(series.length>0){
+					pm.dm.newViewPerfChartData = getChartData();
+					charDataSeries.chartData(pm.dm.newViewPerfChartData,true);
+				}else{
+					charDataSeries.chartData(new ArrayCollection(),true);
+				}
+				
+			}
+			
+			private var sortArray:Array = ['0','00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24'];
+			//整理图表数据
+			public function getChartData():ArrayCollection
+			{
+				log.info("6");
+				var arr1:ArrayCollection = pm.dm.viewPerfCharData[pm.dm.selectIndex].data as ArrayCollection;
+				var reArr:ArrayCollection = new ArrayCollection();
+				log.info("7");
+				for(var i:int=0;i<arr1.length;i++)
+				{
+					var arr2:ArrayCollection = arr1[i].data as ArrayCollection;
+					var length:int = arr2.length;
+					log.info(arr2);
+					var arr3:ArrayCollection = new ArrayCollection();
+					try{
+						for(var j:int = 0;j<length;j++)
+						{
+							var objj:Object = new Object();
+							objj["gather_time"] = arr2[j].gather_time;
+							for(var k:int = 0; k < arr1.length;k++)
+							{
+								var arr4:ArrayCollection = arr1[k].data as ArrayCollection;
+								if(arr4.length < k){
+									objj["value" +k] = "0";
+								}else{
+									objj["value" +k] = arr4[j].value;
+								}
+							}
+							arr3.addItem(objj);
+						}
+					}catch(e){
+						log.error(e);
+					}
+					reArr = arr3;
+					break;
+				}
+				log.info("88");
+				reArr.source.sort(sortFun);
+				log.info("处理后的图标：")
+				log.info(reArr)
+				return reArr;
+			}
+			
+			public function sortFun(a:Object,b:Object):int{
+				var i:int=0,j:int=0;
+				sortArray.forEach(function(item:*, index:int, array:Array):void{
+					if(item == a.gather_time){
+						i=index;
+					}
+					if(item == b.gather_time){
+						j=index;
+					}
+				});
+				if(i < j){
+					return -1; //a在前,b在后
+				}else if(i == j){
+					return 0; //ab位置不变
+				}else{
+					return 1; //b在前,a在后
+				}
+			}
+			
+			//单击左侧刷新右侧图表等
+			public function leftDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				//获取单选的行数 0表示第一行
+				pm.dm.selectIndex = event.rowIndex;
+				dispatchMsg(new ViewPerformanceEvent("VIEWPERF_QUERYPERFDATA_SUCC2"));
+			}
+			
+			public function startDate_dataChangeHandler(dateStr:Date):void
+			{
+				// TODO Auto-generated method stub
+				var newDateTime:String = DateField.dateToString(dateStr,"YYYY年MM月DD日");
+				if (pm.dm.gatherTime != newDateTime)
+				{
+					pm.dm.gatherTime = newDateTime;
+					pm.dm.queryParam.gather_time = DateField.dateToString(dateStr,"YYYY-MM-DD");
+					dispatchMsg(new ViewPerformanceEvent(ViewPerformanceEvent.VIEWPERF_QUERYPERFDATA));
+				}
+			}
+			
+			//初始化左侧的各速率列表
+			public function initLeftMenuData():void
+			{
+				leftDataGrid.columns = [];
+				var columns:Array = new Array();
+				var dataGridColumn:DataGridColumn = new DataGridColumn();
+				dataGridColumn.dataField = "show_name";
+				dataGridColumn.showDataTips = true;
+				columns.push(dataGridColumn);
+				leftDataGrid.columns = columns;
+				leftDataGrid.showHeaders = false;
+				leftDataGrid.width = 150;
+				leftDataGrid.dataProvider = pm.dm.leftMenuData;
+				if(pm.dm.leftMenuData.length == 0)
+				{
+					leftDataGrid.visible = false;
+					return;
+				}
+				leftDataGrid.visible = true;
+				leftDataGrid.rowCount = pm.dm.leftMenuData.length;
+			}
+			
+			//初始化图例
+			public function initLengend(arr:ArrayCollection):void
+			{    
+				if(pm.dm.rateKeyNameData.length > 0)
+				{
+					return;
+				}
+				if (StringUtils.isEmpty(pm.dm.queryParam.type) || "1" == pm.dm.queryParam.type)
+				{
+					return;
+				}
+				for(var i:int = 0;i<arr.length; i++)
+				{
+					var obj:Object = new Object();
+					obj.value = arr[i].queue_name;
+					pm.dm.rateKeyNameData.addItem(obj);
+				}
+			}
+			//弹出选取折线图还是面积图的选择
+			protected function areaChart_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				lineAreaSelect.visible = true;
+			}
+			
+			
+			//显示折线图
+			protected function lineChartSelect_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				areaChart.source = lineChartImg;
+				lineAreaSelect.visible = false;
+				pm.dm.lineOrAreaChart = 0;//表示折线图
+				
+				//发送画图消息
+				dispatchMsg(new ViewPerformanceEvent("VIEWPERF_QUERYPERFDATA_SUCC2"));
+			}
+			
+			
+			//显示面积图
+			protected function areaChartSelect_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				areaChart.source = areaChartImg;
+				lineAreaSelect.visible = false;
+				pm.dm.lineOrAreaChart = 1;//表示面积图
+				
+				//发送画图消息
+				dispatchMsg(new ViewPerformanceEvent("VIEWPERF_QUERYPERFDATA_SUCC2"));
+			}
+			
+		]]>
+	</fx:Script>
+	<s:HGroup  width="100%" height="100%">
+		<mx:DataGrid itemClick="leftDataGrid_itemClickHandler(event)" id="leftDataGrid"  styleName="sceneDG">
+			<mx:columns>
+			</mx:columns>
+		</mx:DataGrid>
+		<s:Group width="100%" height="100%">
+			<s:VGroup id="chartDatas" width="100%" height="100%" horizontalAlign="center">
+				<ailk_chart:PrettyChart id="charDataSeries" 
+										top="30"
+										width="100%"
+										height="100%"
+										steadyYAxis="false"
+										xAxisFontSize="12"
+										pageNum="20"
+										horizontalCenter="0"
+										verticalCenter="0"/>
+				<s:List dataProvider="{pm.dm.rateKeyNameData}" width="80%" contentBackgroundAlpha="0" borderVisible="false" itemRenderer="com.linkage.module.cms.viewperformance.view.CheckBoxItemRenderer">
+					<s:layout>
+						<s:TileLayout requestedRowCount="2"/>
+					</s:layout>
+				</s:List>
+			</s:VGroup>
+			<s:HGroup top="-23" right="20">
+				<mx:DateField id="startDate" width="140" text="{pm.dm.gatherTime}" change="startDate_dataChangeHandler(startDate.selectedDate)" selectedDate="{startDate.selectedDate}" formatString="YYYY年MM月DD日" color="0x000000"/>
+				<mx:Image id="areaChart" source="{areaChartImg}" visible="true" click="areaChart_clickHandler(event)"/>
+			</s:HGroup>
+			
+			<s:VGroup id="lineAreaSelect" right="20" top="8" visible="false">
+				<mx:Image id="lineChartSelect" source="{lineChartImg}" click="lineChartSelect_clickHandler(event)"/>
+				<mx:Image id="areaChartSelect" source="{areaChartImg}" click="areaChartSelect_clickHandler(event)"/>
+			</s:VGroup>
+		</s:Group>
+	</s:HGroup>
+</s:Group>

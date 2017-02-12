@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					minimizable="false"
+					maximizable="false"
+					closable="false"
+					dragable="true"
+					styleName="window"
+					creationComplete="createCompleteConfig()">
+
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-9-6
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<s:RadioButtonGroup id="interval"
+							itemClick="intervalChangeHandler()"/>
+		<s:RadioButtonGroup id="isHealthOrThreshold"
+							itemClick="dataChangeDispatch()"/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+			import com.linkage.module.cms.scenedaily.view.components.util.DateUtils;
+
+			import flash.utils.setTimeout;
+
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+
+			import org.osmf.layout.PaddingLayoutFacet;
+
+			private var log:ILogger = Log.getLoggerByClass(ConfigPanelComp);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var _kpiName:String; //指标名称
+
+			private var _kpiValue:String; //指标值
+
+			//初始创建完成后，初始化数据，抛出事件
+			public function createCompleteConfig():void
+			{
+				log.info("配置面板创建完成，初始化面板数据，抛出事件，初始化kpi数据。");
+				log.info("111111");
+				//初始化数据
+				interval.selectedValue = "3";
+				isHealthOrThreshold.selectedValue = "1";
+				healthRadio.enabled = true;
+				//如果是日，默认前一天，如果是周，默认前一周，如果是月，默认前一月，
+				log.info("粒度:{0},阈值劣化：{1}.", interval.selectedValue, isHealthOrThreshold.selectedValue);
+				var nowDate:Date = new Date();
+				var lastDate:Date = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1);
+				gatherTime.text = DateUtils.parseDate(lastDate, "YYYY-MM-DD");
+				//抛出事件
+				dataChangeDispatch();
+			}
+
+			//数据变动抛出事件
+			[MessageHandler(selector="GETVIEW_KPIDATA")]
+			public function dataChangeDispatch(e:SceneDailyEvent = null):void
+			{
+				//判断如果传入事件，并且事件参数存在 
+				if (e && e.param)
+				{
+					if (e.param.hasOwnProperty("interval") && e.param["interval"])
+						interval.selectedValue = int(e.param["interval"]);
+					if (e.param.hasOwnProperty("gatherTime") && e.param["gatherTime"])
+						gatherTime.text = e.param["gatherTime"];
+				}
+				var evt:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.LOADVIEW_KPIDATA);
+				evt.param = new Object();
+				evt.param.interval = String(interval.selectedValue);
+				evt.param.isHealthOrThreshold = String(isHealthOrThreshold.selectedValue);
+				evt.param.gatherTime = gatherTime.text;
+				user.interval = evt.param.interval;
+				user.isHealthOrThreshold = evt.param.isHealthOrThreshold;
+				user.gatherTime = evt.param.gatherTime;
+				log.info("[配置面板]变动抛出事件参数如下");
+				log.info(evt.param);
+				log.info("[配置面板]user变动如下");
+				log.info(user);
+				msgDispatcher(evt);
+			}
+
+			public function intervalChangeHandler():void
+			{
+				//15分钟：当天日期， 日：前一天  周：前一周  月：前一个月
+
+				log.info("3333");
+				healthRadio.enabled = true;
+
+				var nowDate:Date = new Date();
+				var lastDate:Date = null;
+				if (interval.selectedValue == 3)
+				{
+					lastDate = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1);
+					gatherTime.text = DateUtils.parseDate(lastDate, "YYYY-MM-DD");
+				}
+				else if (interval.selectedValue == 1)
+				{
+					lastDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - 1);
+					gatherTime.text = DateUtils.parseDate(lastDate, "YYYY-MM-DD");
+				}
+				else if (interval.selectedValue == 0)
+				{
+					gatherTime.text = DateUtils.parseDate(nowDate, "YYYY-MM-DD");
+					//如果选择最小粒度，那么将健康度的radiobutton灰色 默认选择阈值劣化
+
+					log.info("444444");
+					healthRadio.enabled = false;
+					isHealthOrThreshold.selectedValue = 2;
+
+				}
+				else if (interval.selectedValue == 2)
+				{
+					lastDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - 7);
+					gatherTime.text = DateUtils.parseDate(lastDate, "YYYY-MM-DD");
+				}
+				dataChangeDispatch();
+			}
+
+			[MessageHandler(selector="CHANGE_VIEW_TYPE")]
+			public function componentChange(e:SceneDailyEvent):void
+			{
+				healthRadio.enabled = true;
+				if (e.param)
+				{
+					var nowDate:Date = new Date();
+					var lastDate:Date = null;
+					if (e.param.viewType == "1")
+					{
+						quarterInterval.visible = false;
+						quarterInterval.includeInLayout = false;
+						interval.selectedValue = 3;
+						lastDate = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1);
+						gatherTime.text = DateUtils.parseDate(lastDate, "YYYY-MM-DD");
+					}
+					else if (e.param.viewType == "2")
+					{
+						quarterInterval.visible = false;
+						quarterInterval.includeInLayout = false;
+						interval.selectedValue = 2;
+						lastDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - 7);
+						gatherTime.text = DateUtils.parseDate(lastDate, "YYYY-MM-DD");
+					}
+					else if (e.param.viewType == "3")
+					{
+
+						quarterInterval.visible = true;
+						quarterInterval.includeInLayout = true;
+						interval.selectedValue = 1;
+						lastDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - 1);
+						gatherTime.text = DateUtils.parseDate(lastDate, "YYYY-MM-DD");
+					}
+					else
+					{
+						quarterInterval.visible = false;
+						quarterInterval.includeInLayout = false;
+					}
+					dataChangeDispatch();
+				}
+			}
+
+			public function get kpiName():String
+			{
+				return _kpiName;
+			}
+
+			[Bindable]
+			public function set kpiName(value:String):void
+			{
+				_kpiName = value;
+			}
+
+			public function get kpiValue():String
+			{
+				return _kpiValue;
+			}
+
+			[Bindable]
+			public function set kpiValue(value:String):void
+			{
+				_kpiValue = value;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  top="-15">
+		<s:HGroup horizontalAlign="center"
+				  width="100%">
+			<s:RadioButton id="quarterInterval"
+						   group="{interval}"
+						   value="0"
+						   label="最小粒度"
+						   visible="false"
+						   includeInLayout="false"/>
+			<s:RadioButton group="{interval}"
+						   value="1"
+						   label="日"/>
+			<s:RadioButton group="{interval}"
+						   value="2"
+						   label="周"/>
+			<s:RadioButton group="{interval}"
+						   value="3"
+						   label="月"/>
+		</s:HGroup>
+		<mx:HRule width="100%"
+				  height="1"/>
+		<s:HGroup horizontalAlign="center"
+				  width="100%">
+			<mx:DateField id="gatherTime"
+						  formatString="YYYY-MM-DD"
+						  width="135"
+						  color="0"
+						  change="dataChangeDispatch()"/>
+		</s:HGroup>
+		<mx:HRule width="100%"
+				  height="1"/>
+		<s:HGroup horizontalAlign="center"
+				  width="100%">
+			<s:RadioButton id="healthRadio"
+						   group="{isHealthOrThreshold}"
+						   value="1"
+						   label="健康度"/>
+			<s:RadioButton group="{isHealthOrThreshold}"
+						   value="2"
+						   label="阈值劣化"/>
+		</s:HGroup>
+	</s:VGroup>
+</ailk_compts:Window>

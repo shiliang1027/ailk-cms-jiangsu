@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:panel="com.linkage.system.component.panel.*"
+					xmlns:components="com.linkage.module.cms.baseline.dynamic.components.*" 
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					creationComplete="tolerance_creationCompleteHandler()"
+					dragable="true"
+					minimizable="false"
+					maximizable="false"
+					close="closeWindow()"
+					title="容忍度配置"
+					styleName="windowScene" xmlns:view="com.linkage.module.cms.baseline.dynamic.view.*" visible="false" includeInLayout="false">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[			
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.baseline.dynamic.data.BaseLineDataManager;
+			import com.linkage.module.cms.baseline.dynamic.staticData.BaseLineBean;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			public var baseLineDataManager:BaseLineDataManager;
+			
+			private var addFlag:Boolean;
+			//运算类型
+			private var toleranceTypeAC:ArrayCollection = new ArrayCollection(
+				[
+					{label: '百分比', value: '1'},
+					{label: '绝对值', value: '2'}
+				]
+			);
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.dynamic.components.BaselineTolerance");
+			protected function tolerance_creationCompleteHandler():void
+			{
+//				log.info("BaselineTolerance");
+//				this.title = "(" + BaseLineBean.perfTypeName　+ ")" + "容忍度配置";
+//				baseLineDataManager.loadTolerance(BaseLineBean.KPIParams,loadtolerance_Handler);
+			}
+			
+			public function show():void{
+				this.title = "(" + BaseLineBean.perfTypeName　+ ")" + "容忍度配置";
+				baseLineDataManager.loadTolerance(BaseLineBean.KPIParams,loadtolerance_Handler);
+			}
+			public function hide():void{
+				this.visible=this.includeInLayout=false;
+			}
+			
+			private function loadtolerance_Handler(result:Object):void
+			{
+				log.info("查询的指标基线容忍值success！");
+				log.info(result);
+//				log.info(result.datas);
+				formitem1.removeAllElements();
+				if(null!=result && result.length>0){
+					for each (var obj:Object in toleranceTypeAC) 
+					{
+						if(obj.value==result[0]["toleranceType"]){
+							toleranceType.selectedItem = obj;
+							break;
+						}
+					}
+					for(var i:int=0; i<result.length; i++) 
+					{
+						var formitemTolerance:FormitemTolerance=new FormitemTolerance();
+//						if(i==0){
+//							formitemTolerance.btnLable="新增";
+//							formitemTolerance.btnClick=cerat_tolerance;
+//						}else{
+							formitemTolerance.btnClick = remove_tolerance;
+//						}
+						
+						formitemTolerance.data = new FormitemTolerancePO(result[i]["toleranceUp"],result[i]["toleranceDown"],result[i]["alarm_level"],result[i]["activeLimit"],result[i]["clearLimit"]);
+						formitem1.addElement(formitemTolerance);
+					}
+					
+					
+					addFlag = false;
+				}else{
+					var formitemTolerance1:FormitemTolerance=new FormitemTolerance();
+					formitemTolerance1.btnLable="删除";
+					formitemTolerance1.btnClick=remove_tolerance;
+					formitemTolerance1.data = new FormitemTolerancePO("0","0","0","0","0");
+					formitem1.addElement(formitemTolerance1);
+					addFlag = true;
+				}
+				this.visible=this.includeInLayout=true;
+			}
+			protected function ok_clickHandler():void
+			{
+//				var toleranceTypeValue:String = toleranceType.selectedItem.value;
+//				var toleranceUpVal:String = formitemOne.toleranceUp.text;
+//				var toleranceDownVal:String = formitemOne.toleranceDown.text;
+//				var params:Object = BaseLineBean.getParams();
+//				params.toleranceType = toleranceTypeValue;
+//				params.toleranceUp = toleranceUpVal;
+//				params.toleranceDown = toleranceDownVal;
+//				params.addFlag = addFlag;
+//				baseLineDataManager.saveTolerance(params,saveTolerance_Handler);
+				
+				var toleranceTypeValue:String = toleranceType.selectedItem.value;
+				var array:ArrayCollection = new ArrayCollection();
+				var params:Object = BaseLineBean.getParams();
+				params.addFlag = addFlag;
+				params.toleranceType = toleranceTypeValue;
+				array.addItem(params);
+				var formitemTolerance:FormitemTolerance;
+				var formitemToleranceChild:FormitemTolerance;
+				for(var i:int=0;i<formitem1.numElements;i++){
+					formitemTolerance = formitem1.getElementAt(i) as FormitemTolerance;
+					for(var j:int=i+1;j<formitem1.numElements;j++){
+						
+						formitemToleranceChild = formitem1.getElementAt(j) as FormitemTolerance;
+						if(formitemTolerance.data.alarmLevel==formitemToleranceChild.data.alarmLevel){
+							Alert.show("告警级别不能重复，请重新选择！");
+							return;
+						}
+						
+					}
+					array.addItem(formitemTolerance.data);
+				}
+				log.info("容忍度集合-------------------");
+				log.info(array);
+				baseLineDataManager.saveTolerance(array,saveTolerance_Handler);
+				
+			}
+			/**
+			 * 
+			 **/
+			private function saveTolerance_Handler(result:Object):void{
+				log.info("保存修改的基线容忍度success！");
+				log.info(result.params);
+				log.info(result.saveFlag);
+				if(result.saveFlag){
+					Alert.show('保存成功！');
+					closeWindow();
+				}else{
+					Alert.show('保存失败，请重试！');
+				}
+			}
+			private function closeWindow():void
+			{
+//				PopUpManager.removePopUp(this);
+//				this.visible = false;
+				hide();
+			}
+			
+//			private function cerat_tolerance(item:FormitemTolerance):void
+//			{
+//				var formi:FormitemTolerance =new FormitemTolerance();
+//				formi.height=30;
+//				formi.btnLable="删除";
+//				formi.btnClick = remove_tolerance;
+//				formitem1.addElement(formi);
+//				
+//			}
+			
+			
+			private function remove_tolerance(item:FormitemTolerance):void{
+				formitem1.removeElement(item);
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(formitem1.numElements>=4){
+					Alert.show('最多只能新增四个基线容忍度设置！');
+					return;
+				}
+				formitem1.numElements
+				var formi:FormitemTolerance =new FormitemTolerance();
+				formi.height=30;
+				formi.btnLable="删除";
+				formi.btnClick = remove_tolerance;
+				formitem1.addElement(formi);
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:Form width="100%"
+			 height="100%">
+		<mx:FormItem direction="horizontal" height="25"
+					 verticalCenter="0">
+			<s:Label text="容忍线运算类型：" />
+			<s:DropDownList id="toleranceType"
+							width="120"
+							selectedIndex="0"
+							dataProvider="{toleranceTypeAC}"
+							contentBackgroundAlpha="1"/>
+			<s:Button label="新增" click="button1_clickHandler(event)"/>
+		</mx:FormItem>
+		
+		
+		<mx:FormItem id="formitem1" direction="vertical" verticalCenter="0" >
+			<!--<view:FormitemTolerance btnLable="新增" btnClick="cerat_tolerance" id="formitemOne"/>-->
+			<!--<s:HGroup height="30">
+				<s:Label text="上容忍线容忍度："/>
+				<s:TextInput id="toleranceUp"  restrict="0-9\." width="150"/>
+				<s:Label text="下容忍线容忍度："/>
+				<s:TextInput id="toleranceDown"  restrict="0-9\." width="150"/>
+				<s:Button label="新增" click="cerat_tolerance()"/>
+			</s:HGroup>-->
+		</mx:FormItem >
+		
+		<!--<mx:HBox width="100%" id="hbox">
+			<mx:FormItem direction="horizontal" height="30"
+						 verticalCenter="0">
+				<s:Label text="上容忍线容忍度：" />
+				<s:TextInput id="toleranceUp"  restrict="0-9\." width="150"/>
+			</mx:FormItem>
+			<mx:FormItem direction="horizontal" height="30"
+						 verticalCenter="0">
+				<s:Label text="下容忍线容忍度：" />
+				<s:TextInput id="toleranceDown"  restrict="0-9\." width="150"/>
+			</mx:FormItem>
+			<s:Button label="添加" click="creat_tolerance()"/>
+		</mx:HBox>-->
+		<mx:FormItem direction="horizontal" height="30"
+					 verticalCenter="0">
+			<s:Button id="ok" label="确定" width="60" click="ok_clickHandler()"/>
+			<s:Button id="canel" label="取消" width="60" click="closeWindow()"/>
+		</mx:FormItem>
+	</mx:Form>
+</ailk_compts:Window>

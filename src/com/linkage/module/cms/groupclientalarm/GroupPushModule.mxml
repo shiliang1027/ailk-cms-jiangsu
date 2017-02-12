@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   creationComplete="groupPushModule_creationCompleteHandler(event)"
+		   creationCompleteEffect="{fadeEffect}"
+		   preinitialize="groupPushModule_preinitializeHandler(event)"
+		   xmlns:components="com.linkage.module.cms.groupclientalarm.components.*"
+		   xmlns:component="com.linkage.module.cms.topo.component.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.groupclient.control.GroupPushModuleControl;
+			import com.linkage.module.cms.groupclientalarm.event.MonitorAlarmListWindowEvent;
+			import com.linkage.module.cms.groupclient.event.SLACompEvent;
+
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+
+			public var parameters:Object;
+			public var loadManager:LoadManager;
+			private var control:GroupPushModuleControl;
+			private var warnInfoUrl:String = "/warn/rule/report/nonprofess/NonprofessWarnAction!queryWarnInfo.action";
+			[Bindable]
+			public var treeData:XML;
+
+			[Embed(source="com/linkage/module/cms/groupclient/assets/diamond.png")]
+			public var jewel:Class;
+			[Embed(source="com/linkage/module/cms/groupclient/assets/gold.png")]
+			public var gold:Class;
+			[Embed(source="com/linkage/module/cms/groupclient/assets/silver.png")]
+			public var silver:Class;
+			[Embed(source="com/linkage/module/cms/groupclient/assets/copper.png")]
+			public var copper:Class;
+			[Embed(source="com/linkage/module/cms/groupclient/assets/standard.png")]
+			public var standard:Class;
+			[Embed(source="com/linkage/module/cms/groupclient/assets/unknown.png")]
+			public var unknown:Class;
+
+			[Bindable]
+			[Embed(source="assets/shiftBtn4_1.png")]
+			public var closeImg:Class;
+			[Bindable]
+			[Embed(source="assets/shiftBtn3_1.png")]
+			public var openImg:Class;
+
+			protected function groupPushModule_preinitializeHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				Config.init();
+			}
+
+
+
+			private function groupPushModule_creationCompleteHandler(event:FlexEvent):void
+			{
+				System.useCodePage = true;
+				parameters = parentApplication.parameters;
+				styleManager.loadStyleDeclarations2(parameters["styleUrl"], true);
+				styleManager.loadStyleDeclarations2(parameters["topoStyle"], true);
+				loadManager = parentApplication.loadManager;
+				control = new GroupPushModuleControl(this);
+
+				//add by hurw 2013-07-25
+				if (parameters.showTree == "1")
+					leftBounceGroup.visible = false;
+				else
+					leftBounceGroup.visible = true;
+
+				navTree.addEventListener(ListEvent.CHANGE, control.treeChang);
+				control.topoInit();
+				control.initTreeData();
+			}
+
+			protected function fadeEffect_effectEndHandler(event:EffectEvent):void
+			{
+
+			}
+
+			protected function SLAComp_dataQueryHandler(event:SLACompEvent):void
+			{
+				try
+				{
+					control.SLAQuery(event.param);
+				}
+				catch (e:Error)
+				{
+				}
+			}
+
+			protected function SLAComp_alarmQueryHandler(event:SLACompEvent):void
+			{
+				control.queryAlarmByProduct(event.param.productId, String(event.param.startTime), String(event.param.endTime), "1");
+			}
+
+			protected function alarmListWindow_alarmInfoShowHandler(event:MonitorAlarmListWindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object = event.param;
+				var variables:URLVariables = new URLVariables();
+				variables.alarmNo = data.alarmNo;
+				if (data.daltime)
+				{
+					variables.dalTime = String(data.daltime);
+				}
+				else
+				{
+					variables.dalTime = 0;
+				}
+				var request:URLRequest = new URLRequest(parameters["urlContext"] + warnInfoUrl);
+				request.data = variables;
+				navigateToURL(request);
+			}
+
+			protected function leftBounceBtn_clickHandler(event:MouseEvent):void
+			{
+				leftBounceGroup.left == 0 ? leftBounceGroupCloseEffect.play() : leftBounceGroupOpenEffect.play();
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Fade id="fadeEffect"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="2000"
+				effectEnd="fadeEffect_effectEndHandler(event)"/>
+
+		<s:Animate id="leftBounceGroupOpenEffect"
+				   target="{leftBounceGroup}"
+				   repeatCount="1"
+				   duration="500"
+				   effectStart="leftBounceBtn.enabled=false"
+				   effectEnd="leftBounceBtn.enabled=true;leftBounceBtn.source=closeImg">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="left"
+									valueFrom="{-leftBounceGroup.width+leftBounceBtnGroup.width}"
+									valueTo="0"/>
+			</s:motionPaths>
+		</s:Animate>
+		<s:Animate id="leftBounceGroupCloseEffect"
+				   target="{leftBounceGroup}"
+				   repeatCount="1"
+				   duration="500"
+				   effectStart="leftBounceBtn.enabled=false"
+				   effectEnd="leftBounceBtn.enabled=true;leftBounceBtn.source=openImg">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="left"
+									valueFrom="0"
+									valueTo="{-leftBounceGroup.width+leftBounceBtnGroup.width}"/>
+			</s:motionPaths>
+		</s:Animate>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:HDividedBox width="100%"
+					height="100%"
+					left="5"
+					top="5"
+					right="5"
+					bottom="5">
+		<s:BorderContainer width="100%"
+						   height="100%"
+						   styleName="commonBorderContainer">
+			<s:layout>
+				<s:VerticalLayout paddingBottom="10"
+								  paddingLeft="10"
+								  paddingRight="10"
+								  paddingTop="10"/>
+			</s:layout>
+			<s:Label text="SLA监控"/>
+			<!-- SLA组件 -->
+			<components:SLAComp id="SLAComp"
+								dataQuery="SLAComp_dataQueryHandler(event)"
+								alarmQuery="SLAComp_alarmQueryHandler(event)"/>
+		</s:BorderContainer>
+		<s:Group width="100%"
+				 height="100%">
+			<s:Label text="实时运行监控"
+					 left="10"
+					 top="10"/>
+			<!-- 拓扑信息 -->
+			<mx:VBox label="拓扑信息"
+					 width="100%"
+					 height="100%">
+				<s:Group width="100%"
+						 height="100%"
+						 id="topoGroup">
+					<component:TopoComponent width="100%"
+											 height="100%"
+											 id="topo"/>
+				</s:Group>
+			</mx:VBox>
+		</s:Group>
+	</mx:HDividedBox>
+
+	<s:HGroup id="leftBounceGroup"
+			  width="250"
+			  height="100%"
+			  paddingBottom="5"
+			  paddingTop="5"
+			  gap="0"
+			  left="{-leftBounceGroup.width+leftBounceBtnGroup.width}">
+		<s:SkinnableContainer width="100%"
+							  height="100%"
+							  styleName="bgstyle1">
+			<components:NavTree id="navTree"
+								width="100%"
+								height="100%"
+								dataProvider="{treeData}"/>
+		</s:SkinnableContainer>
+		<s:HGroup id="leftBounceBtnGroup"
+				  width="5"
+				  height="100%"
+				  verticalAlign="middle">
+			<mx:Image id="leftBounceBtn"
+					  source="{openImg}"
+					  buttonMode="true"
+					  click="leftBounceBtn_clickHandler(event)">
+			</mx:Image>
+		</s:HGroup>
+	</s:HGroup>
+
+	<!-- 集客告警列表 -->
+	<components:MonitorAlarmListWindow id="alarmListWindow"
+									   alarmInfoShow="alarmListWindow_alarmInfoShowHandler(event)"/>
+</mx:Module>

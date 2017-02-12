@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true"
+								  creationComplete="colorChangeHandler()"
+								  dataChange="colorChangeHandler()">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			private var log:ILogger = Log.getLoggerByClass(ColumnColorDyeRenderer);
+
+			protected function colorChangeHandler():void
+			{
+				try
+				{
+					lblData.clearStyle("backgroundColor");
+					if (data && data["color"])
+					{
+						lblData.setStyle("backgroundColor", data["color"]);
+					}
+
+				}
+				catch (e:Error)
+				{
+					log.error("renderer error:{0}.", e.message);
+				}
+
+			}
+		]]>
+	</fx:Script>
+	<s:Label id="lblData"
+			 top="0"
+			 left="0"
+			 right="0"
+			 bottom="0"
+			 verticalAlign="middle"
+			 textAlign="center"
+			 text="{listData.label}"/>
+</s:MXAdvancedDataGridItemRenderer>

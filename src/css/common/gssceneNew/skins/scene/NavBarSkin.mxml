@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Skin xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		xmlns:mx="library://ns.adobe.com/flex/mx">
+	<!-- host component -->
+	<fx:Metadata>
+		[HostComponent("com.ailk.common.ui.components.navbar.NavBar")]
+	</fx:Metadata>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.EffectEvent;
+
+
+			[Embed(source="../../assets/jiantou_right.png")]
+			private var rightIcon:Class;
+			[Embed(source="../../assets/jiantou_left.png")]
+			private var leftIcon:Class;
+			
+			override protected function createChildren():void
+			{
+				super.createChildren();
+				var locationStr:String=getStyle("location");
+				var titleLocation:String=getStyle("titleLocation");
+				if (locationStr == "left")
+				{
+					icon.source=leftIcon;
+					contentRect.topLeftRadiusX=0;
+					contentRect.topRightRadiusX=10;
+					contentRect.bottomLeftRadiusX=10;
+					contentRect.bottomRightRadiusX=10;
+				}
+				else if (locationStr == "right")
+				{
+					icon.source=rightIcon;
+					navGroup.setElementIndex(titleGroup, 1);
+					navGroup.setElementIndex(content, 0);
+					navGroup.gap=0;
+					titleRect.topLeftRadiusX=0;
+					titleRect.bottomLeftRadiusX=0;
+					titleRect.topRightRadiusX=10;
+					titleRect.bottomRightRadiusX=10;
+					titleLineRect.topLeftRadiusX=0;
+					titleLineRect.bottomLeftRadiusX=0;
+					titleLineRect.topRightRadiusX=10;
+					titleLineRect.bottomRightRadiusX=10;
+				}
+				if (titleLocation == "top")
+				{
+					titleGroup.top=0;
+					
+				}
+				else if (titleLocation == "bottom")
+				{
+					titleGroup.bottom=0;
+				}
+				else
+				{
+					titleGroup.top=0;
+				}
+				content.setStyle("cornerRadius", 10);
+			}
+			
+			protected function effectEndHandler(event:EffectEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(icon.source==rightIcon){
+					icon.source = leftIcon;
+				}else{
+					icon.source = rightIcon;
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Resize id="showEffect"
+				  widthFrom="0"
+				  widthTo="{contentGroup.contentWidth}"
+				  effectEnd="effectEndHandler(event)"/>
+		
+		<s:Resize id="hideEffect"
+				  widthFrom="{contentGroup.contentWidth}"
+				  widthTo="0"
+				  effectEnd="effectEndHandler(event)"/>
+	</fx:Declarations>
+	<!-- states -->
+	<s:states>
+		<s:State name="disabled" />
+		<s:State name="normal" />
+	</s:states>
+	
+	<s:HGroup id="navGroup"
+			  left="0"
+			  right="0"
+			  top="0"
+			  bottom="0"
+			  gap="0">
+		
+		<s:Group id="titleGroup"
+				 width="34"
+				 minHeight="50"
+				 buttonMode="true">
+			
+			<s:Rect id="titleRect"
+					left="0"
+					right="0"
+					top="0"
+					bottom="0"
+					topLeftRadiusX="10"
+					bottomLeftRadiusX="10"
+					alpha="0.8">
+				<s:fill>
+					<s:LinearGradient rotation="0">
+						<s:GradientEntry color="#0853AD" 
+										 alpha="1"/>
+						<s:GradientEntry color="#0853AD" 
+										 alpha="1"/>
+					</s:LinearGradient>
+				</s:fill>
+				<s:stroke>
+					<s:LinearGradientStroke rotation="0" weight="1">
+						<s:GradientEntry color="0x61bfff" 
+										 alpha="1"/>
+						<s:GradientEntry color="0x61bfff" 
+										 alpha="1"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect>
+			<s:Rect id="titleLineRect"
+					left="0"
+					right="0"
+					top="0"
+					bottom="0"
+					topLeftRadiusX="10"
+					bottomLeftRadiusX="10">
+			</s:Rect>
+			<!--
+			<s:Line id="titleLine" top="0" bottom="0">
+			<s:stroke>
+			<s:SolidColorStroke weight="1"
+			color="0x032a51"
+			alpha="0.9"/>
+			</s:stroke>
+			</s:Line>
+			-->
+			<s:VGroup width="100%"
+					  height="100%"
+					  paddingBottom="20"
+					  paddingLeft="10"
+					  paddingRight="10"
+					  paddingTop="10"
+					  horizontalAlign="center">
+				<mx:Image id="icon"/>
+				<s:Label id="titleDisplay"
+						 width="14"/>
+			</s:VGroup>
+		</s:Group>
+		
+		<s:Group id="content"
+				 clipAndEnableScrolling="true"
+				 minHeight="150"
+				 minWidth="0"
+				 width="0"
+				 visible="false"
+				 showEffect="{showEffect}"
+				 hideEffect="{hideEffect}">
+			<s:Rect id="contentRect"
+					left="0"
+					right="0"
+					bottom="0"
+					top="0"
+					alpha="0.8"
+					radiusX="10"
+					radiusY="10"
+					topRightRadiusX="0">
+				<s:fill>
+					<!--- @private -->
+					<s:LinearGradient rotation="0">
+						<s:GradientEntry color="#0853AD" 
+										 alpha="1"/>
+						<s:GradientEntry color="#0853AD" 
+										 alpha="1"/>
+					</s:LinearGradient>
+				</s:fill>
+				<s:stroke>
+					<s:LinearGradientStroke rotation="0" weight="1">
+						<s:GradientEntry color="0x61bfff" 
+										 alpha="1"/>
+						<s:GradientEntry color="0x61bfff" 
+										 alpha="1"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect>
+			<s:Group id="contentGroup"
+					 minWidth="0"
+					 width="100%"
+					 height="100%">
+				
+			</s:Group>
+		</s:Group>
+	</s:HGroup>
+</s:Skin>

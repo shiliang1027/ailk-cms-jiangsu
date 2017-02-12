@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="SLA"
+		 creationComplete="SLAComp_creationCompleteHandler(event)">
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:states>
+		<s:State name="hasData"/>
+		<s:State name="noData"/>
+	</mx:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="dataQuery",type="com.linkage.module.cms.groupclientNew.event.SLACompEvent")]
+		[Event(name="alarmQuery",type="com.linkage.module.cms.groupclientNew.event.SLACompEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.module.cms.groupclientNew.event.SLACompEvent;
+			import com.linkage.module.cms.groupclientNew.renderer.CustSLAWarnRenderer;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+			import mx.utils.ObjectUtil;
+
+			import spark.events.IndexChangeEvent;
+
+			private var df:DateFormatter=new DateFormatter();
+
+			[Bindable]
+			private var typeList:ArrayCollection=new ArrayCollection([{"name": "月", "value": "YYYY-MM", "type": "1"}, {"name": "年", "value": "YYYY", "type": "2"}]);
+			[Bindable]
+			private var infoMessage:String;
+			[Bindable]
+			private var SLAChartData:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var SLAChartParams:ArrayCollection=new ArrayCollection([{caption: "SLA统计柱状图"}, {showvalues: "0"}, {decimalPrecision: "0"}]);
+			[Bindable]
+			private var SLAChartTrendLinesData:ArrayCollection=new ArrayCollection();
+			// log
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.groupclientNew.components.SLAComp");
+
+			protected function SLAComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				var date:Date=new Date();
+				date.setMonth(date.getMonth() - 1, 1);
+				df.formatString="YYYY-MM";
+				salTime.text=df.format(date);
+				salTime.selectedDate=date;
+				selectedDate=date;
+				this.addEventListener(SLACompEvent.DATACHANGE, onDataChange);
+				this.addEventListener(SLACompEvent.REFRESH, onRefresh);
+//				this.dispatchEvent(new SLACompEvent(SLACompEvent.REFRESH));
+			}
+
+			private function onRefresh(event:SLACompEvent):void
+			{
+				SLAQueryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+			}
+
+			private function onDataChange(event:SLACompEvent):void
+			{
+				var result:Object=event.param;
+				log.info("SLAComp");
+				log.info(result.dataList);
+				var columns:Array=buildColumns(result);
+				SLAChartData.removeAll();
+				SLAChartTrendLinesData.removeAll();
+				chartGroup.removeAllElements();
+				if (result.dataList && result.dataList.length <= 0)
+				{
+					infoMessage="查询无结果";
+					this.currentState="noData";
+					return;
+				}
+				this.currentState="hasData";
+				var i:Number=0;
+				
+				for each (var data:Object in result.dataList)
+				{
+//					if(i<10){
+//					log.info("SLAComp  data");
+					var obj:Object=new Object();
+					obj.label=String(data["serv_name"]);
+					obj.value=String(data["invalid_time"]).replace(",", "");
+					
+//					log.info(obj);
+					SLAChartData.addItem(obj);
+					log.info("[SLA]label:" + obj.label + ",value:" + obj.value + ",thresTime:" + data["thresTime"] + ",servType:" + data["servType"]);
+					if (data["thresTime"])
+					{
+						var trendObj:Object=new Object();
+						trendObj.startValue=String(data["thresTime"]);
+						trendObj.color="FF0000";
+						trendObj.displayValue=String(data["thresTime"]);
+						SLAChartTrendLinesData.addItem(trendObj);
+					}
+//					}else{
+//						break;
+//					}
+//					i++;
+				}
+				(columns[0] as AdvancedDataGridColumn).width=100;
+				(columns[1] as AdvancedDataGridColumn).width=180;
+				(columns[2] as AdvancedDataGridColumn).width=180;
+				(columns[3] as AdvancedDataGridColumn).width=150;
+				(columns[4] as AdvancedDataGridColumn).width=150;
+				(columns[5] as AdvancedDataGridColumn).width=150;
+				(columns[5] as AdvancedDataGridColumn).itemRenderer=new ClassFactory(CustSLAWarnRenderer);
+				SLADG.columns=columns;
+				SLADG.dataProvider=result.dataList;
+				
+				if(result.dataList && result.dataList.length>0)
+				{
+					var chart:FusionChartsLK=new FusionChartsLK();
+					chart.width=this.width - 50;
+					chart.height=300;
+					chart.FCChartType="Column2D";
+					chart.FCFolder="/cms/flex-release/FusionCharts";
+					chart.FCParams=SLAChartParams;
+					if (SLAChartTrendLinesData && SLAChartTrendLinesData.length > 0)
+					{
+						chart.FCTrendLines=SLAChartTrendLinesData;
+					}
+					chart.FCData=SLAChartData;
+					
+					chartGroup.addElement(chart);
+				}else
+				{
+					log.info("没有数据，不画图 sla");
+				}
+			}
+
+			private function buildColumns(result:Object):Array
+			{
+				var columns:Array=new Array();
+				var i:Number=0;
+				for each (var name:String in result.name)
+				{
+//					log.info("[buildColumns]name:" + name + ",column:" + result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+					dataGridColumn.width=100;
+					dataGridColumn.headerText=name;
+					dataGridColumn.dataField=result.colum[i];
+					columns.push(dataGridColumn);
+					i++;
+				}
+				return columns;
+			}
+
+			protected function SLAQueryBtn_clickHandler(event:MouseEvent):void
+			{
+				if (StringUtils.isEmpty(salTime.text))
+				{
+					Alert.show("请选择时间", "提示");
+					return;
+				}
+				var param:Object=new Object();
+				if (timeType.selectedItem.type == "1")
+				{
+					param.statTime=salTime.text + "-01";
+				}
+				else if (timeType.selectedItem.type == "2")
+				{
+					param.statTime=salTime.text + "-01-01";
+				}
+
+				param.type=timeType.selectedItem.type;
+				var evt:SLACompEvent=new SLACompEvent(SLACompEvent.DATAQUERY);
+				evt.param=param;
+				this.dispatchEvent(evt);
+			}
+
+			protected function SLADG_itemClickHandler(event:ListEvent):void
+			{
+//				try{
+				if (event.columnIndex == 5)
+				{
+					log.info("[不可用时长点击]product_id:{0}", SLADG.dataProvider[event.rowIndex].product_id);
+					var productId:String=SLADG.dataProvider[event.rowIndex].product_id;
+					log.info("[不可用时长点击]salTime.selectedDate:{0}", salTime.selectedDate);
+					salTime.selectedDate.setDate(1);
+					var startTime:Number=salTime.selectedDate.getTime() / 1000;
+					log.info("[不可用时长点击]startTime:{0}", startTime);
+					var year:Number=salTime.selectedDate.getFullYear();
+					var month:Number=salTime.selectedDate.getMonth() + 1;
+					if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12)
+					{
+						salTime.selectedDate.setDate(31);
+					}
+					else
+					{
+						if (month == 2)
+						{
+							if (year % 4 == 0)
+							{
+								salTime.selectedDate.setDate(28);
+							}
+							else
+							{
+								salTime.selectedDate.setDate(29);
+							}
+						}
+						else
+						{
+							salTime.selectedDate.setDate(30);
+						}
+					}
+					var endTime:Number=salTime.selectedDate.getTime() / 1000;
+					log.info("[不可用时长点击]endTime:{0}", endTime);
+					var param:Object=new Object();
+					param.startTime=startTime;
+					param.endTime=endTime;
+					param.productId=productId;
+					var evt:SLACompEvent=new SLACompEvent(SLACompEvent.ALARMQUERY);
+					evt.param=param;
+					this.dispatchEvent(evt);
+				}
+//				}catch(e:Error){
+//					log.error("ERROR:{0}",e);
+//				}
+			}
+
+			private var selectedDate:Date;
+
+			protected function salTime_changeHandler(event:CalendarLayoutChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("change date:{0}", event.newDate);
+				if (selectedDate && event.newDate && ObjectUtil.dateCompare(selectedDate, event.newDate))
+				{
+					selectedDate=event.newDate;
+				}
+				if (!salTime.selectedDate)
+				{
+					salTime.selectedDate=selectedDate;
+				}
+			}
+
+			protected function dropdownlist1_changeHandler(e:IndexChangeEvent):void
+			{
+				salTime.formatString=typeList[e.newIndex].value;
+				var date:Date=new Date();
+				date.setMonth(date.getMonth() - 1, 1);
+				df.formatString=typeList[e.newIndex].value;
+				salTime.text=df.format(date);
+				salTime.selectedDate=date;
+				selectedDate=date;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%">
+			<mx:Form width="100%"
+					 id="slaFrom">
+				<s:HGroup width="100%">
+					<mx:FormItem label="时间粒度">
+						<s:DropDownList dataProvider="{typeList}"
+										labelField="name"
+										requireSelection="true"
+										id="timeType"
+										change="dropdownlist1_changeHandler(event)"/>
+					</mx:FormItem>
+					<mx:FormItem label="时间">
+						<mx:DateField id="salTime"
+									  change="salTime_changeHandler(event)"
+									  formatString="YYYY-MM"
+									  width="120"
+									  yearNavigationEnabled="true"/>
+					</mx:FormItem>
+					<s:Button id="SLAQueryBtn"
+							  label="查询"
+							  buttonMode="true"
+							  click="SLAQueryBtn_clickHandler(event)"/>
+				</s:HGroup>
+			</mx:Form>
+			<s:HGroup includeIn="noData"
+					  paddingLeft="10">
+				<s:Label text="{infoMessage}"/>
+			</s:HGroup>
+			<mx:AdvancedDataGrid id="SLADG"
+								 includeIn="hasData"
+								 width="100%"
+								 horizontalScrollPolicy="auto"
+								 columnWidth="200"
+								 itemClick="SLADG_itemClickHandler(event)">
+			</mx:AdvancedDataGrid>
+			<s:HGroup width="100%"
+					  height="100%"
+					  id="chartGroup"
+					  includeIn="hasData"
+					  horizontalAlign="center"/>
+		</s:VGroup>
+	</s:Scroller>
+</mx:VBox>

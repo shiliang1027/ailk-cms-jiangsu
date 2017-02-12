@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="100%" 
+			  height="100%"
+			  title="性能统计"
+			  minHeight="60" 
+			  maximizable="false" 
+			  minimizable="false" 
+			  closable="false" 
+			  creationComplete="perfStatWindow_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:VerticalLayout/>
+	</panel:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<panel:states>
+		<s:State name="viewLayer"/>
+		<s:State name="viewLayer_1"/>
+		<s:State name="viewLayer_2"/>
+		<s:State name="viewLayer_3"/>
+	</panel:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="init", type="com.linkage.module.cms.groupclient.event.PerfStatWindowEvent")]
+		[Event(name="servTypeSelectChange", type="com.linkage.module.cms.groupclient.event.PerfStatWindowEvent")]
+		[Event(name="dataQuery", type="com.linkage.module.cms.groupclient.event.PerfStatWindowEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclient.event.PerfStatWindowEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalCollectionView;
+			import mx.collections.HierarchicalData;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.GroupTotalModuleControl");
+			[Bindable]
+			public var servTypes:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			public var groupPerfs:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			public var perfStatData:HierarchicalCollectionView;
+
+			protected function perfStatWindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				var df:DateFormatter = new DateFormatter();
+				df.formatString = "YYYY-MM-DD";
+				var date:Date = new Date();
+				endDateChooser.text = df.format(date);
+				endDateChooser.selectedDate = date;
+				date.setDate(date.getDate()-1);
+				startDateChooser.text = df.format(date);
+				startDateChooser.selectedDate = date;
+				this.addEventListener(PerfStatWindowEvent.SERVTYPEDATACHANGE,onServTypeDataChange);
+				this.addEventListener(PerfStatWindowEvent.GROUPPERFDATACHANGE,onGroupPerfDataChange);
+				this.addEventListener(PerfStatWindowEvent.DATACHANGE,onDataChange);
+			}
+
+			private function onServTypeDataChange(event:PerfStatWindowEvent):void{
+				var result:Object = event.param;
+				servTypes.removeAll();
+				for each(var servType:Object in result){
+					log.info("servType ->"+servType["cust_serv_type_id"]+","+servType["cust_serv_type_name"]);
+					servTypes.addItem(servType);
+				}
+				if(servTypes.length>0){
+					servTypeDropDown.selectedIndex=0;
+					servTypeDropDown.dispatchEvent(new IndexChangeEvent(IndexChangeEvent.CHANGE));
+				}
+			}
+			
+			private function onGroupPerfDataChange(event:PerfStatWindowEvent):void{
+				var result:Object = event.param;
+				groupPerfs.removeAll();
+				for each(var groupPerf:Object in result){
+					log.info("groupPerf ->"+groupPerf["perf_type_id"]+","+groupPerf["show_name"]);
+					groupPerfs.addItem(groupPerf);
+				}
+				if(groupPerfs.length>0){
+					groupPerfDropDown.selectedIndex=0;
+				}
+			}
+			protected function servTypeDropDown_changeHandler(event:IndexChangeEvent):void
+			{
+				if (servTypeDropDown.selectedItem["cust_serv_type_id"])
+				{
+					var param:Object = new Object();
+					param.serv_type=servTypeDropDown.selectedItem["cust_serv_type_id"];
+					var evt:PerfStatWindowEvent = new PerfStatWindowEvent(PerfStatWindowEvent.SERVTYPESELECTCHANGE);
+					evt.param = param;
+					this.dispatchEvent(evt);
+				}
+			}
+			
+
+			protected function queryBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var df:DateFormatter = new DateFormatter();
+				df.formatString = "YYYY-MM-DD";
+				if(servTypeDropDown.selectedIndex<0){
+					Alert.show("请选择业务类型","提示");
+					return;
+				}else if(groupPerfDropDown.selectedIndex<0){
+					Alert.show("请选择指标类型","提示");
+					return;
+				}else if(startDateChooser.selectedDate == null){
+					Alert.show("请选择开始时间","提示");
+					return;
+				}else if(endDateChooser.selectedDate == null){
+					Alert.show("请选择结束时间","提示");
+					return;
+				}
+				var param:Object = new Object();
+				param.serv_type=servTypeDropDown.selectedItem["cust_serv_type_id"];
+				param.perf_type_id=groupPerfDropDown.selectedItem["perf_type_id"];
+				param.start_time=df.format(startDateChooser.selectedDate);
+				param.end_time=df.format(endDateChooser.selectedDate);
+				
+				var evt:PerfStatWindowEvent = new PerfStatWindowEvent(PerfStatWindowEvent.DATAQUERY);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+
+			private function onDataChange(event:PerfStatWindowEvent):void{
+				var result:Object = event.param;
+				var data:ArrayCollection = new ArrayCollection();
+				if(result.dataList.length<=0){
+					Alert.show("查询结果为空","提示");
+				}
+				var columns:Array = buildColumns(result);
+				perfStatADG.columns = columns;
+				for each(var perfStat:Object in result.dataList){
+					log.info("[性能统计-查询] ->" + perfStat.serv_name+","+perfStat.perf_value);
+					var childrenArray:ArrayCollection = new ArrayCollection();
+					for each(var child:Object in perfStat.detail){
+						childrenArray.addItem({date:child.stat_time,perf_value:child.perf_value});
+					}
+					data.addItem({serv_name:perfStat.serv_name,city_name:perfStat.city_name,date:perfStat.date,perf_value:perfStat.perf_value,children:childrenArray});
+				}
+				perfStatData = new HierarchicalCollectionView(new HierarchicalData(data));
+				if(!perfStatADG.visible){
+					perfStatADG.visible=true;
+				}
+			}
+			
+			private function buildColumns(result:Object):Array{
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+					log.info("[性能统计-查询]name:"+name+",column:"+result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.width=100;
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					columns.push(dataGridColumn);
+					i++;
+				}
+				return columns;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Scroller width="100%"
+				height="100%"
+				horizontalScrollPolicy="auto"
+				verticalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%" minHeight="0">
+			<mx:Form width="100%"
+					 paddingBottom="0">
+				<s:HGroup width="100%">
+					<mx:FormItem label="业务类型：">
+						<s:DropDownList id="servTypeDropDown"
+										width="120"
+										prompt="请选择业务类型"
+										labelField="cust_serv_type_name"
+										dataProvider="{servTypes}"
+										change="servTypeDropDown_changeHandler(event)"/>
+					</mx:FormItem>
+					<mx:FormItem label="性能指标：">
+						<s:DropDownList id="groupPerfDropDown"
+										width="120"
+										prompt="请选择指标类型"
+										labelField="show_name"
+										dataProvider="{groupPerfs}"/>
+					</mx:FormItem>
+				</s:HGroup>
+				<s:HGroup width="100%">
+					<mx:FormItem label="开始时间：">
+						<mx:DateField id="startDateChooser"
+									  formatString="YYYY-MM-DD"
+									  width="120"
+									  showToday="true"/>
+					</mx:FormItem>
+					<mx:FormItem label="结束时间：">
+						<mx:DateField id="endDateChooser"
+									  formatString="YYYY-MM-DD"
+									  width="120"
+									  showToday="true"/>
+					</mx:FormItem>
+				</s:HGroup>
+				<s:HGroup width="100%"
+						  horizontalAlign="right">
+					<s:Button label="查询" buttonMode="true" click="queryBtn_clickHandler(event)"/>
+				</s:HGroup>
+			</mx:Form>
+			
+			<mx:AdvancedDataGrid id="perfStatADG"
+								 dataProvider="{perfStatData}"
+								 width="100%"
+								 height="100%"
+								 horizontalScrollPolicy="auto"
+								 verticalAlign="middle"
+								 disclosureClosedIcon="@Embed('./../assets/+.png')"
+								 defaultLeafIcon="{null}"
+								 disclosureOpenIcon="@Embed('./../assets/-.png')"
+								 folderClosedIcon="{null}"
+								 folderOpenIcon="{null}"
+								 visible="false">
+			</mx:AdvancedDataGrid>
+		</s:VGroup>
+	</s:Scroller>
+</panel:Window>

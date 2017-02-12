@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  creationComplete="windowCreationCompleteHandler()"
+			  mouseEnabled="true"
+			  maximizable="false"
+			  closable="false"
+			  minHeight="30"
+			  width="100%"
+			  height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.alarm.totalflow.AlarmContainer;
+			import com.linkage.module.cms.alarm.totalflow.event.StatEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.ListEvent;
+			
+			import spark.filters.GlowFilter;
+
+			[Bindable]
+			/**
+			 * 告警列表容器
+			 */
+			private var _alarmsAC:ArrayCollection=null;
+			[Bindable]
+			/**
+			 * 告警统计行列对应数量Map容器
+			 */
+			private var _rowColumnNumMap:Object=null;
+			// 列的key(包含第一列)
+			private var _columnKeys:Array=null;
+			// 行的key
+			private var _rowKeys:Array=null;
+			//隐藏列key
+			private var _columnKeyUnique:String="column_unique";
+			// 列id: 第一列
+			private var _columnKeyFirst:String="column_first";
+			// 列名称:第一列
+			private var _columnNameFirst:String="第一列";
+			[Bindable]
+			private var _rowCount:int=6;
+			//倒计时定时器
+			protected var _freshTimer:Timer=new Timer(1000);
+			//告警是否在预装
+			protected var _isAlarmLoad:Boolean=false;
+			//倒计时
+			protected var _nextTimer:int=10;
+			//省份
+			private var _provice:String=null;
+			//总计
+			private var _totalNum:String = "total";
+
+			/**
+			 * 面板创建
+			 */
+			protected function windowCreationCompleteHandler():void
+			{
+				//初始化倒计时定时器
+				_freshTimer.addEventListener(TimerEvent.TIMER, countNextTimer);
+			}
+
+			/**
+			 * 计算倒计时
+			 */
+			private function countNextTimer(event:TimerEvent):void
+			{
+				if (_nextTimer < 1)
+				{
+					_nextTimer=10;
+					_freshTimer.stop();
+					_isAlarmLoad=false;
+					return;
+				}
+				_nextTimer--;
+			}
+
+			/**
+			 * 刷新视图
+			 */
+			public function refresh():Boolean
+			{
+				return _alarmsAC.refresh();
+			}
+
+			//重置
+			public function resetTotalNum():void
+			{
+				
+				var columnsTotal:Object=_rowColumnNumMap[_totalNum];
+				//1.重置
+				for(var columnId:String in columnsTotal)
+				{
+					if(columnKeyUnique != columnId && _totalNum != columnId && columnKeyFirst != columnId)
+					{
+						columnsTotal[columnId] = 0;
+					}
+				}
+				//2.重新统计
+				for(var rowId:String in _rowColumnNumMap)
+				{
+					if(_totalNum != rowId)
+					{
+						var columns:Object = _rowColumnNumMap[rowId];
+						for(var columnId:String in columnsTotal)
+						{
+							if(columnKeyUnique != columnId && _totalNum != columnId && columnKeyFirst != columnId)
+							{
+								columnsTotal[columnId] = int(columnsTotal[columnId]) + int(columns[columnId]);
+							}
+						}
+					}
+				}
+			}
+			
+			/**
+			 * 更新刷新数据
+			 *  @param rowId 行id
+			 *  @param columnId 列id
+			 *  @param num 对应数量
+			 */
+			public function updateStatNum(rowId:String, columnId:String, num:String):void
+			{
+				if (rowId == null)
+				{
+					return;
+				}
+				var columns:Object=_rowColumnNumMap[rowId];
+				if (columns == null || columns[columnId] == null)
+				{
+					return;
+				}
+				columns[columnId]=num;
+			}
+
+
+			/**
+			 * 配置行(先设置列,再设置行)<br>
+			 * 数据格式为 [{id:'',name:'',visible:true}]
+			 */
+			public function set rows(array:Array):void
+			{
+				_rowKeys=[];
+				_alarmsAC=new ArrayCollection();
+				_rowColumnNumMap={};
+				for each (var obj:Object in array)
+				{
+					var rowId:String=obj.id;
+					// 存储行id
+					_rowKeys.push(rowId);
+					// 构造空的列表数据
+					var row:Object={};
+					row[columnKeyUnique]=obj.id;
+					row[columnKeyFirst]=obj.name;
+					for each (var columnKey:Object in _columnKeys)
+					{
+						row[columnKey]=0;
+					}
+					_rowColumnNumMap[rowId]=row;
+					_alarmsAC.addItem(_rowColumnNumMap[rowId]);
+				}
+				_rowCount=_rowKeys.length;
+				//设置高度
+				height=(_rowCount + 1) * 24 + 30;
+				//总计
+				var rowId:String=_totalNum;
+				// 存储行id
+				_rowKeys.push(rowId);
+				// 构造空的列表数据
+				var row:Object={};
+				row[columnKeyUnique]=rowId;
+				row[columnKeyFirst]="总计";
+				for each (var columnKey:Object in _columnKeys)
+				{
+					row[columnKey]=0;
+				}
+				_rowColumnNumMap[rowId]=row;
+				_alarmsAC.addItem(_rowColumnNumMap[rowId]);
+			}
+
+			/**
+			 * 配置列(先设置列,再设置行)<br>
+			 * 数据格式为 [{id:'',name:'',visible:true}]
+			 */
+			public function set columns(array:Array):void
+			{
+				var columns:Array=[];
+				var column:AdvancedDataGridColumn=null;
+				// 定义第一列
+				column=new AdvancedDataGridColumn();
+				column.dataField=columnKeyFirst;
+				column.headerText=columnNameFirst;
+				//column.resizable=false;
+				column.visible=true;
+				column.width=150;
+				columns.push(column);
+				// 列id
+				_columnKeys=[];
+				for each (var obj:Object in array)
+				{
+					column=new AdvancedDataGridColumn();
+					column.itemRenderer=new ClassFactory(ColumnRenderer);
+					column.dataField=obj.id;
+					column.headerText=obj.name;
+					if (obj.visible)
+					{
+						column.visible=obj.visible;
+					}
+					column.width=100;
+					columns.push(column);
+					_columnKeys.push(obj.id);
+				}
+				//隐藏列
+				column=new AdvancedDataGridColumn();
+				column.dataField=columnKeyUnique;
+				column.headerText=columnKeyUnique;
+				column.visible=false;
+				columns.push(column);
+				alarms.columns=columns;
+			}
+
+			/**
+			 * 告警点击事件
+			 */
+			protected function alarms_itemClickHandler(e:ListEvent):void
+			{
+				if (_provice == AlarmContainer.STATKEY_PROVICE_GUANGDONG)
+				{
+					reloadAlarm(e);
+				}
+				else
+				{
+					if (!queryDeatailInfo(e))
+					{
+						reloadAlarm(e);
+					}
+				}
+			}
+
+			/**
+			 * 查看详情
+			 */
+			private function queryDeatailInfo(e:ListEvent):Boolean
+			{
+				var xidValue:String=e.target.columns[e.columnIndex].dataField;
+				var yidValue:String=e.target.selectedItem[columnKeyUnique];
+				if (xidValue == AlarmContainer.STATKEY_ALARM_SEND || xidValue == AlarmContainer.STATKEY_ALARM_DEAL || xidValue == AlarmContainer.STATKEY_SUPERSHEETNO)
+				{
+					var col:Object=new Object();
+					col[StatEvent.XIDVALUE]=xidValue;
+					col[StatEvent.YIDVALUE]=yidValue;
+					col[StatEvent.XNAMEVALUE]=e.target.columns[e.columnIndex].headerText;
+					dispatchEvent(new StatEvent(StatEvent.STAT_OPEN, col));
+					return true;
+				}
+				return false;
+			}
+
+			/**
+			 * 重载告警
+			 */
+			private function reloadAlarm(e:ListEvent):void
+			{
+				if (!_isAlarmLoad)
+				{
+					_isAlarmLoad=true;
+					_freshTimer.start();
+					var column:Object=new Object();
+					column[StatEvent.XIDVALUE]=e.target.columns[e.columnIndex].dataField;
+					column[StatEvent.YIDVALUE]=e.target.selectedItem[columnKeyUnique];
+					column[StatEvent.XNAMEVALUE]=e.target.columns[e.columnIndex].headerText;
+					dispatchEvent(new StatEvent(StatEvent.STAT_CLICK, column));
+				}
+				else
+				{
+					AlarmUtil.showMessage("告警预装中，请" + _nextTimer + "s后重试！");
+				}
+			}
+
+			/**
+			 * 告警风暴开始
+			 */
+			public function alarmStormStart():void
+			{
+				animateFilter.play();
+				alarmStorm.visible=true;
+			}
+
+			/**
+			 * 告警风暴结束
+			 */
+			public function alarmStormStop():void
+			{
+				animateFilter.end();
+				alarmStorm.visible=false;
+			}
+
+			public function get columnKeyFirst():String
+			{
+				return _columnKeyFirst;
+			}
+
+			public function set columnKeyFirst(value:String):void
+			{
+				_columnKeyFirst=value;
+			}
+
+			public function get columnNameFirst():String
+			{
+				return _columnNameFirst;
+			}
+
+			public function set columnNameFirst(value:String):void
+			{
+				_columnNameFirst=value;
+			}
+
+			public function get columnKeyUnique():String
+			{
+				return _columnKeyUnique;
+			}
+
+			public function set columnKeyUnique(value:String):void
+			{
+				_columnKeyUnique=value;
+			}
+
+			public function set provice(value:String):void
+			{
+				_provice=value;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:AnimateFilter id="animateFilter"
+						 repeatCount="0"
+						 duration="2000"
+						 target="{alarmStorm}"
+						 repeatBehavior="reverse"
+						 bitmapFilter="{new GlowFilter()}">
+			<s:SimpleMotionPath property="color"
+								valueFrom="0xfff000"
+								valueTo="0xfff000"/>
+			<s:SimpleMotionPath property="blurX"
+								valueFrom="0"
+								valueTo="56"/>
+			<s:SimpleMotionPath property="blurY"
+								valueFrom="0"
+								valueTo="56"/>
+		</s:AnimateFilter>
+	</fx:Declarations>
+	<s:HGroup top="-20"
+			  width="100%"
+			  height="100%"
+			  paddingRight="50"
+			  horizontalAlign="right">
+		<s:Label id="alarmStorm"
+				 visible="false"
+				 text="告警风暴中"
+				 color="0xff0000"
+				 fontWeight="bold"/>
+	</s:HGroup>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:Group width="100%"
+				 height="100%">
+			<mx:AdvancedDataGrid id="alarms"
+								 width="100%"
+								 height="100%"
+								 editable="false"
+								 enabled="true"
+								 sortExpertMode="true"
+								 displayItemsExpanded="false"
+								 draggableColumns="false"
+								 horizontalScrollPolicy="off"
+								 dataProvider="{_alarmsAC}"
+								 rowCount="{_rowCount}"
+								 itemClick="alarms_itemClickHandler(event)">
+				<mx:columns>
+
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+		</s:Group>
+	</s:Scroller>
+</panel:Window>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         width="100%"
+         height="100%"
+         xmlns:kpi="com.linkage.module.cms.perfmonitornew.kpi.*">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.event.perfEvent;
+			
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+            public var schemeId:String;
+			
+			private var log:ILogger = Log.getLoggerByClass(SchemeMonitor);
+
+            public function changeScheme(schemeId:String, schemeName:String, remark:String):void
+            {
+				log.info("changeScheme");
+                if (remark == "汇总")
+                {
+					moMonitor.removeAllElements();
+					summaryMonitor.removeAllElements();
+                    this.currentState = "summary";
+					
+                    summaryMonitor.currentState = "province";
+                    summaryMonitor.startMonitor(schemeId, schemeName);
+					
+                }
+                else if (remark == "设备")
+                {
+					summaryMonitor.removeAllElements();
+                    this.currentState = "mo";
+                    moMonitor.startMonitor(schemeId, schemeName);
+                }
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <s:states>
+        <s:State name="summary"/>
+        <s:State name="mo"/>
+    </s:states>
+
+	<s:Scroller width="100%"
+				height="100%"
+				visible.mo="false"
+				includeInLayout.mo="false"
+				verticalScrollPolicy="auto">
+		<kpi:SummaryMonitorFirst id="summaryMonitor"
+					   width="100%"
+					   height="100%"/>
+		<!--<kpi:SummaryMonitor id="summaryMonitor"
+							width="100%"
+							height="100%"
+							left="0"
+							right="0"
+							visible.mo="false"
+							includeInLayout.mo="false"/>-->
+	</s:Scroller>
+    <s:Scroller width="100%"
+                height="100%"
+				visible.summary="false"
+				includeInLayout.summary="false"
+                verticalScrollPolicy="auto">
+        <kpi:MoMonitor id="moMonitor"
+                       width="100%"
+                       height="100%"/>
+    </s:Scroller>
+</s:Group>

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:linkage_compts="http://www.ailk.com/2011/ailk/components"
+		   layout="absolute" 
+		   creationComplete="module1_creationCompleteHandler(event)"
+		   width="100%" 
+		   height="100%" 
+		   xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components" 
+		   xmlns:topo="com.linkage.module.topo.framework.view.*" 
+		   xmlns:hawkeye="com.linkage.module.topo.framework.view.component.hawkeye.*" 
+		   xmlns:toolbar="com.linkage.module.topo.framework.view.component.toolbar.*" 
+		   xmlns:action="com.linkage.module.topo.framework.view.component.toolbar.action.*" 
+		   xmlns:operation="com.linkage.module.topo.framework.view.component.toolbar.operation.*" 
+		   xmlns:panel="com.linkage.module.topo.framework.view.component.panel.*" 
+		   xmlns:component="com.linkage.module.topo.framework.view.component.*" xmlns:container="com.linkage.module.cms.topo.container.*" xmlns:component1="com.linkage.module.cms.topo.component.*">
+	
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.cms.topo.event.TopoEventTypes;
+			import com.linkage.module.cms.topo.util.CmsLoadingInfo;
+			import com.linkage.module.cms.utils.vectormap.MapBean;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.service.ServiceContainer;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.view.component.CanvasPanelCache;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			private var mapBean:MapBean;
+			private var log:ILogger = Log.getLoggerByClass(VoLTETopoModule);
+			private var _loadingInfo:CmsLoadingInfo = new CmsLoadingInfo();
+			[Bindable]
+			private var _iconContext:String = null;
+			// 填充图标上下文
+			[Bindable]
+			private var _iconFillContext:String = null;
+			// url上下文
+			[Bindable]
+			private var _urlContext:String = null;
+			// 业务逻辑容器
+			[Bindable]
+			private var serviceContainer:ServiceContainer;
+			// 画布面板容器
+			private var _canvasPanelCache:CanvasPanelCache;
+			// 数据源
+			[Bindable]
+			private var _dataSource:IDataSource = null;
+			// CMS数据源
+			[Bindable]
+			private var _dataSourceCms:ICmsDataSource = null;
+			// 搜索类型
+			[Bindable]
+			private var _searchType:String = Constants.SEARCH_TYPE_ALL;
+			// 集客搜索的toponame过滤的正则表达式
+			[Bindable]
+			private var _searchTopoNamesRegex:String = null;
+			
+			private var parameters:Object;
+			private var perfMonitorDAO:PerfMonitorDAO = PerfMonitorDAO.getInstance();
+			private var _loading:ILoadingInfo = null;
+			private var dataList:ArrayCollection = new ArrayCollection();
+			private var _defColor:uint = 0x00ff00;
+			private var context:String = "";
+			[Bindable]
+			private var _topoName:String="";
+			
+			[Bindable]
+			private var _ruleAlarm:Boolean=true;
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				parameters = parentApplication.parameters;
+				context = this.parentApplication.parameters['context'];
+				log.info("context===="+context);
+				PerfMonitorDAO.context = context;
+				try
+				{
+					// 加载样式
+					styleManager.loadStyleDeclarations2(this.parameters.styleUrl);
+					styleManager.loadStyleDeclarations2(this.parameters.topoStyle);
+				}
+				catch (e:Error)
+				{
+					log.error("加载样式时异常 {0}: {1}", e.message, e.getStackTrace());
+				}
+				_topoName = this.parameters[Constants.PARAM_TOPONAME];
+				topoContainer.initTopoContainer(this.parameters,false);
+				topoContainer.topoCanvas.addEventListener(TopoEventTypes.SHOW_CHART_COMPONENT, topoEventHandler_showData);
+				topoContainer.ruleAlarmService.start();
+				topoContainer.allAlarmService.start();
+				topoContainer.ruleAlarm = _ruleAlarm;
+				_ruleAlarm?topoContainer.allAlarmService.pause():topoContainer.ruleAlarmService.pause();
+				topoContainer.topoCanvas.loadTopo(parameters[Constants.PARAM_TOPOID],parameters[Constants.PARAM_TOPONAME]);
+			}
+			
+			
+			protected function alarmradiobutton_changeHandler(event:Event):void
+			{
+				log.info(RadioButton(event.target).value);
+				_ruleAlarm=RadioButton(event.target).value;
+				topoContainer.ruleAlarm = _ruleAlarm;
+				if(!_ruleAlarm){
+					topoContainer.allAlarmService.restore();
+					topoContainer.ruleAlarmService.pause();
+				}else{
+					topoContainer.ruleAlarmService.restore();
+					topoContainer.allAlarmService.pause();
+				}
+			}
+			
+			
+			private function topoEventHandler_showData(event:TopoEvent):void
+			{
+				//二次开发
+				timeChartWin.visible = true;
+				timeChartWin.includeInLayout = true;
+				timeChartWin.moList.visible = false;
+				timeChartWin.moList.includeInLayout = false;
+				timeChartWin.allMos.removeAll();
+				PopUpManager.addPopUp(timeChartWin,this,true);
+				PopUpManager.centerPopUp(timeChartWin);
+				timeChartWin.init();
+				var moId:String = event.getProperty("moId");
+				var moTypeId:String = event.getProperty("moTypeId");
+				log.info(" --moId:"+moId+"--moTypeId:"+moTypeId+"--moId2:");
+				timeChartWin.setMoTypeId(moId,moTypeId);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<container:LTETopoContainer id="topoContainer"/>
+	<s:VGroup left="10" top="10">
+		<s:HGroup>
+			<s:RadioButton label="全量告警" selected="{!_ruleAlarm}"  value="false" groupName="alarm" change="alarmradiobutton_changeHandler(event)"/>
+			<s:RadioButton label="规则告警" selected="{_ruleAlarm}" value="ture" groupName="alarm" change="alarmradiobutton_changeHandler(event)"/>
+		</s:HGroup>
+	</s:VGroup>
+	<mx:Box visible="false" includeInLayout="false">
+		<component1:ChartComponent id="timeChartWin"
+								   width="900"
+								   height="350"/>
+	</mx:Box>
+</mx:Module>

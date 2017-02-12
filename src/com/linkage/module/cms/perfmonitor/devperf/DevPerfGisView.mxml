@@ -1,0 +1,2049 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" 
+		 height="100%" 
+		 xmlns:gis="com.linkage.gis.*" 
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 xmlns:common="com.linkage.module.cms.perfmonitor.common.*"
+		 xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 >
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<s:Resize heightTo="0" id="resize" target="{alarmPerfResMainGroup}" effectEnd="resize_effectEndHandler_gis(event)"/>
+		<s:Move target="{kpiShowDiv}" id="mv" yTo="20"/>
+		<s:Resize target="{badMatrixWindow}" id="resizeMatrix" effectEnd="resize_effectEndHandler()"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+            import com.linkage.gis.core.GisFeature;
+            import com.linkage.gis.core.metry.GisMetry;
+            import com.linkage.gis.core.metry.GisPoint;
+            import com.linkage.gis.core.metry.GisRegion;
+            import com.linkage.gis.core.styles.GisFillPredefinedStyle;
+            import com.linkage.gis.core.styles.GisLinePredefinedStyle;
+            import com.linkage.gis.core.styles.GisLineStyle;
+            import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+            import com.linkage.gis.core.styles.GisTextStyle;
+            import com.linkage.module.cms.alarm.framework.view.resource.imagesclass.IconParam;
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.module.cms.perfmonitor.common.BadKPIRender;
+            import com.linkage.system.logging.ILogger;
+            import com.linkage.system.logging.Log;
+            
+            import flash.utils.setTimeout;
+            
+            import mx.collections.ArrayCollection;
+            import mx.containers.GridItem;
+            import mx.containers.GridRow;
+            import mx.controls.Alert;
+            import mx.controls.Text;
+            import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+            import mx.events.EffectEvent;
+            import mx.events.FlexEvent;
+            import mx.events.ListEvent;
+            import mx.events.ResizeEvent;
+            import mx.rpc.events.FaultEvent;
+            
+            import spark.components.CheckBox;
+			
+			[Embed(source="../img/2G.png")]
+			private static var G2:Class;
+			
+			[Embed(source="../img/3G.png")]
+			private static var G3:Class;
+			
+			[Embed(source="../img/CELL.png")]
+			private static var CELL:Class;
+			
+			[Embed(source="../img/CELL1.png")]
+			private static var CELL1:Class;
+			
+			[Embed(source="../img/CELL2.png")]
+			private static var CELL2:Class;
+			
+			[Embed(source="../img/CELL3.png")]
+			private static var CELL3:Class;
+			
+			[Embed(source="../img/CELL4.png")]
+			private static var CELL4:Class;
+			
+			[Embed(source="../img/up_gray.png")]
+			[Bindable]
+			private static var _up_gray:Class;
+			
+			[Embed(source="../img/up_blue.png")]
+			[Bindable]
+			private static var _up_blue:Class;
+			
+			[Embed(source="../img/down_gray.png")]
+			[Bindable]
+			private static var _down_gray:Class;
+			
+			[Embed(source="../img/down_blue.png")]
+			[Bindable]
+			private static var _down_blue:Class;
+			
+			private var showAllImg:Image;
+			
+			//指标悬浮框是否跟随鼠标
+			private var followMouseFlag:Boolean = true;
+			
+			private var perfIdNameMap:Object = {};
+			private var perfIdUnitMap:Object = {};
+			
+			//当前指标选择情况
+			private var checkBoxCache:Object = new Object();
+			
+			//标识图标偏移量配置
+			private var TYPE_OFFSETS_CATCHE:Object = {'2G':[19,-11], 
+				'3G':[19,-11], 
+				'VIP':[-15,-13], 
+				'VVIP':[-15,-13], 
+				'SUPER':[-15,-13], 
+				'bad':[-15,-13], 
+				'worst':[-15,-13], 
+				'D':[0, -30], 
+				'W':[0, -30], 
+				'C':[0, -30]};
+			
+			private var paramsArr:ArrayCollection = new ArrayCollection([{caption:" "},
+				{showvalues:"0"},
+				{labelDisplay: 'Rotate'},//这个属性和slantLabels一起设置   横轴标签倾斜45°
+				{slantLabels:'1'},
+				{formatNumberScale:'0'},//是否将千换成K   百万换成M
+				{formatNumber:'0'},//是否在千位和百万为加分隔符
+				{showFCMenuItem:"0"},
+				{drawAnchors:"1"},
+				{chartLeftMargin:"2"},
+				{chartRightMargin:"2"},
+				{chartTopMargin:"2"},
+				{chartBottomMargin:"1"},
+				{xAxisNamePadding:"0"},
+				{labelPadding:"2"},
+				{canvasBorderAlpha:"0"},
+				{lineColor:"0x00FF00"},
+				{lineThickness:"4"}
+			]);//图表背景色
+			
+			//更多标签是否激活
+			private var showMoreFlag:Boolean = false;
+			
+			//暂时不显示的行缓存对象
+			private var rowCacheObj:Object = null;
+			
+			private var _cityId:Object;
+			private var _cityName:Object = "南京";
+			private var _cityLayer:Object;
+			
+			//返回主界面回调方法
+			private var _goBack:Function;
+			
+			private var _acc_loginname:Object;
+			private var _context:Object;
+			private var _moId:Object;
+			private var _upMoId:Object;
+			private var _moTypeId:Object;
+			private var _moTypeName:Object;
+			private var _moniType:Object;
+			
+			//矩阵数据状态提示行
+			private var loadingRow:GridRow = null;
+			private var label:Label = null;
+			
+			//指标悬浮框 鼠标悬停时的位置
+			private var _currentX:Number;
+			private var _currentY:Number;
+			
+			private var initTimerFlag:Boolean = false;
+			
+			[Bindable]
+			private var kpiCache:ArrayCollection = new ArrayCollection([{label:'loading', value:'-10'}]);
+			
+			private var b1:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0x000000,0.6,2);
+			
+			//地图撒点对象缓存
+			private var gisFeatureCache:Object = new Object();
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.devfperf.DevPerfGisView");
+			
+			private var lm:LoadManager;
+			
+			private var _parameters:Object;
+			
+			private var allMoIds:ArrayCollection = new ArrayCollection();
+			
+			//数据刷新定时器
+			private var _alarmTimer:Timer = new Timer(300000);
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//添加显示全部告警按钮
+				log.info('初始化全部告警按钮~~');
+				showAllImg = new Image();
+				showAllImg.source = IconParam.iconShowAll;
+				showAllImg.buttonMode = true;
+				showAllImg.toolTip = "显示全部";
+				showAllImg.visible = false;
+				showAllImg.addEventListener(MouseEvent.CLICK, showAllAlarms);
+				alarmFlow.addToolButton(showAllImg);
+				
+				log.info('初始化加载状态组件~');
+				if(loadingRow == null)
+				{
+					loadingRow = new GridRow();
+					loadingRow.percentWidth = 100;
+					var item:GridItem = new GridItem();
+					item.setStyle("backgroundColor", "silver");
+					item.setStyle("backgroundAlpha", "0");
+					item.setStyle("verticalAlign", "middle");
+					item.setStyle("borderStyle", "solid");
+					item.setStyle("borderColor", "0xCCCCCC");
+					item.percentWidth = 100;
+					item.height = 20;
+					label = new Label();
+					label.text = "-------  正在加载...  -------";
+					label.percentWidth = 100;
+					item.addChild(label);
+					loadingRow.addChild(item);
+				}
+				
+				lm = new LoadManager(mainPanel, "blue");
+				
+				//初始化定时器
+				log.info("初始化定时器~");
+				_alarmTimer.addEventListener(TimerEvent.TIMER, onAlarmTimer);
+				
+			}
+			
+			//------------------------告警流水-------------------------------------
+			private function loadAlarmPerfRes():void
+			{
+				log.info('初始化资源、GIS告警流水、性能 tab数据：' + _parameters['mapInfo']);
+				
+				//初始化资源tab页数据
+				loadResTabData();
+				
+				setTimeout(function():void
+				{
+					//初始化告警流水
+					alarmFlow.params = _parameters;
+					
+					//设置过滤规则
+					if(_moTypeId == '101' || _moTypeId == '102')
+					{
+						if(_cityLayer == '1')
+							alarmFlow.ruleContent = 'nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+								+ _moTypeName + '"&' + getPerfIdFilters();
+						else if(_cityLayer == '2')
+							alarmFlow.ruleContent = 'nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+								+ _moTypeName + '"&' + getPerfIdFilters() + '&alarmregion="' + _cityName + '"';
+						else if(_cityLayer == '3')
+							alarmFlow.ruleContent = 'nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+								+ _moTypeName + '"&' + getPerfIdFilters() + '&alarmcounty="' + _cityName + '"';
+					}
+					else
+						alarmFlow.ruleContent = 'nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+						+ _moTypeName + '"&' + getPerfIdFilters();
+						
+					log.info("初始化告警 ruleContent：" + alarmFlow.ruleContent);
+					
+					alarmFlow.initInfo();
+                    
+                    //-------------------------------------历史回退修改------------------------------------
+                    this.parentApplication.add(alarmFlow);
+                    //-------------------------------------历史回退修改------------------------------------
+					
+				}, 1500);
+				
+				//初始化性能tab页数据
+				setTimeout(function():void
+				{
+					loadPerfTabData();
+					
+				}, 3000);
+			}
+			
+			private function reLoadAlarmPerfRes():void
+			{
+				log.info('刷新 资源、GIS告警流水、性能 tab数据：' + _parameters['mapInfo']);
+				
+				//初始化资源tab页数据
+				loadResTabData();
+				
+				setTimeout(function():void
+				{
+					
+					if(_moTypeId == '101' || _moTypeId == '102')
+					{
+						if(_cityLayer == '1')
+							alarmFlow.reload('nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+								+ _moTypeName + '"&' + getPerfIdFilters());
+						else if(_cityLayer == '2')
+							alarmFlow.reload('nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+								+ _moTypeName + '"&' + getPerfIdFilters() + '&alarmregion="' + _cityName + '"');
+						else if(_cityLayer == '3')
+							alarmFlow.reload('nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+								+ _moTypeName + '"&' + getPerfIdFilters() + '&alarmcounty="' + _cityName + '"');
+					}
+					else
+						alarmFlow.reload('nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+							+ _moTypeName + '"&' + getPerfIdFilters());
+					
+					log.info("重载告警 ruleContent：" + alarmFlow.ruleContent);
+					
+				}, 1500);
+				
+				//初始化性能tab页数据
+				setTimeout(function():void
+				{
+					loadPerfTabData();
+					
+				}, 3000);
+			}
+			
+			//动态刷新告警流水 
+			private function filterAlarm(filter:String):void
+			{
+				log.info("过滤页面reload告警：filter：" + filter);
+				if(_moTypeId == '101' || _moTypeId == '102')
+					alarmFlow.reload(filter + '&nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+						+ _moTypeName + '"&' + getPerfIdFilters() + '&alarmregion="' + _cityName + '"');
+				else
+					alarmFlow.reload(filter + '&nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+						+ _moTypeName + '"&' + getPerfIdFilters());
+				
+				log.info("初始化告警 ruleContent：" + alarmFlow.ruleContent);
+				
+				if(alarmPerfResMainGroup.height < 50)//如果没有显示则显示流水窗口
+					showAlarm_gis();
+				
+				this.showAllImg.visible = true;
+			}
+			
+			private function showAllAlarms(e:MouseEvent):void
+			{
+				if(_moTypeId == '101' || _moTypeId == '102')
+					alarmFlow.reload('nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+							+ _moTypeName + '"&' + getPerfIdFilters() + '&alarmregion="' + _cityName + '"');
+				else
+					alarmFlow.reload('nmsalarmtype=3&alarmlogicclass="综合监控_设备性能告警"&alarmnetype="'
+							+ _moTypeName + '"&' + getPerfIdFilters());
+					
+				
+				log.info("告警流水 ruleContent：" + alarmFlow.ruleContent);
+				
+				showAllImg.visible = false;
+			}
+			//------------------------告警流水-------------------------------------
+			
+			public function initView(moId:Object, moTypeId:Object, moTypeName:Object,moniType:Object=null):void
+			{
+				log.info("初始化GIS视图！");
+				_moId = moId;
+				_moTypeId = moTypeId;
+				_moTypeName = moTypeName;
+				_moniType = moniType;
+				clearAll();
+				
+				badMatrixWindow.title = "劣化 " + moTypeName + " 矩阵";
+				
+				if(_moTypeId == "101" || _moTypeId == "102")
+				{
+					treeDiv.visible = true;
+					loadTreeData();
+				}
+				else
+				{
+					treeDiv.visible = false;
+					//加载指标列表
+					loadKpisByMoTypeId();
+				}
+				
+				this.mapWork.map.viewEntireMap();
+				this.mapWork.map.level = 4;
+			}
+			
+			private function clearAll():void
+			{
+				//清除地图撒点信息
+				this.mapWork.map.clearAll();
+				
+				//清除劣化矩阵
+				badMatrixGrid.removeAllElements();
+				
+				//行缓存置空
+				rowCacheObj = null;
+				
+				//指标悬浮框归位
+				this.kpiShowDiv.x = badMatrixWindow.x;
+				this.kpiShowDiv.y = badMatrixWindow.y;
+			}
+			
+			private function loadTreeData():void
+			{
+				DevPerfMonitorDataMgr.getCityTree({'mo_id':_moId, 'acc_loginname':_acc_loginname},
+					function(result:Object):void
+					{
+						treeDiv.initTree("区域树",result,treeClickHandler);
+						
+						_cityId = result['city_id'];
+						if(result['city_name'])
+							_cityName = result['city_name'];
+						
+						_cityLayer = result['city_layer'];
+						
+						loadKpisByMoTypeId();
+					},
+					function(event:FaultEvent):void
+					{
+						Alert.show('加载属地树信息失败！');
+					}
+				);
+			}
+			
+			//点击区域树后 根据属地刷新数据
+			private function treeClickHandler(cityId:Object, cityName:Object, cityLayer:Object):void
+			{
+				log.info('区域树点击处理：cityId:' + cityId + " cityName:" + cityName + " cityLayer:" + cityLayer);
+				_cityId = String(cityId);
+				_cityName = String(cityName);
+				_cityLayer = String(cityLayer);
+				loadMatrixData();
+			}
+			
+			//定时刷新数据
+			private function onAlarmTimer(event:TimerEvent):void
+			{
+				log.info('定时任务启动， 刷新数据！');
+				this.loadMatrixData();
+			}
+			
+			//根据网元类型加载指标列表
+			private function loadKpisByMoTypeId(perfId:Object = null):void
+			{
+				log.info('加载指标下拉框数据~~perfId:{0}', perfId);
+					
+				//加载该网元类型对应的指标列表
+				DevPerfMonitorDataMgr.getPerfsByMoType({'mo_type_id':_moTypeId,'moni_type':_moniType},
+					function(result:Object):void
+					{
+						if(result.length < 1)
+						{
+							log.info('指标数量为0.');
+							return;
+						}
+						
+						//缓存指标
+						kpiCache.removeAll();
+						kpiCache.addAll(result as ArrayCollection);
+						
+						//初始化指标选择组件
+						initKpisSelect(result, perfId);
+						
+						//初始化性能页签表头
+						initColumns(kpiCache, perfGrid);
+						
+						//加载劣化矩阵
+						loadMatrixData();
+					},
+					function(e:FaultEvent):void
+					{
+						Alert.show('加载指标列表失败！');
+					}
+				);
+			}
+			
+			private function initKpisSelect(data:Object, perfId:Object):void
+			{
+				log.info("初始化指标选择组件！");
+				kpiSelectGroup.removeAllElements();
+				
+				var index:int = 0;
+				
+				for each(var kpi:Object in data)
+				{
+					var ck:CheckBox = new CheckBox();
+					ck.label = kpi['label'];
+					ck.id = kpi['perf_id'];
+//					ck.setStyle("color", "0xFFFFFF");
+					
+					perfIdNameMap[kpi['label']] = kpi['perf_id'];//指标名称到id的映射
+					perfIdNameMap[kpi['perf_id']] = kpi['label'];//指标id到名称的映射
+					perfIdUnitMap[kpi['perf_id']] = kpi['unit'];//指标id到名称的映射
+					
+					log.info(">>>>>>>>>>>label:" +　kpi['label'] + " perf_id:" + kpi['perf_id']);
+					
+					ck.addEventListener(MouseEvent.CLICK, kpiChanged);
+					kpiSelectGroup.addElement(ck);
+					
+					//如果传指标过来  则默认选中
+					if(perfId != null)
+					{
+						if(kpi['perf_id'] == perfId)
+						{
+							checkBoxCache[kpi['perf_id']] = true;
+							ck.selected = true;
+						}
+					}
+					else
+					{
+						//没有默认指标则选中所有
+						checkBoxCache[kpi['perf_id']] = true;
+						ck.selected = true;
+					}
+					
+					index++;
+				}
+			}
+			
+			private function kpiChanged(event:MouseEvent):void
+			{
+				checkBoxCache[event.target.id] = (event.target as CheckBox).selected;
+			}
+			
+			private function initColumns(data:Object, dg:AdvancedDataGrid, isPerfGrid:Boolean = true):void
+			{
+				log.info('初始化表头~~ dg:' + dg.id);
+				var alarmColArr:Array = new Array();
+				
+				if(isPerfGrid)
+				{
+					var dgc:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dgc.headerText = "网元名称";
+					dgc.dataField = 'mo_name';
+					dgc.width = 100;
+					alarmColArr.push(dgc);
+					
+					var dgc2:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dgc2.headerText = "时间";
+					dgc2.dataField = 'gather_time';
+					dgc2.width = 180;
+					alarmColArr.push(dgc2);
+				}
+				
+				for each(var col:Object in data)
+				{
+					var dgColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					if(isPerfGrid)
+					{
+						dgColumn.headerText = col['label'];
+						dgColumn.dataField = col['perf_id'];
+						dgColumn.itemRenderer = new ClassFactory(BadKPIRender);
+						dgColumn.width = dgColumn.headerText.length * 18 + 25;
+					}
+					else
+					{
+						dgColumn.headerText = col['value'];
+						dgColumn.dataField = col['key'];
+						//资源表格表头较少 特殊宽度处理
+						dgColumn.width = 400;
+					}
+					
+					log.info('初始化网元类型表头:' + dgColumn.headerText);
+					
+					alarmColArr.push(dgColumn);
+				}
+				
+				dg.columns = alarmColArr;
+			}
+			
+			//加载劣化矩阵数据
+			private function loadMatrixData():void
+			{
+				hideSpiSelect();
+				
+				var param:Object = {};
+				param['acc_loginname'] = _acc_loginname;
+				param['mo_type_id'] = _moTypeId;
+				param['perf_ids'] = getSelectedItemValues();
+				log.info('加载劣化矩阵，_moTypeId:{0}  perf_ids:{1}  cityId:{2}  initTimerFlag:{3}', _moTypeId, param['perf_ids'], _cityId, initTimerFlag);
+				
+				lm.showLoading();
+				if(_moTypeId == "15" || _moTypeId == "27")//BSC RNC
+				{
+					log.info(param);
+					DevPerfMonitorDataMgr.getBscDegraMoMatrix(param,
+						function(result:Object):void
+						{
+							showData2Matrix(result);
+						},
+						function(e:FaultEvent):void
+						{
+							lm.hideLoading();
+							loadOthers();
+							Alert.show('加载劣化矩阵数据失败！');
+						}
+					);
+				}
+				else if(_moTypeId == "101" || _moTypeId == "102")//CELL UCELL
+				{
+					param['city_id'] = _cityId;
+					param['city_layer'] = _cityLayer;
+					
+					log.info(param);
+					
+					DevPerfMonitorDataMgr.getCellDegraMoMatrix(param,
+						function(result:Object):void
+						{
+							showData2Matrix(result);
+						},
+						function(e:FaultEvent):void
+						{
+							lm.hideLoading();
+							loadOthers();
+							Alert.show('加载劣化矩阵数据失败！');
+						}
+					);
+				}
+				else
+				{
+					log.info("网元类型错误！_moTypeId：" + _moTypeId)
+				}
+			}
+			
+			//加载资源  性能  告警流水
+			private function loadOthers():void
+			{
+				if(!initTimerFlag)
+				{
+					//第一次 初始化告警流水 和定时器
+					log.info('初始化GIS视图告警流水和定时器！');
+					initTimerFlag = true;
+					
+					loadAlarmPerfRes();
+				}
+				else
+				{
+					//刷新数据时 重装 页签数据
+					log.info('重装GIS视图告警流水！');
+					reLoadAlarmPerfRes();
+				}
+				
+				_alarmTimer.start();
+                
+                //-------------------------------------历史回退修改------------------------------------
+                this.parentApplication.add(_alarmTimer);
+                //-------------------------------------历史回退修改------------------------------------
+			}
+			
+			//渲染劣化矩阵
+			private function showData2Matrix(data:Object):void
+			{
+				allMoIds.removeAll();
+				badMatrixGrid.removeAllElements();
+				
+				if(data == null || data.length < 1)
+				{
+					label.text = "-------  没有记录！ -------";
+					badMatrixGrid.addElement(loadingRow);
+					lm.hideLoading();
+					loadOthers();
+					return;
+				}
+				
+				log.info("展示劣化网元数据到矩阵视图...");
+				
+				var firstFlag:Boolean = true;
+				var gridIndex:uint = 0;//缓存网元grid的下标
+				
+				var firstLoadItems:ArrayCollection = new ArrayCollection();//第一行的网元
+				var firstLoadItems4Selected:ArrayCollection = new ArrayCollection();//右键选择的网元 可能没有
+				var cityIndex:uint = 0;
+				
+				for each(var cityData:* in data)
+				{
+					cityIndex ++;
+					
+					if(_moTypeId == '101' || _moTypeId == '102')
+						log.info("开始处理 " + cityData['bsc_name'] + "的数据...");
+					else if(_moTypeId == '15' || _moTypeId == '27')
+						log.info("开始处理 " + cityData['city_name'] + "的数据...");
+					
+					var row:GridRow = new GridRow();
+					row.percentWidth = 100;
+					
+					//属地
+					var cityGridItem:GridItem = new GridItem();
+					cityGridItem.percentWidth = 11;
+					cityGridItem.setStyle("verticalAlign", "middle");
+					cityGridItem.setStyle("borderStyle", "solid");
+					cityGridItem.setStyle("borderColor", "0xCCCCCC");
+					
+					var cityLabel:Label = new Label();
+					cityLabel.percentWidth = 100;
+					
+					if(_moTypeId == '101' || _moTypeId == '102')
+						cityLabel.text = cityData['bsc_name'];
+					else if(_moTypeId == '15' || _moTypeId == '27')
+						cityLabel.text = cityData['city_name'];
+						
+					cityLabel.toolTip = cityLabel.text;
+					
+					cityGridItem.addElement(cityLabel);
+					
+					var moItem4Grid:GridItem = new GridItem();
+					moItem4Grid.percentWidth = 89;
+					
+					var moGrid:Grid = new Grid();
+					gridIndex ++;
+					moGrid.percentWidth = 100;
+					moGrid.setStyle("horizontalGap", "0");
+					moGrid.setStyle("verticalGap", "0");
+					
+					var colIndex:uint = 0;
+					var rowIndex:uint = 0;
+					var moArr:Object;
+					
+					if(_moTypeId == '101' || _moTypeId == '102')
+						moArr = cityData['cells'];
+					else if(_moTypeId == '15' || _moTypeId == '27')
+						moArr = cityData['bscs'];
+					
+					while (colIndex < moArr.length)
+					{
+						var moRow:GridRow = new GridRow();
+						moRow.percentWidth = 100;
+						
+						rowIndex ++;
+						
+						while(true)
+						{
+							var moItem:GridItem = new GridItem();
+							moItem.percentWidth = 25;
+							moItem.height = 20;
+							moItem.setStyle("verticalAlign", "middle");
+							moItem.setStyle("borderStyle", "solid");
+							moItem.setStyle("borderColor", "0xCCCCCC");
+							
+							if(colIndex < moArr.length)
+							{
+								var moLabel:Label = new Label();
+								
+								moLabel.text = moArr[colIndex]['mo_name'];
+								moLabel.id = moArr[colIndex]['mo_id'] + "#-#" + moArr[colIndex]['alarmseverity'];
+								
+								//缓存所有的moid  用于加载资源tab页
+								allMoIds.addItem(moArr[colIndex]['mo_id']);
+								
+								if(cityIndex < 2 && rowIndex < 2)
+									firstLoadItems.addItem(moLabel.id);
+								
+								if(_moId == moArr[colIndex]['mo_id'] || _moId == moArr[colIndex]['up_mo_id'])
+									firstLoadItems4Selected.addItemAt(moLabel.id, 0);
+								
+								moLabel.name = moArr[colIndex]['up_mo_id'] == null ? "" : moArr[colIndex]['up_mo_id'];
+								
+								if(firstFlag && _moId == null)
+								{
+									firstFlag = false;
+									_moId = moLabel.id;
+									_upMoId = moArr[colIndex]['up_mo_id'];
+									_moTypeId = moArr[colIndex]['mo_type_id'];
+								}
+								
+								moItem.setStyle("backgroundColor", DevPerfMonitorModule._levelColorMap[moArr[colIndex]['alarmseverity']]);
+								
+								moLabel.percentWidth = 100;
+//								moLabel.setStyle("color", "0xFFFFFF");
+								moLabel.toolTip = moLabel.text;
+								moLabel.buttonMode = true;
+								moLabel.addEventListener(MouseEvent.MOUSE_OVER, loadMoKpisBefore);
+								moLabel.addEventListener(MouseEvent.MOUSE_OUT, loadMoKpisCancel);
+								moLabel.addEventListener(MouseEvent.CLICK, moClicked);
+								
+								moItem.addElement(moLabel);
+							}
+							else
+							{
+								//空单元格填满一行
+								moItem.setStyle("backgroundColor", "0x00CC00");
+							}
+							
+							moRow.addElement(moItem);
+							
+							if(++colIndex % 5 ==0)
+								break;
+						}
+						
+						if(rowIndex != 1)
+						{
+							if(rowCacheObj == null)
+							{
+								rowCacheObj = new Object();
+							}
+							
+							if(!rowCacheObj[gridIndex])
+							{
+								rowCacheObj[gridIndex] = new Object();
+								rowCacheObj[gridIndex]['rows'] = new ArrayCollection();
+							}
+							rowCacheObj[gridIndex]['rows'].addItem(moRow);
+							rowCacheObj[gridIndex]['grid'] = moGrid;
+							
+							if(showMoreFlag)
+								moGrid.addElement(moRow);
+						}
+						else
+						{
+							moGrid.addElement(moRow);
+						}
+					}
+					
+					moItem4Grid.addElement(moGrid);
+					
+					row.addElement(cityGridItem);
+					row.addElement(moItem4Grid);
+					
+					badMatrixGrid.addElement(row);
+					
+					if(_moTypeId == '101' || _moTypeId == '102')
+						log.info("#                  处理 " + cityData['bsc_name'] + "的数据结束");
+					else if(_moTypeId == '15' || _moTypeId == '27')
+						log.info("#                  处理 " + cityData['city_name'] + "的数据结束");
+				}
+				
+				lm.hideLoading();
+				
+				//没有多行的缓存数据 则不显示更多按钮...
+				if(rowCacheObj != null && !showMoreFlag)
+				{
+					moreLabel.visible = true;
+//					moreLabel.setStyle("color", "0xFFFFFF");
+				}
+				else
+				{
+					moreLabel.setStyle("color", "gray");
+				}
+				
+				//首次加载完数据  加载网元GIS
+				if(firstLoadItems4Selected.length < 1)
+				{
+					firstLoadItems4Selected.addAll(firstLoadItems);
+				}
+				
+				log.info(" 初始化撒点信息, 数量：" +　firstLoadItems4Selected.length + " data:" + firstLoadItems4Selected);
+				
+				//加载资源  性能  告警流水
+				loadOthers();
+				
+				for each(var moId:Object in firstLoadItems4Selected)
+				{
+					//撒点BSC/RNC覆盖范围  或者CELL、UCEL
+					_moId = moId.split("#-#")[0];
+					loadGisData(moId.split("#-#")[1]);
+					
+					//如果不是cell、ucell的话 则撒一个点。
+					if(_moTypeId != "101" && _moTypeId != '102')
+						break;
+				}
+				
+			}
+			
+			private function moClicked(event:MouseEvent):void
+			{
+				var moId:Object = event.target.id.split("#-#")[0];
+				var level:Object = event.target.id.split("#-#")[1];
+				var upMoId:Object = event.target.name;
+				
+				log.info('网元点击事件：moId:' + moId + " upMoId:" + upMoId);
+				
+				_moId = moId;
+				_upMoId = upMoId;
+				
+				//加载泰森多边形和小区撒点
+				loadGisData(level);
+				
+				//加载cell信息窗口数据
+//				if(_moTypeId == '101' || _moTypeId == '102')
+//				{
+//					loadMsgWindowData();
+//				}
+				
+				//联动告警流水
+				this.filterAlarm('alarmneid="' + _moId + '"');
+			}
+			
+			private function loadGisData(level:Object):void
+			{
+				var param:Object = {};
+				param['mo_id'] = _moId;
+				param['mo_type_id'] = _moTypeId;
+				
+				if(gisFeatureCache[_moId] == null)
+				{
+					log.info("首次添加该网元的 gisfeature ...");
+					gisFeatureCache[_moId] = new ArrayCollection();
+				}
+				else
+				{
+					log.info("清除该网元之前添加的 gisfeature ...");
+					
+					for each(var gf:GisFeature in gisFeatureCache[_moId])
+					{
+						mapWork.map.removeGisFeature(gf);
+					}
+				}
+				
+				if(_moTypeId == "15" ||　_moTypeId == "27")//BSC/RNC的时候加载泰森多边形数据
+				{
+					lm.showLoading();
+					DevPerfMonitorDataMgr.getBtsDistributeArea(param,
+						function(result:Object):void
+						{
+							lm.hideLoading();
+							if(result == null || result.length < 1)
+							{
+								Alert.show('没有该网元的泰森多边形数据！');
+								return;
+							}
+							
+							initBSCGisFeature2Map(result, level);
+						},
+						function(event:FaultEvent):void
+						{
+							lm.hideLoading();
+						}
+					);
+				}
+				else//cell  ucell 定位 告警信息
+				{
+					lm.showLoading();
+					param['perf_ids'] = getSelectedItemValues();
+					DevPerfMonitorDataMgr.getCellItude(param,
+						function(result:Object):void
+						{
+							lm.hideLoading();
+							initCellFeatrue2Map(result, _upMoId);
+						},
+						function(event:FaultEvent):void
+						{
+							lm.hideLoading();
+						}
+					);
+				}
+			}
+			
+			//加载资源tab页数据
+			private function loadResTabData():void
+			{
+				var param:Object = {};
+				param['mo_ids'] = getAllMoIds();
+				param['mo_type_id'] = _moTypeId;
+				
+				DevPerfMonitorDataMgr.getMosResources(param,
+					function(data:Object):void
+					{
+						initColumns(data['titles'], resGrid, false);
+						resGrid.dataProvider = data['datas'];
+					},
+					function(e:FaultEvent):void
+					{
+						Alert.show('加载资源tab页数据失败！');
+					}
+				);
+			}
+			
+			//加载性能tab页数据
+			private function loadPerfTabData():void
+			{
+				var param:Object = {};
+				param['mo_ids'] = getAllMoIds();
+				param['mo_type_id'] = _moTypeId;
+				param['moni_type'] = _moniType;
+				
+				DevPerfMonitorDataMgr.getMosPerformance(param,
+					function(data:Object):void
+					{
+						perfGrid.dataProvider = data;
+					},
+					function(e:FaultEvent):void
+					{
+						Alert.show('加载性能tab页数据失败！');
+					}
+				);
+			}
+			
+			private function getAllMoIds():String
+			{
+				var temp:String = '';
+				
+				log.info('获取所有网元id：' + allMoIds.length);
+				
+				for each(var moId:Object in allMoIds)
+				{
+					if(temp == '')
+						temp += moId;
+					else
+						temp += ',' + moId;
+				}
+				log.info('获取所有网元id：' + temp);
+				return temp;
+			}
+			
+			private function initBSCGisFeature2Map(data:Object, level:Object):void
+			{
+				//添加bsc下挂的bts对应的gisfeature到地图
+				var gisArr:Array = [];
+				for each(var gisMsg:Object in data['gis'])
+				{
+					gisArr.push(gisMsg['gis_id']);
+				}
+				
+				var point2:GisPoint = null;
+				var moveFlag:Boolean = false;
+				
+				log.info('-----##----- 加载泰森多边形：_moTypeId：' + _moTypeId + ' gisArr:' + gisArr + " level:" + level);
+				
+				var s1:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, DevPerfMonitorModule._levelColorMap[level],0.6,b1);
+				if(_moTypeId == "15")
+				{
+					mapWork.map.queryBTSGisFeaturesByAreaIds(gisArr,
+						function dealGisRigion(fs:Object):void
+						{
+							log.info("获取到BTS的gisfeature 数量：" + (fs == null? "0" : fs.length));
+							for each(var f:GisFeature in fs)
+							{
+								f.gisStyle = s1;
+								f.autoMoveToTop = false;
+								f.buttonMode=true;
+								f.attributes['moId'] = _moId;
+								f.attributes['moTypeId'] = _moTypeId;
+								f.toolTip = data['mo_name'];
+								
+								mapWork.map.addGisFeature(f);
+								mapWork.map.addGisFeatureMenu(f, "查看资源信息", popupDealer);
+								mapWork.map.addGisFeatureMenu(f, "性能信息", popupDealer);
+								mapWork.map.addGisFeatureMenu(f, "告警信息", popupDealer);
+								mapWork.map.addGisFeatureMenu(f, "CELL GIS", popupDealer);
+								
+								gisFeatureCache[_moId].addItem(f);
+								point2 = (f.gisMetry as GisRegion).gisExtent.center;
+							}
+							
+							if(point2 && !moveFlag)
+							{
+								moveFlag = true;
+								log.info("BTS 地图移动到：  x：" + String(point2.x) + " y:" + String(point2.y));
+								mapWork.map.zoomToScale(32000, point2);
+							}
+//							mapWork.map.viewRefresh();
+							
+						},//成功回调
+						function():void//失败回调
+						{
+							log.error("查询属地对应的BTSgisfeature失败！");
+						});
+				}
+				
+				if(_moTypeId == "27")
+				{
+					mapWork.map.queryNodeBGisFeaturesByAreaIds(gisArr,
+						function dealGisRigion(fs2:Object):void
+						{
+							log.info("获取到NodeB的gisfeature 数量：" + (fs2 == null? "0" : fs2.length));
+							for each(var f:GisFeature in fs2)
+							{
+								f.gisStyle = s1;
+								f.autoMoveToTop = false;
+								f.buttonMode=true;
+								f.attributes['moId'] = _moId;
+								f.attributes['moTypeId'] = _moTypeId;
+								f.toolTip = data['mo_name'];
+								
+								mapWork.map.addGisFeature(f);
+								mapWork.map.addGisFeatureMenu(f, "查看资源信息", popupDealer);
+								mapWork.map.addGisFeatureMenu(f, "性能信息", popupDealer);
+								mapWork.map.addGisFeatureMenu(f, "告警信息", popupDealer);
+								mapWork.map.addGisFeatureMenu(f, "UCELL GIS", popupDealer);
+								
+								gisFeatureCache[_moId].addItem(f);
+								point2 = (f.gisMetry as GisRegion).gisExtent.center;
+								
+							}
+							
+							if(point2 && !moveFlag)
+							{
+								moveFlag = true;
+								log.info("NodeB 地图移动到：  x：" + String(point2.x) + " y:" + String(point2.y));
+								mapWork.map.zoomToScale(32000, point2);
+							}
+//							mapWork.map.viewRefresh();
+							
+						},//成功回调
+						function():void//失败回调
+						{
+							log.error("查询属地对应的NodeBgisfeature失败！");
+						});
+				}
+				
+				//加载bsc名称 feature 到map
+				log.info(" ---> BSC GIS 信息：longitude:" + data['longitude'] + " latitude:" + data['latitude']);
+				
+				if(data['longitude'] && data['latitude'])
+				{
+					var point:GisPoint = new GisPoint(Number(data['longitude']), Number(data['latitude']));
+					
+					var textStyle:GisTextStyle = new GisTextStyle(String(data['mo_name']),0x000000,false,0,false,0xffffff,1,"middle")
+					var textFeature:GisFeature = new GisFeature(point, textStyle);
+					textFeature.buttonMode = true;
+					textFeature.attributes['moId'] = _moId;
+					textFeature.attributes['moTypeId'] = _moTypeId;
+					mapWork.map.addGisFeature(textFeature);
+					mapWork.map.panTo(point);
+				}
+			}
+			
+			//小区撒点
+			private function initCellFeatrue2Map(cell:Object, upMoId:Object):void
+			{
+				log.info("小区撒点 initCellFeatrue2Map()  小区名称：" + cell['mo_name'] + ' 告警等级：' + cell['alarmseverity']
+					+ ' longitude：' + cell['longitude'] + ' latitude：' + cell['latitude']);
+				
+//				for each(var cell:Object in data)
+//				{
+					var point:GisPoint = new GisPoint(cell['longitude'], cell['latitude']);
+					var cellIcon:Class = getCellIcon(cell['alarmseverity']);
+					
+					cell['upMoId'] = upMoId;
+					cell['moId'] = cell['mo_id'];
+					cell['moTypeId'] = cell['mo_type_id'];
+					
+					var cellFeature:GisFeature = new GisFeature(point, new GisMarkerPictureStyle(cellIcon));
+					cellFeature.attributes = cell;
+					cellFeature.toolTip = cell['mo_name'];
+					
+					//不自动置顶
+					cellFeature.autoMoveToTop = false;
+					
+					//添加到地图上
+					mapWork.map.addGisFeatureAt(cellFeature);
+					gisFeatureCache[_moId].addItem(cellFeature);
+					
+					//网元右键菜单。
+					mapWork.map.addGisFeatureMenu(cellFeature, "查看资源", popupDealer);
+					mapWork.map.addGisFeatureMenu(cellFeature, "性能趋势", popupDealer);
+					mapWork.map.addGisFeatureMenu(cellFeature, "性能告警", popupDealer);
+					if(_moTypeId == "101")
+						mapWork.map.addGisFeatureMenu(cellFeature, "返回BSC GIS", popupDealer);
+					else
+						mapWork.map.addGisFeatureMenu(cellFeature, "返回RNC GIS", popupDealer);
+					
+					
+					//撒点小区的类型：2G小区 101   3G小区102
+					var moType:String = get2G3G(cell['mo_type_id']);
+					if("" != moType)
+					{
+						var moTypeIcon:Class = get2G3GIcon(cell['mo_type_id']);
+						var pstyle:GisMarkerPictureStyle = new GisMarkerPictureStyle(moTypeIcon);
+						
+						var xyArr:Array = getXYOffsets(moType);
+						pstyle.xOffset = xyArr[0] as Number;
+						pstyle.yOffset = xyArr[1] as Number;
+						var gTypeFeature:GisFeature = new GisFeature(point,pstyle);
+						gTypeFeature.autoMoveToTop = false;
+						mapWork.map.addGisFeatureAt(gTypeFeature);
+						gisFeatureCache[_moId].addItem(gTypeFeature);
+					}
+					
+//				}
+				
+				mapWork.map.panTo(point);
+			}
+			
+			private function get2G3G(moType:Object):String
+			{
+				//根据网元类型获取类别标识（2G 3G）， 类别标识用于获取 撒点偏移量
+				switch(moType)
+				{
+					case "16":
+					case "101":
+						return "2G";
+					case "28":
+					case "102":
+						return "3G";
+					default:
+						return "";
+				}
+			}
+			
+			private function get2G3GIcon(moType:Object):Class
+			{
+				//根据网元类型获取对应的图标对象
+				switch(moType)
+				{
+					case "16":
+					case "101":
+						return G2;
+					case "28":
+					case "102":
+						return G3;
+					default:
+						return null;
+				}
+			}
+			
+			private function getXYOffsets(type:Object):Array
+			{
+				//撒点图标用的偏移量
+				return TYPE_OFFSETS_CATCHE[type];
+			}
+			
+			private function getCellIcon(alarmLevel:Object):Class
+			{
+				//告警等级对应的小区图标对象
+				switch(alarmLevel)
+				{
+					case "一级告警":
+						return CELL1;
+					case "二级告警":
+						return CELL2;
+					case "三级告警":
+						return CELL3;
+					case "四级告警":
+						return CELL4;
+					default:
+						return CELL;
+				}
+			}
+			
+			//右键菜单处理函数
+			private function popupDealer(gisFeature:GisFeature):void
+			{
+				var menuName:Object = gisFeature.attributes.selectMenuName;
+				log.info("右键菜单处理：bscPopupDealer() 菜单名称:{0}", menuName);
+				
+				//根据网元id加载相关页面
+				var moId:Object = gisFeature.attributes['moId'];
+				var moTypeId:Object = gisFeature.attributes['moTypeId'];
+				
+				log.info(" 属性, moId：" + moId + " moTypeId:" + moTypeId);
+				
+				//菜单名称
+				switch(menuName)
+				{
+					case "性能趋势":
+					case "性能信息":
+						var perfurl:String = "/cms/performance/config/performanceConfigAction!toBussConifgFrm.action?mo_id=" + moId + "&mo_type_id=" + moTypeId + "&conftype=2";
+						log.debug("性能趋势，url：" + perfurl);
+						navigateToURL(new URLRequest(perfurl));
+						break;
+					
+					case "告警信息":
+					case "性能告警":
+						this.filterAlarm('alarmneid="' + moId + '"');
+						break;
+					
+					case "查看资源信息":
+					case "查看资源":
+						var cellDetailURL:String = "/cms/cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=" + moId;
+						log.debug("查看资源信息 URL:" + cellDetailURL);
+						navigateToURL(new URLRequest(cellDetailURL));
+						break;
+					
+					case "UCELL GIS":
+						this.initView(this._moId, "102", "UCELL");
+						break;
+					
+					case "CELL GIS":
+						this.initView(this._moId, "101", "CELL");
+						break;
+					
+					case "返回BSC GIS":
+						this.initView(this._moId, "15", "BSC");
+						break;
+					
+					case "返回RNC GIS":
+						this.initView(this._moId, "27", "RNC");
+						break;
+				}
+			}
+			
+			private function loadMoKpisCancel(event:MouseEvent):void
+			{
+				_currentX = -1000;
+				_currentY = -1000;
+			}
+			
+			//鼠标悬停劣化网元, 显示劣化指标信息
+			private function loadMoKpisBefore(event:MouseEvent):void
+			{
+				_currentX = event.stageX;
+				_currentY = event.stageY;
+				
+				setTimeout(function():void
+				{
+					loadMoKpis(event);
+				},888);
+			}
+			
+			//鼠标悬停劣化网元, 显示劣化指标信息
+			private function loadMoKpis(event:MouseEvent):void
+			{
+				if(_currentX != event.stageX || _currentY != event.stageY)
+				{
+					return;
+				}
+				
+				log.info("鼠标悬停 足888ms 查询指标数据！");
+				
+				kpiShowDiv.visible = true;
+				
+				if(followMouseFlag)
+				{
+					var sx:Number = event.stageX - 25;
+					var sy:Number = event.stageY + 5;
+					
+					if(sx > mainPanel.width - kpiShowDiv.width - 30)
+						sx = mainPanel.width - kpiShowDiv.width - 30;
+					if(sy > mainDivBox.height - kpiShowDiv.height - 30)
+						sy = mainDivBox.height - kpiShowDiv.height - 30;
+					
+					mv.stop();
+					mv.xTo = sx;
+					mv.yTo = sy;
+					mv.play();
+				}
+				
+				//加载网元劣化指标信息
+				var moId:Object = event.target.id.split("#-#")[0];
+				var moName:Object = event.target.text;
+				
+				kpiShowDiv.title = moName + " 劣化指标";
+				
+				//加载网元悬浮框 指标信息
+				DevPerfMonitorDataMgr.getSuspendWindowData({'mo_id':moId, 'mo_type_id':_moTypeId,'moni_type':_moniType},
+					function(result:Object):void
+					{
+						showMoKpis(result);
+					},
+					function(e:FaultEvent):void
+					{
+						//清除上次加载的结果
+						kpiShowGrid.removeAllChildren();
+						label.text = "加载失败 ！";
+						kpiShowGrid.addElement(loadingRow);
+					}
+				);
+			}
+			
+			private function showMoKpis(data:Object):void
+			{
+				log.info("展示化网元指标数据...");
+				kpiShowGrid.removeAllChildren();
+				
+				if(data == null || data.length < 1)
+				{
+					label.text = "------- 没有记录！ -------";
+					kpiShowGrid.addElement(loadingRow);
+					return;
+				}
+				
+				for each(var msg:Object in data)
+				{
+					var row:GridRow = new GridRow();
+					row.percentWidth = 100;
+					
+					var item:GridItem = new GridItem();
+					item.setStyle("verticalAlign", "middle");
+					item.setStyle("horizontalAlign", "left");
+					item.setStyle("textAlign", "left");
+					item.setStyle("borderStyle", "solid");
+					item.setStyle("borderColor", "0xCCCCCC");
+					item.setStyle("backgroundAlpha", "0.9");
+					item.percentWidth = 100;
+					item.height = 20;
+					
+					var label:Label = new Label();
+					
+					if(msg.toString().indexOf('###')>=0)
+					{
+						label.text = msg.toString().split('###')[0];
+						item.setStyle("backgroundColor", DevPerfMonitorModule._levelColorMap[msg.toString().split('###')[1]]);
+					}
+					else
+					{
+						label.text = msg.toString();
+					}
+					
+					label.percentWidth = 100;
+//					label.setStyle("color", "0xFFFFFF");
+					
+					item.addChild(label);
+					row.addChild(item);
+					kpiShowGrid.addElement(row);
+				}
+			}
+			
+			private function getSelectedItemValues():String
+			{
+				var temp:String = "";
+				for(var kpiId:Object in checkBoxCache)
+				{
+					if(checkBoxCache[kpiId])
+					{
+						if(temp == '')
+							temp += kpiId;
+						else
+							temp += ',' + kpiId;
+					}
+				}
+				
+				return temp;
+			}
+			
+			private function getPerfIdFilters():String
+			{
+				var temp:String = "";
+				for(var kpiId:Object in checkBoxCache)
+				{
+					if(checkBoxCache[kpiId])
+					{
+						if(temp == '')
+							temp += 'perf_type_id=' + kpiId;
+						else
+							temp += '|' + 'perf_type_id=' + kpiId;
+					}
+				}
+				
+				return '(' + temp + ')';
+			}
+			
+			private function loadMsgWindowData():void
+			{
+				var param:Object = {};
+				param['mo_id'] = _moId;
+				param['mo_type_id'] = _moTypeId;
+				
+				var perfIds:String = "";
+				var perfId:Object = null;
+				for each(var kpi:Object in kpiCache)
+				{
+					if(perfIds == "")
+						perfIds += kpi['perf_id'];
+					else
+						perfIds += ',' + kpi['perf_id'];
+					
+					
+					if(perfId == null)
+						perfId = kpi['perf_id'];
+				}
+				param['perf_ids'] = perfIds;
+				param['perf_id'] = perfId;
+				
+				DevPerfMonitorDataMgr.getCellAlarmPerformanceMonitor(param,
+					function(result:Object):void
+					{
+						cellMsgWindow.visible = true;
+						
+						//告警详情
+						showCellMsgAlarm(result['alarm']);
+						
+						//指标文本信息
+						showCellMsgKpis(result['pm']['lately_data']);
+						
+						//指标图表信息result['pm']['stp']
+						showCellMsgChart(result['pm']['stp'], param['perf_id']);
+						
+						//告警信息result['alarm']
+					},
+					function(e:FaultEvent):void
+					{
+						Alert.show('加载');
+					}
+				);
+				
+			}
+			
+			private function showCellMsgAlarm(data:Object):void
+			{
+				log.info("showCellMsgAlarm 展示化网元告警详情数据... " + data);
+				
+				cellMsgAlarmShowGrid.removeAllChildren();
+				
+				if(data == null || data.length < 1)
+				{
+					label.text = "-------  没有记录！  -------";
+					cellMsgAlarmShowGrid.addElement(loadingRow);
+					return;
+				}
+				
+				for each(var msg:Object in data)
+				{
+					var row:GridRow = new GridRow();
+					row.percentWidth = 100;
+					
+					var item:GridItem = new GridItem();
+					item.setStyle("verticalAlign", "middle");
+					item.setStyle("horizontalAlign", "left");
+					item.setStyle("textAlign", "left");
+					item.setStyle("borderStyle", "solid");
+					item.setStyle("borderColor", "0xCCCCCC");
+					item.setStyle("backgroundAlpha", "0.9");
+					item.percentWidth = 100;
+					item.setStyle("backgroundColor", DevPerfMonitorModule._levelColorMap[msg['alarmseverity']]);
+					
+					var label:Text = new Text();
+					label.text = msg['alarmtext'];
+					label.percentWidth = 100;
+//					label.setStyle("color", "0xFFFFFF");
+					
+					item.addChild(label);
+					row.addChild(item);
+					cellMsgAlarmShowGrid.addElement(row);
+				}
+			}
+			
+			private function showCellMsgKpis(data:Object):void
+			{
+				log.info("showCellMsgKpis 展示化网元指标数据... " + data);
+				
+				cellMsgKpiShowGrid.removeAllChildren();
+				
+				if(data == null || data.length < 1)
+				{
+					label.text = "-------  没有记录！  -------";
+					cellMsgKpiShowGrid.addElement(loadingRow);
+					return;
+				}
+				
+				for each(var msg:Object in data)
+				{
+					var row:GridRow = new GridRow();
+					row.percentWidth = 100;
+					
+					var item:GridItem = new GridItem();
+					item.setStyle("verticalAlign", "middle");
+					item.setStyle("horizontalAlign", "left");
+					item.setStyle("textAlign", "left");
+					item.setStyle("borderStyle", "solid");
+					item.setStyle("borderColor", "0xCCCCCC");
+//					item.setStyle("backgroundAlpha", "1");
+					item.percentWidth = 100;
+					item.height = 20;
+					
+					var label:Label = new Label();
+					
+					if(msg.toString().indexOf('###')>=0)
+					{
+						label.text = msg.toString().split('###')[0];
+						item.setStyle("backgroundColor", DevPerfMonitorModule._levelColorMap[msg.toString().split('###')[1]]);
+					}
+					else
+					{
+						label.text = msg.toString();
+					}
+					
+					label.percentWidth = 100;
+//					label.setStyle("color", "0xFFFFFF");
+					
+					if(label.text.indexOf('网元名称')<0)
+					{
+						label.buttonMode = true;
+						label.addEventListener(MouseEvent.CLICK, 
+							function(e:MouseEvent):void
+							{
+								var perfId:Object = perfIdNameMap[e.target['text'].toString().split(':')[0]];
+								var param:Object = {};
+								param['perf_id'] = perfId;
+								param['mo_id'] = _moId;
+								param['mo_type_id'] = _moTypeId;
+								param['st'] = '';
+								param['et'] = '';
+								param['tp'] = 'HH:mm';
+								
+								loadKpiChartData(param);
+							}
+						);
+					}
+					
+					item.addChild(label);
+					row.addChild(item);
+					cellMsgKpiShowGrid.addElement(row);
+				}
+			}
+			
+			private function loadKpiChartData(param:Object):void
+			{
+				lm.showLoading();
+				DevPerfMonitorDataMgr.createSTP(param,
+					function(result:Object):void
+					{
+						lm.hideLoading();
+						showCellMsgChart(result, param['perf_id']);
+					},
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+						Alert.show('查询指标数据失败！');
+					}
+				);
+			}
+			
+			private function showCellMsgChart(result:Object, perfId:Object):void
+			{
+				var tempParaArr:ArrayCollection = new ArrayCollection();
+				tempParaArr.addAll(paramsArr);
+				
+				var ac:ArrayCollection = new ArrayCollection();
+				for each(var data:Object in result)
+				{
+					ac.addItem(data);
+				}
+				
+				tempParaArr.addItem({'numberSuffix':String(perfIdUnitMap[perfId])});
+				
+				if(String(perfIdUnitMap[perfId]) == "%")
+				{
+					log.info(" 图表数据，百分比数据 设置最大值为100！");
+					tempParaArr.addItem({'yAxisMaxValue':"100"});
+				}
+				
+				if(ac.length > 20)
+				{
+					log.info(" 图表数据，设置步长：" + String(ac.length/20));
+					tempParaArr.addItem({'labelStep':String(Number(ac.length/20).toFixed(0))});
+				}
+				
+				//添加指标标题{caption:指标名称},
+				tempParaArr.addItem({'subCaption':String(perfIdNameMap[perfId])});
+				
+				kpiFc.FCParams = tempParaArr;
+				kpiFc.FCData = ac;
+			}
+			
+			protected function showMore():void
+			{
+				if(!showMoreFlag)//还未展示更多     则展示更多
+				{
+					log.info("展示更多劣化网元到矩阵表格...");
+					for each(var gridRows:Object in rowCacheObj)
+					{
+						for each(var row:* in gridRows['rows'])
+						{
+							gridRows['grid'].addElement(row);
+						}
+					}
+					
+					moreLabel.enabled = false;
+					moreLabel.toolTip = '';
+					moreLabel.setStyle("color", "gray");
+					showMoreFlag = true;
+				}
+				else
+				{
+					log.info("不展示更多劣化网元到矩阵表格...");
+					for each(var gridRows:Object in rowCacheObj)
+					{
+						for each(var row:* in gridRows['rows'])
+						{
+							gridRows['grid'].removeElement(row);
+						}
+					}
+					
+					moreLabel.enabled = true;
+					moreLabel.toolTip = '显示所有网元。';
+//					moreLabel.setStyle("color", "0xFFFFFF");
+					showMoreFlag = false;
+				}
+			}
+			
+			//返回主监控界面
+			private function goBack2MainView():void
+			{
+				log.info('停止GIS视图告警流水和定时器！');
+				_alarmTimer.stop();
+                
+                //-------------------------------------历史回退修改------------------------------------
+                this.parentApplication.remove(_alarmTimer);
+                //-------------------------------------历史回退修改------------------------------------
+                
+				//停止当前页面的告警流水
+				alarmFlow.stopLoad(true);
+				
+                //-------------------------------------历史回退修改------------------------------------
+                this.parentApplication.remove(alarmFlow);
+                //-------------------------------------历史回退修改------------------------------------
+                
+				_goBack.call();
+			}
+			
+			protected function kpiShowDiv_doubleClickHandler(event:MouseEvent):void
+			{
+				followMouseFlag = !followMouseFlag;
+			}
+			
+			private function hideMoKpis():void
+			{
+				kpiShowDiv.visible = false;
+			}
+			
+			public function set goBack(callBack:Function):void
+			{
+				_goBack = callBack;
+			}
+
+			public function set acc_loginname(value:Object):void
+			{
+				_acc_loginname = value;
+			}
+
+			public function set context(value:Object):void
+			{
+				_context = value;
+			}
+
+
+			//--------------------------布局控制----------------------------------
+			private function alarmWindow_resizeHandler_gis(event:ResizeEvent):void
+			{
+				if(alarmPerfResMainGroup.height >= 180)
+				{
+					img.source = _down_gray;
+					img.name = "down";
+				}
+				else if(alarmPerfResMainGroup.height <= 36)
+				{
+					img.source = _up_gray;
+					img.name = "up";
+				}
+			}
+			
+			private function resizeWindow_gis():void
+			{
+				if(img.name == "down")
+				{
+					hideAlarm_gis();
+				}
+				else if(img.name == "up")
+				{
+					showAlarm_gis();
+				}
+			}
+			
+			private function hideAlarm_gis(dura:Number=400):void
+			{
+				alarmPerfResGroup.visible = false;
+				alarmPerfResGroup.includeInLayout = false;
+				
+				img.source = _up_gray;
+				img.name = "up";
+				
+				resize.duration = dura;
+				resize.heightTo = 26;
+				resize.play();
+			}
+			
+			private function showAlarm_gis(dura:Number=400):void
+			{
+				alarmPerfResGroup.visible = false;
+				alarmPerfResGroup.includeInLayout = false;
+				
+				alarmPerfResMainGroup.percentWidth = 100;
+				
+				img.source = _down_gray;
+				img.name = "down";
+				
+				resize.duration = dura;
+				resize.heightTo = 190;
+				resize.play();
+				
+				tabBar.selectedIndex = 1;
+			}
+			
+			private function resize_effectEndHandler_gis(event:EffectEvent):void
+			{
+				alarmPerfResGroup.includeInLayout = true;
+				alarmPerfResGroup.visible = true;
+				alarmPerfResMainGroup.percentWidth = 100;
+			}
+			
+			private function changeImg_gis(type:Object):void
+			{
+				img.source = getImg_gis(type);
+			}
+			
+			private function getImg_gis(type:Object):Object
+			{
+				if(img.name == "down")
+				{
+					if(type == 1)
+						return _down_blue;
+					else
+						return _down_gray;
+				}
+				else if(img.name == "up")
+				{
+					if(type == 1)
+						return _up_blue;
+					else
+						return _up_gray;
+				}
+				
+				return _down_gray;
+			}
+
+			private function resizeWindow(pwidth:Number):void
+			{
+				scroller.visible = false;
+				scroller.includeInLayout = false;
+				kpiSelectDiv.visible = false;
+				kpiShowDiv.visible = false;
+				
+				if(pwidth == 100)
+				{
+					viewMiniButton(false);//最大化时隐藏最小化按钮
+				}
+				else if(pwidth == 45)
+				{
+					viewMiniButton(true);//还原时显示最小化按钮
+				}
+				
+				resizeMatrix.widthTo = this.mainPanel.width * pwidth / 100 - 30;
+				resizeMatrix.play();
+			}
+			
+			protected function viewMiniButton(flag:Boolean):void
+			{
+				if(badMatrixWindow && badMatrixWindow.minimizeButton)
+				{
+					badMatrixWindow.minimizable = flag;
+					badMatrixWindow.minimizeButton.visible = flag;
+					badMatrixWindow.minimizeButton.includeInLayout = flag;
+				}
+			}
+			
+			protected function resize_effectEndHandler():void
+			{
+				scroller.visible = true;
+				scroller.includeInLayout = true;
+				
+				badMatrixWindow.bottom="2";
+			}
+			
+			public function set parameters(value:Object):void
+			{
+				_parameters = value;
+			}
+
+			private function kpiSelect():void
+			{
+				kpiSelectDiv.visible = !kpiSelectDiv.visible;
+			}
+
+			private function hideSpiSelect():void
+			{
+				kpiSelectDiv.visible = false;
+			}
+
+			protected function badMatrixWindow_minimizeHandler(event:WindowEvent):void
+			{
+				badMatrixWindow.bottom = null;
+				badMatrixWindow.height = 30;
+				badMatrixWindow.width = 400;
+			}
+
+			protected function cellMsgWindow_closeHandler(event:WindowEvent):void
+			{
+				cellMsgWindow.visible = false;
+			}
+
+
+            protected function kpiSelectDiv_closeHandler(event:WindowEvent):void
+            {
+                kpiSelectDiv.visible = false;
+            }
+
+		]]>
+	</fx:Script>
+	<mx:VDividedBox width="100%" height="100%" id="mainDivBox">
+		<s:Group width="100%" height="100%">
+			<!-- GIS和劣化矩阵-->
+			<panel:Window id="mainPanel"
+						  width="100%" 
+						  height="100%"
+						  minimizable="false"
+						  maximizable="false"
+						  closable="false"
+						  title="无线网性能监控">
+				<s:Group width="100%" 
+						 height="100%">
+					<fx:Script>
+						<![CDATA[
+							import com.linkage.system.component.panel.events.WindowEvent;
+						]]>
+					</fx:Script>
+					<!-- map -->
+					<gis:MapWork id="mapWork" 
+								 width="100%" 
+								 height="100%"
+								 mapType="arcgis"
+								 showToolBar="false"
+								 showOverView="false"/>
+					
+					<!-- 劣化网元矩阵-->
+					<panel:Window title="劣化矩阵"
+								  minimizable="true"
+								  maximizable="true"
+								  closable="false"
+								  id="badMatrixWindow"
+								  backgroundAlpha="0"
+								  minWidth="400"
+								  maximize="resizeWindow(100)"
+								  restore="resizeWindow(45)"
+								  minimize="badMatrixWindow_minimizeHandler(event)"
+								  top="2"
+								  right="2"
+								  bottom="2"
+								  width="45%"
+								  >
+						<s:Scroller width="100%" id="scroller"
+									verticalScrollPolicy="auto"
+									horizontalScrollPolicy="auto"
+									height="100%">
+							<s:Group width="100%" 
+									 height="100%">
+								<mx:Grid id="badMatrixGrid" 
+										 width="100%" 
+										 height="100%"
+										 backgroundAlpha="0.1"
+										 horizontalGap="0" 
+										 verticalGap="0"
+										 borderStyle="solid"
+										 textAlign="center"
+										 left="5"
+										 bottom="5"
+										 right="5"
+										 top="5">
+								</mx:Grid>
+							</s:Group>
+						</s:Scroller>
+					</panel:Window >
+					
+					<s:Label text="更多..." 
+							 id="moreLabel"
+							 toolTip="显示所有网元。"
+							 width="100"
+							 top="10"
+							 right="30"
+							 click="showMore()"
+							 visible="false"
+							 buttonMode="true"/>
+					
+					<s:Label text="返回" 
+							 id="backStep"
+							 top="10"
+							 right="147"
+							 toolTip="返回主视图"
+							 click="goBack2MainView()"
+							 buttonMode="true"/>
+					
+					<s:Label text="指标选择" 
+							 id="kpiSelector"
+							 top="10"
+							 right="200"
+							 click="kpiSelect()"
+							 buttonMode="true"/>
+					
+					<!-- 指标选择框-->
+					<panel:Window id="kpiSelectDiv" visible="false" includeInLayout="false" width="210" height="230"
+                                  minimizable="false" maximizable="false" closable="true" close="kpiSelectDiv_closeHandler(event)"
+							      x="{kpiSelector.x - 40}" y="{kpiSelector.y + 20}">
+						<s:SkinnableContainer backgroundAlpha="1">
+							<s:VGroup paddingTop="5" left="10" >
+								<s:HGroup width="100%" height="20" gap="30" horizontalAlign="center" paddingRight="10">
+									<s:Button label="确定" click="loadMatrixData()"/>
+									<s:Button label="取消" click="hideSpiSelect()"/>
+								</s:HGroup>
+								<s:Scroller verticalScrollPolicy="auto" horizontalScrollPolicy="auto" height="150">
+									<s:VGroup id="kpiSelectGroup" width="190" bottom="10"/>
+								</s:Scroller>
+							</s:VGroup>
+						</s:SkinnableContainer>
+					</panel:Window>
+				</s:Group>
+				
+				<common:TreeDiv id="treeDiv" visible="false"/>
+			</panel:Window>
+		</s:Group>
+		
+		<!--告警 性能 资源 页签-->
+		<s:VGroup id="alarmPerfResMainGroup" width="100%" height="26" gap="0" bottom="0" resize="alarmWindow_resizeHandler_gis(event)">
+			<s:Group width="100%" height="100%">
+				<s:SkinnableContainer id="alarmWin" width="100%" height="100%">
+					<s:VGroup id="alarmPerfResGroup" width="100%" height="100%" gap="0">
+						<s:TabBar id="tabBar" dataProvider="{viewStack}" styleName="commonTabBar"/>
+						<mx:ViewStack id="viewStack" creationPolicy="all" width="100%" height="100%" backgroundAlpha="0">
+							<s:NavigatorContent id="resNavi" label="资源信息" width="100%" height="100%" creationPolicy="all">
+								<mx:AdvancedDataGrid id="resGrid" width="100%" height="100%" horizontalScrollPolicy="auto"/>
+							</s:NavigatorContent>
+							<s:NavigatorContent id="alarmNavi" label="性能告警" width="100%" height="100%" creationPolicy="all">
+								<pubflow:alarm id="alarmFlow" moduleKey="p2pflowalarm" width="100%" height="100%"/>
+							</s:NavigatorContent>
+							<s:NavigatorContent id="perfNavi" label="性能信息" width="100%" height="100%" creationPolicy="all">
+								<mx:AdvancedDataGrid id="perfGrid" width="100%" height="100%" horizontalScrollPolicy="auto"/>
+							</s:NavigatorContent>
+						</mx:ViewStack>
+					</s:VGroup>
+				</s:SkinnableContainer>
+				<s:HGroup width="100%" height="5" horizontalAlign="center" gap="0" y="{alarmWin.y + 1}">
+					<mx:Image id="img" source="{_up_gray}" name="up" 
+							  click="resizeWindow_gis()"
+							  mouseOver="changeImg_gis(1)"
+							  mouseOut="changeImg_gis(2)"
+							  buttonMode="true"/>
+				</s:HGroup>
+			</s:Group>
+		</s:VGroup>
+	</mx:VDividedBox>
+	
+	<!-- 网元指标告警信息悬浮窗-->
+	<panel:Window id="kpiShowDiv" visible="false" close="hideMoKpis()" minimizable="false" maximizable="false"
+				  doubleClickEnabled="true"
+				  doubleClick="kpiShowDiv_doubleClickHandler(event)"
+				  dragable="true">
+		<mx:Grid id="kpiShowGrid" textAlign="center" horizontalAlign="center" height="100%"
+				 width="100%" left="5" right="5" top="5" bottom="5"/>	
+	</panel:Window>
+	
+	<!-- 网元点击 黑色窗口 信息-->
+	<panel:Window id="cellMsgWindow" visible="false" width="400" height="300" 
+				  maximizable="false" minimizable="false" dragable="true" closable="true" right="2" bottom="2"
+				  close="cellMsgWindow_closeHandler(event)">
+		<s:VGroup  height="100%" width="100%" gap="0" top="-18">
+			<s:TabBar id="cellMsgTabBar" dataProvider="{cellMsgViewStack}" styleName="commonTabBar"/>
+			<mx:ViewStack id="cellMsgViewStack" creationPolicy="all" height="100%" width="100%" backgroundAlpha="0">
+				<s:NavigatorContent id="cellResNavi" label="告警详情" height="100%" width="100%" creationPolicy="all">
+					<s:Scroller verticalScrollPolicy="auto" horizontalScrollPolicy="auto" width="100%" height="250">
+						<s:Group width="100%" height="100%">
+							<mx:Grid id="cellMsgAlarmShowGrid" textAlign="center" horizontalAlign="center" height="100%"
+									 width="100%" left="5" right="5" top="5" bottom="5"/>	
+						</s:Group>
+					</s:Scroller>
+				</s:NavigatorContent>
+				<s:NavigatorContent id="cellPerfNavi" label="性能指标分析" height="100%" width="100%" creationPolicy="all">
+					<s:VGroup height="100%" width="100%" horizontalAlign="center">
+						<s:Scroller verticalScrollPolicy="auto" horizontalScrollPolicy="auto" width="100%" height="80">
+							<s:Group width="100%" height="100%">
+								<mx:Grid id="cellMsgKpiShowGrid" textAlign="center" horizontalAlign="center" height="100%"
+										 width="100%" left="5" right="5" top="5" bottom="5"/>	
+							</s:Group>
+						</s:Scroller>
+						<mx:HRule width="99%" height="3" chromeColor="0x00CC00"/>
+						<fusioncharts:FusionChartsLK id="kpiFc" width="366" height="152"
+													 FCChartType="Spline"
+													 FCData="{new ArrayCollection()}"
+													 FCParams="{new ArrayCollection()}"
+													 FCFolder="{_context}flex-release/FusionCharts"/>
+					</s:VGroup>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+		</s:VGroup>
+	</panel:Window>
+</s:Group>

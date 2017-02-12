@@ -1,0 +1,531 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					width="500" height="320" closable="true" dragable="true" maximizable="false"
+					minimizable="true" resizable="true" styleName="windowScene" creationComplete="window1_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.event.EmpyEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			
+			import spark.components.CheckBox;
+			import spark.components.RadioButton;
+			import spark.components.supportClasses.ToggleButtonBase;
+			
+			private var log:ILogger = Log.getLoggerByClass(ViewLayerCfgNew);
+			
+			/* [Inject("viewLayerCfgPM")]
+			public var pm:ViewLayerCfgPM; */
+			
+			/* [Inject("mapViewDM")]
+			public var mapViewDM:MapViewDM; */
+			
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			private var cbCache:Object = new Object();
+			
+			private var kpiIdList:ArrayList = new ArrayList;
+			
+			private var kpiCache:Object = {};
+			
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				this.visible = false;
+			}
+			
+			public var layerCallback:Function;
+			
+			[MessageHandler(selector = "GIS_CHANGE")]
+			public function GIS_CHANGE(e:SceneEvent):void
+			{
+				reset();
+			}
+			private function reset():void{
+				var flag:Boolean = "2"!=scenePM.user.logicalType;
+				log.info("不是lte场景："+flag);
+				btsCb.selected = flag;
+				nodebCb.selected = flag;
+				eNodeBCb.selected=true;
+				cellCb.selected=true;
+				utrancellCb.selected=true;
+				eucellCb.selected=true;
+				moFaultCb.selected=true;
+				moNormalCb.selected=true;
+				this.visible=false;
+			}
+			protected function clickHandler(event:MouseEvent, all:Number = -1, type:String = null):void
+			{
+				var obj:ToggleButtonBase = (event.target as ToggleButtonBase);
+				
+				log.info("图层点击处理：" + type + " :: " + obj.name + " :: " + obj.id);
+				
+				//动态生成 重点指标选项 特殊处理一下  不需要全选处理， 同时要更新泰森多边形
+				if (obj.name == 'kpiCb')
+				{
+					all = 1;
+					type = "kpi";
+				}
+				
+				//应急通信车
+				if (obj.id == 'car')
+				{
+					dispatchMsg(new EmpyEvent(EmpyEvent.SHOW_EMPY_TO_GIS));	
+				}
+				
+				if (all == 0)
+				{
+					var isSelected:Boolean = obj.selected;
+					
+					//取父节点下所有的内容
+					var num:int = obj.parent.numChildren;
+					
+					for (var i:int = 0; i < num; i++)
+					{
+						var tmp:ToggleButtonBase = (obj.parent.getChildAt(i) as ToggleButtonBase);
+						tmp.selected = isSelected;
+						
+						if (type == 'kpi')
+						{
+							if (obj.selected)
+								kpiIdList.addItem(tmp.id);
+							else
+								for (var i:int = 0; i < kpiIdList.length; i++)
+								{
+									if (kpiIdList.getItemAt(i) == tmp.id)
+										kpiIdList.removeItem(kpiIdList.getItemAt(i));
+								}
+						}
+					}
+				}
+				
+				if (type == 'kpi')
+				{
+					log.info("refresh gis layer!");
+					
+					if (obj.selected && all != 0)
+						kpiIdList.addItem(obj.id);
+					else if (all != 0)
+					{
+						for (var i:int = 0; i < kpiIdList.length; i++)
+						{
+							if (kpiIdList.getItemAt(i) == obj.id)
+								kpiIdList.removeItem(kpiIdList.getItemAt(i));
+						}
+					}
+					
+					scenePM.user.kpiIdList = "";
+					scenePM.user.moTypeIdList = "";
+					
+					for (var index:int = 0; index < kpiIdList.length; index++)
+					{
+						if (scenePM.user.kpiIdList == "")
+						{
+							scenePM.user.kpiIdList += kpiIdList.getItemAt(index);
+							scenePM.user.moTypeIdList += kpiCache[kpiIdList.getItemAt(index)];
+						}
+						else
+						{
+							scenePM.user.kpiIdList += "," + kpiIdList.getItemAt(index);
+							scenePM.user.moTypeIdList += "," + kpiCache[kpiIdList.getItemAt(index)];
+						}
+					}
+					
+					scenePM.user.isDrillDown = true;
+					
+					if (scenePM.user.currentMapType == "0" && scenePM.user.level == "2") //矢量图  一级视图 地市试图  LTE场景默认 不加载泰森多边形
+					{
+						if (scenePM.user.isGisFlag == "0")
+						{
+							if ("2" == scenePM.user.logicalType)
+								return;
+							
+							log.info("加载场景/区域泰森多边形数据:" + scenePM.user.sceneId);
+							//                    msgDispatcher(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+							requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+							
+						}
+						else
+						{
+							dispatchMsg(new SceneEvent(SceneEvent.SEARCH_MOGIS_LAYER));
+							scenePM.user.isGisFlag = "0";
+						}
+					}
+				}
+				else if (type == 'perfLevel')
+				{
+					log.info("filter gis features!");
+					viewLayerCfgChange(type);
+				}
+				else
+				{
+					log.info("filter gis features!");
+					viewLayerCfgChange("mo");
+				}
+				if(obj.id=="emergencyRes"){
+					dispatchMsg(new EmpyEvent(EmpyEvent.SHOW_EMPY_TO_GIS));	
+				}
+			}
+			
+			private function viewLayerCfgChange(type:String = null):void
+			{
+				log.info("filter feature:派发过滤图层的事件。");
+				
+				var e:SceneEvent = new SceneEvent(SceneEvent.FILTER_LAYER);
+				e.filterType = type;
+				dispatchMsg(e);
+			}
+
+			
+			public function filterFeature(mo:Object, filterType:String = null):Boolean
+			{
+				if (!mo)
+					return true;
+				
+				var flag:Boolean = false;
+				
+				if (filterType == "ts")
+				{
+					//过滤泰森多边形
+					//					return cbCache['perf_' + mo['perfLevel']].selected;
+					flag = cbCache[mo['moTypeName']].selected && cbCache[mo['warnLevel']].selected;
+				}
+				
+				
+				if (mo['quitType'])
+					flag = cbCache[mo['moTypeName']].selected && cbCache[mo['warnLevel']].selected && cbCache[mo['quitType']].selected;
+				else
+					flag = cbCache[mo['moTypeName']].selected && cbCache[mo['warnLevel']].selected;
+				
+				return flag;
+			}
+			
+			[MessageHandler(selector = "ENABLE_VIEW_CFG")]
+			public function enableCheckboxs(e:SceneEvent):void
+			{
+				log.info("生效 图层配置选项！");
+			}
+			
+			[MessageHandler(selector = "DEAL_IMP_KPI")]
+			public function dealImpKpi(e:SceneEvent):void
+			{
+				log.info("处理imp kpi " + scenePM.mapViewDM.impKpiList.length);
+				
+				kpiIdList.removeAll();
+				
+				kpiGroup.removeAllElements();
+				var c:CheckBox = new CheckBox();
+				c.label = '性能渲染';
+				c.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+				{
+					clickHandler(event, 0, 'kpi');
+				});
+				
+				kpiGroup.addElement(c);
+				
+				if (scenePM.user.kpiId == null)
+				{
+					scenePM.user.kpiIdList = "";
+					scenePM.user.moTypeIdList = "";
+				}
+				else
+				{
+					scenePM.user.kpiIdList = scenePM.user.kpiId;
+					scenePM.user.moTypeIdList = scenePM.user.moTypeId;
+				}
+				
+				for each (var kpi:Object in scenePM.mapViewDM.impKpiList)
+				{
+					var cb:CheckBox = new CheckBox();
+					cb.id = kpi['kpiId'];
+					cb.label = kpi['kpiName'];
+					cb.name = "kpiCb";
+					cb.width = 140;
+					cb.addEventListener(MouseEvent.CLICK, clickHandler);
+					
+					kpiCache[kpi['kpiId']] = kpi['moTypeId'];
+					
+					cb.selected = true;
+					kpiIdList.addItem(cb.id);
+					
+					if (scenePM.user.kpiIdList == "")
+					{
+						scenePM.user.kpiIdList += cb.id;
+						scenePM.user.moTypeIdList += kpi['moTypeId'];
+					}
+					else
+					{
+						scenePM.user.kpiIdList += "," + cb.id;
+						scenePM.user.moTypeIdList += "," + kpi['moTypeId'];
+					}
+					
+					kpiGroup.addElement(cb);
+				}
+				
+				log.debug(scenePM.user);
+			}
+			
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				cbCache['jizhanCb'] = jizhanCb;
+				cbCache['BTS'] = btsCb;
+				cbCache['NodeB'] = nodebCb;
+				
+				cbCache['xiaoquCb'] = xiaoquCb;
+				cbCache['CELL'] = cellCb;
+				cbCache['UTRANCELL'] = utrancellCb;
+				
+				//                cbCache['BSC'] = bscCb;
+				//                cbCache['RNC'] = rncCb;
+				
+				cbCache['eNodeB'] = eNodeBCb;
+				cbCache['EUtranCell'] = eucellCb;
+				
+				//                cbCache['AP'] = apCb;
+				//                cbCache['WLAN'] = wlanCb;
+				//
+				//                cbCache['GGSN'] = ggsnCb;
+				//                cbCache['SGSN'] = sgsnCb;
+				
+				/*                 cbCache['emergencyRes'] = emergencyRes;
+				cbCache['oil'] = oil;
+				cbCache['car'] = car; */
+				
+				cbCache['moAlarmCb'] = moAlarmCb;
+				cbCache['1'] = moFaultCb;
+				cbCache['2'] = moFaultCb;
+				cbCache['3'] = moFaultCb;
+				cbCache['4'] = moFaultCb;
+				cbCache['0'] = moNormalCb;
+				
+				cbCache['perfLevelCb'] = moAlarmCb;
+				//                cbCache['perf_1'] = perfLevelCb_1;
+				//                cbCache['perf_2'] = perfLevelCb_2;
+				//                cbCache['perf_3'] = perfLevelCb_3;
+				//                cbCache['perf_4'] = perfLevelCb_4;
+				//                cbCache['perf_0'] = perfLevelCb_0;
+				
+				cbCache['市电停电'] = noPowerCb;
+				cbCache['直流欠压'] = lowPowerCb;
+				cbCache['传输中断'] = transInterruptCb;
+				cbCache['一次下电'] = oneCutCb;
+				cbCache['水浸'] = waterCb;
+				cbCache['蓄电池供电'] = wirelessCb;
+				cbCache['烟感'] = smokeCb;
+				cbCache['基站退服'] = btsQuitCb;
+				
+				//				cbCache['alarmAllCb'] = alarmAllCb;
+				//				cbCache['alarmColumnCb'] = alarmColumnCb;
+				//				cbCache['alarmAreaCb'] = alarmAreaCb;
+				reset();
+				
+				setTimeout(function():void{
+					requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_IMP_KPI));
+				},10000);
+			}
+			
+			
+//			[Bindable]
+//			private var jizhans:ArrayCollection = new ArrayCollection([{"id":"-1","name":"基站","selected":true},{"id":"BTS","name":"BTS","selected":true},{"id":"NodeB","name":"NodeB","selected":true},{"id":"eNodeB","name":"eNodeB","selected":true}]);
+//			[Bindable]
+//			private var xiaoqus:ArrayCollection = new ArrayCollection([{"id":"-1","name":"小区","selected":true},{"id":"CELL","name":"CELL","selected":true},{"id":"UTRANCELL","name":"UTRANCELL","selected":true},{"id":"EUtranCell","name":"EUtranCell","selected":true}]);
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" gap="2" paddingBottom="5" paddingLeft="3" paddingRight="3"
+			  paddingTop="2">
+		<mx:Accordion id="mainAccor" width="100%" height="100%" creationPolicy="all">
+			<mx:VBox width="100%" height="100%" label="对象图层" creationPolicy="all">
+				<mx:Spacer height="8"/>
+				<s:HGroup width="100%">
+					<s:CheckBox id="jizhanCb" width="75" label="基站"
+								click="clickHandler(event, 0);layerCallback(['BTS','NodeB','eNodeB']);"/>
+					<s:CheckBox id="btsCb" width="75" label="BTS"
+								click="clickHandler(event, 1);layerCallback(['BTS']);"/>
+					<s:CheckBox id="nodebCb" width="75" label="NodeB"
+								click="clickHandler(event, 1);layerCallback(['NodeB']);"/>
+					<s:CheckBox id="eNodeBCb" width="75" label="eNodeB"
+								click="clickHandler(event, 1);layerCallback(['eNodeB']);"
+								selected="true"/>
+				</s:HGroup>
+				<!--<s:List dataProvider="{jizhans}" styleName="sceneList" borderVisible="false" labelField="name" width="100%" itemRenderer="com.linkage.module.cms.gsscene.viewnew.ViewLayerCfgCheckBoxItemRenderer">
+					<s:layout>
+						<s:HorizontalLayout/>
+					</s:layout>
+				</s:List>-->
+				
+				<mx:HRule width="100%" height="2"/>
+				<s:HGroup width="100%">
+					<s:CheckBox id="xiaoquCb" width="75" label="小区" click="clickHandler(event, 0)"/>
+					<s:CheckBox id="cellCb" width="75" label="CELL" click="clickHandler(event, 1)"
+								selected="true"/>
+					<s:CheckBox id="utrancellCb" label="UTRANCELL" click="clickHandler(event, 1)"
+								selected="true"/>
+					<s:CheckBox id="eucellCb" label="EUtranCell" click="clickHandler(event, 1)"
+								selected="true"/>
+				</s:HGroup>
+				<!--<s:List dataProvider="{xiaoqus}" styleName="sceneList" borderVisible="false"  labelField="name" width="100%" itemRenderer="com.linkage.module.cms.gsscene.viewnew.ViewLayerCfgCheckBoxItemRenderer">
+					<s:layout>
+						<s:HorizontalLayout/>
+					</s:layout>
+				</s:List>-->
+				<mx:HRule width="100%" height="2"/>
+				<s:HGroup width="100%">
+					<s:CheckBox id="jlCb1" width="75" label="机楼" click="clickHandler(event, 0)"/>
+					<s:CheckBox id="jlCb2" label="机楼" click="clickHandler(event, 1)"/>
+				</s:HGroup>
+				<!--				<mx:HRule width="100%"
+				height="2"/>
+				<s:HGroup width="100%">
+				<s:CheckBox width="75"
+				id="apCb"
+				label="AP"
+				click="clickHandler(event, 1)"/>
+				<s:CheckBox id="wlanCb"
+				label="WLAN"
+				click="clickHandler(event, 1)"/>
+				</s:HGroup>
+				<mx:HRule width="100%"
+				height="2"/>
+				<s:HGroup width="100%">
+				<s:CheckBox width="75"
+				id="ggsnCb"
+				label="GGSN"
+				click="clickHandler(event, 1)"/>
+				<s:CheckBox id="sgsnCb"
+				label="SGSN"
+				click="clickHandler(event, 1)"/>
+				</s:HGroup>-->
+				
+				<mx:HRule width="100%" height="2"/>
+				<s:HGroup width="100%">
+					<s:CheckBox id="emergencyRes" width="75" label="应急资源"
+								click="clickHandler(event, 0)"/>
+					<s:CheckBox id="car" label="应急通信车" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="oil" label="应急油机" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="resource3" label="应急人员" click="clickHandler(event, 1)"/>
+				</s:HGroup>
+			</mx:VBox>
+			
+			<mx:VBox width="100%" height="100%" label="状态图层" creationPolicy="all">
+				<mx:Spacer height="8"/>
+				<s:HGroup width="100%">
+					<s:CheckBox id="moAlarmCb" width="75" label="网元状态"
+								click="clickHandler(event, 0);layerCallback(['quitCfg','normalCfg']);"/>
+					<s:CheckBox id="moFaultCb" width="75" label="故障"
+								click="clickHandler(event, 1);layerCallback(['quitCfg']);"
+								selected="true"/>
+					<s:CheckBox id="moNormalCb" label="正常"
+								click="clickHandler(event, 1);layerCallback(['normalCfg']);"
+								selected="true"/>
+				</s:HGroup>
+				<!--               <mx:HRule width="100%"
+				height="2"/>
+				<s:HGroup width="100%">
+				<s:CheckBox width="85"
+				id="perfLevelCb"
+				label="性能劣化级别"
+				click="clickHandler(event, 0, 'perfLevel')"/>
+				<s:CheckBox width="75"
+				id="perfLevelCb_1"
+				label="一级劣化"
+				selected="true"
+				click="clickHandler(event, 1, 'perfLevel')"/>
+				<s:CheckBox width="75"
+				id="perfLevelCb_2"
+				label="二级劣化"
+				selected="true"
+				click="clickHandler(event, 1, 'perfLevel')"/>
+				<s:CheckBox width="75"
+				id="perfLevelCb_3"
+				label="三级劣化"
+				selected="true"
+				click="clickHandler(event, 1, 'perfLevel')"/>
+				<s:CheckBox width="75"
+				id="perfLevelCb_4"
+				label="四级劣化"
+				selected="true"
+				click="clickHandler(event, 1, 'perfLevel')"/>
+				<s:CheckBox width="75"
+				id="perfLevelCb_0"
+				label="正常"
+				selected="true"
+				click="clickHandler(event, 1, 'perfLevel')"/>
+				</s:HGroup>-->
+				<mx:HRule width="100%" height="2"/>
+				<s:HGroup width="100%">
+					<s:CheckBox id="quitCb" width="75" label="退服原因" click="clickHandler(event, 0)"/>
+					<s:CheckBox id="oneCutCb" width="75" label="一次下电" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="lowPowerCb" width="75" label="直流欠压"
+								click="clickHandler(event, 1)"/>
+					<s:CheckBox id="wirelessCb" width="75" label="蓄电池供电"
+								click="clickHandler(event, 1)"/>
+					<s:CheckBox id="noPowerCb" width="75" label="市电停电" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="transInterruptCb" label="传输中断" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="waterCb" width="75" label="水浸" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="smokeCb" width="75" label="烟感" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="btsQuitCb" width="75" label="基站退服" click="clickHandler(event, 1)"/>
+				</s:HGroup>
+				<mx:HRule width="100%" height="2"/>
+				<s:HGroup width="100%">
+					<s:CheckBox id="curr" width="75" label="工程状态" click="clickHandler(event, 0)"/>
+					<s:CheckBox id="x1" width="75" label="现网" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="x2" width="75" label="工程有业务" click="clickHandler(event, 1)"/>
+					<s:CheckBox id="x3" width="75" label="工程无业务" click="clickHandler(event, 1)"/>
+				</s:HGroup>
+			</mx:VBox>
+			<mx:VBox width="100%" height="100%" label="渲染图层" creationPolicy="all">
+				<mx:Spacer height="8"/>
+				<s:TileGroup id="kpiGroup" width="100%" orientation="rows">
+				</s:TileGroup>
+				<!--<mx:HRule width="100%"
+				height="2"/>
+				<s:HGroup width="100%">
+				<s:CheckBox width="75"
+				id="alarmAllCb"
+				label="告警渲染"/>
+				<s:RadioButton width="95"
+				id="alarmColumnCb"
+				label="告警柱状图"
+				click="clickHandler(event, 1)"/>
+				<s:RadioButton id="alarmAreaCb"
+				label="故障影响范围"
+				click="clickHandler(event, 1)"/>
+				</s:HGroup>-->
+			</mx:VBox>
+		</mx:Accordion>
+	</s:VGroup>
+
+</ailk_compts:Window>

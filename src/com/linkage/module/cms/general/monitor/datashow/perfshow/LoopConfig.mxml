@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="300" height="240" dragable="true" close="closeMe();" 
+			  minimizable="false" maximizable="false">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			import spark.events.IndexChangeEvent;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.LoopConfig");
+			
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+			
+			private var _cityId:String = null;
+			private var _unit:String = "";
+			
+			//已选择的对象
+			[Bindable]
+			private var selectArr:ArrayCollection = new ArrayCollection();
+			
+			private var selectPerfArr:ArrayCollection = new ArrayCollection();
+			
+			//回调方法
+			private var _callback:Function = null;
+			
+			public function get callback():Function
+			{
+				return _callback;
+			}
+
+			public function set callback(value:Function):void
+			{
+				_callback = value;
+			}
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+			
+			public function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			//初始化下拉框
+			public function initSelectOption():void
+			{
+				_remoteData.queryNextCity(_cityId,initCityOption,null,initCityErr);
+			}
+			
+			public function initCityOption(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				if (obj != null)
+				{
+					for each (var cityInfo:Object in obj)
+					{
+						arr.addItem(cityInfo);
+					}
+				}
+				
+				this.cityName.dataProvider = arr;
+				this.cityName.labelField = "city_name";
+				this.cityName.selectedIndex = 0;
+				
+				//初始化完属地再加载网元类型
+				_remoteData.querMoType(initTypeOption,null,initTypeErr);
+			}
+			
+			public function initCityErr(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				this.cityName.dataProvider = arr;
+				this.cityName.labelField = "city_name";
+			}
+			
+			public function initTypeOption(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				if (obj != null)
+				{
+					for each (var cityInfo:Object in obj)
+					{
+						arr.addItem(cityInfo);
+					}
+				}
+				
+				this.deviceModel.dataProvider = arr;
+				this.deviceModel.labelField = "mo_type_name";
+				this.deviceModel.selectedIndex = 0;
+				
+				//初始化类型后，加载网元和性能配置
+				deviceModel_changeHandler(null);
+			}
+			
+			public function initTypeErr(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				this.deviceModel.dataProvider = arr;
+				this.deviceModel.labelField = "mo_type_name";
+			}
+			
+			//网元类型联动
+			protected function deviceModel_changeHandler(event:IndexChangeEvent):void
+			{
+				//选择的属地和网元类型
+				var curCityId:String = "";
+				var curtypeId:String = "";
+				
+				curCityId = this.cityName.selectedItem.city_id;
+				curtypeId = this.deviceModel.selectedItem.mo_type_id;
+				log.info("选择内容 curCityId=" + curCityId + "  curtypeId=" + curtypeId);
+				
+				_remoteData.queryMoByType(curCityId,curtypeId,initMoOption,null,initMoErr);
+				_remoteData.queryPerfByMo(curtypeId,null,initPerfOption,null,null);
+			}
+			
+			public function initMoOption(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				if (obj != null)
+				{
+					for each (var cityInfo:Object in obj)
+					{
+						arr.addItem(cityInfo);
+					}
+				}
+				
+				this.moName.dataProvider = arr;
+				this.moName.labelField = "mo_name";
+				this.moName.selectedIndex = 0;
+			}
+			
+			public function initMoErr(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				this.moName.dataProvider = arr;
+				this.moName.labelField = "mo_name";
+				this.moName.selectedIndex = 0;
+			}
+			
+			public function initPerfOption(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				if (obj != null)
+				{
+					for each (var cityInfo:Object in obj)
+					{
+						arr.addItem(cityInfo);
+					}
+				}
+				
+				this.perfName.dataProvider = arr;
+				this.perfName.labelField = "show_name";
+				this.perfName.selectedIndex = 0;
+			}
+			
+			public function initPerfErr(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				this.perfName.dataProvider = arr;
+				this.perfName.labelField = "show_name";
+				this.perfName.selectedIndex = 0;
+			}
+			
+			public function addPerf():void
+			{
+				//取参数
+				var curCityId:String = this.cityName.selectedItem.city_id;
+				var moTypeId:String = this.deviceModel.selectedItem.mo_type_id;
+				var moId:String = this.moName.selectedItem.mo_id;
+				_unit = this.perfName.selectedItem.unit;
+				var perfTypeId:String = this.perfName.selectedItem.perf_type_id;
+				var curCityName:String = this.cityName.selectedItem.city_name;
+				var moTypeName:String = this.deviceModel.selectedItem.mo_type_name;
+				var moName:String = this.moName.selectedItem.mo_name;
+				var perfTypeName:String = this.perfName.selectedItem.show_name;
+				
+				//组件内容
+				var obj:Object = new Object();
+				obj.curCityId = curCityId;
+				obj.moTypeId = moTypeId;
+				obj.moId = moId;
+				obj.perfTypeId = perfTypeId;
+				obj.name = curCityName + "/" + moTypeName +"/" + moName + "/" + perfTypeName;
+				
+				if (selectPerfArr.contains(perfTypeName))
+				{
+					Alert.show("该性能指标已选择！");
+				}
+				else
+				{
+					selectArr.addItem(obj);
+					selectPerfArr.addItem(perfTypeName);
+				}
+			}
+
+			public function delPerf():void
+			{
+				if (selectPerf.selectedIndex >= 0)
+				{
+					var tmp:int = selectPerf.selectedIndex;
+					selectArr.removeItemAt(tmp);
+					selectPerfArr.removeItemAt(tmp);
+				}
+			}
+			
+			public function commitConfig():void
+			{
+				if (selectArr.length == 0)
+				{
+					Alert.show("请选择性能指标！");
+					return;
+				}
+				if (this.timeInput.text == "")
+				{
+					Alert.show("请输入轮循周期！");
+					return;
+				}
+				if (isNaN(Number(this.timeInput.text)))
+				{
+					Alert.show("轮循周期必须为数字，请重新输入！");
+					return;
+				}
+				_callback.call(null,selectArr,Number(this.timeInput.text));
+				this.visible = false;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="280" height="180">
+		<s:HGroup width="270" height="140">
+			<s:VGroup width="100" height="100%" gap="10" verticalAlign="middle">
+				<s:DropDownList id="cityName" width="100%">
+				</s:DropDownList>
+				<s:DropDownList id="deviceModel" width="100%" change="deviceModel_changeHandler(event)">
+				</s:DropDownList>
+				<s:DropDownList id="moName" width="100%">
+				</s:DropDownList>
+				<s:DropDownList id="perfName" width="100%">
+				</s:DropDownList>
+			</s:VGroup>
+			<s:VGroup width="50" height="100%" verticalAlign="middle">
+				<s:Button label="==》" click="addPerf();">
+				</s:Button>
+				<s:Button label="《==" click="delPerf();">
+				</s:Button>
+			</s:VGroup>
+			<s:VGroup width="100" height="100%">
+				<s:BorderContainer width="100%" height="100%">
+					<s:List id="selectPerf" width="100%" height="100%" labelField="name" dataProvider="{selectArr}" color="0x000000">
+					</s:List>
+				</s:BorderContainer>
+			</s:VGroup>
+		</s:HGroup>
+		<s:HGroup width="100%" height="20">
+			<s:Label text="时间粒度：">
+			</s:Label>
+			<s:TextInput id="timeInput" text="" width="60" height="20">
+			</s:TextInput>
+			<s:Label text="分钟">
+			</s:Label>
+		</s:HGroup>
+		<s:HGroup width="100%" height="20" horizontalAlign="center">
+			<s:Button label="确定" click="commitConfig();">
+			</s:Button>
+			<s:Button label="取消" click="closeMe();">
+			</s:Button>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%"
+		 height="100%"
+		 label="业务拨测历史告警监控" 
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*" 
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 xmlns:components="com.linkage.module.cms.alarm.simpleflow.components.*">
+	<fx:Declarations>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.linkage.module.cms.alarm.simpleflow.data.SimpleFlowData;
+			import com.linkage.module.cms.alarm.simpleflow.data.SimpleFlowDataImp;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.FlexEvent;
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.alarm.simpleflow.components.historyAlarmWins");
+			
+			public var parameters:Object;
+			
+			[Bindable]
+			private var user:Object = new Object();
+			
+			private var simpleFlowData:SimpleFlowData = null;
+			
+			
+			
+			
+			[Bindable]
+			private var nowDate:Date = new Date();
+			
+			/* protected function historyAlarmWin_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				log.info("historyAlarmWin_creationCompleteHandler parameters");
+				log.info(parameters);
+				_simpleFlowData = new SimpleFlowDataImp(parameters);
+				var param:Object = new Object();
+				param.startTime = String(startTime.selectedDate);
+				param.endTime = String(endTime.selectedDate);
+				
+				log.info(param);
+				_simpleFlowData.qureyHistoryAlarmData(param,getHistoryAlarmHandler);
+			} */
+			
+			private function getHistoryAlarmHandler(result:Object):void
+			{
+				log.info("getHistoryAlarmHandler");
+				var columns:Array = buildColumns(result);
+				log.info(columns);
+				historyAlarmDataGrid.columns = columns;
+				historyAlarmDataGrid.dataProvider = result.dataList;
+				log.info("result.dataList .length="+result.dataList.length );
+				
+			}
+			public function historyStart():void
+			{
+				parameters = parentApplication.parameters;
+				var userParams:String = String(parameters["alarmParam"]).replace(/\'/g, "\"");
+				user = JSON.decode(userParams);
+				log.info("historyStart queryHistoryAlarm_clickHandler user TEST");
+				simpleFlowData = new SimpleFlowDataImp(user['context']);
+				
+				var param:Object = new Object();
+				param.startTime = String(startTime.text);
+				param.endTime = String(endTime.text);
+				param.user = user['account'];
+				log.info(param);
+				
+				simpleFlowData.queryHisInfo(param,getHistoryAlarmHandler);
+			}
+			
+			
+			private function buildColumns(result:Object):Array{
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+					if(i == 0){
+						log.info("name="+name+"除去");
+					}else{
+						var dataGridColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						dataGridColumn.width=100;
+						dataGridColumn.headerText = name;
+						dataGridColumn.dataField = result.colum[i];
+						columns.push(dataGridColumn);
+					}
+					i++;
+				}
+				return columns;
+			}
+			
+			protected function queryHistoryAlarm_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				parameters = parentApplication.parameters;
+				var userParams:String = String(parameters["alarmParam"]).replace(/\'/g, "\"");
+				var user:Object = JSON.decode(userParams);
+				
+				simpleFlowData = new SimpleFlowDataImp(user['context']);
+				
+				var param:Object = new Object();
+				param.startTime = String(startTime.text);
+				param.endTime = String(endTime.text);
+				param.user = user['account'];
+				
+				log.info(param);
+				simpleFlowData.queryHisInfo(param,getHistoryAlarmHandler);
+			}
+			
+			protected function exportSButton_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("业务拨测历史告警监控      导出11");
+				var start:String = startTime.text;
+				var end:String = endTime.text;
+				var param:String = "startTime="+start+"&endTime="+end;
+				var url:String = user['context']+ "/groupsupport/alarm/buscall/BusCallAction!exportbcHisInfo.action?"+param;
+				log.info(user['context']+"------url:"+url);
+				navigateToURL(new URLRequest(url));
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%">
+		<s:HGroup width="100%">
+			<s:HGroup >
+				<s:Label text="开始时间:"/> 
+				<mx:DateField id="startTime"
+							  width="120"
+							  selectedDate="{new Date(nowDate.getFullYear(),nowDate.getMonth()-1,nowDate.getDate())}"
+							  formatString="YYYY-MM-DD"
+							  color="0x000000"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="结束时间:"/> 
+				<mx:DateField id="endTime"
+							  width="120"
+							  selectedDate="{new Date()}" 
+							  formatString="YYYY-MM-DD"
+							  color="0x000000"/>
+			</s:HGroup>
+			<s:Button label="查询" id="queryHistoryAlarm" click="queryHistoryAlarm_clickHandler(event)"/>
+			<s:Button label="导出" id="exportSButton" click="exportSButton_clickHandler(event)"/>
+		</s:HGroup>
+		<mx:AdvancedDataGrid id="historyAlarmDataGrid" width="100%" height="100%" 
+					 							horizontalScrollPolicy="auto" 
+					 							verticalScrollPolicy="auto"/>
+		
+	</s:VGroup>
+</mx:VBox>

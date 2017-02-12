@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window title="摘牌网元列表"
+					width="100%"
+					height="100%"
+					styleName="window"
+					close="window1_closeHandler(event)"
+					maximize="window1_maximizeHandler(event)"
+					restore="window1_restoreHandler(event)"
+					minimizable="false"
+					dragable="true"
+					xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author huawei (Ailk No.)
+		 @version 1.0
+		 @date 2012-8-31
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scenedaily.view.components.hangandpick.DownMedalDetail;
+
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			[Inject("delistingMoViewPM")]
+			[Bindable]
+			public var pm:DelistingMoViewPM;
+			[Inject("downMedalDetail")]
+			public var downMedalDetail:DownMedalDetail;
+
+
+			//[Init]
+			public function init():void
+			{
+				if (pm)
+				{
+					pm.loadDelistingMoData();
+				}
+			}
+
+			//展示摘牌详情
+			protected function showDetial_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object = pm.dm.delistingMoList[event.rowIndex];
+//				var url:String = "/cms/cms/scenedaily/DownMedalDetail.jsp?id=" + data.id;
+//				navigateToURL(new URLRequest(url));
+				downMedalDetail.loadData(data);
+				PopUpManager.addPopUp(downMedalDetail, this.parent as DisplayObject);
+				downMedalDetail.width = 700;
+				downMedalDetail.height = 400;
+				downMedalDetail.x = (this.stage.width - downMedalDetail.width) / 2;
+				downMedalDetail.y = (this.stage.height - downMedalDetail.height) / 2 - 50;
+
+			}
+
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				pm.export();
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				this.closeButton.visible = false;
+
+			}
+
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				this.width = 700;
+				this.height = 400;
+				this.x = (this.parentApplication.width - this.width) / 2
+				this.y = (this.parentApplication.height - this.height) / 2 - 50;
+				this.closeButton.visible = true;
+			}
+		]]>
+	</fx:Script>
+	<s:Group id="mopanel"
+			 width="100%"
+			 height="100%"
+			 textAlign="center">
+		<mx:AdvancedDataGrid width="100%"
+							 textAlign="center"
+							 itemClick="showDetial_itemClickHandler(event)"
+							 dataProvider="{pm.dm.delistingMoList}">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="cityName"
+										   textAlign="center"
+										   headerText="地市"/>
+				<mx:AdvancedDataGridColumn dataField="moName"
+										   textAlign="center"
+										   headerText="网元名称"/>
+				<mx:AdvancedDataGridColumn dataField="moTypeName"
+										   textAlign="center"
+										   headerText="网元类型"/>
+				<mx:AdvancedDataGridColumn dataField="happenTime"
+										   textAlign="center"
+										   headerText="挂牌时间"/>
+				<mx:AdvancedDataGridColumn dataField="delistTime"
+										   textAlign="center"
+										   headerText="摘牌时间"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:Group>
+
+	<mx:Image source="@Embed('../img/icon_export.png')"
+			  top="-23"
+			  right="77"
+			  width="30"
+			  height="20"
+			  click="export_clickHandler(event)"/>
+</ailk_compts:Window>

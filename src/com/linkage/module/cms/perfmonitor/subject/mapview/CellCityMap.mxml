@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:gis="com.linkage.gis.*"
+		 xmlns:windows="com.linkage.module.cms.perfmonitor.subject.mapview.windows.*"
+		 xmlns:cms="http://www.ailk.com/2011/cms"
+		 xmlns:dynamicdropdown="com.linkage.module.cms.components.dynamicdropdown.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.event.GisFeatureEvent;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.components.dynamicdropdown.events.DynamicDropDownEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.subject.common.ImageFactory;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+
+			[Bindable]
+			private var _commonService:SubjectInterfaceCommService;
+
+			private var _cellService:SubjectCellService;
+
+			private var _type:int = 1;
+
+			[Embed(source="../img/cell_1.png")]
+			private static var cellPic:Class;
+
+			private var testData:ArrayCollection = new ArrayCollection([
+				{"mo_id": "1", "mo_name": "test", "longitude": "118.796711", "latitude": "32.060537", "wrst_type": "1", "vip_type": "1"},
+				{"mo_id": "2", "mo_name": "test", "longitude": "118.796711", "latitude": "32.070537", "wrst_type": "2", "vip_type": "2"},
+				{"mo_id": "3", "mo_name": "test", "longitude": "118.796711", "latitude": "32.080537", "wrst_type": "1", "vip_type": "3"},
+				{"mo_id": "4", "mo_name": "test", "longitude": "118.786711", "latitude": "32.060537", "wrst_type": "2", "vip_type": "1"},
+				{"mo_id": "5", "mo_name": "test", "longitude": "118.786711", "latitude": "32.070537", "wrst_type": "0", "vip_type": "2"},
+				{"mo_id": "6", "mo_name": "test", "longitude": "118.786711", "latitude": "32.080537", "wrst_type": "0", "vip_type": "3"},
+				{"mo_id": "7", "mo_name": "test", "longitude": "118.786711", "latitude": "32.090537", "wrst_type": "0", "vip_type": "4"}
+				]);
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subject.mapview.CellCityMap");
+
+			private var cellMap:Dictionary = new Dictionary();
+
+			//右键菜单链接
+			private static var cellDetailURL:String = "cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=";
+			private static var perfDetailURL:String = "cms/performance/report/permsg!initForm.action";
+			private static var alarmDetailURL:String = "cms/warn/report/query/ShowAlarmList.jsp";
+			private var _context:String = "cms/";
+
+			//等待提示
+			private var loadInfo:LoadManager;
+
+			//图片
+			private var imgFactory:ImageFactory = new ImageFactory();
+
+			private var _isDebug:Boolean = false;
+
+			private var _cellMonitor:Object;
+
+			public function get cellMonitor():Object
+			{
+				return _cellMonitor;
+			}
+
+			public function set cellMonitor(value:Object):void
+			{
+				_cellMonitor = value;
+			}
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get context():String
+			{
+				return _context;
+			}
+
+			public function set context(value:String):void
+			{
+				_context = value;
+			}
+
+			public function get type():int
+			{
+				return _type;
+			}
+
+			public function set type(value:int):void
+			{
+				_type = value;
+			}
+
+			public function get cellService():SubjectCellService
+			{
+				return _cellService;
+			}
+
+			public function set cellService(value:SubjectCellService):void
+			{
+				_cellService = value;
+			}
+
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			protected function mapWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				// TODO Auto-generated method stub
+				dynamicDropDown.visible = dynamicDropDown.includeInLayout = false;
+			}
+
+			public function initData(cityId:String, layer:String):void
+			{
+				loadInfo = new LoadManager(_cellMonitor, "blue");
+				loadInfo.showLoading("正在加载数据，请稍候");
+
+				this.mapWork.map.removeAllGisFeature();
+				cellMap = new Dictionary();
+
+				log.info('切换地市：' + cityId);
+				this.mapWork.map.mapChange(cityId);
+
+//				var paramMap:Object = new Object();
+//				paramMap.city_id = cityId;
+//				paramMap.city_layer = layer;
+//				
+//				log.info("查询GIS数据参数 city_id=" + paramMap.city_id + " city_layer=" + paramMap.city_layer + " type=" + type);
+//				//加载数据
+//				if (type == 1)
+//				{
+//					_cellService.worstCellGisInfo(paramMap,loadGisDataSucc,null,loadGisDataErr);
+//				}
+//				else if (type == 2)
+//				{
+//					_cellService.badCellGisInfo(paramMap,loadGisDataSucc,null,loadGisDataErr);
+//				}
+//				else if (type == 3)
+//				{
+//					_cellService.zeroCellGisInfo(paramMap,loadGisDataSucc,null,loadGisDataErr);
+//				}
+//				else if (type == 4)
+//				{
+//					_cellService.lowCellGisInfo(paramMap,loadGisDataSucc,null,loadGisDataErr);
+//				}
+//				else if (type == 5)
+//				{
+//					_cellService.highUsageRateCellGisInfo(paramMap,loadGisDataSucc,null,loadGisDataErr);
+//				}
+//				else
+//				{
+//					_cellService.worstCellGisInfo(paramMap,loadGisDataSucc,null,loadGisDataErr);
+//				}
+			}
+
+			public function mapDirection(longitude:String, latitude:String, scale:String):void
+			{
+				this.mapWork.map.zoomToScale(1000000, new GisPoint(Number(longitude), Number(latitude)));
+			}
+
+			public function loadGisDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载GIS数据成功！");
+					if(_isDebug)
+					{
+						initMapView(testData);
+					}
+					else
+					{
+						initMapView(obj);
+					}
+				}
+				else
+				{
+					log.info("加载GIS数据为空！");
+					if(_isDebug)
+					{
+						initMapView(testData);
+					}
+					loadInfo.hideLoading();
+				}
+			}
+
+			private function loadGisDataErr(obj:Object):void
+			{
+				log.info("加载GIS数据失败！" + obj);
+				if(_isDebug)
+				{
+					initMapView(testData);
+				}
+				loadInfo.hideLoading();
+			}
+
+			private function initMapView(obj:Object):void
+			{
+				cellMap = new Dictionary();
+
+				var type1:String = "";
+				var type2:String = "";
+				searchResult = obj as ArrayCollection;
+				for each(var cell:Object in obj)
+				{
+					if(cell.mo_type_id == "102")
+					{
+						type1 = "3g";
+					}
+					else
+					{
+						type1 = "2g";
+					}
+
+					if(_type == 1)
+					{
+						type2 = "worst";
+					}
+					else if(type == 2)
+					{
+						type2 = "bad";
+					}
+					else
+					{
+						type2 = "";
+					}
+
+					var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imgFactory.getImage("cell", "0", type1, type2));
+					var feature:GisFeature = new GisFeature(new GisPoint(Number(cell.longitude), Number(cell.latitude)), pic);
+					feature.attributes = cell;
+					feature.toolTip = cell.mo_name;
+					cellMap[cell.mo_id] = feature;
+
+					//feature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,showCellDetail);
+//					feature.onClick = showCellDetail;
+
+					this.mapWork.map.addGisFeature(feature);
+					this.mapWork.map.addGisFeatureMenu(feature, "资源信息", popupDealer);
+					this.mapWork.map.addGisFeatureMenu(feature, "告警信息", popupDealer);
+					this.mapWork.map.addGisFeatureMenu(feature, "性能信息", popupDealer);
+				}
+
+				loadInfo.hideLoading();
+			}
+
+			private function showCellDetail(gisFeature:GisFeature, event:MouseEvent):void
+			{
+				if(gisFeature != null && gisFeature.attributes != null)
+				{
+					this.detailWindow.visible = true;
+					this.detailWindow.includeInLayout = true;
+
+					this.detailWindow.initData(gisFeature.attributes.mo_id);
+				}
+			}
+
+			private function refreshView():void
+			{
+				var feature:GisFeature = null;
+				for each(var obj:Object in cellMap)
+				{
+					feature = (obj as GisFeature);
+					if(feature != null && feature.attributes != null)
+					{
+						if(this.cellFilter.filterObject(feature.attributes))
+						{
+							this.mapWork.map.visiableGisFeature(feature, true);
+						}
+						else
+						{
+							this.mapWork.map.visiableGisFeature(feature, false);
+						}
+					}
+				}
+			}
+
+			//右键菜单处理函数
+			private function popupDealer(feature:GisFeature):void
+			{
+				//根据网元id加载相关页面
+				var cellId:Object = feature.attributes['mo_id'];
+				var mo_type:Object = feature.attributes['mo_type_id'];
+				var url:String = "";
+
+				//菜单名称
+				switch(feature.attributes.selectMenuName)
+				{
+					case "资源信息":
+						url = (cellDetailURL + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+
+					case "告警信息":
+						url = (alarmDetailURL + "?alarmStatus=1&neId=" + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+
+					case "性能信息":
+						url = (perfDetailURL + "?moId=" + cellId + "&moTypeId=" + mo_type).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+				}
+			}
+
+			protected function mapWork_toolbar_gotoHandler(event:MapEvent):void
+			{
+				dynamicDropDown.dispatchEvent(new DynamicDropDownEvent(DynamicDropDownEvent.INIT));
+				dynamicDropDown.visible = dynamicDropDown.includeInLayout = dynamicDropDown.visible ? false : true;
+			}
+
+			//定位到网元
+			public function locationMo(moId:String):void
+			{
+				if(cellMap[moId] != null)
+				{
+					var f:GisFeature = cellMap[moId] as GisFeature;
+					var p:GisPoint = f.gisMetry as GisPoint;
+					this.mapWork.map.zoomToScale(32000, p);
+				}
+			}
+
+
+			protected function mapWork_toolbar_legendHandler(event:MapEvent):void
+			{
+
+			}
+
+			protected function mapWork_toolbar_picLayerHandler(event:MapEvent):void
+			{
+				this.cellFilter.visible = true;
+			}
+
+			private var searchResult:ArrayCollection;
+			private var filterFunction:Function;
+
+			protected function dynamicdropdown_keyWordQueryHandler(event:DynamicDropDownEvent):void
+			{
+				// TODO Auto-generated method stub
+				var keyword:String = DynamicDropDown(event.target).keyWord;
+
+				searchResult.filterFunction = getFilterfunciton(keyword);
+				searchResult.refresh();
+				searchSiteHandler(searchResult);
+			}
+
+			private function searchSiteHandler(result:Object):void
+			{
+				var evt:DynamicDropDownEvent = new DynamicDropDownEvent(DynamicDropDownEvent.DATALISTCHANGE);
+				dynamicDropDown.listData = ArrayCollection(result);
+				dynamicDropDown.dispatchEvent(evt);
+			}
+
+			protected function dynamicdropdown_dataSelectedHandler(event:DynamicDropDownEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object = dynamicDropDown.selectedItem;
+				this.mapWork.map.zoomToScale(2000, new GisPoint(Number(data.longitude), Number(data.latitude)));
+			}
+
+
+			protected function dynamicDropDown_queryHandler(event:DynamicDropDownEvent):void
+			{
+				var keyword:String = DynamicDropDown(event.target).keyWord;
+				searchResult.filterFunction = getFilterfunciton(keyword);
+				searchResult.refresh();
+				searchSiteHandler(searchResult);
+			}
+
+			private function getFilterfunciton(keyword:String):Function
+			{
+				var filterfunc:Function = function(item:Object):Boolean{
+						if(String(item.mo_name).indexOf(keyword) != -1){
+							return true;
+						}
+						return false;
+					};
+				return filterfunc;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:BorderContainer id="nowGroup"
+					   width="100%"
+					   height="100%"
+					   styleName="commonBorderContainer">
+		<gis:MapWork id="mapWork"
+					 width="100%"
+					 height="100%"
+					 showOverView="false"
+					 mapCreationComplete="mapWork_mapCreationCompleteHandler(event)"
+					 toolbar_goto="mapWork_toolbar_gotoHandler(event)"
+					 toolbar_picLayer="mapWork_toolbar_picLayerHandler(event)"
+					 toolbar_legend="mapWork_toolbar_legendHandler(event)">
+		</gis:MapWork>
+		<dynamicdropdown:DynamicDropDown visible="false"
+										 includeInLayout="false"
+										 top="55"
+										 left="55"
+										 id="dynamicDropDown"
+										 labelField="mo_name"
+										 width="200"
+										 dropDownHeight="200"
+										 keyWordQuery="dynamicdropdown_keyWordQueryHandler(event)"
+										 dataSelected="dynamicdropdown_dataSelectedHandler(event)"
+										 query="dynamicDropDown_queryHandler(event)"/>
+	</s:BorderContainer>
+	<windows:CellDetail id="detailWindow"
+						visible="false"
+						includeInLayout="false"
+						commonService="{_commonService}">
+	</windows:CellDetail>
+	<windows:CellFilterDiv id="cellFilter"
+						   callBack="refreshView"
+						   right="5"
+						   top="5">
+	</windows:CellFilterDiv>
+</s:Group>

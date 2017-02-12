@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="450"
+					height="100%"
+					title="场景介绍编辑"
+					styleName="windowScene"
+					close="close_sceneInfoWin()"
+					maximizable="false"
+					dragable="true" xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+			import com.linkage.module.cms.scene.view.components.SceneIntroPM;
+			
+			import mx.managers.PopUpManager;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneInfoWin);
+			
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			[Inject("sceneIntroPM")]
+			[Bindable]
+			public var sceneIntroPM:SceneIntroPM;
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			protected function saveSceneInfo_clickHandler():void
+			{
+				//				var gameInfo:ArrayCollection = new ArrayCollection();
+				
+				var evt:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.SAVE_SCENEINFO);
+				evt.params = new Object;
+				evt.params.sceneId = user.sceneId;
+				evt.params.level = user.level;
+				evt.params.sceneName = editSceneName.text;
+				evt.params.cityId = user.cityId;
+				evt.params.sceneIntroStr = editSceneNameIntro.text;
+				
+				//				var arr:ArrayCollection = sceneIntroPM.sceneIntroDM.activities;
+				//				if (arr && arr.length > 0)
+				//				{
+				//					for each (var activity:Object in arr)
+				//					{
+				//						gameInfo.addItem({'gameId': String(activity.gameId), 'gameName': String(textAreaB.text)});
+				//					}
+				//				}
+				//				evt.params.gameInfo = gameInfo;
+				log.info("SAVE_SCENEINFO");
+				log.info(evt.params);
+//				msgDispatcher(evt);
+				requestServerUtil.addRequest(evt);
+				PopUpManager.removePopUp(this);
+				this.visible = false;
+			}
+			
+			protected function cancelSceneInfo_clickHandler():void
+			{
+				PopUpManager.removePopUp(this);
+				this.visible = false;
+			}
+			
+			protected function close_sceneInfoWin():void
+			{
+				PopUpManager.removePopUp(this);
+				this.visible = false;
+			}
+			
+			protected function editSceneName_changeHandler():void
+			{
+				if (editSceneName.text.length > 30)
+				{
+					editSceneName.errorString = " 场景名称不能超过30个汉字!";
+					editSceneName.text = "";
+				}
+				else
+				{
+					editSceneName.errorString = null;
+				}
+			}
+			
+			protected function editSceneNameIntro_changeHandler():void
+			{
+				if (editSceneNameIntro.text.length > 200)
+				{
+					editSceneNameIntro.errorString = " 场景基本介绍不能超过200个汉字!";
+					editSceneNameIntro.text = "";
+				}
+				else
+				{
+					editSceneNameIntro.errorString = null;
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<mx:VBox>
+		<mx:HBox>
+			<s:Label id="sceneNameE"
+					 text="场景名称:"
+					 width="85"/>
+			<s:TextArea id="editSceneName"
+						width="350"
+						height="20"
+						text="{sceneIntroPM.sceneIntroDM.sceneInfo}"
+						change="editSceneName_changeHandler()"/>
+		</mx:HBox>
+		<mx:HBox>
+			<s:Label id="sceneNameIntro"
+					 text="场景基本介绍:"
+					 width="85"/>
+			<s:TextArea id="editSceneNameIntro"
+						width="350"
+						height="100"
+						text="{sceneIntroPM.sceneIntroDM.sceneDetail}"
+						change="editSceneNameIntro_changeHandler()"/>
+		</mx:HBox>
+		<!--<mx:HBox height="150"
+		id="sceneInfoDetailBox"
+		visible="false"
+		includeInLayout="false">
+		<s:Label id="sceneInfoE"
+		text="场景信息详情:"
+		width="85"/>
+		<s:Scroller width="100%"
+		height="100%"
+		horizontalScrollPolicy="auto"
+		verticalScrollPolicy="auto"
+		styleName="sceneScroller">
+		<s:VGroup id="editSceneInfoGroup"
+		width="100%"
+		height="100%">
+		</s:VGroup>
+		</s:Scroller>
+		</mx:HBox>-->
+		<mx:HBox horizontalAlign="right"
+				 width="300">
+			<s:Button id="saveSceneInfo"
+					  label="保存"
+					  click="saveSceneInfo_clickHandler()"/>
+			<s:Button id="cancelSceneInfo"
+					  label="取消"
+					  click="cancelSceneInfo_clickHandler()"/>
+		</mx:HBox>
+	</mx:VBox>
+</ailk_compts:Window>

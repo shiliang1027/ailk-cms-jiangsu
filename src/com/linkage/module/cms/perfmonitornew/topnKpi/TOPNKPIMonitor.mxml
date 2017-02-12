@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         width="100%"
+         height="100%"
+         xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+         xmlns:common="com.linkage.module.cms.perfmonitornew.common.*"
+         xmlns:topnkpi="com.linkage.module.cms.perfmonitornew.topnkpi.*"
+         creationComplete="creationCompleteHandler()" 
+		 xmlns:topnKpi="com.linkage.module.cms.perfmonitornew.topnKpi.*"
+		 xmlns:kpi="com.linkage.module.cms.perfmonitornew.kpi.*">
+
+    <mx:states>
+        <s:State name="monitor"/>
+        <s:State name="config"/>
+    </mx:states>
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.common.CommonUtil;
+			import com.linkage.module.cms.perfmonitornew.dao.TOPNMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.event.perfEvent;
+			
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			
+            private var parameters:Object;
+
+			private var log:ILogger = Log.getLoggerByClass(TOPNKPIMonitor);
+            [Bindable]
+            public var schemeTreeXml:XML;
+
+            private var initFlag:Boolean = true;
+			
+			[Bindable]
+            private var selectedSchemeName:String = "";
+			
+			[Bindable]
+            private var sceneId:String = "";
+			[Bindable]
+            private var areaId:String = "";
+
+			
+			private var timer:Timer = new Timer(1000*60*30);
+			
+			private var dateCount:Number= 0;
+
+            protected function creationCompleteHandler():void
+            {
+
+				parameters = this.parentApplication.parameters;
+//				TOPNMonitorDAO.context = parameters['context'];
+				TOPNMonitorDAO.context = "/cms/";
+                loadSchemeByUser();
+				timer.start();
+				timer.addEventListener(TimerEvent.TIMER, onTimerHandler);
+            }
+
+			private function onTimerHandler(event:TimerEvent):void
+			{
+				log.info("5分钟刷新页面");
+//				if (timer.running)
+//				{
+//					timer.stop();
+//				}
+				
+				initFlag = true;
+				refreshLoadSchemeByUser();
+				
+				dateCount = new Date().getTime();
+			}
+            public function refreshLoadSchemeByUser(schemeName:String = null, monitorFlag:Boolean = false):void
+            {
+				log.info("refreshLoadSchemeByUser  schemeName:"+selectedSchemeName);
+
+                //加载当前用户的监控方案
+				TOPNMonitorDAO.getInstance().getSchemeByUser(
+                    {"acc_oid": parameters['acc_oid'], "type": "KPI"},
+                    function(result:Object):void
+                    {
+                        schemeTreeXml = new XML(result);
+
+                        monitorSchemeTree.callLater(function():void
+                        {
+                            monitorSchemeTree.expandChildrenOf(schemeTreeXml, true);
+
+                            setTimeout(function():void
+                            {
+
+								if (selectedSchemeName != null)
+								{
+									CommonUtil.forEachTreeDown(schemeTreeXml, function(node:XML):void
+									{
+										if (String(node.@label) == selectedSchemeName)
+										{
+											monitorSchemeTree.selectedItem = node;
+											
+											
+											changeMonitor();
+											/* if (monitorFlag)
+											{
+												
+											} */
+										}
+									});
+								}
+								
+                                //初始化之后 默认选中第一个方案 进行监控
+                                /* if (initFlag)
+                                 { 
+                                     initFlag = false;
+
+                                    var flag:Boolean = true; 
+									CommonUtil.forEachTreeDown(schemeTreeXml, function(node:XML):void
+									{
+										if (String(node.@scheme_id) != "" && flag)
+										{
+											flag = false;
+											monitorSchemeTree.selectedItem = node;
+											changeMonitor();
+										}
+									});
+                                } */
+                            }, 500);
+                        });
+                    });
+				
+				timer.start();
+            }
+			
+            public function loadSchemeByUser(schemeName:String = null, monitorFlag:Boolean = false):void
+            {
+				if (monitorFlag)
+				{
+					this.currentState = "monitor";
+				}
+				
+				areaId = parameters['areaId'];
+				sceneId = parameters['sceneId'];
+				log.info("   22 areaId:"+areaId+"--sceneId:"+sceneId);
+				if((areaId == null ||areaId =="") && (sceneId == null || sceneId == ""))
+				{
+					log.info("areaId,sceneId is null");
+					TOPNMonitorDAO.getInstance().getSchemeByUser(
+						{"acc_oid": parameters['acc_oid'], "type": "KPI"},
+						function(result:Object):void
+						{
+							schemeTreeXml = new XML(result);
+							
+							log.info("schemeTreeXml null  ~~~  parameters['areaId']:"+parameters['areaId']+"parameters['sceneId']:"+parameters['sceneId']);
+							log.info(schemeTreeXml);
+							monitorSchemeTree.callLater(function():void
+							{
+								monitorSchemeTree.expandChildrenOf(schemeTreeXml, true);
+								
+								setTimeout(function():void
+								{
+									//保存修改后 选择
+									if (schemeName != null)
+									{
+										CommonUtil.forEachTreeDown(schemeTreeXml, function(node:XML):void
+										{
+											if (String(node.@label) == schemeName)
+											{
+												monitorSchemeTree.selectedItem = node;
+												
+												if (monitorFlag)
+												{
+													changeMonitor();
+												}
+											}
+										});
+									}
+									
+									if (initFlag)
+									{
+										initFlag = false;
+										
+										var flag:Boolean = true;
+										CommonUtil.forEachTreeDown(schemeTreeXml, function(node:XML):void
+										{
+											if (String(node.@scheme_id) != "" && flag)
+											{
+												flag = false;
+												monitorSchemeTree.selectedItem = node;
+												changeMonitor();
+											}
+										});
+									}
+									//初始化之后 默认选中第一个方案 进行监控
+									
+								}, 500);
+							});
+						});
+				}else{
+					log.info("areaId,sceneId is not null");
+					
+					TOPNMonitorDAO.getInstance().getSchemeByUser(
+						{"acc_oid": parameters['acc_oid'], "type": "KPI"},
+						function(result:Object):void
+						{
+							schemeTreeXml = new XML(result);
+							
+							log.info("schemeTreeXml  ~~~  parameters['areaId']:"+parameters['areaId']+"parameters['sceneId']:"+parameters['sceneId']);
+							log.info(schemeTreeXml);
+							changeMonitorDataNull();
+						});
+				}
+				
+            }
+
+            /**
+             *隐藏方案配置窗口， 监控窗口最大化
+             * */
+            protected function hideSideBar():void
+            {
+				isCfgShow=false;
+//                cfgWindow.visible = false;
+//                monitorWindow.left = 29;
+            }
+			
+            /**
+             *刷新页面
+             * */
+            protected function refreshPage():void
+            {
+				log.info("refreshPage");
+				var date:Number = new Date().getTime();
+				if(date - dateCount > 10*1000)
+				{
+					
+					initFlag = true;
+					timer.stop();
+					refreshLoadSchemeByUser();
+				}
+				else
+				{
+					var dateS:Number = 10 - (date - dateCount)/1000 ;
+					Alert.show("刷新过勤,"+  dateS.toFixed(2) +"秒钟后可刷新");
+				}
+				
+				dateCount = date;
+				
+            }
+
+			[Bindable]
+			private var isCfgShow:Boolean=true;
+            /**
+             *显示方案配置窗口， 监控窗口恢复起初大小
+             * */
+            protected function showSideBar():void
+            {
+				isCfgShow=true;
+//                cfgWindow.visible = true;
+//                monitorWindow.left = 200;
+            }
+
+         /*    protected function button1_clickHandler(event:MouseEvent):void
+            {
+                if (this.currentState == "monitor")
+                {
+                    this.currentState = "config";
+                    schemeConfig.reset();
+                }
+                else
+                    this.currentState = "monitor";
+            } */
+
+            protected function changeMonitor():void
+            {
+				log.info("changeMonitor()");
+                var schemeId:String = String(monitorSchemeTree.selectedItem.@scheme_id);
+                var schemeName:String = String(monitorSchemeTree.selectedItem.@label);
+				var remark:String = String(monitorSchemeTree.selectedItem.@remark);
+
+				log.info("schemeId:"+schemeId+"--schemeName:"+schemeName);
+				/* areaId = parameters['areaId'];
+				sceneId = parameters['sceneId']; 
+				selectedSchemeName = String(monitorSchemeTree.selectedItem.@label);
+				schemeMonitor.changeScheme(schemeId, schemeName,"","");*/
+				
+				
+				if (currentState == "config")
+				{
+					schemeConfig.loadEditData(schemeId, schemeName, remark);
+				}
+				else if (currentState == "monitor")
+				{
+					selectedSchemeName = String(monitorSchemeTree.selectedItem.@label);
+					schemeMonitor.changeScheme(schemeId, schemeName,"","");
+				}
+            }
+			
+            protected function changeMonitorDataNull():void
+            {
+				log.info("changeMonitorDataNull()");
+				areaId = parameters['areaId'];
+				sceneId = parameters['sceneId'];
+				log.info("areaId:"+areaId+"--sceneId:"+sceneId);
+				
+				if(areaId == "1")
+					areaId = "";
+				
+				schemeMonitor.changeScheme(null, "",sceneId,areaId);
+            }
+
+            protected function fullScreen():void
+            {
+                if (this.stage.displayState == StageDisplayState.NORMAL)
+				{
+					this.stage.displayState = StageDisplayState.FULL_SCREEN;
+					isCfgShow=false;
+//					cfgWindow.visible = false;
+//					monitorWindow.left = 29;
+					
+				}
+                else
+				{
+					this.stage.displayState = StageDisplayState.NORMAL;
+					isCfgShow=true;
+//					cfgWindow.visible = true;
+//					monitorWindow.left = 200;
+				}
+                    
+            }
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (this.currentState == "monitor")
+				{
+					this.currentState = "config";
+					schemeConfig.reset();
+				}
+				else
+					this.currentState = "monitor";
+			}
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <s:Fade id="fade"
+                alphaFrom="0"
+                alphaTo="1"
+                duration="400"/>
+    </fx:Declarations>
+	<s:HGroup width="100%" height="100%">
+    <ailk_compts:Window id="cfgWindow"
+                        width="190"
+                        closable="false"
+                        maximizable="false"
+                        minimizable="false"
+                        styleName="windowPerf"
+                        height="100%"
+                        title="监控方案" visible="{isCfgShow}" includeInLayout="{isCfgShow}">
+		<mx:Image source="@Embed('../img/refresh.png')"
+				  right="25"
+				  toolTip="刷新"
+				  buttonMode="true"
+				  click="refreshPage()"
+				  top="-20"/>
+        <mx:Image source="@Embed('../img/pin.png')"
+                  right="10"
+                  toolTip="隐藏侧边栏"
+                  buttonMode="true"
+                  click="hideSideBar()"
+                  top="-20"/>
+        <s:VGroup width="100%"
+                  height="100%"
+                  paddingTop="8"
+                  paddingRight="6"
+                  paddingBottom="6"
+                  paddingLeft="6">
+
+            <s:Button label.monitor="方案配置"
+                      label.config="返回监控"
+                      scaleY="1.2"
+                      click="button1_clickHandler(event)"
+                      width="100%"/>
+
+            <mx:Tree id="monitorSchemeTree"
+                     dataProvider="{schemeTreeXml}"
+                     width="100%"
+                     height="100%"
+                     borderAlpha="0"
+                     doubleClickEnabled="false"
+                     verticalAlign="middle"
+                     contentBackgroundAlpha="0"
+                     showRoot="false"
+                     showScrollTips="true"
+                     wordWrap="false"
+                     variableRowHeight="true"
+                     labelField="@label"
+                     editorHeightOffset="0"
+                     indentation="12"
+                     itemClick="changeMonitor()"
+                     horizontalScrollPolicy="auto"
+                     folderClosedIcon="{null}"
+                     folderOpenIcon="{null}"
+                     itemRenderer="com.linkage.module.cms.perfmonitornew.common.PointTreeItemRenderer"
+                     defaultLeafIcon="@Embed('../img/point.png')"
+                     disclosureClosedIcon="@Embed('../img/arrowRight.png')"
+                     disclosureOpenIcon="@Embed('../img/arrowDown.png')"/>
+        </s:VGroup>
+    </ailk_compts:Window>
+
+    <common:VButton id="cfgMiniBtn"
+                    label="监控方案"
+                    visible="{!cfgWindow.visible}" includeInLayout="{!cfgWindow.visible}"
+                    click="showSideBar()"
+                    width="25"
+                    height="100"/>
+
+    <ailk_compts:Window id="monitorWindow"
+                        maximize="hideSideBar()"
+                        restore="showSideBar()"
+						title.monitor="指标监控"
+						title.config="方案配置"
+                        styleName="windowPerf"
+                        closable="false"
+                        minimizable="false"
+						maximizable="false"
+                        width="100%"
+                        height="100%">
+        <topnKpi:SchemeMonitor id="schemeMonitor"
+                           width="100%"
+                           height="100%"
+                           showEffect="{fade}"
+						   includeInLayout.config="false"
+						   visible.config="false"/>
+        <kpi:SchemeConfigKpi id="schemeConfig"
+                             width="100%"
+                             height="100%"
+                             currentState="kpiadd"
+                             showEffect="{fade}"
+                             refreshSchemeCallBack="{loadSchemeByUser}"
+                             includeInLayout.monitor="false"
+                             visible.monitor="false"/>
+        <mx:Image top="-22"
+                  right="35"
+                  buttonMode="true"
+                  click="fullScreen()"
+                  source="@Embed('../img/full_screen.png')"/>
+    </ailk_compts:Window>
+	</s:HGroup>
+</mx:Module>

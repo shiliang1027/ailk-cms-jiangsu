@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  width="100%"
+			  height="100%"
+			  closable="false"
+			  maximizable="false"
+			  minimizable="false">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.important.scene.common.util.FileUtil;
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+			import com.linkage.system.utils.ImageUtil;
+			
+			import mx.controls.Image;
+			import mx.core.UIComponent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			import spark.components.VideoPlayer;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.important.scene.view.component.VideoGroup");
+			/**
+			 * 场馆监控控制类
+			 */
+			private var _monitorAction:MonitorAction=null;
+			/**
+			 * 视频图形
+			 */
+			private var _videoChart:VideoChartGroup=null;
+
+			//加载视频图片数据
+			public function loadVideoPictureData(venueId:String, videoChart:VideoChartGroup):void
+			{
+				_videoChart=videoChart;
+				monitorAction.getVenuePicture(venueId, function(result:Object):void
+					{
+						initVenuePicture(result);
+					});
+			}
+
+			//初始化视频图片数据
+			private function initVenuePicture(data:Object):void
+			{
+				skinGroup.removeAllElements();
+				var videoHeight:int=0;
+				var baseUrl:String=_monitorAction.monitorFO.context;
+				for each (var obj:Object in data)
+				{
+					var imgUrl:String=baseUrl + obj["img_url"];
+					var imgType:String=obj["img_type"];
+					if (imgType == '2')
+					{
+						initVideoInfo(imgUrl);
+					}
+					else
+					{
+						initImageInfo(imgUrl);
+					}
+					videoHeight+=175
+				}
+				//设置宽度
+				_videoChart.videoGroup.height=videoHeight;
+			}
+
+			//初始化视频信息
+			private function initVideoInfo(url:String):void
+			{
+				var videoPlayer:VideoPlayer=new VideoPlayer();
+				videoPlayer.width=360;
+				videoPlayer.height=160;
+				videoPlayer.autoPlay=false;
+				videoPlayer.source=url;
+				skinGroup.addElement(videoPlayer);
+
+				// 修正视频播放器退出全屏后的尺寸
+				systemManager.stage.addEventListener(FullScreenEvent.FULL_SCREEN, function(e:FullScreenEvent):void
+					{
+						var event:Boolean=e.fullScreen;
+						if (event == false)
+						{
+							videoPlayer.width=360;
+							videoPlayer.height=160;
+							videoPlayer.invalidateDisplayList();
+						}
+					});
+			}
+
+			//初始化图片信息
+			private function initImageInfo(url:String):void
+			{
+				ImageUtil.loadBitmapData(url, function(bitmapData:BitmapData, width:Number, height:Number):void
+					{
+						var bitmap:Bitmap = new Bitmap(bitmapData);
+						bitmap.width=360;
+						bitmap.height=160;
+						var ui:UIComponent = new UIComponent();
+						ui.width=360;
+						ui.height=160;
+						ui.addChild(bitmap);
+						skinGroup.addElement(ui);
+					});
+			}
+
+			public function set monitorAction(value:MonitorAction):void
+			{
+				_monitorAction=value;
+			}
+
+			public function get monitorAction():MonitorAction
+			{
+				return _monitorAction;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup id="skinGroup"
+			  top="-20"
+			  width="100%"
+			  height="100%">
+
+	</s:VGroup>
+</panel:Window>

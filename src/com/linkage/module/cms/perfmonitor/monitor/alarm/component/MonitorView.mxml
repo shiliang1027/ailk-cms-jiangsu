@@ -1,0 +1,504 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  xmlns:view="com.linkage.module.cms.alarm.framework.view.*"
+			  creationComplete="window_creationCompleteHandler(event)"
+			  mouseEnabled="true"
+			  minimizable="false"
+			  closable="false"
+			  dragable="true"
+			  minHeight="30"
+			  width="100%"
+			  height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.common.event.AlarmViewEvent;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.view.resource.imagesclass.IconParam;
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.AlarmMonitor;
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.core.MonitorAction;
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.data.MonitorData;
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.params.MonitorContainer;
+			import com.linkage.module.cms.perfmonitor.monitor.alarm.util.MonitorUtil;
+			import com.linkage.module.cms.perfmonitor.servperf.servstatistic.CityDetailPerfChartWindow;
+			import com.linkage.module.cms.perfmonitor.servperf.servstatistic.HisPerfChartWindow;
+			import com.linkage.module.cms.perfmonitor.subject.common.PerfChartDetail;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectPowerService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.MXAdvancedDataGridItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			//日志记录器
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.perfmonitor.monitor.alarm.component.MonitorView");
+			//过滤器
+			private var _rule:String=null;
+			// 窗口id
+			private var _windowId:String=null;
+			//窗口KEY
+			private var _windonKey:String=null;
+			//是否重载
+			private var _isLoad:Boolean=false;
+			//监控数据
+			private var _monitorData:MonitorData=null;
+			//告警数据管理
+			private var _alarmAction:AlarmAction=null;
+			//告警容器
+			[Bindable]
+			private var _alarmAC:ArrayCollection=null;
+			//设备趋势图
+			private var _devLineView:DevLineView=null;
+			//告警监控
+			private var _alarmMonitor:AlarmMonitor=null;
+			//专题详情
+			private var _subCityDetail:SubCityDetail=null;
+			//监控控制类
+			private var _monitorAction:MonitorAction=null;
+			//小区服务
+			private var _cellService:SubjectCellService=null;
+			//基站专题
+			private var _btsService:SubjectPowerService=null;
+			//专题WLAN
+			private var _wlanService:SubjectWlanService=null;
+			//专题监控趋势图
+			private var _perfChartDetail:PerfChartDetail=null;
+
+			public function initWindow():void
+			{
+				//1.初始化数据源
+				startRevAlarm();
+
+				//2.通知刷新告警
+				_alarmAction.addEventListener(_windowId + AlarmViewEvent.REFRESH_VIEW, notifyRefreshView);
+				_alarmAction.addEventListener(_windowId + AlarmViewEvent.VIEW_REVSTART, startRevAlarm);
+			}
+
+			//初始化数据源
+			private function startRevAlarm(event:AlarmViewEvent=null):void
+			{
+				_alarmAC=new ArrayCollection(_alarmAction.alarmSource(_windowId, 1).dataArray);
+			}
+
+			//通知刷新视图
+			private function notifyRefreshView(event:AlarmViewEvent):void
+			{
+				_alarmAC.refresh();
+			}
+
+			//设置数据源
+			public function set dataSource(source:Object):void
+			{
+				stat.dataProvider=source;
+			}
+
+			//设置列
+			public function set columns(columnArray:Array):void
+			{
+				var columns:Array=[];
+				var column:AdvancedDataGridColumn=null;
+				for each (var obj:Object in columnArray)
+				{
+					column=new AdvancedDataGridColumn();
+					column.dataField=obj.id;
+					column.headerText=obj.name;
+					switch (column.dataField)
+					{
+						case MonitorContainer.PARAMKEY_LEVEL1:
+						case MonitorContainer.PARAMKEY_LEVEL2:
+						case MonitorContainer.PARAMKEY_TOTAL:
+							column.itemRenderer=new ClassFactory(ColumnRenderer);
+					}
+					columns.push(column);
+				}
+				stat.columns=columns;
+			}
+
+			//告警点击事件
+			protected function alarms_itemClickHandler(e:ListEvent):void
+			{
+				var columnKey:String=e.target.columns[e.columnIndex].dataField;
+				var rowKey:String=e.target.selectedItem[MonitorContainer.PARAMKEY_ID];
+				_monitorAction.viewClick(columnKey, rowKey, windonKey, _rule);
+			}
+
+			//显示全部
+			protected function image_clickHandler(event:MouseEvent):void
+			{
+				if (_isLoad)
+				{
+					var params:Object=new Object();
+					params["ruleContent"]=_rule;
+					params["windowId"]=_windowId;
+					params["uuid"]=_alarmAction.alarmParamFo.uuid;
+					params["areaId"]=_alarmAction.alarmParamFo.areaId;
+					params["moduleKey"]=_alarmAction.alarmParamFo.moduleKey;
+
+					//更改数据源
+					_alarmAC=new ArrayCollection();
+					_alarmAC.refresh();
+					//清空容器，并停止接受告警
+					_alarmAction.syncAlarm(params, function():void
+						{
+							_isLoad=false;
+							log.info("显示全部告警成功+++++++++++");
+						}, function():void
+						{
+							log.info("显示全部告警异常-----------");
+						});
+				}
+			}
+
+			//重载告警
+			public function reloadAlarm(ruleContent:String):void
+			{
+				var params:Object=new Object();
+				params["ruleContent"]=ruleContent;
+				params["windowId"]=_windowId;
+				params["uuid"]=_alarmAction.alarmParamFo.uuid;
+				params["areaId"]=_alarmAction.alarmParamFo.areaId;
+				params["moduleKey"]=_alarmAction.alarmParamFo.moduleKey;
+
+				//更改数据源
+				_alarmAC=new ArrayCollection();
+				_alarmAC.refresh();
+				//清空容器，并停止接受告警
+				_alarmAction.syncAlarm(params, function():void
+					{
+						_isLoad=true;
+						log.info("重载告警成功+++++++++++");
+					}, function():void
+					{
+						log.info("重载告警异常-----------");
+					});
+			}
+
+			//创建完成
+			protected function window_creationCompleteHandler(event:FlexEvent):void
+			{
+				//初始化流水菜单
+				initFlowMenu();
+			}
+
+			//初始化流水菜单
+			private function initFlowMenu():void
+			{
+				//菜单
+				var menu:ContextMenu=new ContextMenu();
+				menu.hideBuiltInItems();
+				//添加不同的菜单
+				switch (_windonKey)
+				{
+					case MonitorContainer.PARAMKEY_DEVICEPMFLOWALARM:
+						var menuItem1:ContextMenuItem=new ContextMenuItem("趋势图");
+						menuItem1.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerDevLine);
+						menu.customItems.push(menuItem1);
+						break;
+					case MonitorContainer.PARAMKEY_BUSSPMFLOWALARM:
+						var menuItem2:ContextMenuItem=new ContextMenuItem("地市详情");
+						menuItem2.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerServDetail);
+						menu.customItems.push(menuItem2);
+						var menuItem3:ContextMenuItem=new ContextMenuItem("趋势图");
+						menuItem3.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerSevrLine);
+						menu.customItems.push(menuItem3);
+						break;
+					case MonitorContainer.PARAMKEY_SPECMONITORFLOWALARM:
+						var menuItem4:ContextMenuItem=new ContextMenuItem("地市详情");
+						menuItem4.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerSubMinitorDetail);
+						menu.customItems.push(menuItem4);
+						var menuItem5:ContextMenuItem=new ContextMenuItem("趋势图");
+						menuItem5.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerSubMinitorLine);
+						menu.customItems.push(menuItem5);
+						var menuItem6:ContextMenuItem=new ContextMenuItem("进入专题");
+						menuItem6.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, cmenuItemHandlerSubMinitorOpen);
+						menu.customItems.push(menuItem6);
+						break;
+				}
+				flow.contextMenu=menu;
+			}
+
+			//设备性能流水:趋势图
+			private function cmenuItemHandlerDevLine(event:ContextMenuEvent):void
+			{
+				if (!(event.mouseTarget is MXAdvancedDataGridItemRenderer))
+				{
+					return;
+				}
+				var alarm:Object=(event.mouseTarget as MXAdvancedDataGridItemRenderer).data;
+				if (alarm != null)
+				{
+					if (_devLineView == null)
+					{
+						//初始化设备趋势图
+						_devLineView=new DevLineView();
+						_devLineView.alarmMonitor=_alarmMonitor;
+						_devLineView.monitorData=_monitorData;
+					}
+
+					_devLineView.moId=alarm.alarmneid;
+					_devLineView.moTypeName=alarm.equipmentclass;
+					_devLineView.loadKpiList(alarm.perf_type_id);
+					_devLineView.showHideWindow(_alarmMonitor);
+				}
+			}
+
+			//业务性能流水:趋势图
+			private function cmenuItemHandlerSevrLine(event:ContextMenuEvent):void
+			{
+				if (!(event.mouseTarget is MXAdvancedDataGridItemRenderer))
+				{
+					return;
+				}
+				var alarm:Object=(event.mouseTarget as MXAdvancedDataGridItemRenderer).data;
+				if (alarm != null)
+				{
+					log.info("业务设备性能流水:趋势图perfId=" + alarm.perf_type_id + ",perfName=" + alarm.bssconf_name + ",context=" + _alarmAction.alarmParamFo.baseURL);
+					var hpWindow:HisPerfChartWindow=new HisPerfChartWindow();
+					hpWindow.perfId=alarm.perf_type_id;
+					hpWindow.perfName=alarm.bssconf_name;
+					hpWindow.context=_alarmAction.alarmParamFo.baseURL;
+					hpWindow.x=200;
+					hpWindow.y=30;
+
+					PopUpManager.addPopUp(hpWindow, _alarmMonitor, false);
+				}
+			}
+
+			//业务设备性能流水:地市详情
+			private function cmenuItemHandlerServDetail(event:ContextMenuEvent):void
+			{
+				if (!(event.mouseTarget is MXAdvancedDataGridItemRenderer))
+				{
+					return;
+				}
+				var alarm:Object=(event.mouseTarget as MXAdvancedDataGridItemRenderer).data;
+				if (alarm != null)
+				{
+					log.info("业务设备性能流水:地市详情perfId=" + alarm.perf_type_id + ",perfName=" + alarm.bssconf_name + ",context=" + _alarmAction.alarmParamFo.baseURL);
+					//地市详情 图表窗口 
+					var cdWindow:CityDetailPerfChartWindow=new CityDetailPerfChartWindow();
+					cdWindow.perfId=alarm.perf_type_id;
+					cdWindow.perfName=alarm.bssconf_name;
+					cdWindow.context=_alarmAction.alarmParamFo.baseURL;
+
+					cdWindow.x=340;
+					cdWindow.y=30;
+					cdWindow.width=600;
+					cdWindow.height=400;
+					PopUpManager.addPopUp(cdWindow, _alarmMonitor, false);
+				}
+			}
+
+			//专题监控流水:地市详情
+			private function cmenuItemHandlerSubMinitorDetail(event:ContextMenuEvent):void
+			{
+				if (!(event.mouseTarget is MXAdvancedDataGridItemRenderer))
+				{
+					return;
+				}
+				var alarm:Object=(event.mouseTarget as MXAdvancedDataGridItemRenderer).data;
+				if (alarm != null)
+				{
+					if (_subCityDetail == null)
+					{
+						//初始化设备趋势图
+						_subCityDetail=new SubCityDetail();
+						_subCityDetail.cellService=_cellService;
+						_subCityDetail.btsService=_btsService;
+						_subCityDetail.wlanService=_wlanService;
+						_subCityDetail.alarmMonitor=_alarmMonitor;
+						_subCityDetail.context=_alarmAction.alarmParamFo.baseURL;
+						_subCityDetail.x=340;
+						_subCityDetail.y=30;
+						_subCityDetail.width=600;
+						_subCityDetail.height=400;
+					}
+					log.info("专题监控流水:地市详情type=" + alarm.perf_type_id);
+					_subCityDetail.loadChartData(alarm.perf_type_id);
+					_subCityDetail.showHideWindow(_alarmMonitor);
+				}
+			}
+
+			//专题监控流水:趋势图
+			private function cmenuItemHandlerSubMinitorLine(event:ContextMenuEvent):void
+			{
+				if (!(event.mouseTarget is MXAdvancedDataGridItemRenderer))
+				{
+					return;
+				}
+				var alarm:Object=(event.mouseTarget as MXAdvancedDataGridItemRenderer).data;
+				if (alarm != null && _perfChartDetail != null)
+				{
+					var cityName:String=alarm.alarmregion;
+					var perfTypeId:String=alarm.perf_type_id;
+					var cityId:String=_monitorAction.monitorParams.cityIdNameObj[cityName];
+					log.info("获取专题监控流水:趋势图cityName=" + cityName + ",perfTypeId=" + perfTypeId + ",cityId=" + cityId);
+					_perfChartDetail.showChart(cityId, cityName, MonitorUtil.getTypeByPerfTypeId(perfTypeId));
+					_perfChartDetail.visible=true;
+					_perfChartDetail.includeInLayout=true;
+				}
+			}
+
+			//专题监控流水:进入专题
+			private function cmenuItemHandlerSubMinitorOpen(event:ContextMenuEvent):void
+			{
+				if (!(event.mouseTarget is MXAdvancedDataGridItemRenderer))
+				{
+					return;
+				}
+				var alarm:Object=(event.mouseTarget as MXAdvancedDataGridItemRenderer).data;
+				if (alarm != null)
+				{
+					var url:String=null;
+					var perfTypeId:String=alarm.perf_type_id;
+					var type:int=MonitorUtil.getTypeByPerfTypeId(perfTypeId);
+					log.info("专题监控流水:进入专题type=" + type);
+					if (type == 1 || type == 2 || type == 3 || type == 5)
+					{
+						url="/cms/perfmonitor/subject/CellSubjectMonitor.jsp?type=" + type;
+						navigateToURL(new URLRequest(_alarmAction.alarmParamFo.baseURL + url), "_self");
+					}
+					else if (type == 6)
+					{
+						url="/cms/perfmonitor/subject/BtsSubjectMonitor.jsp";
+						navigateToURL(new URLRequest(_alarmAction.alarmParamFo.baseURL + url), "_self");
+					}
+					else if (type == 7)
+					{
+						url="/cms/perfmonitor/subject/WlanSubjectMonitor.jsp";
+						navigateToURL(new URLRequest(_alarmAction.alarmParamFo.baseURL + url), "_self");
+					}
+				}
+			}
+
+			public function set monitorData(value:MonitorData):void
+			{
+				_monitorData=value;
+			}
+
+			public function set rule(value:String):void
+			{
+				_rule=value;
+			}
+
+			public function set windowId(value:String):void
+			{
+				_windowId=value;
+			}
+
+			public function set windonKey(value:String):void
+			{
+				_windonKey=value;
+			}
+
+			public function get windonKey():String
+			{
+				return _windonKey;
+			}
+
+			public function set alarmAction(value:AlarmAction):void
+			{
+				_alarmAction=value;
+			}
+
+			public function set monitorAction(value:MonitorAction):void
+			{
+				_monitorAction=value;
+			}
+
+			public function set alarmMonitor(value:AlarmMonitor):void
+			{
+				_alarmMonitor=value;
+			}
+
+			public function set cellService(value:SubjectCellService):void
+			{
+				_cellService=value;
+			}
+
+			public function set btsService(value:SubjectPowerService):void
+			{
+				_btsService=value;
+			}
+
+			public function set wlanService(value:SubjectWlanService):void
+			{
+				_wlanService=value;
+			}
+
+			public function set perfChartDetail(value:PerfChartDetail):void
+			{
+				_perfChartDetail=value;
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller id="scroller"
+				width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:HGroup width="100%"
+				  height="100%">
+			<mx:AdvancedDataGrid id="stat"
+								 width="39%"
+								 height="100%"
+								 enabled="true"
+								 editable="false"
+								 sortExpertMode="true"
+								 draggableColumns="false"
+								 displayItemsExpanded="false"
+								 itemClick="alarms_itemClickHandler(event)">
+				<mx:columns>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+			<s:BorderContainer width="61%"
+							   height="100%"
+							   borderWeight="1.5"
+							   borderColor="0x8eb9db">
+				<s:VGroup gap="6"
+						  width="100%"
+						  height="100%"
+						  paddingTop="6"
+						  paddingLeft="10"
+						  paddingRight="10"
+						  paddingBottom="10">
+					<s:HGroup width="100%"
+							  height="15">
+						<s:HGroup width="50%"
+								  height="100%"
+								  horizontalAlign="left">
+							<s:Label text="告警详情"/>
+						</s:HGroup>
+						<s:HGroup width="50%"
+								  height="100%"
+								  horizontalAlign="right">
+							<mx:Image buttonMode="true"
+									  source="{IconParam.iconShowAll}"
+									  click="image_clickHandler(event)"/>
+						</s:HGroup>
+					</s:HGroup>
+					<mx:AdvancedDataGrid id="flow"
+										 width="100%"
+										 height="100%"
+										 enabled="true"
+										 editable="false"
+										 headerHeight="0"
+										 sortExpertMode="true"
+										 dataProvider="{_alarmAC}"
+										 verticalScrollPolicy="off">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn itemRenderer="com.linkage.module.cms.perfmonitor.monitor.alarm.component.FlowRenderer"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</s:VGroup>
+			</s:BorderContainer>
+		</s:HGroup>
+	</s:Scroller>
+</panel:Window>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  dragable="true" close="closeMe();" creationComplete="window1_creationCompleteHandler(event)" title="应急资源详情">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			private function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var col:AdvancedDataGridColumn = null;
+				var cellarr:Array = new Array();
+				
+				
+				col = new AdvancedDataGridColumn();
+				col.headerText = "资源名称";
+				col.dataField = "res_name";
+				//this.grid.columns = this.grid.columns.concat(col);
+				cellarr = cellarr.concat(col);
+				
+				col = new AdvancedDataGridColumn();
+				col.headerText = "资源属性";
+				col.dataField = "res_desc";
+				//this.grid.columns = this.grid.columns.concat(col);
+				cellarr = cellarr.concat(col);
+				
+				this.grid.columns = cellarr;
+			}
+
+			public function init(obj:Object):void
+			{
+				this.grid.dataProvider = obj;
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:AdvancedDataGrid id="grid" width="100%">
+	</mx:AdvancedDataGrid>
+</panel:Window>

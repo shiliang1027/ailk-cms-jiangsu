@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<components:NormalWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:pager="com.linkage.module.cms.components.pager.*" 
+			  xmlns:components="com.linkage.module.cms.groupclient.components.*"
+			  width="100%" 
+			  height="100%" 
+			  title="客户概况" 
+			  minHeight="60" 
+			  creationComplete="custWindow_creationCompleteHandler(event)" >
+	<components:layout>
+		<s:BasicLayout/>
+	</components:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<components:states>
+		<s:State name="viewLayer"/>
+		<s:State name="viewLayer_1"/>
+		<s:State name="viewLayer_2"/>
+		<s:State name="viewLayer_3"/>
+	</components:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="init", type="com.linkage.module.cms.groupclient.event.CustWindowEvent")]
+		[Event(name="custAlarmShow", type="com.linkage.module.cms.groupclient.event.CustWindowEvent")]
+		[Event(name="custShow", type="com.linkage.module.cms.groupclient.event.CustWindowEvent")]
+		[Event(name="pageGo", type="com.linkage.module.cms.groupclient.event.CustWindowEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.event.CustWindowEvent;
+			import com.linkage.module.cms.groupclient.renderer.AdvancedDataGridRendererCust;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.GroupTotalModuleControl");
+			
+			[Bindable]
+			[Embed(source="./../assets/icon_alarm_red.png")]
+			public var icon_alarm_red:Class;
+			[Bindable]
+			[Embed(source="./../assets/icon_alarm_orange.png")]
+			public var icon_alarm_orange:Class;
+			[Bindable]
+			[Embed(source="./../assets/icon_alarm_yellow.png")]
+			public var icon_alarm_yellow:Class;
+			[Bindable]
+			[Embed(source="./../assets/icon_alarm_blue.png")]
+			public var icon_alarm_blue:Class;
+			
+			
+			protected function custWindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(CustWindowEvent.DATACHANGE,onDataChange);
+				this.addEventListener(CustWindowEvent.CLEAR,onClear);
+				this.addEventListener(CustWindowEvent.PAGECHANGE,onPageChange);
+				this.addEventListener(CustWindowEvent.CUSTDATACHANGE,onCustDataChange);
+			}
+			
+			private function onDataChange(event:CustWindowEvent):void{
+				buildAlarmCustDG(event.param);
+			}
+			
+			private function onClear(event:CustWindowEvent):void{
+				alarmCustADG.dataProvider = null;
+			}
+			
+			private function onPageChange(event:CustWindowEvent):void{
+				var result:Object = event.param;
+				districtCustPager.totalRowCount = result.total;
+				districtCustPager.maxPage = result.maxPage;
+				districtCustPager.currentPage=1;
+			}
+			
+			private function onCustDataChange(event:CustWindowEvent):void{
+				var result:Object = event.param;
+				districtCustDG.dataProvider = result;
+			}
+			protected function alarmCustADG_itemClickHandler(event:ListEvent):void{
+				var data:Object=alarmCustADG.dataProvider[event.rowIndex];
+//				if(event.rowIndex == alarmCustADG.dataProvider.length-1){
+//					return;
+//				}
+				var columDataField:String=String((alarmCustADG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+				var columdata:String=String(data[columDataField]);
+				var alarmNum:Number=Number(columdata.substr(0, columdata.indexOf("(")));
+				var cityId:String=String(data["city_id"]);
+				if (alarmNum > 0)
+				{
+					var servLevel:Number = Number(columdata.substr(columdata.lastIndexOf("_")+1));
+//					control.getCustAlarm(cityId, servLevel);
+					var evt:CustWindowEvent = new CustWindowEvent(CustWindowEvent.CUSTALARMSHOW);
+					var param:Object = new Object;
+					param.city_id=cityId;
+					param.serv_level=servLevel;
+					if(cityId == "000" )
+					{
+						param.is_szx = "1";
+					}else if(cityId == "0000" )
+					{
+						param.is_szx = "2";
+					}else
+					{
+						param.is_szx = "0";
+					}
+					evt.param = param;
+					this.dispatchEvent(evt);
+				}
+			}
+			
+			protected function districtCustDG_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object = districtCustDG.dataProvider[event.rowIndex];
+				var evt:CustWindowEvent = new CustWindowEvent(CustWindowEvent.CUSTSHOW);
+				var param:Object = new Object;
+				param.custId=data.cust_no;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			protected function districtCustPager_pageChangeHandler(event:PagerEvent):void
+			{
+				var evt:CustWindowEvent = new CustWindowEvent(CustWindowEvent.PAGEGO);
+				var param:Object = new Object;
+				param.curPage_splitPage=districtCustPager.currentPage;
+				param.num_splitPage=districtCustPager.pageSize;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+
+			public function buildAlarmCustDG(result:Object):void{
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+					log.info("[客户概况]name:"+name+",column:"+result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					if(i!=0){
+						dataGridColumn.itemRenderer = new ClassFactory(AdvancedDataGridRendererCust);
+					}
+					columns.push(dataGridColumn);
+					i++;
+				}
+				alarmCustADG.columns = columns;
+				log.info("客户概况--->dataList size:"+result.dataList.length);
+				alarmCustADG.dataProvider = result.dataList;
+				prompGroup.visible=false;
+				prompGroup.includeInLayout=false;
+				alarmCustADG.visible=true;
+			}
+			
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup right="30" top="-20">
+		<s:HGroup>
+			<s:HGroup verticalAlign="middle">
+				<mx:Image source="{icon_alarm_red}"/>
+				<s:Label text="一级告警"/>
+			</s:HGroup>
+			<s:HGroup verticalAlign="middle">
+				<mx:Image source="{icon_alarm_orange}"/>
+				<s:Label text="二级告警"/>
+			</s:HGroup>
+			<s:HGroup verticalAlign="middle">
+				<mx:Image source="{icon_alarm_yellow}"/>
+				<s:Label text="三级告警"/>
+			</s:HGroup>
+			<s:HGroup verticalAlign="middle">
+				<mx:Image source="{icon_alarm_blue}"/>
+				<s:Label text="四级告警"/>
+			</s:HGroup>
+		</s:HGroup>
+		<s:HGroup id="alarmRBGroup" visible="false" includeInLayout="false">
+			<s:RadioButton label="告警" selected="true" id="alarmRB" groupName="alarmType" buttonMode="true"/>
+			<s:RadioButton label="全部" id="allAlarmRB" groupName="alarmType" buttonMode="true"/>
+		</s:HGroup>
+	</s:HGroup>
+	<s:HGroup id="prompGroup">
+		<s:Label text="读取数据中……"/>
+	</s:HGroup>
+	<mx:AdvancedDataGrid id="alarmCustADG" minHeight="0" visible="false"
+						 width="100%"
+						 height="100%"
+						 horizontalScrollPolicy="auto"
+						 includeIn="viewLayer_1,viewLayer_2"
+						 itemClick="alarmCustADG_itemClickHandler(event)" headerStyleName="commonDataGrid">
+	</mx:AdvancedDataGrid>
+	
+	<s:VGroup width="100%" height="100%" minHeight="0" includeIn="viewLayer_3">
+		<mx:AdvancedDataGrid id="districtCustDG"
+							 width="100%" height="100%"
+							 horizontalScrollPolicy="auto" itemClick="districtCustDG_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="cust_name"
+										   headerText="客户名称"/>
+				<mx:AdvancedDataGridColumn dataField="cust_no"
+										   headerText="客户编码"/>
+				<mx:AdvancedDataGridColumn dataField="cust_addr"
+										   headerText="客户地址"/>
+				<mx:AdvancedDataGridColumn dataField="serv_level"
+										   headerText="客户等级"/>
+				<mx:AdvancedDataGridColumn dataField="alarm_num" itemRenderer="com.linkage.module.cms.groupclient.renderer.CustAlarmGroupWarnRenderer"
+										   headerText="告警数"/>
+				<mx:AdvancedDataGridColumn dataField="district"
+										   headerText="区县"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:HGroup width="100%" horizontalAlign="right">
+			<pager:Pager id="districtCustPager"
+						 pageSize="20"
+						 pageChange="districtCustPager_pageChangeHandler(event)">
+			</pager:Pager>
+		</s:HGroup>
+	</s:VGroup>
+	
+</components:NormalWindow>

@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extend:WindowExt xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				  xmlns:s="library://ns.adobe.com/flex/spark" 
+				  xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:extend="com.linkage.module.cms.components.extend.*" 
+				  width="100%" closable="false" minimizable="false" restorable="true"
+				  maximizable="true" maximize="windowext1_maximizeHandler(event)" restore="windowext1_restoreHandler(event)"
+				  toggle="windowext1_toggleHandler(event)" toggleCloseIcon="{down}" toggleOpenIcon="{up}">
+	<extend:layout>
+		<s:BasicLayout/>
+	</extend:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			import spark.components.Group;
+			import spark.components.Label;
+			
+			//主视图
+			private var _general:Object = null;
+
+			//等待提示
+			public var loadInfo:LoadManager;
+			
+			//是否显示
+			public var _defaultShow:Boolean = false;
+			
+			//最小化时高度
+			[Bindable]
+			private var miniSize:int = 22;
+			
+			//最大化时高度
+			[Bindable]
+			private var _maxSize:int = 22;
+			
+			//当前高度
+			[Bindable]
+			private var curSize:int = 0;
+			
+			//父页面
+			private var _dataShowList:DataShowEx = null;
+			
+			//日志
+			public var logger:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow");
+			
+			//是否初始化
+			public var isInit:Boolean = false;
+			
+			//切换图层图标
+			[Embed(source="/com/linkage/module/cms/general/img/up.png")]
+			[Bindable]
+			public static var up:Class;
+			
+			[Embed(source="/com/linkage/module/cms/general/img/down.png")]
+			[Bindable]
+			public static var down:Class;
+			
+			public function get dataShowList():DataShowEx
+			{
+				return _dataShowList;
+			}
+
+			public function set dataShowList(value:DataShowEx):void
+			{
+				_dataShowList = value;
+			}
+
+			public function get defaultShow():Boolean
+			{
+				return _defaultShow;
+			}
+
+			public function set defaultShow(value:Boolean):void
+			{
+				_defaultShow = value;
+			}
+
+			public function get maxSize():int
+			{
+				return _maxSize;
+			}
+
+			public function set maxSize(value:int):void
+			{
+				_maxSize = value;
+			}
+			
+			public function get general():Object
+			{
+				return _general;
+			}
+			
+			public function set general(value:Object):void
+			{
+				_general = value;
+			}
+			
+			//显示页面，启动定时任务
+			public function showView():void
+			{
+				
+			}
+			
+			//隐藏页面，停止定时任务
+			public function hideView():void
+			{
+				
+			}
+
+			protected function windowext1_maximizeHandler(event:WindowExtEvent):void
+			{
+				if (_defaultShow)
+				{
+					_general.showThisGroup(showGroupInfo(),this.title,this);
+				}
+				else
+				{
+					Alert.show("请先展开当前窗口！");
+				}
+			}
+			
+			protected function windowext1_restoreHandler(event:WindowExtEvent):void
+			{
+				if (_defaultShow)
+				{
+					_general.showThisWindow(showGroupInfo(),this.title,this);
+				}
+				else
+				{
+					Alert.show("请先展开当前窗口！");
+				}
+			}
+			
+			protected function windowext1_toggleHandler(event:WindowExtEvent):void
+			{
+				if (_defaultShow)
+				{
+					hideThisWindow();
+				}
+				else
+				{
+					if (_dataShowList != null)
+					{
+						//先关闭其他页面
+						dataShowList.hideOpenedWindow();
+					}
+					
+					showThisWindow();
+					
+					//关闭流水
+					if (_general.flowGroup.visible)
+					{
+						_general.resizeWindow(4);
+					}
+				}
+			}
+			
+			public function initHeight():void
+			{
+				this.height = miniSize;
+			}
+			
+			//隐藏当前窗口
+			public function hideThisWindow():void
+			{
+				hideDataGroup();
+				hideView();
+				_defaultShow = false;
+				
+				this.height = miniSize;
+//				this.toggleButton.source = down;
+				this.toggleButton.text = "︾";
+				//this.thisFormClose.play();
+			}
+			
+			//显示当前窗口
+			public function showThisWindow(listHeight:int=0):void
+			{
+				//计算可以显示的高度
+				if (listHeight != 0)
+				{
+					if (_dataShowList.isShowChart)
+					{
+						_maxSize = listHeight - (_dataShowList.showGroupList.numElements) * miniSize;
+					}
+					else
+					{
+						_maxSize = listHeight - (_dataShowList.showGroupList.numElements-1) * miniSize;
+					}
+				}
+				else
+				{
+					if (_dataShowList.isShowChart)
+					{
+						_maxSize = _dataShowList.height - (_dataShowList.showGroupList.numElements) * miniSize;
+					}
+					else
+					{
+						_maxSize = _dataShowList.height - (_dataShowList.showGroupList.numElements-1) * miniSize;
+					}
+//					this.toggleButton.source = up;
+					this.toggleButton.text = "︽";
+				}
+				
+				if (!isInit)
+				{
+					initData();
+					isInit = true;
+				}
+				
+				showDataGroup();
+				showView();
+				_defaultShow = true;
+				
+				this.height = _maxSize;
+				//this.thisFormOpen.play();
+			}
+			
+			public function resizeWindow(h:int):void
+			{
+				curSize = this.height;
+				//重新计算高度
+				if (h > 0)
+				{
+					if (_dataShowList.isShowChart)
+					{
+						_maxSize = h - (_dataShowList.showGroupList.numElements) * miniSize;
+					}
+					else
+					{
+						_maxSize = h - (_dataShowList.showGroupList.numElements-1) * miniSize;
+					}
+				}
+				else
+				{
+					if (_dataShowList.isShowChart)
+					{
+						_maxSize = _dataShowList.height - (_dataShowList.showGroupList.numElements) * miniSize;
+					}
+					else
+					{
+						_maxSize = _dataShowList.height - (_dataShowList.showGroupList.numElements-1) * miniSize;
+					}
+				}
+				
+				this.height = _maxSize;
+				//this.thisFormResize.play();
+			}
+
+			//供子页面覆盖的方法
+			public function hideDataGroup():void
+			{
+				
+			}
+			
+			//供子页面覆盖的方法
+			public function showDataGroup():void
+			{
+				
+			}
+			
+			//供子页面覆盖的方法
+			public function showGroupInfo():Group
+			{
+				return null;
+			}
+			
+			//供子页面覆盖的方法
+			public function initData():void
+			{
+				
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Resize id="thisFormOpen"
+				  target="{this}"
+				  heightFrom="{miniSize}"
+				  heightTo="{_maxSize}"
+				  duration="300">
+		</s:Resize>
+		<s:Resize id="thisFormClose"
+				  target="{this}"
+				  heightFrom="{_maxSize}"
+				  heightTo="{miniSize}"
+				  duration="300">
+		</s:Resize>
+		<s:Resize id="thisFormResize"
+				  target="{this}"
+				  heightFrom="{curSize}"
+				  heightTo="{_maxSize}"
+				  duration="300">
+		</s:Resize>
+	</fx:Declarations>
+</extend:WindowExt>

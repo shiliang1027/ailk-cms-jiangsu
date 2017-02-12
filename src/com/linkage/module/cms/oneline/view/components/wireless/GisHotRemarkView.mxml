@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="400"
+					height="250"
+					visible="false"
+					minimizable="false"
+					maximizable="false"
+					dragable="true"
+					resizable="true"
+					styleName="windowScene"
+					title="标注"
+					close="this.visible=false;"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-20
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.controls.Alert;
+			import mx.utils.StringUtil;
+			
+			import spark.events.TextOperationEvent;
+			private static var log:ILogger = Log.getLoggerByClass(GisHotRemarkView);
+			
+			[Bindable]
+			public var mo:*;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			[MessageHandler(selector="SHOWREMARKVIEW")]
+			public function showRemarkHandler(e:GisHotEvent):void
+			{
+				if (!this.visible)
+				{
+					this.visible=true;
+					var s:Rectangle=systemManager.screen;
+					var appWidth:Number;
+					var appHeight:Number;
+					var parentWidth:Number;
+					var parentHeight:Number;
+					appWidth=s.width;
+					appHeight=s.height;
+					parentWidth=this.parent.width;
+					parentHeight=this.parent.height;
+					x=Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+					y=Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+				}
+				mo = e.param;
+				log.info("test mo");
+				log.info(mo);
+			}
+			
+			protected function save_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(StringUtil.trim(content.text) == ""){
+					Alert.show("请输入标注内容","提示");
+					return;
+				}
+				var evt:GisHotEvent = new GisHotEvent(GisHotEvent.SAVEREMARKDATA);
+				evt.param = mo;
+				log.info("save_clickHandler");
+				log.info(mo);
+				dispatcher(evt);
+			}
+			
+			protected function content_changeHandler(event:TextOperationEvent):void
+			{
+				mo.remark = content.text;
+			}
+			
+			[MessageHandler(selector="SAVEREMARKDATACOMPLETE")]
+			public function saveRemarkCompleteHandler(e:GisHotEvent):void
+			{
+				Alert.show("保存成功","提示");
+				mo.remark = e.param;
+				this.closable = true;
+				
+			}
+			
+			[MessageHandler(selector="SAVEREMARKDATAERROR")]
+			public function saveRemarkErrorHandler(e:GisHotEvent):void
+			{
+				Alert.show("保存失败","错误");
+				this.closable = true;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<ailk_compts:layout>
+		<s:VerticalLayout paddingBottom="5" paddingTop="5" paddingLeft="5" paddingRight="5"/>
+	</ailk_compts:layout>
+	<s:HGroup width="100%" height="100%" gap="0">
+		<s:Label text="标注内容："/>
+		<s:TextArea id="content" width="100%" height="100%" text="{mo.remark}" change="content_changeHandler(event)">
+		</s:TextArea>
+	</s:HGroup>
+	<s:HGroup width="100%" horizontalAlign="center">
+		<s:Button label="{StringUtil.trim(mo.remark) != ''?'修改':'保存'}" buttonMode="true" click="save_clickHandler(event)"/>
+	</s:HGroup>
+</ailk_compts:Window>

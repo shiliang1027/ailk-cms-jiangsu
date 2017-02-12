@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:panel="com.linkage.system.component.panel.*" width="200" height="150">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private var _commonService:SubjectInterfaceCommService;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.mapview.window.CellDetail");
+			
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			public function initData(moId:String):void
+			{
+				var paramMap:Object = new Object();
+				paramMap.mo_id = moId;
+				
+				_commonService.moDetailInfo(paramMap,loadDetailSucc,null,loadDetailErr);
+				_commonService.moAlarmInfo(paramMap,loadAlarmSucc,null,loadAlarmErr);
+				_commonService.moPerfInfo(paramMap,loadPerfSucc,null,loadPerfErr);
+			}
+			
+			private function loadDetailSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载资源数据成功！");
+				}
+				else
+				{
+					log.info("加载资源数据为空！");
+				}
+			}
+			
+			private function loadDetailErr(obj:Object):void
+			{
+				log.info("加载资源数据失败！");
+			}
+			
+			private function loadPerfSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载性能数据成功！");
+				}
+				else
+				{
+					log.info("加载性能数据为空！");
+				}
+			}
+			
+			private function loadPerfErr(obj:Object):void
+			{
+				log.info("加载性能数据失败！");
+			}
+			
+			private function loadAlarmSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载告警数据成功！");
+				}
+				else
+				{
+					log.info("加载告警数据为空！");
+				}
+			}
+			
+			private function loadAlarmErr(obj:Object):void
+			{
+				log.info("加载告警数据失败！");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group width="100%" height="100%">
+		<s:Label text="TEST">
+		</s:Label>
+	</s:Group>
+</panel:Window>

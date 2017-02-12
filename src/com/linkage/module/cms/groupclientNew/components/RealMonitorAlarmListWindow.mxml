@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  width="100%" 
+			  height="100%"
+			  label="告警监控" 
+			  creationComplete="realMonitorAlarmWindow_creationCompleteHandler(event)" 
+			  xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  xmlns:components="com.linkage.module.cms.groupclientNew.components.*">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="dataQuery", type="com.linkage.module.cms.groupclientNew.event.RealMonitorAlarmListWindowEvent")]
+		[Event(name="alarmFilter", type="com.linkage.module.cms.groupclientNew.event.RealMonitorAlarmListWindowEvent")]
+		[Event(name="custInfoShow", type="com.linkage.module.cms.groupclientNew.event.RealMonitorAlarmListWindowEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.groupclientNew.event.CustFlowAlarmWindowEvent;
+			import com.linkage.module.cms.groupclientNew.event.RealMonitorAlarmListWindowEvent;
+			import com.linkage.module.cms.groupclientNew.renderer.AlarmCustRenderer;
+			import com.linkage.module.cms.groupclientNew.renderer.AlarmLerver1Renderer;
+			import com.linkage.module.cms.groupclientNew.renderer.AlarmLerver2Renderer;
+			import com.linkage.module.cms.groupclientNew.renderer.AlarmLerver3Renderer;
+			import com.linkage.module.cms.groupclientNew.renderer.AlarmLerver4Renderer;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			import org.osmf.layout.AbsoluteLayoutFacet;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientNew.components.RealMonitorAlarmListWindow");
+			
+			[Bindable]
+			private var ruleContent:String; //集客告警规则
+			
+			//设备告警流水参数
+			[Bindable]
+			public var params:Object=new Object();
+			protected function realMonitorAlarmWindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(RealMonitorAlarmListWindowEvent.DATACHANGE,onDataChange);
+//				this.dispatchEvent(new RealMonitorAlarmListWindowEvent(RealMonitorAlarmListWindowEvent.DATAQUERY));
+			}
+			
+			private function onDataChange(event:RealMonitorAlarmListWindowEvent):void{
+				log.info("告警监控");
+				var result:Object = event.param;
+				var columns:Array = buildColumns(result);
+				log.info(columns);
+				for each(var column:AdvancedDataGridColumn in columns){
+					if(column.dataField == "safe_level"){
+						column.width=120;
+					}else if(column.dataField == "level1"){
+						column.width=150;
+						column.itemRenderer = new ClassFactory(AlarmLerver1Renderer);
+					}else if(column.dataField == "level2"){
+						column.width=150;
+						column.itemRenderer = new ClassFactory(AlarmLerver2Renderer);
+					}else if(column.dataField == "level3"){
+						column.width=150;
+						column.itemRenderer = new ClassFactory(AlarmLerver3Renderer);
+					}else if(column.dataField == "level4"){
+						column.width=150;
+						column.itemRenderer = new ClassFactory(AlarmLerver4Renderer);
+					}else{
+						column.width=250;
+						column.itemRenderer = new ClassFactory(AlarmCustRenderer);
+					}
+				}
+				custAlarmDG.columns = columns;
+				custAlarmDG.dataProvider = result.dataList;
+				
+			}
+			
+			private function buildColumns(result:Object):Array{
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+//					log.info("[buildColumns]name:"+name+",column:"+result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.width=100;
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					columns.push(dataGridColumn);
+					i++;
+				}
+				return columns;
+			}
+			
+			private function custAlarmDG_itemClickHandler(event:ListEvent):void{
+				var data:Object=custAlarmDG.dataProvider[event.rowIndex];
+				var columDataField:String=String((custAlarmDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+				//				var columdata:String=String(data[columDataField]);
+				var cusbuss_id:String=String(data.prod_no);
+				var filterStr:String;
+				if (columDataField == "level1")
+				{
+					filterStr = "alarmseverity=1&cusbuss_id=\"" + cusbuss_id + "\"";
+				}
+				else if (columDataField == "level2")
+				{
+					filterStr = "alarmseverity=2&cusbuss_id=\"" + cusbuss_id + "\"";
+				}
+				else if (columDataField == "level3")
+				{
+					filterStr = "alarmseverity=3&cusbuss_id=\"" + cusbuss_id + "\"";
+				}
+				else if (columDataField == "level4")
+				{
+					filterStr = "alarmseverity=4&cusbuss_id=\"" + cusbuss_id + "\"";
+				}
+				else
+				{
+					filterStr = "cusbuss_id=\"" + cusbuss_id + "\"";
+				}
+				var evt:RealMonitorAlarmListWindowEvent = new RealMonitorAlarmListWindowEvent(RealMonitorAlarmListWindowEvent.ALARMFILTER);
+				evt.param = filterStr;
+				this.dispatchEvent(evt);
+			}
+			
+//			
+//			protected function alarmWindow_maximizeHandler(event:WindowExtEvent):void
+//			{
+//				if(alarmWindowHeight == 0){
+//					alarmWindowHeight = realAlarmWindow.height;
+//				}
+//				custAlarmDG.visible=false;
+//				custAlarmDG.includeInLayout=false;
+//				realAlarmWindow.restoreButton.visible=true;
+//				realAlarmWindow.restoreButton.includeInLayout=true;
+//				realAlarmWindow.maximizeButton.visible=false;
+//				realAlarmWindow.maximizeButton.includeInLayout=false;
+//				realAlarmWindow.minimizeButton.visible=true;
+//				realAlarmWindow.minimizeButton.includeInLayout=true;
+//				realAlarmWindow.percentHeight = 100;
+//				realAlarmWindow.contentGroup.visible=true;
+//				realAlarmWindow.contentGroup.includeInLayout=true;
+//			}
+//			
+//			private var alarmWindowHeight:Number=0;
+//			protected function alarmWindow_minimizeHandler(event:WindowExtEvent):void
+//			{
+//				if(alarmWindowHeight == 0){
+//					alarmWindowHeight = realAlarmWindow.height;
+//				}
+//				realAlarmWindow.height = realAlarmWindow.minHeight;
+//				realAlarmWindow.contentGroup.visible=false;
+//				realAlarmWindow.contentGroup.includeInLayout=false;
+//				realAlarmWindow.restoreButton.visible=true;
+//				realAlarmWindow.restoreButton.includeInLayout=true;
+//				realAlarmWindow.maximizeButton.visible=true;
+//				realAlarmWindow.maximizeButton.includeInLayout=true;
+//				realAlarmWindow.minimizeButton.visible=false;
+//				realAlarmWindow.minimizeButton.includeInLayout=false;
+//				custAlarmDG.visible=true;
+//				custAlarmDG.includeInLayout=true;
+//				
+//			}
+//			
+//			protected function alarmWindow_restoreHandler(event:WindowExtEvent):void
+//			{
+//				realAlarmWindow.height = alarmWindowHeight;
+//				realAlarmWindow.contentGroup.visible=true;
+//				realAlarmWindow.contentGroup.includeInLayout=true;
+//				custAlarmDG.visible=true;
+//				custAlarmDG.includeInLayout=true;
+//				realAlarmWindow.restoreButton.visible=false;
+//				realAlarmWindow.restoreButton.includeInLayout=false;
+//				realAlarmWindow.minimizeButton.visible=true;
+//				realAlarmWindow.minimizeButton.includeInLayout=true;
+//				realAlarmWindow.maximizeButton.visible=true;
+//				realAlarmWindow.maximizeButton.includeInLayout=true;
+//			}
+//			
+//			protected function alarmWindow_custInfoShowHandler(event:CustFlowAlarmWindowEvent):void
+//			{
+//				var evt:RealMonitorAlarmListWindowEvent = new RealMonitorAlarmListWindowEvent(RealMonitorAlarmListWindowEvent.CUSTINFOSHOW);
+//				evt.param = event.param;
+//				this.dispatchEvent(evt);
+//			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup>
+		<mx:AdvancedDataGrid id="custAlarmDG"
+							 width="100%"
+							 rowCount="12"
+							 horizontalScrollPolicy="auto"
+							 columnWidth="200"
+							 itemClick="custAlarmDG_itemClickHandler(event)">
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+</mx:VBox>

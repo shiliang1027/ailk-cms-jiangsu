@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+               xmlns:s="library://ns.adobe.com/flex/spark"
+               xmlns:mx="library://ns.adobe.com/flex/mx"
+               width="100%"
+               height="100%"
+               fontFamily="微软雅黑"
+               creationComplete="main_creationCompleteHandler(event)"
+               preinitialize="main_preinitializeHandler(event)"
+               preloader="com.linkage.module.cms.components.downloadprogress.CustomPreloader"
+               xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+               xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart">
+    <s:layout>
+        <s:BasicLayout/>
+    </s:layout>
+
+    <fx:Declarations>
+        <mx:NumberFormatter id="numberFormatter"
+                            precision="2"
+                            useThousandsSeparator="false"
+                            useNegativeSign="false"/>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.ILoggingTarget;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.logging.LogEventLevel;
+            import com.ailk.common.system.logging.targets.MonsterTarget2;
+            import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+            import com.ailk.common.ui.chart.core.ChartParam;
+            import com.ailk.common.ui.chart.core.PrettyChartType;
+            import com.ailk.common.ui.chart.core.SerialParam;
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.system.logging.ILoggingTarget;
+            import com.linkage.system.logging.targets.MonsterTarget2;
+
+            import mx.charts.LineChart;
+            import mx.collections.ArrayCollection;
+            import mx.collections.ArrayList;
+            import mx.collections.IList;
+            import mx.controls.Alert;
+            import mx.events.FlexEvent;
+            import mx.events.ListEvent;
+            import mx.formatters.NumberFormatter;
+            import mx.managers.PopUpManager;
+            import mx.rpc.events.FaultEvent;
+            import mx.rpc.remoting.RemoteObject;
+
+            public var lm:LoadManager;
+
+            private var lc:LineChart;
+
+            private var alert:Alert;
+
+            private var levelMap:Object = new Object();
+
+            private static var log:ILogger = Log.getLoggerByClass(BigScreenTable);
+
+            private var timer:Timer = new Timer(5 * 60 * 1000);
+
+            [Bindable]
+            public var ac:ArrayCollection = new ArrayCollection;
+
+            protected function main_preinitializeHandler(event:FlexEvent):void
+            {
+                styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+            }
+
+
+            protected function main_creationCompleteHandler(event:FlexEvent):void
+            {
+                levelMap["info"] = LogEventLevel.INFO;
+                levelMap["debug"] = LogEventLevel.DEBUG;
+                levelMap["warn"] = LogEventLevel.WARN;
+                levelMap["error"] = LogEventLevel.ERROR;
+                levelMap["all"] = LogEventLevel.ALL;
+
+                lm = new LoadManager(this);
+                var moduleUrl:String = this.parameters["moduleUrl"];
+
+                var level:int = 0;
+
+                if (this.parameters["LogLevel"])
+                {
+                    if (int(this.parameters["LogLevel"]) != 0)
+                    {
+                        level = int(this.parameters["LogLevel"]);
+                    }
+                    else
+                    {
+                        level = levelMap[String(this.parameters["LogLevel"]).toLocaleLowerCase()];
+                    }
+
+                    if (int(this.parameters["LogType"]) == 0)
+                    {
+                        var logTarget:com.linkage.system.logging.ILoggingTarget = new com.linkage.system.logging.targets.MonsterTarget2();
+                        logTarget.level = level;
+
+                        if (this.parameters["LogFilters"])
+                        {
+                            logTarget.filters = String(this.parameters["LogFilters"]).split(",");
+                        }
+                        com.linkage.system.logging.Log.addTarget(logTarget);
+                    }
+                    else
+                    {
+                        var newLogTarget:com.ailk.common.system.logging.ILoggingTarget = new com.ailk.common.system.logging.targets.MonsterTarget2();
+                        newLogTarget.level = level;
+
+                        if (this.parameters["LogFilters"])
+                        {
+                            newLogTarget.filters = String(this.parameters["LogFilters"]).split(",");
+                        }
+                        com.ailk.common.system.logging.Log.addTarget(newLogTarget);
+                    }
+                }
+                ExternalInterface.addCallback("flashStart", flashStart);
+                ExternalInterface.addCallback("flashStop", flashStop);
+
+                timer.addEventListener(TimerEvent.TIMER, refreshData);
+                timer.start();
+
+                gw = (width - 75) / 3 - (colWitdth * 3) - 15;
+
+                dg.rowHeight = (this.height - dg.headerHeight) / 18;
+
+                laodData();
+
+            }
+
+            private var startList:ArrayList = new ArrayList();
+            private var isRunning:Boolean = false;
+
+            public function flashStart():String
+            {
+                var message:Array = new Array();
+                startList.source.forEach(function(item:*, index:int, array:Array):void {
+                    try {
+                        if (!item.running) {
+                            item.start();
+                            message.push(item + "启动成功");
+                        } else {
+                            message.push(item + "已经启动");
+                        }
+                    } catch (e:Error) {
+                        message.push(e.getStackTrace());
+                    }
+                });
+                isRunning = true;
+                return message.join("\n") + isRunning;
+            }
+
+            public function flashStop():String
+            {
+                var message:Array = new Array();
+                startList.source.forEach(function(item:*, index:int, array:Array):void {
+                    try {
+                        if (item.running) {
+                            item.stop();
+                            message.push(item + "停止成功");
+                        } else {
+                            message.push(item + "已经停止");
+                        }
+
+                    } catch (e:Error) {
+                        message.push(e.getStackTrace());
+                    }
+                });
+                isRunning = false;
+                return message.join("\n") + isRunning;
+            }
+
+            public function remove(item:Object):void
+            {
+                startList.removeItem(item);
+            }
+
+            public function add(item:Object):void
+            {
+                if (startList.getItemIndex(item) < 0)
+                {
+                    startList.addItem(item);
+                }
+            }
+
+            public function clear():void
+            {
+                startList.removeAll();
+            }
+
+            private function refreshData(e:Object):void
+            {
+                laodData();
+            }
+
+            private function laodData():void
+            {
+                log.info("开始加载数据");
+
+                ac.removeAll();
+
+                var rmtObj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_scene_distribute_dataService", "", "/cms/messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        log.info("加载数据成功。");
+                        log.debug(data);
+
+                        lm.hideLoading();
+
+                        if (data != null)
+                        {
+                            for each (var d:Object in data as IList)
+                            {
+                                if (!isNaN(Number(d.flow_2g)))
+                                    d.flow_2g = numberFormatter.format(Number(d.flow_2g) / 1024 / 1024);
+                                if (!isNaN(Number(d.flow_3g)))
+                                    d.flow_3g = numberFormatter.format(Number(d.flow_3g) / 1024 / 1024);
+                                if (!isNaN(Number(d.flow_4g)))
+                                    d.flow_4g = numberFormatter.format(Number(d.flow_4g) / 1024 / 1024);
+
+                                ac.addItem(d);
+                            }
+                        }
+                    },
+                    function(e:FaultEvent):void
+                    {
+                        log.error("加载数据异常: " + e.fault.faultDetail);
+                    });
+
+                lm.showLoading();
+
+                rmtObj.getAllDistributeValue();
+            }
+
+            private function indexNumLabelFun(value:Object, dg:Object):String
+            {
+                var indexNum:int = (ac.getItemIndex(value) + 1);
+                return indexNum.toString();
+            }
+
+            [Bindable]
+            private var colWitdth:int = 80;
+
+            [Bindable]
+            private var gw:int = 100;
+
+            protected function dg_itemClickHandler(event:ListEvent):void
+            {
+                chartWin.visible = true;
+                PopUpManager.addPopUp(chartWin, this.parent as DisplayObject);
+                PopUpManager.centerPopUp(chartWin);
+
+                var key:String = "perf_value";
+                var xt:String = "";
+
+                switch (event.columnIndex)
+                {
+                    case 2:
+                        key = "flow_2g";
+                        xt = "perf_name_flow";
+                        break;
+                    case 3:
+                        key = "flow_3g";
+                        xt = "perf_name_flow";
+                        break;
+                    case 4:
+                        xt = "perf_name_flow";
+                        key = "flow_4g";
+                        break;
+                    case 6:
+                        key = "userNum_2g";
+                        xt = "perf_name_userNum";
+                        break;
+                    case 7:
+                        key = "userNum_3g";
+                        xt = "perf_name_userNum";
+                        break;
+                    case 8:
+                        key = "userNum_4g";
+                        xt = "perf_name_userNum";
+                        break;
+                    case 10:
+                        key = "counts_2g";
+                        xt = "perf_name_counts";
+                        break;
+                    case 11:
+                        key = "counts_3g";
+                        xt = "perf_name_counts";
+                        break;
+                    case 12:
+                        key = "counts_4g";
+                        xt = "perf_name_counts";
+                        break;
+                }
+
+
+                var p1:SerialParam = new SerialParam(key, "指标值");
+                p1.chartType = PrettyChartType.CHART_TYPE_PIE;
+
+                var serArr:ArrayCollection = new ArrayCollection;
+                serArr.addItem(p1);
+
+                var chartParam:ChartParam = new ChartParam();
+                chartParam.xAxisProperty = xt;
+                chartParam.showLegend = false;
+
+                pc.chartParam = chartParam;
+                pc.series = serArr;
+
+                pc.chartData(ac, true);
+            }
+        ]]>
+    </fx:Script>
+
+    <s:HGroup width="100%"
+              height="100%"
+              paddingBottom="10"
+              paddingLeft="10"
+              paddingRight="10"
+              paddingTop="10">
+        <mx:AdvancedDataGrid id="dg"
+                             width="100%"
+                             height="100%"
+                             draggableColumns="false"
+                             fontSize="16"
+                             dataProvider="{ac}"
+                             headerWordWrap="true"
+                             itemClick="dg_itemClickHandler(event)"
+                             rowHeight="28"
+                             selectionMode="multipleRows"
+                             textAlign="left"
+                             verticalScrollPolicy="auto">
+            <mx:groupedColumns>
+                <mx:AdvancedDataGridColumn labelFunction="indexNumLabelFun"
+                                           width="65"
+                                           textAlign="center"
+                                           headerText="排名"/>
+                <mx:AdvancedDataGridColumnGroup headerText="流量(M)">
+                    <mx:AdvancedDataGridColumn dataField="perf_name_flow"
+                                               width="{gw}"
+                                               headerText="指标名称"/>
+                    <mx:AdvancedDataGridColumn width="{colWitdth}"
+                                               dataField="flow_2g"
+                                               headerText="GSM"/>
+                    <mx:AdvancedDataGridColumn width="{colWitdth}"
+                                               dataField="flow_3g"
+                                               headerText="TD"/>
+                    <mx:AdvancedDataGridColumn dataField="flow_4g"
+                                               width="{colWitdth }"
+                                               headerText="LTE"/>
+                </mx:AdvancedDataGridColumnGroup>
+                <mx:AdvancedDataGridColumnGroup headerText="用户数(人)">
+                    <mx:AdvancedDataGridColumn dataField="perf_name_userNum"
+                                               width="{gw -15}"
+                                               headerText="指标名称"/>
+                    <mx:AdvancedDataGridColumn width="{colWitdth}"
+                                               dataField="userNum_2g"
+                                               headerText="GSM"/>
+                    <mx:AdvancedDataGridColumn width="{colWitdth}"
+                                               dataField="userNum_3g"
+                                               headerText="TD"/>
+                    <mx:AdvancedDataGridColumn dataField="userNum_4g"
+                                               width="{colWitdth}"
+                                               headerText="LTE"/>
+                </mx:AdvancedDataGridColumnGroup>
+                <mx:AdvancedDataGridColumnGroup headerText="次数(次)">
+                    <mx:AdvancedDataGridColumn dataField="perf_name_counts"
+                                               width="{gw}"
+                                               headerText="指标名称"/>
+                    <mx:AdvancedDataGridColumn width="{colWitdth + 20}"
+                                               dataField="counts_2g"
+                                               headerText="GSM"/>
+                    <mx:AdvancedDataGridColumn width="{colWitdth}"
+                                               dataField="counts_3g"
+                                               headerText="TD"/>
+                    <mx:AdvancedDataGridColumn dataField="counts_4g"
+                                               width="{colWitdth + 10}"
+                                               headerText="LTE"/>
+                </mx:AdvancedDataGridColumnGroup>
+            </mx:groupedColumns>
+        </mx:AdvancedDataGrid>
+    </s:HGroup>
+
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="chartWin"
+                            styleName="window"
+                            minimizable="false"
+                            maximizable="false"
+                            dragable="true"
+                            closable="true"
+                            visible="false"
+                            close="{PopUpManager.removePopUp(chartWin)}"
+                            width="800"
+                            height="600">
+            <ailk_chart:PrettyChart id="pc"
+                                    width="100%"
+                                    height="100%"/>
+        </ailk_compts:Window>
+    </mx:Box>
+</s:Application>

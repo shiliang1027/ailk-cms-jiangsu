@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  maximize="window_maximizeHandler(event)"
+			  restore="window_restoreHandler(event)"
+			  includeInLayout="false"
+			  visible="false"
+			  minHeight="30"
+			  dragable="true"
+			  width="300"
+			  height="136"
+			  close="hideWindow()"
+			  closable="true">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.ResizeEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.VGroup;
+
+			//日志
+			public var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.tools.PrefTrendPanel");
+			//趋势图数据
+			private var prefData:Object=null;
+			//原始离顶部距离
+			private var storeTop:Object=null;
+			//原始离左边距离
+			private var storeLeft:Object=null;
+			//深度
+			private var panelDepth:int=0;
+
+			//处理性能数据
+			public function dealPrefData(data:Object):void
+			{
+				removeAllElements();
+				if (data != null)
+				{
+					prefData=data;
+					//1.设置标题
+					this.title=data["title"];
+
+					//2.生成趋势图
+					var fusionChart:FusionChartsLK=new FusionChartsLK();
+					fusionChart.FCChartType="Line";
+					fusionChart.width=270;
+					fusionChart.height=92;
+					fusionChart.top=-5;
+
+					//设置基线值
+					var baseLine:String=data["base_line"];
+					if (baseLine != null && baseLine != "" && baseLine != "null")
+					{
+						fusionChart.FCTrendLines=new ArrayCollection([{startValue: baseLine, color: "0xFF0000", displayValue: " "}]);
+					}
+
+					//设置数据源画图
+					var chartArray:ArrayCollection=data["data"];
+					var paramsArray:ArrayCollection=new ArrayCollection();
+					paramsArray.addItem({slantLabels: '1'});
+					paramsArray.addItem({showvalues: '0'});
+					paramsArray.addItem({baseFontSize: '6'});
+					paramsArray.addItem({lineColor: '0x00ff00'});
+					paramsArray.addItem({labelDisplay: 'Rotate'});
+					paramsArray.addItem({chartTopMargin: '19'});
+					paramsArray.addItem({chartLeftMargin: '0'});
+					paramsArray.addItem({chartRightMargin: '0'});
+					paramsArray.addItem({chartBottomMargin: '0'});
+					if (chartArray != null)
+					{
+						fusionChart.FCParams=paramsArray;
+						fusionChart.FCData=chartArray;
+					}
+
+					var vGroup:VGroup=new VGroup();
+					vGroup.percentWidth=100;
+					vGroup.percentHeight=100;
+					vGroup.verticalAlign="middle";
+					vGroup.addElement(fusionChart);
+					addElement(vGroup);
+				}
+			}
+
+			protected function hideWindow():void
+			{
+				this.visible=false;
+			}
+
+			protected function window_maximizeHandler(event:WindowEvent):void
+			{
+				removeAllElements();
+				storeTop=top;
+				storeLeft=left;
+				panelDepth=depth;
+				top=0;
+				left=0;
+				depth=1000;
+				if (prefData != null)
+				{
+					//生成趋势图
+					var fusionChart:FusionChartsLK=new FusionChartsLK();
+					fusionChart.FCChartType="Line";
+					fusionChart.width=parent.width - 30;
+					fusionChart.height=parent.height - 50;
+
+					//设置基线值
+					var baseLine:String=prefData["base_line"];
+					if (baseLine != null && baseLine != "" && baseLine != "null")
+					{
+						fusionChart.FCTrendLines=new ArrayCollection([{startValue: baseLine, color: "0xFF0000", displayValue: " "}]);
+					}
+
+					//设置数据源画图
+					var chartArray:ArrayCollection=prefData["data"];
+					var paramsArray:ArrayCollection=new ArrayCollection();
+					paramsArray.addItem({slantLabels: '1'});
+					paramsArray.addItem({showvalues: '0'});
+					paramsArray.addItem({lineColor: '0x00ff00'});
+					paramsArray.addItem({labelDisplay: 'Rotate'});
+					paramsArray.addItem({chartTopMargin: '26'});
+					paramsArray.addItem({chartLeftMargin: '0'});
+					paramsArray.addItem({chartRightMargin: '0'});
+					paramsArray.addItem({chartBottomMargin: '0'});
+					if (chartArray != null)
+					{
+						fusionChart.FCParams=paramsArray;
+						fusionChart.FCData=chartArray;
+					}
+					var vGroup:VGroup=new VGroup();
+					vGroup.percentWidth=100;
+					vGroup.percentHeight=100;
+					vGroup.verticalAlign="middle";
+					vGroup.addElement(fusionChart);
+					addElement(vGroup);
+				}
+			}
+
+			protected function window_restoreHandler(event:WindowEvent):void
+			{
+				top=storeTop;
+				left=storeLeft;
+				depth=panelDepth;
+				dealPrefData(prefData);
+			}
+		]]>
+	</fx:Script>
+</panel:Window>

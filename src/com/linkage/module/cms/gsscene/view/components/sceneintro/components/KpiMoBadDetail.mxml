@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  gap="3"
+		  height="20"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  creationComplete="window2_creationCompleteHandler()"
+		  textAlign="left">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-12-27
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.listClasses.IListItemRenderer;
+
+			private var log:ILogger = Log.getLoggerByClass(KpiMoBadDetail);
+
+			public var moDataList:ArrayCollection;
+
+			[Embed(source="../../../../img/circle.png")]
+			[Bindable]
+			private static var circle:Class;
+
+			[Bindable]
+			public var label:String;
+
+			[Bindable]
+			public var serialNum:String;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (moDataGrid.visible == false)
+				{
+					moDataGrid.visible = true;
+					moDataGrid.includeInLayout = true;
+
+					moDataGrid.dataProvider = this.moDataList;
+					this.height = 200;
+				}
+				else
+				{
+					moDataGrid.visible = false;
+					moDataGrid.includeInLayout = false;
+					this.height = 22;
+				}
+			}
+
+			private var lastRollOverIndex:int;
+
+			protected function window2_creationCompleteHandler():void
+			{
+				this.addEventListener(SceneEvent.CHECKBOX_ALL_SELECTED, allSelectedCheckBox);
+				var cm:ContextMenu = new ContextMenu();
+				cm.hideBuiltInItems();
+				cm.addEventListener(ContextMenuEvent.MENU_SELECT, function(e:ContextMenuEvent):void
+					{
+						log.info("右键菜单");
+						cm.customItems = [];
+						var obj:Object = e.mouseTarget.parent as IListItemRenderer;
+						if (obj == null)
+							obj = e.mouseTarget as IListItemRenderer;
+						var item:Object = obj["data"];
+						log.info(item);
+						if (item["beginTime"] != item["gatherTime"])
+						{
+							log.info("两条不等！！！");
+							var cmi:ContextMenuItem = new ContextMenuItem("劣化历史");
+							cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, showBadTrend);
+							cm.customItems.push(cmi);
+						}
+					});
+				moDataGrid.contextMenu = cm;
+			}
+
+			//劣化趋势图
+			public function showBadTrend(evt:ContextMenuEvent):void
+			{
+				log.info("抛出事件，查询劣化趋势");
+				var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+				if (obj == null)
+					obj = evt.mouseTarget as IListItemRenderer;
+				var item:Object = obj["data"];
+				var sie:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.CMS_SCENE_SCENEINTRO_MOGETBADTREND);
+				sie.params = new Object();
+				sie.params.badType = "2";
+				sie.params.kpiId = item["kpiId"];
+				sie.params.moTypeId = item["moTypeId"];
+				sie.params.threshold = item["threshold"];
+				sie.params.moId = item["moId"];
+				sie.params.beginTime = item["beginTime"];
+				sie.params.gatherTime = item["gatherTime"];
+				sie.params.unit = item["unit"];
+				log.info(sie.params);
+				dispatchEvent(sie);
+			}
+
+			private function allSelectedCheckBox(event:SceneEvent):void
+			{
+				log.info("全选：{0}", event);
+				for each (var item:Object in moDataGrid.dataProvider)
+				{
+					if (event.param == "1")
+					{
+						item.selected = true;
+					}
+					else
+					{
+						item.selected = false;
+					}
+				}
+				ArrayCollection(moDataGrid.dataProvider).refresh();
+			}
+
+			public function gisCoorHandler(evt:ContextMenuEvent):void
+			{
+				log.debug("抛出右键gis定位事件...");
+				var obj:Object = evt.mouseTarget.parent as IListItemRenderer;
+				if (obj == null)
+					obj = evt.mouseTarget as IListItemRenderer;
+				var param:Object = obj.data;
+				log.debug(param);
+
+				var event:SceneEvent = new SceneEvent(SceneEvent.SHOWMO2GIS);
+				event.param = new Object;
+				event.param = obj.data;
+				log.info(event.param);
+//				msgDispatcher(event);
+				requestServerUtil.addRequest(event);
+			}
+
+			private function contextMenu_menuSelect(evt:ContextMenuEvent):void
+			{
+				moDataGrid.selectedIndex = lastRollOverIndex;
+			}
+		]]>
+	</fx:Script>
+	<s:Group width="100%">
+		<s:Button click="button1_clickHandler(event)"
+				  label="{label}"
+				  width="100%"/>
+		<s:Group width="20"
+				 height="20">
+			<mx:Image source="{circle}"
+					  width="100%"
+					  height="100%"/>
+			<s:Label text="{serialNum}"
+					 textAlign="center"
+					 verticalAlign="middle"
+					 width="100%"
+					 height="100%"/>
+		</s:Group>
+	</s:Group>
+	<mx:AdvancedDataGrid id="moDataGrid"
+						 width="100%"
+						 height="100%"
+						 horizontalScrollPolicy="auto"
+						 visible="false"
+						 includeInLayout="false"
+						 styleName="sceneDG"
+						 verticalAlign="middle">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn headerText=""
+									   headerRenderer="com.linkage.module.cms.gsscene.view.components.renderer.CheckBoxSelectHeaderRenderer"
+									   itemRenderer="com.linkage.module.cms.gsscene.view.components.renderer.CheckBoxSelectedRenderer"
+									   width="80"/>
+			<mx:AdvancedDataGridColumn dataField="moTypeName"
+									   headerText="网元类型"
+									   width="100"/>
+			<mx:AdvancedDataGridColumn dataField="moName"
+									   headerText="网元"
+									   width="250"/>
+			<mx:AdvancedDataGridColumn dataField="beginTime"
+									   headerText="开始时间"
+									   width="200"/>
+			<mx:AdvancedDataGridColumn dataField="gatherTime"
+									   headerText="采集时间"
+									   width="200"/>
+			<mx:AdvancedDataGridColumn dataField="value"
+									   headerText="指标值"
+									   width="80"/>
+			<mx:AdvancedDataGridColumn dataField="threshold"
+									   headerText="阈值"
+									   width="150"/>
+			<mx:AdvancedDataGridColumn dataField="warnLevel"
+									   headerText="劣化级别"
+									   width="100"/>
+			<mx:AdvancedDataGridColumn dataField="numerator"
+									   headerText="分子"
+									   width="80"/>
+			<mx:AdvancedDataGridColumn dataField="denominator"
+									   headerText="分母"
+									   width="80"/>
+			<mx:AdvancedDataGridColumn dataField="calcute"
+									   headerText="算法"
+									   dataTipField="calcute"
+									   width="250"/>
+			<mx:AdvancedDataGridColumn dataField="cityName"
+									   headerText="地市"
+									   width="120"/>
+			<mx:AdvancedDataGridColumn dataField="areaName"
+									   headerText="区域"
+									   width="250"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</s:VGroup>

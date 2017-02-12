@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         initialize="group1_initializeHandler(event)"
+         creationComplete="init();loadSceneTypeList();loadSceneInfo();"
+         width="100%"
+         height="100%">
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.utils.ExcelUtil;
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.module.cms.gsscenecfg.dao.SceneDAO;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.collections.Sort;
+            import mx.collections.SortField;
+            import mx.events.FlexEvent;
+            import mx.managers.PopUpManager;
+            import mx.rpc.events.FaultEvent;
+
+            import spark.events.IndexChangeEvent;
+            import spark.events.TextOperationEvent;
+
+            [Embed(source = '../img/sort.png')]
+            private var sortImg:Class;
+
+            [Embed(source = '../img/new.png')]
+            private var newImg:Class;
+
+            [Embed(source = '../img/export.png')]
+            private var exportImg:Class;
+
+            [Embed(source = '../img/search.png')]
+            private var searchImg:Class;
+
+            public var context:String;
+
+            private var lm:LoadManager;
+
+            [Bindable]
+            public var sceneTypeList:ArrayCollection = new ArrayCollection;
+
+            private var sceneDao:SceneDAO;
+
+            private var allViewCache:Object = new Object;
+            private var sceneList:ArrayCollection = new ArrayCollection;
+
+            private var sdv:SceneDetailView;
+
+            private function init():void
+            {
+                sdv = new SceneDetailView;
+                sdv.context = context;
+                sdv.refreshCallBack = loadSceneInfo;
+            }
+
+            protected function loadSceneTypeList():void
+            {
+                sceneDao.getSceneType(
+                    function(data:Object):void
+                    {
+                        sceneTypeList.removeAll();
+                        sceneTypeList.addAll(data as IList);
+
+                        sceneTypeDDP.selectedIndex = 0;
+                    });
+            }
+
+            private function loadSceneInfo():void
+            {
+                lm.showLoading();
+
+                sceneDao.getSceneGeneralInfo(
+                    function(data:Object):void
+                    {
+                        sceneList.removeAll();
+                        sceneList.addAll(data as IList);
+
+                        showSceneInfo(data as IList);
+
+                        lm.hideLoading();
+                    });
+            }
+
+            private function showSceneInfo(datas:IList):void
+            {
+                sceneListGroup.removeAllElements();
+                allViewCache = {};
+
+                for each (var data:Object in datas)
+                {
+                    var generalView:SceneGeneralView = new SceneGeneralView;
+                    generalView.data = data;
+                    generalView.context = context;
+                    generalView.tp = this;
+                    generalView.sdv = this.sdv;
+                    generalView.refreshCallBack = loadSceneInfo;
+
+                    if ((data.scenetypename == sceneTypeDDP.selectedItem.scenetypename || sceneTypeDDP.selectedIndex == 0)
+                        && (String(data.scenename).indexOf(sceneNameTextInput.text) >= 0 || sceneNameTextInput.text == "" || sceneNameTextInput.text == "请输入场景名称"))
+                        sceneListGroup.addElement(generalView);
+
+                    allViewCache[data.sceneid] = generalView;
+                }
+            }
+
+            private function filterViews():void
+            {
+                sceneListGroup.removeAllElements();
+
+                for each (var view:SceneGeneralView in allViewCache)
+                    if ((view.data.scenetypename == sceneTypeDDP.selectedItem.scenetypename || sceneTypeDDP.selectedIndex == 0)
+                        && (String(view.data.scenename).indexOf(sceneNameTextInput.text) >= 0 || sceneNameTextInput.text == "" || sceneNameTextInput.text == "请输入场景名称"))
+                        sceneListGroup.addElement(view);
+            }
+
+            protected function group1_initializeHandler(event:FlexEvent):void
+            {
+                sceneDao = SceneDAO.getInstance();
+
+                lm = new LoadManager(this);
+            }
+
+            protected function resetPrompt():void
+            {
+                if (sceneNameTextInput.text == "")
+                    sceneNameTextInput.text = "请输入场景名称";
+            }
+
+            protected function showAddSceneViewWin():void
+            {
+                sdv.width = this.width;
+                sdv.height = this.height;
+                sdv.editData = null;
+
+                if (sdv.ready)
+                    sdv.init();
+
+                PopUpManager.addPopUp(sdv, this, true);
+                PopUpManager.centerPopUp(sdv);
+
+            }
+
+            protected function exportList2Excel():void
+            {
+                var headArray:Array = new Array;
+                headArray.push({"id": "scenename", "name": "场景名称"});
+                headArray.push({"id": "scenetypename", "name": "场景类型"});
+                headArray.push({"id": "num", "name": "区域个数"});
+                headArray.push({"id": "starttime", "name": "创建时间"});
+                headArray.push({"id": "creator", "name": "创建人"});
+                headArray.push({"id": "scenepic", "name": "图片url"});
+
+                ExcelUtil.exportSimpleExcel("场景列表", headArray, sceneList);
+            }
+
+            protected function sortViews():void
+            {
+                var sort:Sort = new Sort;
+                sort.fields = [new SortField("scenetypename"), new SortField("scenename")];
+                sceneList.sort = sort;
+                sceneList.refresh();
+
+                sceneListGroup.removeAllElements();
+
+                for each (var d:Object in sceneList)
+                    sceneListGroup.addElement(allViewCache[d.sceneid]);
+            }
+
+            protected function sceneNameTextInput_keyUpHandler(event:KeyboardEvent):void
+            {
+                if (event.keyCode == 13)
+                    loadSceneInfo();
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:Scroller top="50"
+                width="100%"
+                height="100%"
+                verticalScrollPolicy="auto">
+        <s:HGroup width="100%"
+                  height="100%"
+                  horizontalAlign="center"
+                  verticalAlign="top">
+            <s:TileGroup id="sceneListGroup"
+                         requestedColumnCount="5"
+                         orientation="rows"
+                         verticalAlign="top"/>
+        </s:HGroup>
+    </s:Scroller>
+
+    <s:HGroup left="10"
+              top="10">
+        <s:DropDownList id="sceneTypeDDP"
+                        width="140"
+                        labelField="scenetypename"
+                        change="filterViews()"
+                        dataProvider="{sceneTypeList}"/>
+        <s:HGroup gap="0">
+            <s:TextInput id="sceneNameTextInput"
+                         fontWeight="bold"
+                         text="请输入场景名称"
+                         keyUp="sceneNameTextInput_keyUpHandler(event)"
+                         focusIn="{sceneNameTextInput.selectAll();}"
+                         focusOut="resetPrompt()"/>
+            <mx:Button icon="{searchImg}"
+                       width="25"
+                       click="loadSceneInfo()"/>
+        </s:HGroup>
+    </s:HGroup>
+
+    <s:HGroup right="10"
+              top="10">
+        <mx:Button icon="{sortImg}"
+                   toolTip="按类型、名称排序"
+                   label="排序"
+                   click="sortViews()"/>
+        <mx:Button icon="{newImg}"
+                   click="showAddSceneViewWin()"
+                   label="新建"/>
+        <mx:Button icon="{exportImg}"
+                   label="导出"
+                   click="exportList2Excel()"/>
+    </s:HGroup>
+</s:Group>

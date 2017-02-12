@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:NavBar xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					location="left"
+					styleName="sceneNavBar"
+					right="0" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2013-2-1
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			[Bindable]
+			public var datas:ArrayCollection;
+			
+			private var log:ILogger=Log.getLoggerByClass(GisHotDGView);
+			
+			[MessageHandler(selector="LOADHOTSPOTCELLDATACOMPLETE")]
+			public function loadHotSpotCellDataCompleteHandler(e:GisHotEvent):void
+			{
+//				closeMe();
+			}
+			
+			[MessageHandler(selector="LOADGISINFODATACOMPLETE")]
+			public function loadGisInfoDataCompleteHandler(e:GisHotEvent):void
+			{
+				closeMe();
+			}
+			
+			private function closeMe():void{
+				if(this.content.visible){
+					this.titleGroup.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<s:Scroller left="5" top="5" bottom="10" width="375" minHeight="180" maxHeight="500" styleName="sceneScroller">
+		<s:DataGroup width="100%" height="100%" dataProvider="{datas}"
+					 itemRenderer="com.linkage.module.cms.oneline.view.components.wireless.renderer.GisHotKpiItemRenderer">
+			<s:layout>
+				<s:VerticalLayout gap="1"/>
+			</s:layout>
+		</s:DataGroup>
+	</s:Scroller>
+</ailk_compts:NavBar>

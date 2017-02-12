@@ -1,0 +1,1080 @@
+<viewnew:PopUpCompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:components="com.linkage.module.cms.gsscene.view.components.kpisituation.components.*"
+					xmlns:kpicomponents="com.linkage.module.cms.gsscene.view.components.kpiandthreshold.*"
+					title="阈值配置"
+					width="740"
+					height="410" creationComplete="popupcompwindow_creationCompleteHandler(event)">
+		<fx:Declarations>
+			<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		</fx:Declarations>
+		<fx:Script>
+			<![CDATA[
+				import com.ailk.common.system.logging.ILogger;
+				import com.ailk.common.system.logging.Log;
+				import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+				import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+				import com.linkage.module.cms.gsscene.view.components.common.components.CheckBoxComp;
+				import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+				import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+				import com.linkage.module.cms.gsscene.view.components.emgyresource.components.EmgyHeaderCheckRenderer;
+				import com.linkage.module.cms.gsscene.view.components.kpiandthreshold.event.KpiAndThresholdEvent;
+				import com.linkage.module.cms.gsscene.view.components.kpisituation.KPISituationPM;
+				import com.linkage.module.cms.gsscene.view.components.kpisituation.components.ThresholdConfigComp;
+				import com.linkage.module.cms.gsscene.view.components.kpisituation.event.KPISituationEvent;
+				import com.linkage.module.cms.gsscene.view.components.sceneintro.SceneIntroPM;
+				
+				import mx.collections.ArrayCollection;
+				import mx.controls.Alert;
+				import mx.events.CloseEvent;
+				import mx.events.FlexEvent;
+				import mx.events.ListEvent;
+				import mx.managers.PopUpManager;
+				
+				import spark.events.IndexChangeEvent;
+				
+				[Inject("user")]
+				public var user:IUser;
+				[Inject("requestServerUtil")]
+				public var requestServerUtil:RequestServerUtil;
+				
+				[Inject("kPISituationPM")]
+				[Bindable]
+				public var kpiSituationPM:KPISituationPM;
+				
+				[MessageDispatcher]
+				public var dispatcher:Function;
+				
+				private var log:ILogger = Log.getLoggerByClass(ThresholdConfigWin);
+				private var _otherTabArray:ArrayCollection = new ArrayCollection([{"id":1,"name":"业务规模"},{"id":2,"name":"网络质量"}]);
+//				private var _LTETabArray:ArrayCollection = new ArrayCollection([{"id":4,"name":"CSFB监控"},{"id":5,"name":"指标同比"}]);
+				private var _LTETabArray:ArrayCollection = new ArrayCollection([{"id":5,"name":"指标同比"}]);
+				[Bindable]
+				private var _tabArray:ArrayCollection = new ArrayCollection();
+				//临时存储配置指标对象
+				private var khgzsavaArr:ArrayCollection = new ArrayCollection();
+				protected function kpiThresholdTabBar_changeHandler(event:IndexChangeEvent):void
+				{
+					//重置指标阈值名称
+					khgzthresholdName.text = "";
+					
+					var isSelectParam:Object = {};
+					var noSelectParam:Object = {};
+					isSelectParam.isSelected = 1;
+					noSelectParam.isSelected = 0;
+					log.debug("切换tabbar event.newIndex ==" + event.newIndex);
+					khgzsavaArr.removeAll();
+					khgzsavaArr.refresh();
+					user.configPerfClass = kpiThresholdTabBar.selectedItem.id;
+					isSelectParam.perfClass = kpiThresholdTabBar.selectedItem.id;
+					noSelectParam.perfClass = kpiThresholdTabBar.selectedItem.id;
+					kpiSituationPM.queryKpiIsSelect(isSelectParam);
+					kpiSituationPM.queryKpiNoSelect(noSelectParam);
+				}
+				
+				protected function khgzselectToCancel_clickHandler(event:MouseEvent):void
+				{
+					if (this.khgzisSelectKpiDataGrid.selectedIndex == -1)
+					{
+						return;
+					}
+					var isSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList;
+					var noSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList;
+					var selectIndex:int = this.khgzisSelectKpiDataGrid.selectedIndex;
+					var obj:Object = isSelectDataList.getItemAt(selectIndex);
+					//添加指标到临时保存对象中，添加删除状态标志
+					obj.operateType = "delete";
+					khgzsavaArr.addItem(obj);
+					khgzsavaArr.refresh();
+					log.debug(khgzsavaArr);
+					//添加到未选择指标中，从已经选择指标列表中删除
+					noSelectDataList.addItem(obj);
+					isSelectDataList.removeItemAt(selectIndex);
+					isSelectDataList.refresh();
+					noSelectDataList.refresh();
+				}
+				protected function khgzselectToOk_clickHandler(event:MouseEvent):void
+				{
+					if (this.kugznoSelectKpiDataGrid.selectedIndex == -1)
+					{
+						return;
+					}
+					var isSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList;
+					var noSelectDataList:ArrayCollection = kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList;
+					var selectIndex:int = this.kugznoSelectKpiDataGrid.selectedIndex;
+					var obj:Object = noSelectDataList.getItemAt(selectIndex);
+					//暂存到保存对象 中
+					obj.operateType = "add";
+					khgzsavaArr.addItem(obj);
+					khgzsavaArr.refresh();
+					log.debug(khgzsavaArr);
+					//添加到已选择列表，从未选择列表删除
+					isSelectDataList.addItem(obj);
+					noSelectDataList.removeItemAt(selectIndex);
+					isSelectDataList.refresh();
+					noSelectDataList.refresh();
+				}
+				private var khgzthresholdIsBtsDispatch:Boolean = false; //判断当前是否基站也派单
+				protected function khgzisSelectKpiDataGrid_itemClickHandler(event:ListEvent):void
+				{
+					var kpiName:String = khgzisSelectKpiDataGrid.selectedItem['showName'];
+					this.khgzthresholdName.text = kpiName;
+					var param:Object = new Object;
+					param.resId = user.sceneId;
+					param.resType = user.level;
+					param.kpiId = khgzisSelectKpiDataGrid.selectedItem['kpiId'];
+					param.moTypeId = khgzisSelectKpiDataGrid.selectedItem['moTypeId'];
+					param.sceneId = user.initSceneId;
+					param.cityId = user.cityId;
+					this.kpiSituationPM.queryThreshold(param);
+					
+					//判断当前选中的指标是否是cell，如果是的话，多出现个checkbox hrw
+					if (param.moTypeId == "101" || param.moTypeId == "102")
+					{
+						khgzthresholdIsBtsDispatch = true;
+					}
+					else
+					{
+						khgzthresholdIsBtsDispatch = false;
+					}
+					
+					log.info("khgzthresholdIsBtsDispatch::{0}，{1}", khgzthresholdIsBtsDispatch, param.moTypeId);
+				}
+				/**
+				 * 移到最上
+				 */
+				protected function selectFirst_clickHandler(event:MouseEvent):void
+				{
+					var item:Object = null;
+					var selectIndex:int;
+					
+					item = khgzisSelectKpiDataGrid.selectedItem;
+					selectIndex = khgzisSelectKpiDataGrid.selectedIndex;
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, 0);
+					khgzisSelectKpiDataGrid.selectedItem = item;
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+				}
+				
+				/**
+				 * 移到最下
+				 */
+				protected function selectEnd_clickHandler(event:MouseEvent):void
+				{
+					var item:Object = null;
+					var selectIndex:int;
+					
+					item = khgzisSelectKpiDataGrid.selectedItem;
+					selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).length);
+					khgzisSelectKpiDataGrid.selectedItem = item;
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+				}
+				
+				/**
+				 * 记录上移
+				 */
+				protected function selectUp_clickHandler(event:MouseEvent):void
+				{
+					var item:Object = null;
+					var selectIndex:int;
+					item = khgzisSelectKpiDataGrid.selectedItem;
+					selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex - 1);
+					khgzisSelectKpiDataGrid.selectedItem = item;
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+				}
+				
+				/**
+				 * 记录下移
+				 */
+				protected function selectDown_clickHandler(event:MouseEvent):void
+				{
+					var item:Object = null;
+					var selectIndex:int;
+					item = khgzisSelectKpiDataGrid.selectedItem;
+					selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex + 1);
+					khgzisSelectKpiDataGrid.selectedItem = item;
+					(khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+				}
+				protected function khgzThresholdSave_clickHandler(event:MouseEvent):void
+				{
+					var param:Object = new Object;
+					param.sceneId = user.sceneId;
+					param.configPerfClass = user.configPerfClass;
+					param.datas = khgzsavaArr;
+					param.perforder = this.khgzisSelectKpiDataGrid.dataProvider as ArrayCollection;
+					log.debug(khgzsavaArr);
+					this.kpiSituationPM.saveConfigKpi(param);
+				}
+				private var sharKpiTmep:Object = new Object;
+				protected function khgzThresholdShare_clickHandler(event:MouseEvent):void
+				{
+					if (khgzisSelectKpiDataGrid.selectedIndex == -1)
+					{
+						Alert.show("请选择指标", "提示");
+						return;
+					}
+					sharKpiTmep.level = user.level;
+					sharKpiTmep.sceneId = user.initSceneId;
+					sharKpiTmep.isShare = 1;
+					kpiSituationPM.getShareSceneList1(sharKpiTmep);
+					PopUpManager.addPopUp(shareSceneWindow, this.parent as DisplayObject);
+					shareSceneWindow.x = 500;
+					shareSceneWindow.y = 50;
+					shareSceneWindow.width = 350;
+					shareSceneWindow.height = 320;
+					log.debug("加载全选");
+					isUsedColumn.headerRenderer = new ClassFactory(EmgyHeaderCheckRenderer);
+					log.debug("加载全选完成");
+				}
+				[MessageHandler(selector = "CMS_SCENE_KPISITUATION_SAVE_RESULT")]
+				public function saveResult(event:KPISituationEvent):void
+				{
+					
+					log.debug("保存结果：" + event.param.resultInfo);
+					
+					if (event.param.resultInfo == "success")
+					{
+						Alert.show("保存成功", "提示");
+						khgzsavaArr.removeAll();
+						//重新调用指标概况展示
+						dispatcher(new SceneEvent("KPISITUATION_REFRESH_DATA"));
+					}
+					else
+					{
+						Alert.show("保存失败", "提示");
+					}
+				}
+				
+				[MessageHandler(selector = "CMS_SCENE_KPISITUATION_SHOW_THRESHOLD_INIT")]
+				public function initThresholdInfo(event:KPISituationEvent):void
+				{
+					log.debug("开始初始化阈值配置....");
+					log.debug(kpiSituationPM.kpiSituationDM.queryThresholdList);
+					log.debug(user.configPerfClass);
+					khgzthresholdConfigGroup.removeAllElements();
+					
+					if (kpiSituationPM.kpiSituationDM.queryThresholdList.length == 0)
+					{
+						var comp:ThresholdConfigComp = new ThresholdConfigComp;
+						log.info("khgzthresholdIsBtsDispatch::{0}", khgzthresholdIsBtsDispatch);
+						
+						if (khgzthresholdIsBtsDispatch)
+						{
+							comp.isBtsDispatch.visible = true;
+							comp.isBtsDispatch.includeInLayout = true;
+						}
+						khgzthresholdConfigGroup.addElement(comp);
+					}
+					else
+					{
+						for each (var obj:Object in kpiSituationPM.kpiSituationDM.queryThresholdList)
+						{
+							var comp:ThresholdConfigComp = new ThresholdConfigComp;
+							
+							if (khgzthresholdIsBtsDispatch)
+							{
+								comp.isBtsDispatch.visible = true;
+								comp.isBtsDispatch.includeInLayout = true;
+								
+								if (obj.isBtsDispatch == "1")
+								{
+									comp.isBtsDispatch.selected = true;
+								}
+								else
+								{
+									comp.isBtsDispatch.selected = false;
+								}
+							}
+							comp.thresholdDown.text = obj.down;
+							comp.thresholdUp.text = obj.up;
+							comp.data = obj;
+							
+							
+							for each (var aobj:Object in comp.isAlarmList)
+							{
+								if (aobj.alarmId == obj.isAlarm)
+								{
+									log.debug("是否告警：" + obj.isAlarm);
+									comp.isAlarmDownList.selectedItem = aobj;
+									
+									break;
+								}
+							}
+							
+							for each (var bobj:Object in comp.isDispatchList)
+							{
+								if (bobj.dispatchId == obj.isDispatch)
+								{
+									log.debug("是否派单：" + obj.isDispatch);
+									comp.isDispatchDownList.selectedItem = bobj;
+									break;
+								}
+							}
+							
+							for each (var cobj:Object in comp.colorList)
+							{
+								if (cobj.key == obj.rendingColor)
+								{
+									log.debug("渲染颜色：" + obj.rendingColor);
+									comp.colorsel.selectedItem = cobj;
+									break;
+								}
+							}
+							
+							for each (var dobj:Object in comp.alarmLevelList)
+							{
+								if (dobj.alarmLevelId == obj.warningLevel)
+								{
+									log.debug("告警级别：" + obj.warningLevel);
+									comp.alarmLevelDownList.selectedItem = dobj;
+									comp.alarmLevelcolor.selectedColor = dobj.color;
+									break;
+								}
+							}
+							
+							if (obj.isAlarm == "1")
+							{
+								comp.kpicolorlabel.visible = false;
+								comp.kpicolorlabel.includeInLayout = false;
+								comp.colorsel.visible = false;
+								comp.colorsel.includeInLayout = false;
+								
+								comp.alarmLevelLabel.visible = true;
+								comp.alarmLevelLabel.includeInLayout = true;
+								comp.alarmLevelDownList.visible = true;
+								comp.alarmLevelDownList.includeInLayout = true;
+								comp.alarmLevelcolor.visible = true;
+								comp.alarmLevelcolor.includeInLayout = true;
+							}
+							
+							if (obj.isAlarm == "0")
+							{
+								
+								comp.kpicolorlabel.visible = true;
+								comp.kpicolorlabel.includeInLayout = true;
+								comp.colorsel.visible = true;
+								comp.colorsel.includeInLayout = true;
+								comp.alarmLevelLabel.visible = false;
+								comp.alarmLevelLabel.includeInLayout = false;
+								comp.alarmLevelDownList.visible = false;
+								comp.alarmLevelDownList.includeInLayout = false;
+								comp.alarmLevelcolor.visible = false;
+								comp.alarmLevelcolor.includeInLayout = false;
+							}
+							khgzthresholdConfigGroup.addElement(comp);
+						}
+					}
+				}
+				protected function khgzbutton3_clickHandler(event:MouseEvent):void
+				{
+					var tcf:ThresholdConfigComp = new ThresholdConfigComp;
+					
+					if (khgzthresholdIsBtsDispatch)
+					{
+						tcf.isBtsDispatch.visible = true;
+						tcf.isBtsDispatch.includeInLayout = true;
+					}
+					
+					khgzthresholdConfigGroup.addElement(tcf);
+				}
+				protected function khgzbutton4_clickHandler(event:MouseEvent):void
+				{
+					log.debug("khgzthresholdConfigGroup.numElements=" + khgzthresholdConfigGroup.numElements);
+					
+					if (khgzthresholdConfigGroup.numElements > 1)
+					{
+						khgzthresholdConfigGroup.removeElementAt(khgzthresholdConfigGroup.numElements - 1);
+					}
+				}
+				protected function khgzbutton5_clickHandler(event:MouseEvent):void
+				{
+					if (khgzisSelectKpiDataGrid.selectedIndex == -1)
+					{
+						Alert.show("请选择指标", "提示");
+						return;
+					}
+					
+					var tcc:ThresholdConfigComp;
+					
+					for (var i:int = 0; i < khgzthresholdConfigGroup.numElements; i++)
+					{
+						tcc = khgzthresholdConfigGroup.getElementAt(i) as ThresholdConfigComp;
+						
+						if (tcc.thresholdDown.text == "" && tcc.thresholdUp.text == "")
+						{
+							Alert.show("第" + (i + 1) + "个上限阈值和下限阈值不能同时为空！", "错误");
+							return;
+						}else{
+							var threshldDown:String = tcc.thresholdDown.text;
+							var threshldUp:String = tcc.thresholdUp.text;
+							if(threshldDown.indexOf(".")>0&&threshldDown.substr(threshldDown.indexOf(".")).length>3){
+								Alert.show("第" + (i + 1) + "个下限阈值小数点后限制为两位！", "错误");
+								return;
+							}
+							if(threshldUp.indexOf(".")>0&&threshldUp.substr(threshldUp.indexOf(".")).length>3){
+								Alert.show("第" + (i + 1) + "个上限阈值小数点后限制为两位！", "错误");
+								return;
+							}
+						}
+					}
+					
+					sharKpiTmep.level = user.level;
+					sharKpiTmep.sceneId = user.initSceneId;
+					sharKpiTmep.isShare = 0;
+					kpiSituationPM.getShareSceneList(sharKpiTmep);
+					PopUpManager.addPopUp(sceneGradingWindow, this.parent as DisplayObject);
+					sceneGradingWindow.x = 300;
+					sceneGradingWindow.y = 5;
+					sceneGradingWindow.width = 740;
+					sceneGradingWindow.height = 400;
+					areaGroup.removeAllElements();
+					grandingScene.selected = grandingArea.selected = grandingUnit.selected = false;
+					areaGroup.visible = areaGroup.includeInLayout = false;
+					sceneGradingWindow.includeInLayout = true;
+					sceneGradingWindow.visible = true;
+				}
+				
+				protected function button3_clickHandler(event:MouseEvent):void
+				{
+					var saveParam:ArrayCollection = this.kpiSituationPM.kpiSituationDM.shareSceneList;
+					Alert.show("是否覆盖已经配置的场景阈值？", "提示", Alert.YES | Alert.NO, null, function(event:CloseEvent):void
+					{
+						var obj:Object = new Object;
+						obj.level = user.level;
+						obj.sceneId = user.initSceneId;
+						obj.cityId = user.cityId;
+						
+						var temparr:ArrayCollection = new ArrayCollection;
+						
+						for each (var ttt:Object in saveParam)
+						{
+							if (ttt.isUsed == 1)
+							{
+								temparr.addItem(ttt);
+							}
+						}
+						
+						obj.kpiId = khgzisSelectKpiDataGrid.selectedItem['kpiId'];
+						obj.moTypeId = khgzisSelectKpiDataGrid.selectedItem['moTypeId'];
+						
+						obj.shareSceneId = temparr;
+						if (event.detail == Alert.YES)
+						{
+							log.debug("覆盖操作...");
+							obj.isCover = 1;
+							log.debug(obj);
+						}
+						else if (event.detail == Alert.NO)
+						{
+							log.debug("不覆盖操作...");
+							obj.isCover = 0;
+							log.debug(obj);
+						}
+						kpiSituationPM.saveShareScene(obj);
+					});
+				}
+				
+				protected function label1_clickHandler(event:MouseEvent):void
+				{
+					// TODO Auto-generated method stub
+					PopUpManager.addPopUp(thresdQuery, this.parent as DisplayObject);
+					thresdQuery.x = 200;
+					thresdQuery.y = 10;
+					thresdQuery.visible = true;
+					var p:Object = new Object;
+					p.perfClass = kpiThresholdTabBar.selectedItem.id;
+					var e:KpiAndThresholdEvent=new KpiAndThresholdEvent(KpiAndThresholdEvent.LOAD_KPIANDTHRESHOLD_DATA);
+					e.param=p;
+					requestServerUtil.addRequest(e);
+//					kpiAndThreshold.kpiAndThresholdPM.loadData(p);
+				}
+				
+				//阈值批量导出
+				protected function image4_clickHandler(event:MouseEvent):void
+				{
+					var url:String = user.context + "scene/panels/exportThresholdAction!exportThreshold.action?sceneId=" + user.sceneId + "&cityId=" + user.cityId + "&level=" + user.level + "&initSceneId=" + user.initSceneId;
+					navigateToURL(new URLRequest(url));
+				}
+				protected function image5_clickHandler(event:MouseEvent):void
+				{
+					log.debug("下载模板...");
+					navigateToURL(new URLRequest(user.context + "cms/scene/template/threshold_template.xls"));
+				}
+				
+				protected function image6_clickHandler(event:MouseEvent):void
+				{
+					log.debug("阈值导入...");
+					this.kpiSituationPM.importDatas();
+					
+				}
+				
+				//阈值区域选中事件
+				protected function grandingArea_changeHandler(event:Event):void
+				{
+					areaGroup.visible = areaGroup.includeInLayout = grandingArea.selected;
+					
+					for (var tt:int = 0; tt < areaGroup.numElements; tt++)
+					{
+						var cbt:CheckBoxComp = areaGroup.getElementAt(tt) as CheckBoxComp;
+						cbt.selected = grandingArea.selected;
+					}
+					
+				}
+				//阈值保存
+				private var param:Object = new Object;
+				private var areaArr:String = "";
+				private var cityArr:String = "";
+				[MessageHandler(selector = "CMS_SCENE_KPISITUATION_CONFIG_SAVE_RESULT")]
+				public function configsaveResult(event:KPISituationEvent):void
+				{
+					areaArr = "";
+					cityArr = "";
+					log.debug("保存结果：" + event.param.resultInfo);
+					
+					if (event.param.resultInfo == "success")
+					{
+						Alert.show("保存成功", "提示");
+						PopUpManager.removePopUp(sceneGradingWindow);
+						//重新调用指标概况展示
+						dispatcher(new SceneEvent("KPISITUATION_REFRESH_DATA"));
+						
+					}
+					else
+					{
+						Alert.show("保存失败", "提示");
+					}
+				}
+				protected function button4_clickHandler(event:MouseEvent):void
+				{
+					log.debug("配置阈值保存..");
+					
+					
+					//循环装载已经选择的区域ID
+					for (var tt:int = 0; tt < areaGroup.numElements; tt++)
+					{
+						var cbt:CheckBoxComp = areaGroup.getElementAt(tt) as CheckBoxComp;
+						
+						if (cbt.selected)
+						{
+							areaArr = areaArr + cbt.areaId + "#";
+							cityArr = cityArr + cbt.cityId + "#";
+						}
+					}
+					areaArr = areaArr.substr(0, areaArr.length - 1);
+					cityArr = cityArr.substr(0, cityArr.length - 1);
+					param.areaId = areaArr;
+					param.cityId = cityArr;
+					log.debug(areaArr);
+					log.debug(cityArr);
+					
+					if (user.configPerfClass == 1)
+					{
+						if (khgzisSelectKpiDataGrid.selectedIndex == -1)
+						{
+							Alert.show("请选择指标", "提示");
+							return;
+						}
+						param.sceneId = user.sceneId;
+						param.sceneFlag = grandingScene.selected == true ? 1 : 0;
+						param.areaFlag = grandingArea.selected == true ? 1 : 0;
+						param.moTypeFlag = grandingUnit.selected == true ? 1 : 0;
+						param.moTypeId = khgzisSelectKpiDataGrid.selectedItem['moTypeId'];
+						param.kpiId = khgzisSelectKpiDataGrid.selectedItem['kpiId'];
+						log.debug(param);
+						var saveThresConfigArr:ArrayCollection = new ArrayCollection;
+						saveThresConfigArr.removeAll();
+						
+						for (var i:int = 0; i < khgzthresholdConfigGroup.numElements; i++)
+						{
+							var trc:ThresholdConfigComp = khgzthresholdConfigGroup.getElementAt(i) as ThresholdConfigComp;
+							var obj:Object = new Object;
+							obj.indexId = i + 1;
+							obj.up = trc.thresholdUp.text;
+							obj.down = trc.thresholdDown.text;
+							if(trc.isAlarmDownList.selectedItem['alarmId']){
+								obj.isAlarm = trc.isAlarmDownList.selectedItem['alarmId'];
+							}
+							if(trc.alarmLevelDownList.selectedItem['alarmLevelId']){
+								obj.warningLevel = trc.alarmLevelDownList.selectedItem['alarmLevelId'];
+							}
+							if(trc.colorsel.selectedItem['key']){
+								obj.rendingColor = trc.colorsel.selectedItem['key'];
+							}
+							if(trc.isDispatchDownList.selectedItem['dispatchId']){
+								obj.isDispatch = trc.isDispatchDownList.selectedItem['dispatchId'];
+							}
+							
+							
+							if(trc.data && trc.data.watch_time && trc.data.alarm_watch_time){
+								obj.watch_time = trc.data.watch_time;
+								obj.alarm_watch_time = trc.data.alarm_watch_time;
+							}
+							
+							
+							/* 
+							if(trc.watchTimeAlarm.text == "" || trc.watchTimeAlarm.text == null){
+								obj.watchTimeAlarm = 60;
+							}else{
+								obj.watchTimeAlarm = trc.watchTimeAlarm.text;
+							} */
+							
+							/* if(trc.watchTimeClear.text == "" || trc.watchTimeClear.text == null){
+								
+								obj.watchTimeClear = 60;
+							}else{
+								obj.watchTimeClear = trc.watchTimeClear.text;
+							} */
+							if (trc.isBtsDispatch.visible == true)
+							{
+								if (trc.isBtsDispatch.selected)
+									obj.isBtsDispatch = "1";
+								else
+									obj.isBtsDispatch = "0";
+							}
+							
+							if (obj.isAlarm == "1")
+							{
+								if (obj.warningLevel == "1")
+								{
+									obj.rendingColor = "0xFF0000";
+								}
+								
+								if (obj.warningLevel == "2")
+								{
+									obj.rendingColor = "0XEE9800";
+								}
+								
+								if (obj.warningLevel == "3")
+								{
+									obj.rendingColor = "0XFED701";
+								}
+								
+								if (obj.warningLevel == "4")
+								{
+									obj.rendingColor = "0X4169E1";
+								}
+							}
+							
+							if (obj.isAlarm == "0")
+							{
+								if (obj.rendingColor == "0xFF0000")
+								{
+									obj.warningLevel = "1";
+								}
+								
+								if (obj.rendingColor == "0XEE9800")
+								{
+									obj.warningLevel = "2";
+								}
+								
+								if (obj.rendingColor == "0XFED701")
+								{
+									obj.warningLevel = "3";
+								}
+								
+								if (obj.rendingColor == "0X4169E1")
+								{
+									obj.warningLevel = "4";
+								}
+							}
+							log.debug(user);
+							obj.userName = user.account;
+							saveThresConfigArr.addItem(obj);
+						}
+						saveThresConfigArr.refresh();
+						param.datas = saveThresConfigArr;
+						log.debug("保存结果...");
+						log.debug(param);
+						this.kpiSituationPM.thresholdConfig(param);
+					}
+					
+				}
+				
+				[MessageHandler(selector = "CMS_SCENE_KPISITUATION_SHOW_AREA_SELECT_LIST")]
+				public function showAreaSelectList(event:KPISituationEvent):void
+				{
+					log.debug("展示区域指标列表信息....");
+					
+					for each (var obj:Object in kpiSituationPM.kpiSituationDM.shareSceneList)
+					{
+						var cb:CheckBoxComp = new CheckBoxComp();
+						cb.label = obj.areaName;
+						cb.areaId = obj.areaId;
+						cb.cityId = obj.cityId;
+						cb.selected = false;
+						areaGroup.addElement(cb);
+					}
+				}
+				
+				[MessageHandler(selector = "CMS_SCENE_KPISITUATION_SHOW_SHARE_SCENE_SAVE_RESULT")]
+				public function shareSceneResult(event:KPISituationEvent):void
+				{
+					log.debug("保存结果：" + event.param.resultInfo);
+					
+					if (event.param.resultInfo == "success")
+					{
+						Alert.show("保存成功", "提示");
+					}
+					else
+					{
+						Alert.show("保存失败", "提示");
+					}
+				}
+				
+				protected function popupcompwindow_creationCompleteHandler(event:FlexEvent):void
+				{
+					// TODO Auto-generated method stub
+					if(_tabArray.length<=0){
+						switch(user.logicalType){
+							case "2"://LTE
+								_tabArray.addAll(_LTETabArray);
+								break;
+							default:
+								_tabArray.addAll(_otherTabArray);
+								break;
+						}
+					}
+					var isSelectParam:Object = new Object;
+					user.configPerfClass = kpiThresholdTabBar.selectedItem.id;
+					isSelectParam.perfClass = kpiThresholdTabBar.selectedItem.id;
+					isSelectParam.isSelected = 1;
+					
+					var noSelectParam:Object = new Object;
+					noSelectParam.perfClass = kpiThresholdTabBar.selectedItem.id;
+					noSelectParam.isSelected = 0;
+					//				kpiSituationPM.queryKpiIsSelect(isSelectParam);
+					log.debug("[重点指标配置阈值查询指标:]");
+					var e:KPISituationEvent = new KPISituationEvent(KPISituationEvent.CMS_SCENE_KPISITUATION_IS_SELECT);
+					e.param = isSelectParam;
+					requestServerUtil.addRequest(e);
+					var e:KPISituationEvent = new KPISituationEvent(KPISituationEvent.CMS_SCENE_KPISITUATION_NO_SELECT);
+					e.param = noSelectParam;
+					requestServerUtil.addRequest(e);
+				}
+				
+			]]>
+		</fx:Script>
+		<s:VGroup width="100%"
+				  height="100%" gap="0">
+			<s:TabBar id="kpiThresholdTabBar" selectedIndex="0"
+					  styleName="sceneTabBar"  labelField="name" 
+					  width="100%" buttonMode="true"
+					  dataProvider="{_tabArray}"
+					  change="kpiThresholdTabBar_changeHandler(event)"/>
+			<!--<mx:ViewStack id="kpiThresholdViewStack"
+						  creationPolicy="all"
+						  styleName="sceneViewStack"
+						  width="100%"
+						  backgroundAlpha="0">
+				<s:NavigatorContent id="khgzNavi"
+									label="客户感知"
+									width="100%"
+									creationPolicy="all">
+				</s:NavigatorContent>
+				<s:NavigatorContent id="ywxnNavi"
+									label="业务性能"
+									width="100%"
+									creationPolicy="all">
+				</s:NavigatorContent>
+				<s:NavigatorContent id="sbxnNavi"
+									label="设备性能"
+									width="100%"
+									creationPolicy="all">
+				</s:NavigatorContent>
+			</mx:ViewStack>-->
+			<s:Scroller styleName="sceneScroller"
+						height="100%"
+						width="100%"
+						horizontalScrollPolicy="off">
+				<s:VGroup width="100%"
+						  height="100%">
+					<s:HGroup width="100%"
+							  height="200">
+						<ailk_compts:Window title="未选择指标"
+											styleName="window"
+											closable="false"
+											minimizable="false"
+											maximizable="false"
+											width="100%">
+							<mx:AdvancedDataGrid width="100%"
+												 height="100%"
+												 id="kugznoSelectKpiDataGrid"
+												 dataProvider="{kpiSituationPM.kpiSituationDM.kpiConfigNoSelectList}">
+								<mx:columns>
+									<mx:AdvancedDataGridColumn dataField="moTypeName"
+															   headerText="网元类型"/>
+									<mx:AdvancedDataGridColumn dataField="showName"
+															   headerText="指标名称"/>
+								</mx:columns>
+							</mx:AdvancedDataGrid>
+						</ailk_compts:Window>
+						<s:VGroup width="5%"
+								  height="100%"
+								  horizontalAlign="center"
+								  verticalAlign="middle">
+							<s:Button id="khgzselectToCancel"
+									  label="←"
+									  enabled="{this.khgzisSelectKpiDataGrid.selectedIndex==-1?false:true}"
+									  click="khgzselectToCancel_clickHandler(event)"/>
+							<s:Button id="khgzselectToOk"
+									  label="→"
+									  enabled="{this.kugznoSelectKpiDataGrid.selectedIndex==-1?false:true}"
+									  click="khgzselectToOk_clickHandler(event)"/>
+						</s:VGroup>
+						<ailk_compts:Window title="已选择指标"
+											styleName="window"
+											closable="false"
+											minimizable="false"
+											maximizable="false"
+											width="100%">
+							<s:HGroup width="100%"
+									  height="100%">
+								<mx:AdvancedDataGrid width="100%"
+													 height="100%"
+													 id="khgzisSelectKpiDataGrid"
+													 itemClick="khgzisSelectKpiDataGrid_itemClickHandler(event)"
+													 dataProvider="{kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList}">
+									<mx:columns>
+										<mx:AdvancedDataGridColumn dataField="moTypeName"
+																   headerText="网元类型"/>
+										<mx:AdvancedDataGridColumn dataField="showName"
+																   headerText="指标名称"/>
+									</mx:columns>
+								</mx:AdvancedDataGrid>
+								<s:VGroup width="10%"
+										  height="100%"
+										  horizontalAlign="center"
+										  verticalAlign="middle">
+									<s:Button label="︽"
+											  enabled="{khgzisSelectKpiDataGrid.selectedIndex>0}"
+											  id="selectFirst1"
+											  click="selectFirst_clickHandler(event)"/>
+									<s:Button label="↑"
+											  id="selectUp1"
+											  width="50"
+											  enabled="{khgzisSelectKpiDataGrid.selectedIndex>0}"
+											  click="selectUp_clickHandler(event)"/>
+									<s:Button label="↓"
+											  id="selectDown1"
+											  width="50"
+											  enabled="{khgzisSelectKpiDataGrid.selectedIndex>=0 ?(khgzisSelectKpiDataGrid.selectedIndex != (kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList.length-1)):false}"
+											  click="selectDown_clickHandler(event)"/>
+									<s:Button label="︾"
+											  enabled="{khgzisSelectKpiDataGrid.selectedIndex>=0 ?(khgzisSelectKpiDataGrid.selectedIndex != (kpiSituationPM.kpiSituationDM.kpiConfigIsSelectList.length-1)):false}"
+											  id="selectEnd1"
+											  click="selectEnd_clickHandler(event)"/>
+								</s:VGroup>
+							</s:HGroup>
+						</ailk_compts:Window>
+						<s:VGroup>
+							<s:Button label="保存"
+									  id="khgzThresholdSave"
+									  click="khgzThresholdSave_clickHandler(event)"/>
+							<s:Button label="共享"
+									  visible="false"
+									  includeInLayout="false"
+									  id="khgzThresholdShare"
+									  click="khgzThresholdShare_clickHandler(event)"/>
+						</s:VGroup>
+					</s:HGroup>
+					<s:HGroup width="100%"
+							  height="100%">
+						<ailk_compts:Window title="阈值配置"
+											styleName="window"
+											closable="false"
+											minimizable="false"
+											maximizable="false"
+											width="100%">
+							<s:VGroup>
+								<s:HGroup>
+									<s:HGroup horizontalAlign="left"
+											  verticalAlign="middle"
+											  width="50%">
+										<s:Label text="指标名称："/>
+										<s:TextInput id="khgzthresholdName"
+													 editable="false"/>
+									</s:HGroup>
+									<s:HGroup horizontalAlign="right"
+											  verticalAlign="middle"
+											  width="50%">
+										<s:Button label="+"
+												  click="khgzbutton3_clickHandler(event)"/>
+										<s:Button label="-"
+												  click="khgzbutton4_clickHandler(event)"/>
+									</s:HGroup>
+								</s:HGroup>
+								<s:VGroup id="khgzthresholdConfigGroup"
+										  verticalAlign="middle"
+										  horizontalAlign="center">
+									<components:ThresholdConfigComp/>
+								</s:VGroup>
+								<s:HGroup width="100%"
+										  verticalAlign="middle"
+										  horizontalAlign="center">
+									<s:Button label="完成配置"
+											  click="khgzbutton5_clickHandler(event)"/>
+								</s:HGroup>
+							</s:VGroup>
+						</ailk_compts:Window>
+					</s:HGroup>
+				</s:VGroup>
+			</s:Scroller>
+		</s:VGroup>
+		<s:HGroup verticalAlign="middle"
+				  horizontalAlign="center"
+				  right="55"
+				  top="-24">
+			<s:Label text="阈值查看"
+					 buttonMode="true"
+					 click="label1_clickHandler(event)"/>
+			<mx:Image source="@Embed('../../img/u2.png')"
+					  buttonMode="true"
+					  toolTip="模板下载"
+					  click="image5_clickHandler(event)"/>
+			<mx:Image source="@Embed('../../img/icon_import.png')"
+					  buttonMode="true"
+					  toolTip="阈值导入"
+					  click="image6_clickHandler(event)"/>
+			<mx:Image source="@Embed('../../img/icon_export.png')"
+					  buttonMode="true"
+					  toolTip="阈值导出"
+					  click="image4_clickHandler(event)"/>
+		</s:HGroup>
+	<!--阈值共享窗口-->
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="shareSceneWindow"
+							width="100%"
+							height="100%"
+							dragable="true"
+							styleName="windowScene"
+							title="场景共享"
+							minimizable="false"
+							maximizable="false"
+							close="PopUpManager.removePopUp(shareSceneWindow);">
+			<s:VGroup width="100%"
+					  height="100%">
+				<mx:AdvancedDataGrid id="shareSceneDataGrid"
+									 styleName="sceneDG"
+									 verticalAlign="middle"
+									 width="100%"
+									 height="100%"
+									 horizontalScrollPolicy="auto"
+									 textAlign="left"
+									 dataProvider="{kpiSituationPM.kpiSituationDM.shareSceneList}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn id="isUsedColumn"
+												   headerText="   全选">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:CheckBox width="50"
+												 label="是否共享"
+												 selected="{data.isUsed==1?true:false}"
+												 change="checkbox1_changeHandler(event)">
+										<fx:Script>
+											<![CDATA[
+												protected function checkbox1_changeHandler(event:Event):void
+												{
+													data.isUsed = CheckBox(event.target).selected ? 1 : 0;
+												}
+											]]>
+										</fx:Script>
+									</mx:CheckBox>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn dataField="sceneName"
+												   headerText="场景名称"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:HGroup width="100%"
+						  verticalAlign="middle"
+						  horizontalAlign="center">
+					<s:Button label="共享配置"
+							  click="button3_clickHandler(event)"
+							  buttonMode="true"/>
+				</s:HGroup>
+			</s:VGroup>
+			
+		</ailk_compts:Window>
+	</mx:Box>
+	<!--阈值配置场景区域粒度-->
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="sceneGradingWindow"
+							width="100%"
+							height="100%"
+							dragable="true"
+							styleName="windowScene"
+							title="阈值类型"
+							minimizable="false"
+							maximizable="false"
+							close="PopUpManager.removePopUp(sceneGradingWindow);">
+			<s:VGroup width="100%"
+					  height="100%">
+				<s:HGroup width="100%"
+						  height="35"
+						  verticalAlign="middle"
+						  horizontalAlign="center">
+					<s:CheckBox label="场景"
+								id="grandingScene"/>
+					<s:CheckBox label="区域"
+								id="grandingArea"
+								change="grandingArea_changeHandler(event)"/>
+					<s:CheckBox label="网元"
+								id="grandingUnit"/>
+				</s:HGroup>
+				<s:Scroller styleName="sceneScroller"
+							height="100%"
+							width="100%">
+					<s:TileGroup width="100%"
+								 horizontalGap="1"
+								 verticalGap="1"
+								 requestedColumnCount="5"
+								 id="areaGroup"
+								 includeInLayout="false"
+								 visible="false">
+					</s:TileGroup>
+				</s:Scroller>
+				<s:HGroup width="100%"
+						  height="35"
+						  verticalAlign="middle"
+						  horizontalAlign="center">
+					<s:Button label="保存"
+							  click="button4_clickHandler(event)"/>
+				</s:HGroup>
+			</s:VGroup>
+		</ailk_compts:Window>
+	</mx:Box>
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="thresdQuery"
+							title="阈值查看"
+							dragable="true"
+							visible="false"
+							styleName="window"
+							minimizable="false"
+							maximizable="false"
+							close="PopUpManager.removePopUp(thresdQuery);"
+							width="800"
+							height="450">
+			<s:Scroller styleName="sceneScroller"
+						height="100%"
+						width="100%"
+						horizontalScrollPolicy="off">
+				<kpicomponents:KpiAndThreshold width="100%"
+											   height="100%"
+											   id="kpiAndThreshold"/>
+			</s:Scroller>
+		</ailk_compts:Window>
+	</mx:Box>
+	</viewnew:PopUpCompWindow>

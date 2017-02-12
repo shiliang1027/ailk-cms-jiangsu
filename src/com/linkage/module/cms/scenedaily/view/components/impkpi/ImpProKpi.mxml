@@ -1,0 +1,984 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					title="重点指标概况"
+					width="100%"
+					height="100%"
+					styleName="windowDaily2"
+					titleIcon="@Embed(source='../../../img/title_ico02.png')"
+					closable="false"
+					minimizable="false"
+					maximizable="false"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-8-20
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace ailk_compts "http://www.asiainfo-linkage.com.cn/flex/components";
+		@namespace parsley "http://www.spicefactory.org/parsley";
+		.pageOn{
+			skinClass:ClassReference("com.linkage.module.cms.scenedaily.view.components.impkpi.PageOnSkin");
+		}
+		.pageOut{
+			skinClass:ClassReference("com.linkage.module.cms.scenedaily.view.components.impkpi.PageOutSkin");
+		}
+		.pageFirst{
+			skinClass:ClassReference("com.linkage.module.cms.scenedaily.view.components.impkpi.PageFirstSkin")
+		}
+		.pageEnd{
+			skinClass:ClassReference("com.linkage.module.cms.scenedaily.view.components.impkpi.PageEndSkin")
+		}
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+			import com.linkage.module.cms.scenedaily.event.impkpi.ImpProKpiEvent;
+			import com.linkage.module.cms.scenedaily.view.components.util.FileUpDownLoad;
+
+			import flash.net.navigateToURL;
+
+			import mx.charts.BubbleChart;
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.components.BorderContainer;
+			import spark.components.Group;
+			import spark.core.SpriteVisualElement;
+			private var log:ILogger = Log.getLoggerByClass(ImpProKpi);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[Inject("impProKpiPM")]
+			[Bindable]
+			public var impProKpiPM:ImpProKpiPM;
+
+
+			//城市ID
+			private var cityId:String;
+			//指标ID
+			private var kpiId:String;
+			//网元类型ID
+			private var moTypeId:String;
+			//指标名称
+			private var perfGroupName:String;
+			//指标值
+			private var kpiValue:String;
+			//资源ID
+			private var resId:String;
+			//资源类别1:resId为省份Id 2:resId为地市Id3:resId为网元Id
+			private var resType:String;
+			//视图层次(1:领导,2:管理,3:一线)
+			private var viewType:String;
+			//统计粒度(0:十五分钟粒度,1:日,2:周,3:月)
+			private var interval:String;
+			//健康度、阀值劣化(1：健康度，2：阀值劣化)
+			private var isHealthOrThreshold:String;
+			//统计时间
+			private var gatherTime:String;
+			//每页显示记录条数
+			private var perPageCount:int;
+
+			[Embed(source="../../../img/down.png")]
+			public static var down:Class;
+
+			[Embed(source="../../../img/up.png")]
+			public static var up:Class;
+
+			[Embed(source="../../../img/ping.png")]
+			public static var ping:Class;
+
+			[Embed(source="../../../img/icon_export.png")]
+			public static var export:Class;
+
+
+			/**
+			 * 入口方法
+			 */
+			[MessageHandler(selector="LOADVIEW_KPIDATA")]
+			[MessageHandler(selector="COMPONENTS_LOAD_DATA")]
+			public function loadData(e:SceneDailyEvent):void
+			{
+				log.debug("[重点指标性能]:begin..." + user.kpiClickPageIndex);
+				var kpiWindowHeight:int = this.height - 65;
+				var bcHeight:int = 75;
+				perPageCount = Math.floor(kpiWindowHeight / bcHeight);
+				if (user.kpiClickPageIndex != 0)
+				{
+					impProKpiPM.getImpProKpiList(user.kpiClickPageIndex, perPageCount, user.perfName);
+				}
+				else
+				{
+					impProKpiPM.getImpProKpiList(1, perPageCount, user.perfName);
+				}
+
+			}
+
+
+
+			/**
+			 * 重新加载指标概览数据
+			 */
+			[MessageHandler(selector="SHOW_IMP_PRO_KPI_DATA")]
+			public function showKpiData(event:ImpProKpiEvent):void
+			{
+
+				log.debug("SHOW_IMP_PRO_KPI_DATA showKpiData:");
+				log.debug(user);
+
+				group.removeAllElements();
+				top = 2;
+				var selectIndex:int = 0;
+				var timeInterval:String = "";
+				var threshold:String = "";
+				var unhealthReason:String;
+				var healthRange:String;
+
+				for each (var obj:Object in impProKpiPM.impProKpiDM.kpiResultData)
+				{
+					var spk:SmallProKpi = new SmallProKpi();
+					spk.buttonMode = true;
+					timeInterval = obj["timeInterval"] == null ? "" : obj["timeInterval"];
+					threshold = obj["healthRange"] == null ? "" : obj["healthRange"];
+					unhealthReason = obj["unhealthReason"] == null ? "" : obj["unhealthReason"];
+					healthRange = obj["healthRange"] == null ? "" : obj["healthRange"];
+					spk.kpiName = obj["perfGroupName"];
+					spk.kpiValue = obj["kpiValue"];
+					spk.bgColor = uint(obj["color"]);
+
+					if (obj.hasOwnProperty("hisKpiValue"))
+						spk.hisKpiValue = obj["hisKpiValue"];
+
+					if (obj.hasOwnProperty("symbol"))
+					{
+						if (obj["symbol"] == "1")
+						{
+							spk.kpiArrow = up;
+						}
+						else if (obj["symbol"] == "0")
+						{
+							spk.kpiArrow = ping;
+						}
+						else if (obj["symbol"] == "-1")
+						{
+							spk.kpiArrow = down;
+						}
+					}
+
+					spk.cellFlag = obj['cellFlag'];
+
+					if (user.isHealthOrThreshold == "2")
+					{
+						spk.healthArea = obj["gatherTime"];
+						spk.showDetial = "粒度:" + timeInterval + "\n阈值:" + threshold;
+					}
+					else
+					{
+						spk.healthArea = obj["gatherTime"];
+						spk.showDetial = "健康值范围:" + healthRange + "\n不健康的原因:" + unhealthReason;
+					}
+					spk.id = String(selectIndex);
+					spk.param = obj;
+
+//					if ((selectIndex == 0 && user.kpiCurrentPageIndex == 1 && user.kpiClickSelectIndex == 0))
+//					{
+//						spk.styleName = "borderContainerDaily2on";
+//					}
+//					else 
+					if (user.kpiMapClickFlag && user.kpiClickSelectIndex == selectIndex)
+					{
+						spk.styleName = "borderContainerDaily2on";
+					}
+					else if (!user.kpiMapClickFlag && user.kpiClickPageIndex == user.kpiCurrentPageIndex && user.kpiClickSelectIndex == selectIndex)
+					{
+						spk.styleName = "borderContainerDaily2on";
+					}
+					else
+					{
+						spk.styleName = "borderContainerDaily2";
+					}
+
+					spk.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+						{
+							var obj1:Object = event.currentTarget.param;
+							user.kpiClickSelectIndex = event.currentTarget.id;
+							user.kpiClickPageIndex = user.kpiCurrentPageIndex;
+							log.debug("点击事件：kpiClickSelectIndex={0}，kpiClickPageIndex={1}", user.kpiClickSelectIndex, user.kpiClickPageIndex);
+							log.debug(obj1);
+							kpiDataGrid_itemClickHandler(obj1);
+
+							var p:VGroup = (event.currentTarget as BorderContainer).parent as VGroup;
+							var nums:int = p.numElements;
+
+							for (var i:int = 0; i < nums; i++)
+							{
+								(p.getElementAt(i) as BorderContainer).styleName = "borderContainerDaily2";
+							}
+
+							(event.currentTarget as BorderContainer).styleName = "borderContainerDaily2on";
+
+						});
+					selectIndex++;
+					group.addElement(spk);
+				}
+
+				log.debug("分页信息开始..................");
+				var currentIndexPage:int = impProKpiPM.impProKpiDM.indexPage;
+				var pageCounts:int = impProKpiPM.impProKpiDM.pageCounts;
+				log.debug(currentIndexPage);
+				log.debug(pageCounts);
+
+				this.pageGroup.removeAllElements();
+				if (pageCounts < 4)
+				{
+
+					for (var i:int = 1; i <= pageCounts; i++)
+					{
+						var bu:Button = new Button;
+						if (currentIndexPage == i)
+						{
+							bu.width = 20;
+							bu.label = i + "";
+							bu.buttonMode = true;
+							bu.id = i + "";
+							bu.styleName = "pageOn";
+							bu.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+								{
+									log.debug("----------------------{0}", event.currentTarget.id);
+									user.kpiCurrentPageIndex = event.currentTarget.id;
+									user.kpiMapClickFlag = false;
+									log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+									impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+								});
+						}
+						else
+						{
+							bu.width = 20;
+							bu.label = i + "";
+							bu.id = i + "";
+							bu.buttonMode = true;
+							bu.styleName = "pageOut";
+							bu.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+								{
+									log.debug("----------------------{0}", event.currentTarget.id);
+									user.kpiCurrentPageIndex = event.currentTarget.id;
+									user.kpiMapClickFlag = false;
+									log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+									impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+								});
+						}
+						this.pageGroup.addElement(bu);
+					}
+				}
+				else
+				{
+					log.debug("总页数大于3 逻辑开始");
+					if (currentIndexPage == 1)
+					{
+						log.debug("起始页");
+						log.debug("当前页数：" + currentIndexPage);
+						var bu1:Button = new Button;
+						pageGroup.removeAllElements();
+						bu1.width = 20;
+						bu1.label = String(currentIndexPage);
+						bu1.id = String(currentIndexPage);
+						bu1.buttonMode = true;
+						bu1.styleName = "pageOn";
+						bu1.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu1);
+						var bu2:Button = new Button;
+						bu2.width = 20;
+						bu2.label = String(currentIndexPage + 1);
+						bu2.id = String(currentIndexPage + 1);
+						bu2.buttonMode = true;
+						bu2.styleName = "pageOut";
+						bu2.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu2);
+						var bu3:Button = new Button;
+						bu3.width = 20;
+						bu3.label = String(currentIndexPage + 2);
+						bu3.id = String(currentIndexPage + 2);
+						bu3.buttonMode = true;
+						bu3.styleName = "pageOut";
+						bu3.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu3);
+						var bu01:Button = new Button;
+						bu01.width = 20;
+						bu01.styleName = "pageEnd";
+						bu01.id = String(pageCounts);
+						bu01.buttonMode = true;
+						bu01.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu01);
+					}
+					else if (currentIndexPage == 2)
+					{
+						log.debug("第二页");
+						log.debug("当前页数：" + currentIndexPage);
+						pageGroup.removeAllElements();
+						var bu10:Button = new Button;
+						bu10.width = 20;
+						bu10.label = String(currentIndexPage - 1);
+						bu10.id = String(currentIndexPage - 1);
+						bu10.buttonMode = true;
+						bu10.styleName = "pageOut";
+						bu10.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu10);
+						var bu11:Button = new Button;
+						bu11.width = 20;
+						bu11.label = String(currentIndexPage);
+						bu11.id = String(currentIndexPage);
+						bu11.buttonMode = true;
+						bu11.styleName = "pageOn";
+						bu11.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu11);
+						var bu12:Button = new Button;
+						bu12.width = 20;
+						bu12.label = String(currentIndexPage + 1);
+						bu12.id = String(currentIndexPage + 1);
+						bu12.buttonMode = true;
+						bu12.styleName = "pageOut";
+						bu12.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu12);
+						var bu02:Button = new Button;
+						bu02.width = 20;
+						bu02.id = String(pageCounts);
+						bu02.buttonMode = true;
+						bu02.styleName = "pageEnd";
+						bu02.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu02);
+					}
+					else if (currentIndexPage == pageCounts)
+					{
+						log.debug("最后一页");
+						log.debug("当前页数：" + currentIndexPage);
+						this.pageGroup.removeAllElements();
+						var bu03:Button = new Button;
+						bu03.width = 20;
+						bu03.id = String(1);
+						bu03.buttonMode = true;
+						bu03.styleName = "pageFirst";
+						bu03.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu03);
+						var bu4:Button = new Button;
+						bu4.width = 20;
+						bu4.label = String(pageCounts - 2);
+						bu4.id = String(pageCounts - 2);
+						bu4.buttonMode = true;
+						bu4.styleName = "pageOut";
+						bu4.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu4);
+						var bu5:Button = new Button;
+						bu5.width = 20;
+						bu5.label = String(pageCounts - 1);
+						bu5.id = String(pageCounts - 1);
+						bu5.buttonMode = true;
+						bu5.styleName = "pageOut";
+						bu5.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu5);
+						var bu6:Button = new Button;
+						bu6.width = 20;
+						bu6.label = String(pageCounts);
+						bu6.id = String(pageCounts);
+						bu6.buttonMode = true;
+						bu6.styleName = "pageOn";
+						bu6.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu6);
+					}
+					else
+					{
+						log.debug("其他页");
+						log.debug("当前页数：" + currentIndexPage);
+						pageGroup.removeAllElements();
+						var bu04:Button = new Button;
+						bu04.width = 20;
+						bu04.id = String(1);
+						bu04.buttonMode = true;
+						bu04.styleName = "pageFirst";
+						bu04.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu04);
+						var bu7:Button = new Button;
+						bu7.width = 20;
+						bu7.label = String(currentIndexPage - 1);
+						bu7.id = String(currentIndexPage - 1);
+						bu7.buttonMode = true;
+						bu7.styleName = "pageOut";
+						bu7.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu7);
+						var bu8:Button = new Button;
+						bu8.width = 20;
+						bu8.label = String(currentIndexPage);
+						bu8.id = String(currentIndexPage);
+						bu8.buttonMode = true;
+						bu8.styleName = "pageOn";
+						bu8.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu8);
+						var bu9:Button = new Button;
+						bu9.width = 20;
+						bu9.label = String(currentIndexPage + 1);
+						bu9.id = String(currentIndexPage + 1);
+						bu9.buttonMode = true;
+						bu9.styleName = "pageOut";
+						bu9.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu9);
+						var bu05:Button = new Button;
+						bu05.width = 20;
+						bu05.id = String(pageCounts);
+						bu05.buttonMode = true;
+						bu05.styleName = "pageEnd";
+						bu05.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+							{
+								log.debug("----------------------{0}", event.currentTarget.id);
+								user.kpiCurrentPageIndex = event.currentTarget.id;
+								user.kpiMapClickFlag = false;
+								log.debug("设置kpiCurrentPageIndex={0}", user.kpiCurrentPageIndex);
+								impProKpiPM.getImpProKpiList(event.currentTarget.id, perPageCount, user.perfName);
+							});
+						this.pageGroup.addElement(bu05);
+					}
+				}
+
+				var countLab:Label = new Label;
+				countLab.text = "共" + pageCounts + "页";
+				countLab.percentWidth = 100;
+				countLab.percentHeight = 100;
+				countLab.right = 0;
+				countLab.setStyle("textAlign", "right");
+				this.pageGroup.addElement(countLab);
+			}
+
+			/**
+			 * 重新加载指标概览数据
+			 */
+			[MessageHandler(selector="RELOAD_IMP_PRO_KPI_DATA")]
+			public function reLoadData(event:ImpProKpiEvent):void
+			{
+				log.debug("重新展现begin...");
+				impProKpiPM.getImpProKpiList(1, perPageCount, user.perfName);
+			}
+
+
+			/**
+			 *点击展示性能指标面板事件
+			 */
+			protected function showSet_clickHandler(event:MouseEvent):void
+			{
+				//查询未选择指标数据集
+				impProKpiPM.getImpKpiByType(0);
+				//查询已选择指标数据集
+				impProKpiPM.getImpKpiByType(1);
+				PopUpManager.addPopUp(importKpiSet, this.parent as DisplayObject);
+				importKpiSet.x = (this.stage.width - importKpiSet.width) / 2 + 250;
+				importKpiSet.y = 50;
+				importKpiSet.visible = true;
+				importKpiSet.includeInLayout = true;
+			}
+
+			/**
+			 *事件外派供其他组件监听
+			 */
+			protected function kpiDataGrid_itemClickHandler(obj:Object):void
+			{
+				log.debug("指标概览对外派发事件begin..");
+				var param:Object = new Object;
+				param.kpiId = obj['kpiId'];
+				param.moTypeId = obj['moTypeId'];
+				param.perfGroupName = obj['perfGroupName'];
+				param.kpiValue = obj['kpiValue'];
+				param.interval = user.interval;
+				param.viewType = user.viewType;
+				param.isHealthOrThreshold = user.isHealthOrThreshold;
+				param.resId = user.resId;
+				param.resType = user.resType;
+				param.statisticsDate = user.gatherTime;
+
+				//将指定指标kpiId moTypeId perfGroupName  kpiValue 放入user中
+				user.kpiId = param.kpiId;
+				user.moTypeId = param.moTypeId;
+				user.kpiValue = param.kpiValue;
+				user.kpiName = param.perfGroupName;
+
+				impProKpiPM.addEvent(param);
+			}
+
+			/**
+			 *完成保存设置性能指标事件
+			 */
+			protected function setOk_clickHandler(event:MouseEvent):void
+			{
+				var isSelectDataList:ArrayCollection = this.impProKpiPM.impProKpiDM.kpiResultIsSelect;
+				this.impProKpiPM.saveImpKpiList(isSelectDataList, user.viewType);
+				importKpiSet.visible = false;
+				importKpiSet.includeInLayout = false;
+			}
+
+			/**
+			 *设置指标性能为已选择事件
+			 */
+			protected function selectToOk_clickHandler(event:MouseEvent):void
+			{
+				if (this.noSelectDataGrid.selectedIndex == -1)
+				{
+					return;
+				}
+				var isSelectDataList:ArrayCollection = this.impProKpiPM.impProKpiDM.kpiResultIsSelect;
+				var noSelectDataList:ArrayCollection = this.impProKpiPM.impProKpiDM.kpiResultNoSelect;
+				var selectIndex:int = this.noSelectDataGrid.selectedIndex;
+				var obj:Object = noSelectDataList.getItemAt(selectIndex);
+				isSelectDataList.addItem(obj);
+				noSelectDataList.removeItemAt(selectIndex);
+				isSelectDataList.refresh();
+				noSelectDataList.refresh();
+			}
+
+			/**
+			 *取消指标性能已选择事件
+			 */
+			protected function selectToCancel_clickHandler(event:MouseEvent):void
+			{
+				if (this.isSelectDataGrid.selectedIndex == -1)
+				{
+					return;
+				}
+				var isSelectDataList:ArrayCollection = this.impProKpiPM.impProKpiDM.kpiResultIsSelect;
+				var noSelectDataList:ArrayCollection = this.impProKpiPM.impProKpiDM.kpiResultNoSelect;
+				var selectIndex:int = this.isSelectDataGrid.selectedIndex;
+				var obj:Object = isSelectDataList.getItemAt(selectIndex);
+				noSelectDataList.addItem(obj);
+				isSelectDataList.removeItemAt(selectIndex);
+				isSelectDataList.refresh();
+				noSelectDataList.refresh();
+			}
+
+			/**
+			 * 记录上移
+			 */
+			protected function selectUp_clickHandler(event:MouseEvent):void
+			{
+				var item:Object = isSelectDataGrid.selectedItem;
+				var selectIndex:int = this.isSelectDataGrid.selectedIndex;
+				(isSelectDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+				(isSelectDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex - 1);
+				isSelectDataGrid.selectedItem = item;
+				(isSelectDataGrid.dataProvider as ArrayCollection).refresh();
+			}
+
+			/**
+			 * 记录下移
+			 */
+			protected function selectDown_clickHandler(event:MouseEvent):void
+			{
+				var item:Object = isSelectDataGrid.selectedItem;
+				var selectIndex:int = this.isSelectDataGrid.selectedIndex;
+				(isSelectDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+				(isSelectDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex + 1);
+				isSelectDataGrid.selectedItem = item;
+				(isSelectDataGrid.dataProvider as ArrayCollection).refresh();
+			}
+
+			/**
+			 * 移到最上
+			 */
+			protected function selectFirst_clickHandler(event:MouseEvent):void
+			{
+				var item:Object = isSelectDataGrid.selectedItem;
+				var selectIndex:int = this.isSelectDataGrid.selectedIndex;
+				(isSelectDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+				(isSelectDataGrid.dataProvider as ArrayCollection).addItemAt(item, 0);
+				isSelectDataGrid.selectedItem = item;
+				(isSelectDataGrid.dataProvider as ArrayCollection).refresh();
+			}
+
+			/**
+			 * 移到最下
+			 */
+			protected function selectEnd_clickHandler(event:MouseEvent):void
+			{
+				var item:Object = isSelectDataGrid.selectedItem;
+				var selectIndex:int = this.isSelectDataGrid.selectedIndex;
+				(isSelectDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+				(isSelectDataGrid.dataProvider as ArrayCollection).addItemAt(item, (isSelectDataGrid.dataProvider as ArrayCollection).length);
+				isSelectDataGrid.selectedItem = item;
+				(isSelectDataGrid.dataProvider as ArrayCollection).refresh();
+			}
+
+			public function closeWindowDetail():void
+			{
+				importKpiSet.visible = false;
+				importKpiSet.includeInLayout = false;
+			}
+
+			/* protected function window1_resizeHandler(event:ResizeEvent = null):void
+			   {
+			   log.debug("resize begin。。。。");
+			   var evt:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.LOADVIEW_KPIDATA);
+			   evt.param = new Object();
+			   evt.param.currentPage = 1;
+			   loadData(evt);
+			 } */
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+
+//				var url:URLRequest = new URLRequest("/cms/scenedaily/delist/delistAction!dailyReportExcel.action");
+//				url.data.gatherTime = user.gatherTime;
+//				url.data.interval = user.interval;
+//				url.data.isHealthOrThreshold = user.isHealthOrThreshold;
+//				url.data.viewType = user.viewType;
+//				url.data.resId = user.resId;
+//				url.data.resType = user.resType;
+//				url.data.moTypeId = user.moTypeId;
+//
+//				url.data.counts = impProKpiPM.impProKpiDM.counts;
+//				navigateToURL(url, "_blank");
+
+
+				log.info("export param");
+				var fileType:FileFilter = new FileFilter("Excel", "*.xls");
+				var fileTypes:Array = new Array(fileType);
+				var fileUpDownLoad:FileUpDownLoad = new FileUpDownLoad();
+				//cms//scenedaily/listed/listedAction!exprotListingMoData.action
+				var downLoadUrl:URLRequest = new URLRequest(user.context + "/scenedaily/delist/delistAction!dailyReportExcel.action");
+				var downLoadData:URLVariables = new URLVariables();
+				downLoadData.gatherTime = user.gatherTime;
+				downLoadData.interval = user.interval;
+				downLoadData.isHealthOrThreshold = user.isHealthOrThreshold;
+				downLoadData.viewType = user.viewType;
+				downLoadData.resId = user.resId;
+				downLoadData.resType = user.resType;
+				downLoadData.moTypeId = user.moTypeId;
+
+				downLoadData.counts = impProKpiPM.impProKpiDM.counts;
+
+				downLoadUrl.data = downLoadData;
+				fileUpDownLoad.downLoadURLRequest = downLoadUrl;
+				fileUpDownLoad.fileFilters = fileTypes;
+				fileUpDownLoad.downLoad();
+				log.info("export send");
+
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this.searchWindow);
+				user.perfName = this.searchName.text;
+				log.debug("查询名称：" + searchName.text);
+				impProKpiPM.getImpProKpiList(1, perPageCount, user.perfName);
+
+			}
+
+			protected function image2_clickHandler(event:MouseEvent):void
+			{
+				log.debug(" 弹出查询控件");
+				PopUpManager.addPopUp(searchWindow, this.parent as DisplayObject);
+				searchWindow.x = 645;
+				searchWindow.y = 70;
+				searchWindow.visible = true;
+			}
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				user.perfName = "";
+				log.debug("查询名称：" + user.perfName);
+				impProKpiPM.getImpProKpiList(1, perPageCount, user.perfName);
+
+			}
+		]]>
+	</fx:Script>
+	<!--性能指标概览面板-->
+	<s:VGroup id="group"
+			  width="100%"
+			  height="100%">
+	</s:VGroup>
+	<!--重点指标设置窗口-->
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="importKpiSet"
+							title="重点指标设置"
+							dragable="true"
+							visible="false"
+							styleName="window"
+							minimizable="false"
+							maximizable="false"
+							close="closeWindowDetail()"
+							width="300">
+
+			<s:VGroup width="100%"
+					  gap="2"
+					  height="100%">
+				<ailk_compts:Window title="未选择指标"
+									styleName="window"
+									closable="false"
+									minimizable="false"
+									maximizable="false"
+									width="100%">
+					<mx:DataGrid width="100%"
+								 id="noSelectDataGrid"
+								 height="100%"
+								 dataProvider="{impProKpiPM.impProKpiDM.kpiResultNoSelect}"
+								 showHeaders="false">
+						<mx:columns>
+							<mx:DataGridColumn dataField="kpiName"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</ailk_compts:Window>
+
+				<s:HGroup width="100%"
+						  height="6%"
+						  horizontalAlign="center"
+						  verticalAlign="middle">
+					<s:Button label="∧"
+							  enabled="{this.isSelectDataGrid.selectedIndex==-1?false:true}"
+							  id="selectToCancel"
+							  click="selectToCancel_clickHandler(event)"/>
+					<s:Button label="∨"
+							  enabled="{this.noSelectDataGrid.selectedIndex==-1?false:true}"
+							  id="selectToOk"
+							  click="selectToOk_clickHandler(event)"/>
+				</s:HGroup>
+
+				<ailk_compts:Window title="已选择指标"
+									styleName="window"
+									closable="false"
+									minimizable="false"
+									maximizable="false"
+									width="100%">
+					<s:HGroup width="100%"
+							  height="100%">
+						<mx:DataGrid width="90%"
+									 height="100%"
+									 id="isSelectDataGrid"
+									 dataProvider="{impProKpiPM.impProKpiDM.kpiResultIsSelect}"
+									 showHeaders="false">
+							<mx:columns>
+								<mx:DataGridColumn dataField="kpiName"/>
+							</mx:columns>
+						</mx:DataGrid>
+						<s:VGroup width="10%"
+								  height="100%"
+								  horizontalAlign="center"
+								  verticalAlign="middle">
+							<s:Button label="︽"
+									  enabled="{this.isSelectDataGrid.selectedIndex>0}"
+									  id="selectFirst"
+									  click="selectFirst_clickHandler(event)"/>
+							<s:Button label="↑"
+									  id="selectUp"
+									  width="50"
+									  enabled="{this.isSelectDataGrid.selectedIndex>0}"
+									  click="selectUp_clickHandler(event)"/>
+							<s:Button label="↓"
+									  id="selectDown"
+									  width="50"
+									  enabled="{this.isSelectDataGrid.selectedIndex>=0 ?(this.isSelectDataGrid.selectedIndex != (this.impProKpiPM.impProKpiDM.kpiResultIsSelect.length-1)):false}"
+									  click="selectDown_clickHandler(event)"/>
+							<s:Button label="︾"
+									  enabled="{this.isSelectDataGrid.selectedIndex>=0 ?(this.isSelectDataGrid.selectedIndex != (this.impProKpiPM.impProKpiDM.kpiResultIsSelect.length-1)):false}"
+									  id="selectEnd"
+									  click="selectEnd_clickHandler(event)"/>
+						</s:VGroup>
+					</s:HGroup>
+				</ailk_compts:Window>
+
+				<s:HGroup horizontalAlign="center"
+						  bottom="2"
+						  width="100%">
+					<s:Button label="确定"
+							  id="impKpiOk"
+							  click="setOk_clickHandler(event)"/>
+				</s:HGroup>
+
+			</s:VGroup>
+		</ailk_compts:Window>
+	</mx:Box>
+
+	<s:HGroup bottom="-10"
+			  id="pageGroup"
+			  width="100%">
+	</s:HGroup>
+
+	<mx:Box width="268"
+			height="69"
+			visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="searchWindow"
+							close="PopUpManager.removePopUp(this.searchWindow);"
+							closable="true"
+							maximizable="false"
+							minimizable="false"
+							dragable="true"
+							styleName="windowScene"
+							title="查询指标"
+							width="100%"
+							height="100%">
+			<s:VGroup width="100%"
+					  height="100%"
+					  minHeight="38">
+				<s:HGroup width="100%"
+						  verticalAlign="middle">
+					<s:Label text="指标名称："/>
+					<s:TextInput id="searchName"/>
+					<s:Button label="查询"
+							  click="button1_clickHandler(event)"/>
+				</s:HGroup>
+			</s:VGroup>
+		</ailk_compts:Window>
+	</mx:Box>
+	<s:HGroup top="-30"
+			  right="-1"
+			  verticalAlign="middle"
+			  horizontalAlign="center">
+		<s:Button label="显示全部"
+				  styleName="button"
+				  click="button2_clickHandler(event)"/>
+		<mx:Image source="@Embed('../../../img/search.png')"
+				  buttonMode="true"
+				  toolTip="指标查询"
+				  click="image2_clickHandler(event)"/>
+		<mx:Image source="@Embed('../../../img/u2.png')"
+				  buttonMode="true"
+				  toolTip="指标管理"
+				  click="showSet_clickHandler(event)"/>
+		<mx:Image source="{export}"
+				  buttonMode="true"
+				  toolTip="导出"
+				  click="image1_clickHandler(event)"/>
+
+
+	</s:HGroup>
+</ailk_compts:Window>

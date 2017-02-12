@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:components="com.linkage.module.cms.scenedaily.view.components.*"
+		 xmlns:view="com.linkage.module.cms.scenedaily.view.*"
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 xmlns:leaderattention="com.linkage.module.cms.scenedaily.view.components.leaderattention.*"
+		 xmlns:functionchain="com.linkage.module.cms.scenedaily.view.components.functionchain.*"
+		 xmlns:kqikpipi="com.linkage.module.cms.scenedaily.view.components.kqikpipi.*"
+		 xmlns:impkpi="com.linkage.module.cms.scenedaily.view.components.impkpi.*"
+		 xmlns:mainchart="com.linkage.module.cms.scenedaily.view.components.mainchart.*">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scenedaily.domain.common.User;
+			import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+			import com.linkage.module.cms.scenedaily.event.hangandpick.HangPlateEvent;
+
+			import flash.utils.setTimeout;
+
+			import mx.events.ResizeEvent;
+			[Embed(source="../img/up_gray.png")]
+			[Bindable]
+			private static var _up_gray:Class;
+
+			[Embed(source="../img/up_blue.png")]
+			[Bindable]
+			private static var _up_blue:Class;
+
+			[Embed(source="../img/down_gray.png")]
+			[Bindable]
+			private static var _down_gray:Class;
+
+			[Embed(source="../img/down_blue.png")]
+			[Bindable]
+			private static var _down_blue:Class;
+
+			private var log:ILogger = Log.getLoggerByClass(SceneDailyView);
+
+			private var alarmInitFlag:Boolean = false;
+
+			[Inject]
+			public var user:User;
+
+
+			[MessageHandler(selector="CHANGE_VIEW_TYPE")]
+			public function viewChangeHandler(e:SceneDailyEvent):void
+			{
+//				if(e.param['viewType'] != "3")
+//				{
+//					alarmComp.visible = false;
+//					alarmComp.includeInLayout = false;
+//					topGroup.bottom = 0;
+////					mainGroup.bottom = 1;
+//
+//					alarmComp.stopFlow(true);
+//				}
+//				else
+//				{
+//
+//					topGroup.bottom = 25;
+//					alarmComp.visible = true;
+//					alarmComp.includeInLayout = true;
+//					alarmComp.height = 25;
+////					mainGroup.bottom = 30;
+//					alarmComp.stopFlow(false);
+//				}
+			}
+
+			protected function alarmComp_maximizeHandler():void
+			{
+				alarmComp.height = 250;
+				alarmComp.percentWidth = 100;
+				if (!alarmInitFlag)
+				{
+					alarmInitFlag = true;
+					alarmComp.initAlarm();
+				}
+			}
+
+			private var chartComp:Object;
+
+			protected function chartCompMaxHandler():void
+			{
+				chartComp = chartCompWin;
+				chartGroup.removeElement(chartCompWin);
+				popWin.addElement(chartCompWin);
+				chartCompWin.width = popWin.width - 10;
+				chartCompWin.height = popWin.height;
+			}
+
+			protected function chartCompRestoreHandler():void
+			{
+				chartComp = chartCompWin;
+				popWin.removeElement(chartCompWin);
+				chartGroup.addElement(chartCompWin);
+				chartCompWin.width = chartGroup.width;
+				chartCompWin.height = chartGroup.height;
+			}
+
+			//判断指标如果为空，那么隐藏劣化排名和指标趋势图表，否则显示，并且调整上下窗口的高度百分比
+			[MessageHandler(selector="CMS_SCENEDAILY_COMMON_KPICHANGE")]
+			public function kpiChangeHandler(e:SceneDailyEvent):void
+			{
+				if (StringUtils.isNullStr(user.kpiId))
+				{
+					highGroup.percentHeight = 100;
+					chartGroup.visible = false;
+					chartGroup.includeInLayout = false;
+				}
+				else
+				{
+					highGroup.percentHeight = 65;
+					chartGroup.percentHeight = 35;
+					chartGroup.visible = true;
+					chartGroup.includeInLayout = true;
+				}
+			}
+
+			[MessageHandler(selector="CMS_SCENEDAILY_HANGMEDALDETAIL_BASEDATAGRID_ITEMCLICKHANDLER")]
+			public function showAlarmFlow(e:HangPlateEvent):void
+			{
+				log.info("劣化网元 点击处理：处理流水窗口！");
+				if (!alarmInitFlag)
+				{
+					alarmInitFlag = true;
+					alarmComp.initAlarm();
+				}
+
+				log.info("劣化网元 点击处理：过滤流水！");
+				setTimeout(function():void
+					{
+						alarmComp.filterAlarm(e);
+					}, 2000);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<parsley:Configure/>
+		<s:Resize id="resize"/>
+	</fx:Declarations>
+
+	<s:HGroup id="topGroup"
+			  bottom="25"
+			  width="100%"
+			  height="100%"
+			  horizontalAlign="center">
+		<s:VGroup width="80%"
+				  height="100%"
+				  left="2">
+			<s:Group id="highGroup"
+					 width="100%"
+					 minHeight="628"
+					 height="100%">
+				<s:HGroup width="100%"
+						  height="100%"
+						  verticalAlign="middle">
+					<s:Group width="29%"/>
+					<components:DailyMapComp width="100%"
+											 height="100%"/>
+				</s:HGroup>
+				<ailk_compts:Window height="100%"
+									minimizable="false"
+									maximizable="false"
+									closable="false"
+									dragable="false"
+									styleName="window"
+									width="235">
+					<s:VGroup height="100%"
+							  width="100%"
+							  top="-10"
+							  horizontalAlign="left"
+							  gap="12">
+						<leaderattention:LeaderAttentionPanel minHeight="220"
+															  height="50%"
+															  width="100%"/>
+						<functionchain:FunctionChain width="100%"
+													 height="50%"/>
+					</s:VGroup>
+				</ailk_compts:Window>
+			</s:Group>
+			<s:Group id="chartGroup"
+					 width="100%"
+					 height="35%"
+					 bottom="0"
+					 minHeight="200"
+					 visible="false"
+					 includeInLayout="false">
+				<ailk_compts:Window id="chartCompWin"
+									width="100%"
+									height="100%"
+									minimizable="false"
+									styleName="windowSceneGisBottom"
+									closable="false"
+									restore="chartCompRestoreHandler()"
+									maximize="chartCompMaxHandler()">
+					<mainchart:ChartComp width="100%"
+										 visible="{chartGroup.visible}"
+										 top="-20"
+										 height="100%"/>
+				</ailk_compts:Window>
+			</s:Group>
+		</s:VGroup>
+
+		<s:Group height="100%"
+				 width="25%">
+			<impkpi:ImpProKpi width="100%"
+							  minHeight="150"
+							  height="100%"/>
+		</s:Group>
+	</s:HGroup>
+
+	<!--告警流水-->
+	<view:SceneDailyAlarmFlow id="alarmComp"
+							  width="100%"
+							  maximize="alarmComp_maximizeHandler()"
+							  height="25"
+							  bottom="0"/>
+
+	<s:Group id="popWin"
+			 width="100%"
+			 height="100%"/>
+</s:Group>

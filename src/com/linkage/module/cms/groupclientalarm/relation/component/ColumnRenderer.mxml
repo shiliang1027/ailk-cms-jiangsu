@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  clipAndEnableScrolling="true"
+								  focusEnabled="false"
+								  buttonMode="true" creationComplete="mxadvanceddatagriditemrenderer1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			protected function mxadvanceddatagriditemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				createRightMenu();
+			}
+			[Bindable]
+			var complexMenu:ContextMenu;
+			private function createRightMenu():void
+			{
+				//右键菜单初始化
+				complexMenu = new ContextMenu();
+				complexMenu.hideBuiltInItems();
+				var contextMenuItem:ContextMenuItem = new ContextMenuItem("复 制");
+				contextMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, complexPopupDeal);
+				complexMenu.customItems.push(contextMenuItem);
+				this.contextMenu = complexMenu;
+			}
+			private function complexPopupDeal(e:ContextMenuEvent):void
+			{
+				switch(e.currentTarget.caption)
+				{
+					case "复 制":
+						System.setClipboard(lblData.text);
+						break;
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:HBox width="100%"
+			 height="100%"
+			 horizontalAlign="center"
+			 verticalAlign="middle">
+		<s:Label  id="lblData" lineBreak="explicit"
+				 text="{listData.label}"/>
+	</mx:HBox>
+</s:MXAdvancedDataGridItemRenderer>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:supportClasses="com.esri.ags.skins.supportClasses.*"
+			   xmlns:panel="com.linkage.system.component.panel.*" 
+			   width="400" 
+			   height="60" 
+			   dragable="true" 
+			   maximizable="false" 
+			   minimizable="false"
+			   title="快速检索"
+			   close="closeMe()">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			private var forward:Function = null;
+			
+			protected function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			//初始化
+			public function init(func:Function):void
+			{
+				var list:ArrayCollection = new ArrayCollection();
+				list.addItem("BTS");
+				list.addItem("NodeB");
+				list.addItem("CELL");
+				list.addItem("UCELL");
+				this.netClass.dataProvider = list;
+				this.netClass.selectedIndex = 0;
+				
+				forward = func;
+			}
+			
+			//提交
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var type:String = this.netClass.selectedItem;
+				var name:String = this.netName.text;
+				
+				forward.call(null,type,name);
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<mx:StringValidator id="sv"/>
+	</fx:Declarations>
+	<s:HGroup id="selectGrop" verticalAlign="middle">
+		<mx:Text text="网元类型"/>
+		<s:ComboBox id="netClass" width="60" color="0x000000">
+		</s:ComboBox>
+		<mx:Text text="网元名称"/>
+		<s:TextInput id="netName" width="100">
+		</s:TextInput>
+		<s:Button label="确定" click="button1_clickHandler(event)">
+		</s:Button>
+		<s:Button label="关闭" click="closeMe()">
+		</s:Button>
+	</s:HGroup>
+</panel:Window>

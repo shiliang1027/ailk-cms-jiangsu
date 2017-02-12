@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    width="200"
+                    styleName="window"
+                    minimizable="false"
+                    maximizable="false"
+                    close="{this.visible = false; this.includeInLayout=false;}">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			
+			import mx.events.CalendarLayoutChangeEvent;
+			
+			import spark.components.RadioButtonGroup;
+			import spark.events.IndexChangeEvent;
+
+            [Bindable]
+            public var selectedItem:Object = {"name": "今天"};
+
+            public var change:Function;
+
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.common.EasyDate");
+
+            private var rbg:RadioButtonGroup = new RadioButtonGroup;
+
+            public function reset():void
+            {
+                dateField.text = "";
+
+                selectedItem = null;
+            }
+
+            protected function changeHandler():void
+            {
+                dateField.text = "";
+
+                selectedItem = {"name": rbg.selectedValue};
+
+				log.info("selectedItem:"+selectedItem.name);
+				log.info("selectedItem:cc");
+                if (change != null)
+                    change.call();
+				
+				log.info("end:");
+            }
+
+            private function unselectedList():void
+            {
+                rb1.selected = false;
+                rb2.selected = false;
+                rb3.selected = false;
+                rb4.selected = false;
+                rb5.selected = false;
+            }
+
+            protected function datefield1_changeHandler(event:CalendarLayoutChangeEvent):void
+            {
+                unselectedList();
+
+                selectedItem = {"name": dateField.text};
+				log.info("datefield1_changeHandler:"+selectedItem);
+
+                if (change != null)
+                    change.call();
+				
+				log.info("end:111");
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:VGroup gap="5"
+              width="100%"
+              horizontalAlign="left"
+              verticalAlign="middle"
+              paddingBottom="10"
+              paddingLeft="10"
+              paddingTop="5">
+        <s:VGroup id="timeList"
+                  width="100%">
+            <s:RadioButton id="rb1"
+                           label="日常值"
+                           value="日常值"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+            <s:RadioButton id="rb2"
+                           label="昨天"
+                           value="昨天"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+            <s:RadioButton id="rb3"
+                           label="上周"
+                           value="上周"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+            <s:RadioButton id="rb4"
+                           label="上个月"
+                           value="上个月"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+            <s:RadioButton id="rb5"
+                           label="去年同比"
+                           value="去年"
+                           click="changeHandler()"
+                           group="{rbg}"/>
+        </s:VGroup>
+        <mx:DateField id="dateField"
+                      minWidth="120"
+                      formatString="YYYY-MM-DD"
+                      change="datefield1_changeHandler(event)"/>
+    </s:VGroup>
+
+</ailk_compts:Window>

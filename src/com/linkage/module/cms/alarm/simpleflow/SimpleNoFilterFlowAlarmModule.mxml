@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:panel="com.linkage.system.component.panel.*"  
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   paddingBottom="5"
+		   creationComplete="application_applicationCompleteHandler(event)"
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*" xmlns:components="com.linkage.module.cms.alarm.simpleflow.components.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-10-29
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.events.IndexChangeEvent;
+
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.SimpleNoFilterFlowAlarmModule");
+
+			[Bindable]
+			private var _moduleKey:String = "groupbuss_testcall";//更新修改moduleKey为“groupbuss_testcall”，原来的moduleKey为“groupmonitorflowalarm”
+			private var _isCustAlarm:Boolean = false;
+			[Bindable]
+			private var _winTitle:String = "业务拨测告警监控";
+			public var parameters:Object;
+
+			// 分隔日志过滤器
+			private function splitFilters(filters:String):Array
+			{
+				var array:Array = null;
+				if (filters != null)
+				{
+					array = filters.split(",");
+				}
+				return array;
+			}
+
+			protected function application_applicationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				System.useCodePage = true;
+				// 初始化日志Target
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = int(this.parameters.logLevel);
+				target.filters = splitFilters(this.parameters.logFilters);
+				Log.addTarget(target);
+
+				var key:String = parameters.moduleKey;
+				if (!StringUtils.isNullStr(key))
+				{
+					_moduleKey = key;
+				}
+				var isCustAlarm:String = parameters["isCustAlarm"];
+				_isCustAlarm = (isCustAlarm == "true" || isCustAlarm == "TRUE") ? true : false;
+				log.info(" >>>>> 进入简易流水 moduleKey:{0} 是否集客流水:{1} >>>>> ", _moduleKey, _isCustAlarm);
+
+				// 加载样式
+				styleManager.loadStyleDeclarations2(this.parameters.styleUrl);
+
+				var alarmParam:String = parameters["alarmParam"];
+				var userParams:String = String(parameters["alarmParam"]).replace(/\'/g, "\"");
+				var user:Object = JSON.decode(userParams);
+				log.info("user");
+				log.info(user);
+				 if (_isCustAlarm)
+				{
+					// 集客流水
+					_moduleKey = "groupbuss_testcall";
+					this.currentState = "custAlarmState";
+					custAlarm.params = {mapInfo: alarmParam};
+					var defaultFilter:String = 'servicesystem%=\"GPRS业务系统\"|servicesystem%=\"GPRS专网拨测\"|servicesystem=\"省级集客互联网专线业务\"|alarmtitle=\"PING不可达告警\"|alarmtitle=\"集客语音拨测失败\"';//业务拨测告警监控
+//					custAlarm.ruleContent = null;
+					custAlarm.ruleContent = defaultFilter;
+					log.debug("集客流水 ruleContent:{0}", custAlarm.ruleContent);
+					custAlarm.initInfo();
+				}
+				else
+				{
+					//普通流水
+					this.currentState = "flowAlarmState";
+					flowAlarm.params = {mapInfo: alarmParam};
+//					flowAlarm.ruleContent = null;
+					log.debug("普通流水 ruleContent:{0}", flowAlarm.ruleContent);
+					flowAlarm.initInfo();
+				} 
+				 
+				
+			}
+			
+			protected function alarmIndexHandler():void
+			{
+				log.info("巧克力 alarmIndexHandler");
+				parameters = parentApplication.parameters;
+				System.useCodePage = true;
+				// 初始化日志Target
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = int(this.parameters.logLevel);
+				target.filters = splitFilters(this.parameters.logFilters);
+				Log.addTarget(target);
+
+				var key:String = parameters.moduleKey;
+				if (!StringUtils.isNullStr(key))
+				{
+					_moduleKey = key;
+				}
+				var isCustAlarm:String = parameters["isCustAlarm"];
+				_isCustAlarm = (isCustAlarm == "true" || isCustAlarm == "TRUE") ? true : false;
+				log.info(" >>>>> 进入简易流水 moduleKey:{0} 是否集客流水:{1} >>>>> ", _moduleKey, _isCustAlarm);
+
+				// 加载样式
+				styleManager.loadStyleDeclarations2(this.parameters.styleUrl);
+
+				var alarmParam:String = parameters["alarmParam"];
+				 if (_isCustAlarm)
+				{
+					// 集客流水
+					_moduleKey = "groupbuss_testcall";
+					this.currentState = "custAlarmState";
+					custAlarm.params = {mapInfo: alarmParam};
+					var defaultFilter:String = 'servicesystem%=\"GPRS业务系统\"|servicesystem%=\"GPRS专网拨测\"|servicesystem=\"省级集客互联网专线业务\"|alarmtitle=\"PING不可达告警\"|alarmtitle=\"集客语音拨测失败\"';//业务拨测告警监控
+//					custAlarm.ruleContent = null;
+					custAlarm.ruleContent = defaultFilter;
+					log.debug("集客流水 ruleContent:{0}", custAlarm.ruleContent);
+					custAlarm.initInfo();
+				}
+				else
+				{
+					//普通流水
+					this.currentState = "flowAlarmState";
+					flowAlarm.params = {mapInfo: alarmParam};
+//					flowAlarm.ruleContent = null;
+					log.debug("普通流水 ruleContent:{0}", flowAlarm.ruleContent);
+					flowAlarm.initInfo();
+				} 
+			}
+			
+			protected function alarmTabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("event.newIndex="+event.newIndex);
+				if(event.newIndex == 1)
+				{
+					historyAlarmWin.historyStart();
+				}else if(event.newIndex == 0)
+				{
+					log.info("event.newIndex == 0");
+//					alarmIndexHandler();
+				}else
+				{
+					log.info("event.newIndex == 0 else");
+//					alarmIndexHandler();
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<pubflow:alarm id="flowAlarm"
+				   width="100%"
+				   height="100%"
+				   moduleKey="{_moduleKey}"
+				   includeIn="flowAlarmState"/>
+	<s:TabBar id="alarmTabBar"
+			  dataProvider="{alarmViewStack}"
+			  buttonMode="true"
+			  styleName="commonTabBar"
+			  includeIn="custAlarmState"
+			  change="alarmTabBar_changeHandler(event)"/>
+	<!-- 集客流水 -->
+	<mx:ViewStack id="alarmViewStack"
+				  top="23"
+				  width="100%"
+				  height="100%"
+				  creationPolicy="all"
+				  styleName="commonViewStack">
+		<s:NavigatorContent id="alarmNac"
+							label="业务拨测告警监控"  
+							creationPolicy="all"
+							width="100%"
+							height="100%"
+							includeIn="custAlarmState">
+			<mx:VDividedBox id="mainDivBox"
+							width="100%" 
+							height="100%"> 
+				<pubflow:custalarm id="custAlarm"
+								   width="100%"
+								   height="100%"
+								   includeIn="custAlarmState"
+								   moduleKey="{_moduleKey}"/>
+				<!--<panel:Window id="alarmWin" 
+							  width="100%"
+							  height="0"
+							  minimizable="false"
+							  maximizable="false"
+							  closable="false"
+							  dragable="false"
+							  includeIn="custAlarmState"
+							  horizontalCenter="0"
+							  title="{_winTitle}"
+							  verticalCenter="0"> 
+							
+				</panel:Window>-->
+			</mx:VDividedBox>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="alarmHistoryNac"
+							label="业务拨测历史告警监控"
+							creationPolicy="all"
+							includeIn="custAlarmState"
+							width="100%"
+							height="100%">
+			<components:historyAlarmWin id="historyAlarmWin"
+										includeIn="custAlarmState"
+										top="5"
+										width="100%"  
+										height="100%"/>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	
+	<mx:states>
+		<s:State name="flowAlarmState"/>
+		<s:State name="custAlarmState"/>
+	</mx:states>
+</mx:Module>

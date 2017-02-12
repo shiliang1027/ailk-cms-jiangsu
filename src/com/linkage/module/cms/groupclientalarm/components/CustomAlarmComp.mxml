@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="100%" height="100%"
+			  minWidth="200"
+			  minHeight="30" minimizableLeft="10" minimizableBottom="10"
+			  closable="false" minimizable="false" maximizable="false"
+			  title="影响客户列表"
+			  dragable="true" creationComplete="comp_creationCompleteHandler(event)">
+	
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<panel:states>
+		<s:State name="normal"/>
+		<s:State name="noData"/>
+		<s:State name="data"/>
+	</panel:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="queryCust",type="com.linkage.module.cms.groupclientalarm.event.CustomAlarmCompEvent")]
+		[Event(name="custShow",type="com.linkage.module.cms.groupclientalarm.event.CustomAlarmCompEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclientalarm.event.CustomAlarmCompEvent;
+			import com.linkage.module.cms.groupclientalarm.renderer.CustomAlarmRenderer;
+			
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			
+			protected function comp_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(CustomAlarmCompEvent.DATACHANGE,onDataChange);
+				this.currentState = "normal";
+			}
+			
+			private function onDataChange(event:CustomAlarmCompEvent):void{
+				if(event.param != null && event.param.length>0){
+					this.currentState = "data";
+					custListDG.dataProvider = event.param;
+				}else{
+					this.currentState = "noData";
+				}
+			}
+			
+			private function custListDG_itemClickHandler(event:ListEvent):void{
+				var data:Object = custListDG.dataProvider[event.rowIndex];
+				var evt:CustomAlarmCompEvent = new CustomAlarmCompEvent(CustomAlarmCompEvent.CUSTSHOW);
+				var param:Object = new Object;
+				param.custId=encodeURI(data.cust_no);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			private var widthper:Array = [0.2,0.2,0.15,0.3,0.15];
+			protected function custListDG_resizeHandler(event:ResizeEvent=null):void
+			{
+				for(var i:uint=0;i<custListDG.columns.length;i++){
+					custListDG.columns[i].width = int(custListDG.width*widthper[i]);
+				}
+			}
+
+
+			protected function custListDG_creationCompleteHandler(event:FlexEvent):void
+			{
+				custListDG_resizeHandler();
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Label text="无影响客户" includeIn="noData"/>
+	<mx:AdvancedDataGrid id="custListDG" includeIn="data"
+						 width="100%"
+						 height="100%"
+						 itemClick="custListDG_itemClickHandler(event)" creationComplete="custListDG_creationCompleteHandler(event)"
+						 resize="custListDG_resizeHandler(event)">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="cust_name" dataTipField="cust_name"
+									   headerText="客户名称"/>
+			<mx:AdvancedDataGridColumn itemRenderer="com.linkage.module.cms.groupclientalarm.renderer.CustomAlarmServNameRenderer"
+									   headerText="业务名称"/>
+			<mx:AdvancedDataGridColumn dataField="safe_level_name" dataTipField="safe_level_name"
+									   headerText="业务保障等级"/>
+			<mx:AdvancedDataGridColumn dataField="circuit_name" dataTipField="circuit_name"
+									   headerText="传输电路名称"/>
+			<mx:AdvancedDataGridColumn itemRenderer="com.linkage.module.cms.groupclientalarm.renderer.CustomAlarmRenderer"
+									   headerText="是否有告警"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</panel:Window>

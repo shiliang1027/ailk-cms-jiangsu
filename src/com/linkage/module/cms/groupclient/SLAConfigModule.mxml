@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   creationCompleteEffect="{fadeEffect}"
+		   creationComplete="SLAConfig_creationCompleteHandler(event)"
+		   xmlns:panel="com.linkage.system.component.panel.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.groupclient.control.SLAConfigModuleControl;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			[Bindable]
+			public var treeDataTest:ArrayCollection=new ArrayCollection([{label: "全省", children: [{label: "省级", city_id: "000"}, {label: "南京", city_id: "6", children: [{label: "金牌", lever_id: "1"}, {label: "银牌", lever_id: "2", children: [{label: "客户1", cust_id: "1"}, {label: "客户2", cust_id: "2", children: [{label: "专线1", serv_id: "1"}, {label: "专线2", serv_id: "2"}]}]}]}]}]);
+			[Bindable]
+			public var treeData:XML;
+			public var parameters:Object;
+			public var loadManager:LoadManager;
+
+			private var control:SLAConfigModuleControl;
+
+			protected function SLAConfig_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				parameters=parentApplication.parameters;
+				loadManager=parentApplication.loadManager;
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"], true);
+				control=new SLAConfigModuleControl(this);
+				control.initData();
+				tree.addEventListener(ListEvent.CHANGE, onTreeChange);
+			}
+			[Bindable]
+			public var selectNode:Object;
+
+			private function onTreeChange(event:ListEvent):void
+			{
+				if (tree.selectedIndex >= 1)
+				{
+					selectNode=tree.selectedItem;
+					control.showConfigValue();
+				}
+			}
+
+			protected function saveConfig_clickHandler(event:MouseEvent):void
+			{
+				control.saveConfig();
+			}
+
+
+			protected function cancelConfig_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				control.resetConfig();
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Fade id="fadeEffect"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="3000"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<panel:Window title="SLA设置"
+				  horizontalCenter="0"
+				  verticalCenter="0"
+				  minimizable="false"
+				  maximizable="false"
+				  closable="false">
+		<s:Scroller width="100%"
+					height="100%"
+					horizontalScrollPolicy="auto"
+					verticalScrollPolicy="auto">
+			<s:HGroup width="100%">
+				<s:BorderContainer height="100%"
+								   width="180">
+					<mx:Tree id="tree"
+							 dataProvider="{treeData}"
+							 height="100%"
+							 width="100%"
+							 borderAlpha="0"
+							 verticalAlign="middle"
+							 contentBackgroundAlpha="0"
+							 showRoot="true"
+							 showScrollTips="true"
+							 wordWrap="false"
+							 variableRowHeight="true"
+							 labelField="@name"
+							 editorHeightOffset="0"
+							 indentation="12"
+							 openDuration="250"
+							 paddingLeft="10"
+							 folderClosedIcon="{null}"
+							 folderOpenIcon="{null}"
+							 defaultLeafIcon="{null}"
+							 disclosureClosedIcon="@Embed('./assets/+.png')"
+							 disclosureOpenIcon="@Embed('./assets/-.png')"/>
+				</s:BorderContainer>
+				<s:BorderContainer width="100%"
+								   height="100%">
+					<s:layout>
+						<s:VerticalLayout gap="10"
+										  paddingTop="10"
+										  paddingBottom="10"/>
+					</s:layout>
+					<s:HGroup width="100%"
+							  horizontalAlign="center">
+						<s:Label text="{selectNode.@name}不可用时长SLA设置"
+								 fontWeight="bold"/>
+					</s:HGroup>
+					<mx:Form width="100%"
+							 id="configForm"
+							 paddingTop="0"
+							 paddingBottom="0">
+					</mx:Form>
+					<s:HGroup width="100%"
+							  horizontalAlign="center">
+						<s:Button label="保存"
+								  id="saveConfig"
+								  buttonMode="true"
+								  click="saveConfig_clickHandler(event)"/>
+						<s:Button label="重置"
+								  id="cancelConfig"
+								  buttonMode="true"
+								  click="cancelConfig_clickHandler(event)"/>
+					</s:HGroup>
+				</s:BorderContainer>
+			</s:HGroup>
+		</s:Scroller>
+	</panel:Window>
+</mx:Module>

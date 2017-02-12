@@ -1,0 +1,745 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:CompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					title="TopN"
+					titleIcon="@Embed(source='../img/title_ico01.png')" xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart" xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.event.PrettyChartEvent;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.User;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneResource;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.DegradationTOPNPM;
+			import com.linkage.module.cms.gsscene.view.components.degradationtopn.components.MoreDegraTopNComp;
+			import com.linkage.module.cms.gsscene.view.components.kpicustom.event.KpiCustomEvent;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.event.KPISituationEvent;
+			import com.linkage.module.cms.gsscene.view.components.renderer.CheckBoxSelectHeaderRenderer;
+			import com.linkage.module.cms.gsscene.view.components.renderer.CheckBoxSelectedRenderer;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var log:ILogger = Log.getLoggerByClass(DegradationTOPNNew);
+			
+			public var location:String;
+			
+			public var index:String;
+			
+			private var maxFlag:Boolean = false;
+			
+			private var chartParamTemp:Object; //图表菜单传递参数中间变量			
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			[Inject("user")]
+			public var user:User;
+			
+			
+			[Inject("degradationTOPNPM")]
+			[Bindable]
+			public var degradationTOPNPM:DegradationTOPNPM;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			[Inject("moreDegraTopNComp")]
+			public var moreDegraTopNComp:MoreDegraTopNComp;
+			
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			[MessageHandler(selector="CMS_SCENE_DEGRADATIONTOPN_REFRESHTOPN")]
+			public function loadData(event:SceneEvent = null):void
+			{
+				if (user.kpiId != null)
+					return;
+				
+				topNChart.percentHeight = 100;
+				
+				log.info("load topN data!");
+				degradationTOPNPM.showTopnSelectData();
+				
+				var evt:KPISituationEvent = new KPISituationEvent(KPISituationEvent.CMS_SCENE_KPISITUATION_TOPNUMGET);
+				evt.param = new Object;
+				evt.param.sceneId = user.sceneId;
+				evt.param.level = user.level;
+				//				msgDispatcher(evt);
+				requestServerUtil.addRequest(evt);
+				
+				//获取劣化topn矩阵
+				//msgDispatcher(new KPISituationEvent(KPISituationEvent.LOAD_BADTOPN_MATRIXDATA));
+			}
+			
+			/**
+			 * topn下拉选择处理事件
+			 */
+			protected function kpiSelector_changeHandler():void
+			{
+				log.debug("topN指标改变，加载数据！");
+				
+				var selectId:String = this.kpiSelector.selectedItem['kpiId'];
+				var strKpiId:String = selectId;
+				var strMoTypeId:String = this.kpiSelector.selectedItem['moTypeId'];
+				degradationTOPNPM.getTopnDataBySelectId(selectId, strKpiId, strMoTypeId);
+				
+				user.moTypeId = strMoTypeId;
+				user.moTypeIdList = strMoTypeId;
+				user.kpiId = strKpiId;
+				user.kpiIdList = strKpiId;
+				user.kpiName = kpiSelector.selectedItem["kpiName"];
+				user.timeInterval = kpiSelector.selectedItem["timeInterval"];
+				user.dateFlag = "1";
+				
+				//				msgDispatcher(new KPISituationEvent(KPISituationEvent.LOAD_LINE_DATA));
+				
+				log.info("[指标概况]：二次指标:");
+				//				msgDispatcher(new KPISituationEvent(KPISituationEvent.LOAD_KPI_AREA_DATA));
+				requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.LOAD_KPI_AREA_DATA));
+			}
+			
+			[MessageHandler(selector="SHOW_TOPN_DATA")]
+			public function showTOPNChart(event:KPISituationEvent):void
+			{
+				log.warn("[SHOW_TOPN_DATA]");
+				log.warn(degradationTOPNPM.kpiSituationDM.topNData);
+				
+				if(degradationTOPNPM.kpiSituationDM.topNData.length<=0){
+					topNChart.chartData(new ArrayCollection, true);
+				}
+				try{
+					log.debug("show topn kpi chart data!" + kpiSelector.selectedItem["kpiName"]);
+					
+					var colorArray:Array = new Array;
+					for each (var obj:Object in degradationTOPNPM.kpiSituationDM.topNData)
+					{
+						colorArray.push(obj.color);
+					}
+					
+					var p1:SerialParam = new SerialParam('kpiValue', kpiSelector.selectedItem["kpiName"]);
+					p1.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+					p1.fillColorArray = colorArray;
+					//				topNChart.width = degradationTOPNPM.kpiSituationDM.topNData.length * 48;
+					//
+					//				if (topNChart.width < this.width)
+					topNChart.width = this.width - 8;
+					
+					var charParam:ChartParam = new ChartParam();
+					//设置横坐标参数
+					charParam.xAxisProperty = "moName";
+					if(degradationTOPNPM.kpiSituationDM.topNData.length>1){
+						charParam.use3DColumn = false;
+					}
+					charParam.showLegend = false;
+					charParam.itemClickEnable = true;
+					charParam.padding = 0;
+					
+					charParam.useShowDataEffect = false;
+					
+					this.topNChart.chartParam = charParam;
+					
+					this.topNChart.series = new ArrayCollection([p1]);
+					
+					topNChart.chartData(degradationTOPNPM.kpiSituationDM.topNData, true);
+					
+					topNChart.addEventListener(PrettyChartEvent._DATA_CLICK, dealClick);
+					
+					log.info("show topn kpi chart data success!");
+				}catch(e:Error){
+					log.error(e);
+				}
+			}
+			
+			private function dealClick(e:PrettyChartEvent):void
+			{
+				menuChartWin.visible = true;
+				menuChartWin.includeInLayout = true;
+				
+				log.info("---dealClick");
+				log.info(e.data);
+				chartParamTemp = new Object();
+				chartParamTemp = e.data;
+				
+				//如果是网元，那么出现gis定位按钮
+				var x:Number = mouseX - 40;
+				var y:Number = mouseY - 10;
+				
+				log.info("x:{0},y:{1}", x, y);
+				log.info("width:{0},height:{1}", this.width, this.height);
+				log.info("width:{0},height:{1}", e.localX, e.localY);
+				log.info("width:{0},height:{1}", e.stageX, e.stageY);
+				if (this.width - x < 116)
+					x = this.width - 116;
+				if (this.height - y < 126)
+					y = this.height - 126;
+				
+				menuChartWin.x = x;
+				menuChartWin.y = y;
+			}
+			
+			
+			//历史趋势图菜单处理 
+			protected function showHistoryTrend():void
+			{
+				log.debug("[topn历史趋势图]: 开始！");
+				log.info(chartParamTemp);
+				
+				//网元的历史趋势图 跳转到指标定制页面
+				var e:KpiCustomEvent = new KpiCustomEvent(KpiCustomEvent.QUERYKPI);
+				var p:Object = new Object();
+				p.moTypeId = chartParamTemp.moTypeId;
+				p.kpiIDs = [chartParamTemp.kpiId];
+				p.moOrAreaFlag = "0";
+				p.moOrAreaId = chartParamTemp.moId;
+				p.endTime = chartParamTemp.time;
+				
+				e.param = p;
+				
+				log.info("图表 topn网元-历史趋势 处理：");
+				log.info(e.param);
+				msgDispatcher(e);
+			}
+			
+			//Gis定位
+			private function gisPositionHandler():void
+			{
+				log.info("TOPN柱子网元定位");
+				log.info(chartParamTemp);
+				var evt:SceneEvent = new SceneEvent(SceneEvent.MOIDS_COORDINATE_SEARCH);
+				evt.param = new ArrayCollection([chartParamTemp]);
+				//				msgDispatcher(evt);
+				requestServerUtil.addRequest(evt);
+			}
+			
+			public function closeWindow(type:int = 0):void
+			{
+				
+				if (type == 1)
+				{
+					if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+					{
+						this.visible = false;
+						this.includeInLayout = false;
+					}
+				}
+				else
+					(this.parent as Group).removeElement(this);
+				
+				if (type == 1)
+				{
+					var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+					e.panelName = this.name;
+					e.param.index = this.index;
+					e.param.pid = this.parent['id'];
+					msgDispatcher(e);
+				}
+			}
+			
+			protected function window2_resize(flag:Boolean):void
+			{
+				log.info("劣化TOPN 最大化、恢复窗口：" + flag + "_" + maxFlag);
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+				e.panelName = this.name;
+				e.panelIndex = this.index;
+				e.panellocation = this.location;
+				e.panelMaxFlag = this.maxFlag;
+				msgDispatcher(e);
+				log.info("劣化TOPN 最大化、恢复窗口：派发事件！");
+				
+				this.maxFlag = flag;
+				
+				this.closeButton.visible = !flag;
+				this.closeButton.includeInLayout = !flag;
+				
+				//				topNChart.width = degradationTOPNPM.kpiSituationDM.topNData.length * 88;
+				
+				//				if (topNChart.width < this.width)
+				topNChart.width = this.width - 8;
+			}
+			
+			//更多标签是否激活
+			private var showMoreFlag:Boolean = false;
+			
+			//暂时不显示的行缓存对象
+			private var rowCacheObj:Object = null;
+			
+			//add  by hurw at 2012-10-14 reason:表格排列变动 劣化topn矩阵
+			[MessageHandler(selector="DEAL_BADTOPN_SHOWGRID")]
+			public function dealBadTopNGrid(e:KPISituationEvent):void
+			{
+				//只有一个指标，列名为指标名，列内容为劣化topn网元
+				var cols:Array = badGrid.columns;
+				cols.splice(0);
+				log.info("cols:{0}", cols.length);
+				
+				if (degradationTOPNPM.kpiSituationDM.badTopnMatrixList.length > 0)
+				{
+					var col:AdvancedDataGridColumn;
+					
+					//只要加载第一条
+					var data:Object = degradationTOPNPM.kpiSituationDM.badTopnMatrixList;
+					for each (var badTopN:Object in data)
+					{
+						col = new AdvancedDataGridColumn;
+						col.headerText = "";
+						col.width = 50;
+						col.headerRenderer = new ClassFactory(CheckBoxSelectHeaderRenderer);
+						col.itemRenderer = new ClassFactory(CheckBoxSelectedRenderer);
+						cols.push(col);
+						
+						col = new AdvancedDataGridColumn;
+						col.dataField = "moName";
+						col.headerText = String(badTopN.kpiName);
+						col.minWidth = col.headerText.length * 15 + 50;
+						cols.push(col);
+						
+						col = new AdvancedDataGridColumn();
+						col.dataField = "kpiValue1";
+						col.headerText = "指标值";
+						col.minWidth = 130;
+						cols.push(col);
+						
+						col = new AdvancedDataGridColumn();
+						col.dataField = "cityName";
+						col.headerText = "地市";
+						col.width = 80;
+						cols.push(col);
+						
+						col = new AdvancedDataGridColumn();
+						col.dataField = "areaName";
+						col.headerText = "区域";
+						col.minWidth = 150;
+						cols.push(col);
+						
+						col = new AdvancedDataGridColumn();
+						col.dataField = "time";
+						col.headerText = "采集时间";
+						col.minWidth = 160;
+						cols.push(col);
+						
+						col = new AdvancedDataGridColumn();
+						col.dataField = "numerator";
+						col.headerText = "分子";
+						col.minWidth = 160;
+						cols.push(col);
+						
+						col = new AdvancedDataGridColumn();
+						col.dataField = "denominator";
+						col.headerText = "分母";
+						col.minWidth = 160;
+						cols.push(col);
+						
+						col = new AdvancedDataGridColumn();
+						col.dataField = "calcute";
+						col.headerText = "算法";
+						col.minWidth = 160;
+						cols.push(col);
+						
+						badGrid.columns = cols;
+						
+						badGrid.dataProvider = badTopN.datas;
+						badGrid.validateNow();
+						break;
+					}
+				}
+				else
+				{
+					log.info("[topN矩阵] 无数据");
+				}
+				
+			}
+			
+			protected function exportData(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("TOPN矩阵导出开始");
+				var data:ArrayCollection = degradationTOPNPM.kpiSituationDM.badTopnMatrixList;
+				//				degradationTOPNPM.exportColumns.push({"id": "moName", "name": "网元名称"}, {"id": "kpiValue1", "name": "指标值"});
+				
+				
+				//如果数据为空，那么返回，不存在劣化矩阵
+				if (data == null || data.length < 1)
+				{
+					Alert.show("没有矩阵数据");
+					return;
+				}
+				
+				var headerArr:Array = new Array();
+				for each (var col:AdvancedDataGridColumn in badGrid.columns)
+				{
+					if (col.dataField != "" && col.headerText != "")
+						headerArr.push({"id": col.dataField, "name": col.headerText});
+				}
+				
+				for each (var cityData:*in data)
+				{
+					ExcelUtil.exportSimpleExcel("指标" + cityData.kpiName + "的TOPN矩阵", headerArr, cityData.datas);
+					break;
+				}
+				log.info("TOPN矩阵导出结束");
+			}
+			
+			//指标概况指标点击后切换topn指标数据。
+			[MessageHandler(selector="KPI_CHANGE")]
+			public function dealSelectedKpi(e:SceneEvent):void
+			{
+				log.debug("TOPN 指标切换：" + e.kpiName);
+				for each (var kpi:Object in degradationTOPNPM.kpiSituationDM.topNList)
+				{
+					if (kpi['kpiName'] == e.kpiName)
+					{
+						kpiSelector.selectedItem = kpi;
+						break;
+					}
+				}
+				
+				log.debug("topN指标改变，加载数据！");
+				
+				var selectId:String = this.kpiSelector.selectedItem['kpiId'];
+				var strKpiId:String = selectId;
+				var strMoTypeId:String = this.kpiSelector.selectedItem['moTypeId'];
+				degradationTOPNPM.getTopnDataBySelectId(selectId, strKpiId, strMoTypeId);
+				
+				user.moTypeId = strMoTypeId;
+				user.moTypeIdList = strMoTypeId;
+				user.kpiId = strKpiId;
+				user.kpiIdList = strKpiId;
+				user.kpiName = kpiSelector.selectedItem["kpiName"];
+				user.timeInterval = kpiSelector.selectedItem["timeInterval"];
+				user.dateFlag = "1";
+				
+				log.info("[指标概况]：二次指标:");
+				//				msgDispatcher(new KPISituationEvent(KPISituationEvent.LOAD_KPI_AREA_DATA));
+				requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.LOAD_KPI_AREA_DATA));
+			}
+			
+			public function topnTipFunc(hd:HitData):String
+			{
+				var data:Object = hd.item;
+				return "<B>" + data["kpiName"] + "</B>\n" + data["moName"] + "\n" + data["kpiValue1"] + "\n" + data["cityName"] + "\n" + data["areaName"] + "\n" + data["time"] + "\n" + data["numerator"] + "\n" + data["denominator"] + "\n" + data["calcute"];
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var moIds:ArrayCollection = new ArrayCollection();
+				for each (var item:Object in badGrid.dataProvider)
+				{
+					if (item.selected == true)
+					{
+						moIds.addItem(item);
+					}
+				}
+				
+				if (moIds.length > 0)
+				{
+					log.info("多网元渲染");
+					log.info(moIds);
+					var evt:SceneEvent = new SceneEvent(SceneEvent.MOIDS_COORDINATE_SEARCH);
+					evt.param = new Object;
+					evt.param = moIds;
+					msgDispatcher(evt);
+					requestServerUtil.addRequest(evt);
+				}
+			}
+			
+			protected function window2_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(SceneEvent.CHECKBOX_ALL_SELECTED, allSelectedCheckBox);
+			}
+			
+			private function allSelectedCheckBox(event:SceneEvent):void
+			{
+				log.info("全选：{0}", event);
+				for each (var item:Object in badGrid.dataProvider)
+				{
+					if (event.param == "1")
+					{
+						item.selected = true;
+					}
+					else
+					{
+						item.selected = false;
+					}
+				}
+				ArrayCollection(badGrid.dataProvider).refresh();
+			}
+			
+			//topnum
+			protected function topNum_enterHandler():void
+			{
+				log.info("topNum更新");
+				if (!topNumText.text)
+				{
+					Alert.show("topNum不能为空！", "提示");
+					return;
+				}
+				
+				if (isNaN(parseInt(topNumText.text)))
+				{
+					Alert.show("topNum输入错误！", "提示");
+					return;
+				}
+				else if (parseInt(topNumText.text) > parseInt(degradationTOPNPM.kpiSituationDM.MAX_TOPNUM))
+				{
+					Alert.show("topNum超过最大值" + degradationTOPNPM.kpiSituationDM.MAX_TOPNUM + "!", "提示");
+					return;
+				}
+				else
+				{
+					topNumText.text = String(parseInt(topNumText.text));
+					degradationTOPNPM.kpiSituationDM.topTempNum = topNumText.text;
+				}
+				var evt:KPISituationEvent = new KPISituationEvent(KPISituationEvent.CMS_SCENE_KPISITUATION_TOPNUMUPDATE);
+				evt.param = new Object;
+				evt.param.sceneId = user.initSceneId;
+				evt.param.level = user.level;
+				evt.param.topnNum = topNumText.text;
+				log.info(evt.param);
+//								msgDispatcher(evt);
+				requestServerUtil.addRequest(evt);
+			}
+			
+			private var flag601:Boolean = false;
+			
+			protected function navigatorcontent1_mouseOverHandler(event:MouseEvent):void
+			{
+				flag601 = true;
+				//				log.info("flag=" + flag601 + "isNew=" + user.isNew);
+				setTimeout(function():void
+				{
+					if (flag601 && user.isNew == "1")
+					{
+						user.labelTypeId = "601";
+						var obj:Object = new Object;
+						obj.sceneId = user.sceneId;
+						obj.level = user.level;
+						obj.labelId = 601;
+						var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+						e.obj = obj;
+						//							msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+					}
+					flag601 = false;
+				}, 3000);
+			}
+			
+			protected function navigatorcontent1_mouseOutHandler(event:MouseEvent):void
+			{
+				flag601 = false;
+			}
+			
+			
+			private var flag602:Boolean = false;
+			
+			protected function navigatorcontent2_mouseOverHandler(event:MouseEvent):void
+			{
+				flag602 = true;
+				//				log.info("flag=" + flag602 + "isNew=" + user.isNew);
+				setTimeout(function():void
+				{
+					if (flag602 && user.isNew == "1")
+					{
+						user.labelTypeId = "601";
+						var obj:Object = new Object;
+						obj.sceneId = user.sceneId;
+						obj.level = user.level;
+						obj.labelId = 602;
+						var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+						e.obj = obj;
+						//							msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+					}
+					flag602 = false;
+				}, 3000);
+			}
+			
+			protected function navigatorcontent2_mouseOutHandler(event:MouseEvent):void
+			{
+				flag602 = false;
+			}
+			
+			protected function image1_clickHandler():void
+			{
+				log.debug("TopN网元性能监控视图");
+				//带跳转
+				var url:String = user.context + "/flex-release/topnMonitor.jsp?sceneId=" + user.sceneId 
+					+ "&cityId=" + user.cityId  + "&areaId="+user.areaId 
+					+ "&logicalType=" + user.logicalType + "&level=" + user.level;
+				navigateToURL(new URLRequest(url));
+				// TODO Auto-generated method stub
+//				if (moreDegraTopNComp == null)
+//					moreDegraTopNComp = new MoreDegraTopNComp();
+//				moreDegraTopNComp.width = FlexGlobals.topLevelApplication.width;
+//				moreDegraTopNComp.height = FlexGlobals.topLevelApplication.height;
+//				log.info("width:{0},height:{1}", moreDegraTopNComp.width, moreDegraTopNComp.height);
+//				PopUpManager.addPopUp(moreDegraTopNComp, this.parent as DisplayObject);
+//				moreDegraTopNComp.isPopUpFlag = true;
+//				moreDegraTopNComp.initTopNCharts();
+			}
+			
+			private function myLabelFunction(item:Object):String
+			{
+				try{
+					return item["kpiName"] + "[" + item["moTypeName"] + "]";
+				}catch(e:Error){
+					log.error(e);
+				}
+				return "";
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="0">
+		<s:TabBar id="topNTabBar"
+				  width="100%"
+				  buttonMode="true"
+				  styleName="sceneTabBar"
+				  dataProvider="{topNStack}"/>
+		<mx:ViewStack id="topNStack"
+					  creationPolicy="all"
+					  styleName="sceneViewStack"
+					  height="100%"
+					  width="100%"
+					  backgroundAlpha="0">
+			<s:NavigatorContent label="TopN"
+								height="100%"
+								width="100%"
+								mouseOver="navigatorcontent1_mouseOverHandler(event)"
+								mouseOut="navigatorcontent1_mouseOutHandler(event)"
+								creationPolicy="all">
+				<s:Group id="topNGroup"
+						 width="100%"
+						 height="100%">
+					<s:Scroller width="100%"
+								top="20"
+								height="100%"
+								styleName="sceneScroller">
+						<s:HGroup width="100%"
+								  left="-8"
+								  horizontalAlign="center"
+								  clipAndEnableScrolling="true"
+								  height="100%">
+							<ailk_chart:PrettyChart id="topNChart"
+													dataTipFunc="topnTipFunc"
+													showYaxisTitle="false"
+													showXaxisTitle="false"
+													maxColumnWidth="40"
+													top="25"
+													width="250"
+													height="100"/>
+						</s:HGroup>
+					</s:Scroller>
+					<s:DropDownList id="kpiSelector"
+									right="2"
+									top="2"
+									width="240"
+									requireSelection="true"
+									labelFunction=" myLabelFunction"
+									dataProvider="{degradationTOPNPM.kpiSituationDM.topNList}"
+									change="kpiSelector_changeHandler()"/>
+					<s:TextInput id="topNumText"
+								 text="{degradationTOPNPM.kpiSituationDM.topNum}"
+								 restrict="0-9"
+								 width="33"
+								 right="5"
+								 top="-24"
+								 enter="topNum_enterHandler()"/>
+				</s:Group>
+			</s:NavigatorContent>
+			<s:NavigatorContent label="TopN矩阵"
+								height="100%"
+								width="100%"
+								mouseOver="navigatorcontent2_mouseOverHandler(event)"
+								mouseOut="navigatorcontent2_mouseOutHandler(event)"
+								creationPolicy="all">
+				<s:Group width="100%"
+						 height="100%">
+					<s:Scroller width="100%"
+								height="100%"
+								horizontalScrollPolicy="auto"
+								verticalScrollPolicy="auto"
+								styleName="sceneScroller">
+						<s:Group id="badGroup"
+								 width="100%"
+								 height="100%">
+							<mx:AdvancedDataGrid id="badGrid"
+												 width="100%"
+												 height="100%"
+												 styleName="sceneDG"/>
+						</s:Group>
+					</s:Scroller>
+					<s:Button label="GIS定位"
+							  top="-22"
+							  right="55"
+							  click="button1_clickHandler(event)"/>
+					<s:Button label="导出"
+							  width="50"
+							  top="-22"
+							  visible="true"
+							  right="0"
+							  click="exportData(event)"/>
+				</s:Group>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:VGroup>
+	<mx:Image buttonMode="true"
+			  right="54"
+			  top="-24"
+			  toolTip="跳转至TopN网元性能监控视图"
+			  source="{GsSceneResource.url_link}"
+			  click="image1_clickHandler()"/>
+	<!-- toolTip="多指标TopN展示" width="20" height="20" source="@Embed(source='../img/more.png')"-->
+	<ailk_compts:Window id="menuChartWin"
+						width="120"
+						styleName="window"
+						minimizable="false"
+						maximizable="false"
+						dragable="true"
+						closable="false"
+						rollOut="{this.menuChartWin.visible = false; this.menuChartWin.includeInLayout = false;}"
+						visible="false"
+						includeInLayout="false">
+		<mx:VBox width="100%"
+				 top="-16"
+				 horizontalAlign="center"
+				 height="100%">
+			<s:Button label="历史趋势图"
+					  click="showHistoryTrend()"/>
+			<s:Button label="GIS 定位"
+					  click="gisPositionHandler()"/>
+		</mx:VBox>
+	</ailk_compts:Window>
+</viewnew:CompWindow>

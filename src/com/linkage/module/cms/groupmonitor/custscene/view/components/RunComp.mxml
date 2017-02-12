@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  width="100%"
+		  height="100%"
+		  creationComplete="vgroup1_creationCompleteHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author wuchao (Ailk No.)
+		 @version 1.0
+		 @date 2013-3-13
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.groupmonitor.custscene.event.CustSceneEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			public var param:Object;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Bindable]
+			private var startDate:Date;
+			[Bindable]
+			private var endDate:Date;
+
+			//表格列
+			[Bindable]
+			private var groColumns:Array=new Array();
+
+			[Inject]
+			[Bindable]
+			public var pm:FunPerfCompPM;
+
+			private var log:ILogger=Log.getLoggerByClass(RunComp);
+
+			[MessageHandler(selector="CREATE_KPI_COLUMS_RUN")]
+			public function creatColumn(event:CustSceneEvent):void
+			{
+				log.debug("begin creatColumn");
+				groColumns=new Array();
+				var col:AdvancedDataGridColumn=null;
+				if (pm.dm.userCustKpiDataMap)
+				{
+					if (pm.dm.userCustKpiDataMap.heads && (pm.dm.userCustKpiDataMap.heads as ArrayCollection).length > 0)
+					{
+						var heads:ArrayCollection=pm.dm.userCustKpiDataMap.heads;
+						for each (var temp:Object in heads)
+						{
+							col=new AdvancedDataGridColumn();
+							col.dataField=temp.dataField;
+							col.headerText=temp.heatText;
+							groColumns.push(col);
+						}
+					}
+					else
+					{
+						log.debug("[creatColumn]no colums");
+					}
+					if (pm.dm.userCustKpiDataMap.datas)
+					{
+						kpiGird.dataProvider=pm.dm.userCustKpiDataMap.datas;
+					}
+					else
+					{
+						log.debug("[creatColumn]no data");
+					}
+				}
+				else
+				{
+					log.debug("[creatColumn]no colums");
+				}
+
+				log.debug("end creatColumn");
+			}
+
+			public function query_clickHandler(event:MouseEvent=null):void
+			{
+				var evt:CustSceneEvent=new CustSceneEvent(CustSceneEvent.LOAD_KPIS_BY_SERVTYPE);
+				param.startTime=beginTime.text;
+				param.endTime=endTime.text;
+				evt.param=param;
+				msgDispatcher(evt);
+			}
+
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				endDate=new Date();
+				startDate=new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() - 1);
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup verticalAlign="middle"
+			  horizontalAlign="center"
+			  width="100%"
+			  height="35">
+		<s:HGroup width="40%"
+				  verticalAlign="middle"
+				  horizontalAlign="center">
+			<s:Label text="开始时间:"/>
+			<mx:DateField id="beginTime"
+						  width="120"
+						  formatString="YYYY-MM-DD"
+						  selectedDate="{startDate}"
+						  showToday="true"/>
+		</s:HGroup>
+		<s:HGroup width="40%"
+				  verticalAlign="middle"
+				  horizontalAlign="center">
+			<s:Label text="结束时间:"/>
+			<mx:DateField id="endTime"
+						  width="120"
+						  formatString="YYYY-MM-DD"
+						  selectedDate="{endDate}"
+						  showToday="true"/>
+		</s:HGroup>
+		<s:Button label="查询"
+				  click="query_clickHandler(event)"/>
+	</s:HGroup>
+	<mx:AdvancedDataGrid id="kpiGird"
+						 width="100%"
+						 height="100%"
+						 headerWordWrap="true"
+						 draggableColumns="false"
+						 dragMoveEnabled="false"
+						 verticalAlign="middle"
+						 horizontalScrollPolicy="off"
+						 columns="{groColumns}">
+	</mx:AdvancedDataGrid>
+</s:VGroup>

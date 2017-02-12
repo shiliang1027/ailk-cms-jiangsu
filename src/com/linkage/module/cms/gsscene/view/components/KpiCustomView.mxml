@@ -1,0 +1,678 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    title="指标查询"
+                    width="720"
+                    height="400"
+                    styleName="windowScene"
+                    visible="false"
+                    minimizable="false"
+                    resizable="true"
+                    dragable="true"
+                    close="this.visible=false;isOuterQuery=false;timerStop();loadManager.hideLoading();"
+                    creationComplete="window_creationCompleteHandler(event)"
+                    xmlns:view="com.linkage.module.cms.gsscene.view.components.kpicustom.view.*">
+    <!--
+         ***************************************
+         This is Content
+         @author shiliang (66614)
+         @version 1.0
+         @date 2012-11-14
+         @langversion 3.0
+         @playerversion Flash 11
+         @productversion Flex 4
+         @copyright Ailk NBS-Network Mgt. RD Dept.
+         ***************************************
+    -->
+
+    <ailk_compts:layout>
+        <s:VerticalLayout paddingBottom="10"
+                          paddingLeft="10"
+                          paddingRight="10"
+                          paddingTop="5"/>
+    </ailk_compts:layout>
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.kpicustom.KpiCustomContext;
+			import com.linkage.module.cms.gsscene.view.components.kpicustom.event.KpiCustomEvent;
+			import com.linkage.module.cms.gsscene.view.components.kpicustom.view.KpiCustomViewPM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.ISystemManager;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			
+			import spark.events.IndexChangeEvent;
+
+            private static var log:ILogger = Log.getLoggerByClass(KpiCustomView);
+
+            [Inject("user")]
+            public var user:IUser;
+
+            [Bindable]
+            [Inject]
+            public var pm:KpiCustomViewPM;
+
+            [MessageDispatcher]
+            public var dispatcher:Function;
+
+            private var loadManager:LoadManager;
+
+            private var isOuterQuery:Boolean = false;
+            private var outerQueryParam:Object;
+            private var isSearchID:Boolean = false;
+
+            private var searchParam:Object;
+
+            private var timer:Timer = new Timer(3 * 60 * 1000);
+
+            private static var dateFormatter:DateFormatter = new DateFormatter();
+            dateFormatter.formatString = "YYYY-MM-DD JJ:NN";
+
+
+            protected function window_creationCompleteHandler(event:FlexEvent):void
+            {
+                loadManager = new LoadManager(this);
+                dispatcher(new KpiCustomEvent(KpiCustomEvent.INIT));
+                timer.addEventListener(TimerEvent.TIMER, onTimerHandler);
+            }
+
+            //格式化时间
+            public function formatDate(date:Date):String
+            {
+                return dateFormatter.format(date);
+            }
+
+            private function onTimerHandler(event:TimerEvent):void
+            {
+                if (!isOuterQuery)
+                {
+                    timerStop();
+                }
+                doQuery_clickHandler();
+            }
+
+            private function timerStop(flag:Boolean = true):void
+            {
+                if (flag)
+                {
+                    if (timer.running)
+                    {
+                        timer.stop();
+                    }
+                }
+                else
+                {
+                    if (!timer.running)
+                    {
+                        timer.start();
+                    }
+                }
+            }
+
+            [MessageHandler(selector = "VIEWSHOW")]
+            public function viewShowHandler(e:KpiCustomEvent):void
+            {
+                this.visible = true;
+                var s:Rectangle = systemManager.screen;
+                var appWidth:Number;
+                var appHeight:Number;
+                var parentWidth:Number;
+                var parentHeight:Number;
+
+                appWidth = s.width;
+                appHeight = s.height;
+                parentWidth = this.parent.width;
+                parentHeight = this.parent.height;
+                x = Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+                y = Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+
+
+                var date:Date = new Date();
+//				date.setHours(date.getHours() + 1);
+                date.setHours(date.getHours());
+                endTime.text = dateFormatter.format(date);
+                date.setHours(date.getHours() - 24);
+                startTime.text = dateFormatter.format(date);
+            }
+
+
+            [MessageHandler(selector = "INIT")]
+            public function initHandler(e:KpiCustomEvent):void
+            {
+                moTypeDropDown.enabled = false;
+                var evt:KpiCustomEvent = new KpiCustomEvent(KpiCustomEvent.LOADMOTYPES);
+                evt.param = new Object();
+                evt.param.sceneID = user.initSceneId;
+                dispatcher(evt);
+            }
+
+
+            protected function moTypes_changeHandler(event:IndexChangeEvent = null):void
+            {
+                timerStop();
+                kpisDropDown.enabled = false;
+                var evt:KpiCustomEvent = new KpiCustomEvent(KpiCustomEvent.LOADKPIS);
+                evt.param = new Object;
+                evt.param.sceneID = user.initSceneId;
+                evt.param.moTypeID = moTypeDropDown.selectedItem.id;
+                dispatcher(evt);
+
+            }
+
+
+            protected function kpis_changeHandler(event:IndexChangeEvent = null):void
+            {
+                timerStop();
+                moRB_changeHandler(moRB.selected ? 0 : 1);
+            }
+
+            protected function moRB_changeHandler(flag:int = 0, event:Event = null):void
+            {
+                timerStop();
+                var selectedItemArray:ArrayCollection = kpisDropDown.selectedItemArray;
+                var kpiIDs:Array = new Array();
+                var evt:KpiCustomEvent;
+
+                if (selectedItemArray && selectedItemArray.length > 0)
+                {
+                    for each (var item:* in selectedItemArray)
+                    {
+                        kpiIDs.push(item.id);
+                    }
+                    evt = flag == 0 ? new KpiCustomEvent(KpiCustomEvent.LOADMOS) : new KpiCustomEvent(KpiCustomEvent.LOADAREAS);
+                    var param:Object = new Object();
+                    param.sceneID = user.initSceneId;
+                    param.moTypeID = moTypeDropDown.selectedItem.id;
+                    param.kpiIDs = kpiIDs;
+
+                    if (isSearchID)
+                    {
+                        param.id = searchParam;
+                    }
+                    else
+                    {
+                        param.name = searchParam;
+                    }
+                    evt.param = param;
+                    dispatcher(evt);
+                    moOrAreaDropDown.enabled = false;
+                }
+            }
+
+
+            protected function moOrAreaDropDown_changeHandler(event:IndexChangeEvent):void
+            {
+                timerStop();
+            }
+
+            protected function moOrAreaDropDown_textInputChangeHandler(event:Event):void
+            {
+                var searchText:String = com.linkage.module.cms.gsscene.view.components.kpicustom.view.MultiEditDropDownList(event.currentTarget).textDisplay.text;
+                isSearchID = false;
+                searchParam = searchText;
+                kpis_changeHandler();
+            }
+
+
+            [MessageHandler(selector = "LOADMOTYPESCOMPLETE")]
+            public function loadMoTypesCompleteHandler(e:KpiCustomEvent):void
+            {
+                moTypeDropDown.enabled = true;
+                moTypeDropDown.selectedIndex = 0;
+                moTypes_changeHandler();
+            }
+
+            [MessageHandler(selector = "LOADMOTYPESERROR")]
+            public function loadMoTypesErrorHandler(e:KpiCustomEvent):void
+            {
+                Alert.show("获取网元类型列表失败!", "错误");
+                isOuterQuery = false;
+            }
+
+            [MessageHandler(selector = "LOADKPISCOMPLETE")]
+            public function loadKpisCompleteHandler(e:KpiCustomEvent):void
+            {
+                kpisDropDown.enabled = true;
+
+                if (isOuterQuery)
+                {
+                    var item:*;
+
+                    if (outerQueryParam.kpiIDs && outerQueryParam.kpiIDs.length > 0)
+                    {
+                        var selectedArray:ArrayCollection = new ArrayCollection();
+
+                        for each (item in pm.dm.kpis)
+                        {
+                            for each (var k:* in outerQueryParam.kpiIDs)
+                            {
+                                if (item.id == k)
+                                {
+                                    item.selected = true;
+                                    selectedArray.addItem(item);
+                                }
+                            }
+                        }
+                        kpisDropDown.selectedItemArray.addAll(selectedArray);
+                    }
+
+                    if (kpisDropDown.selectedItemArray.length <= 0)
+                    {
+//						for each(item in pm.dm.kpis)
+//						{
+//							item.selected = true;
+//						}
+
+                        pm.dm.kpis.getItemAt(0).selected = true;
+
+                        kpisDropDown.selectedItemArray.addItem(pm.dm.kpis.getItemAt(0));
+                    }
+
+                    if (outerQueryParam.moOrAreaId)
+                    {
+                        isSearchID = true;
+                        searchParam = outerQueryParam.moOrAreaId;
+                    }
+                    else if (outerQueryParam.moOrAreaName)
+                    {
+                        isSearchID = false;
+                        searchParam = outerQueryParam.moOrAreaName;
+                    }
+
+                    kpis_changeHandler();
+                }
+            }
+
+            [MessageHandler(selector = "LOADKPISERROR")]
+            public function loadKpisErrorHandler(e:KpiCustomEvent):void
+            {
+                Alert.show("获取指标列表失败!", "错误");
+                isOuterQuery = false;
+            }
+
+
+            [MessageHandler(selector = "LOADMOSCOMPLETE")]
+            public function loadMosCompleteHandler(e:KpiCustomEvent):void
+            {
+                searchParam = "";
+                moOrAreaIDs.forEach(function callback(item:*, index:int, array:Array):void
+                {
+                    for each (var mo:* in pm.dm.moOrAreas)
+                    {
+                        if (item == mo.id)
+                        {
+                            mo.selected = true;
+                            moOrAreaDropDown.selectedItemArray.addItem(mo);
+                        }
+                    }
+                });
+                moOrAreaDropDown.enabled = true;
+                doOuterQuery();
+            }
+
+            [MessageHandler(selector = "LOADMOSERROR")]
+            public function loadMosErrorHandler(e:KpiCustomEvent):void
+            {
+                Alert.show("获取网元列表失败!", "错误");
+                searchParam = "";
+                isOuterQuery = false;
+            }
+
+            [MessageHandler(selector = "LOADAREASCOMPLETE")]
+            public function loadAreasCompleteHandler(e:KpiCustomEvent):void
+            {
+                moOrAreaIDs.forEach(function callback(item:*, index:int, array:Array):void
+                {
+                    for each (var area:* in pm.dm.moOrAreas)
+                    {
+                        if (item == area.id)
+                        {
+                            area.selected = true;
+                        }
+                    }
+                });
+                moOrAreaDropDown.enabled = true;
+                searchParam = "";
+                doOuterQuery();
+            }
+
+            [MessageHandler(selector = "LOADAREASERROR")]
+            public function loadAreasErrorHandler(e:KpiCustomEvent):void
+            {
+                Alert.show("获取区域列表失败!", "错误");
+                searchParam = "";
+                isOuterQuery = false;
+            }
+
+
+            private function doOuterQuery():void
+            {
+                if (isOuterQuery)
+                {
+                    if (pm.dm.moOrAreas.length <= 0)
+                    {
+                        isOuterQuery = false;
+                        var moOrAreaPrompt:String = (moRB.selected ? '网元' : '区域') + " " + (isSearchID ? outerQueryParam.moOrAreaId : outerQueryParam.moOrAreaName) + " 不存在！";
+                        Alert.show(moOrAreaPrompt, "警告");
+                        return;
+                    }
+                    moOrAreaDropDown.selectedItemArray.removeAll();
+
+                    for each (var item:* in pm.dm.moOrAreas)
+                    {
+                        if (String(item.name).indexOf(String(searchParam)) != -1)
+                        {
+//							moOrAreaDropDown.selectedItemArray.removeAll()
+                            item.selected = true;
+                            moOrAreaDropDown.selectedItemArray.addItem(item);
+                            doQuery_clickHandler();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            private var moOrAreaIDs:Array = new Array();
+
+            protected function doQuery_clickHandler(event:MouseEvent = null):void
+            {
+                if (DateFormatter.parseDateString(startTime.text + ":00").getTime() > DateFormatter.parseDateString(endTime.text + ":00").getTime())
+                {
+                    Alert.show("开始时间不能大于结束时间", "提示");
+                    return;
+                }
+
+//				if(DateFormatter.parseDateString(endTime.text+":00").getTime() - DateFormatter.parseDateString(startTime.text+":00").getTime()>3600000*24){
+//					Alert.show("时间间隔超过1天，暂不支持");
+//					return;
+//				}
+//                if (DateFormatter.parseDateString(endTime.text + ":00").getTime() - DateFormatter.parseDateString(startTime.text + ":00").getTime() > 3600000 * 2)
+//                {
+//                    Alert.show("时间间隔超过2小时，查询可能较慢，是否继续？", "提示", Alert.YES | Alert.NO, null, function(event:CloseEvent):void
+//                    {
+//                        if (event.detail == Alert.YES)
+//                        {
+//                            doQuery();
+//                        }
+//                    })
+//                }
+//                else
+//                {
+                    doQuery();
+//                }
+            }
+
+            private function doQuery():void
+            {
+                if (kpisDropDown.selectedItemArray.length <= 0)
+                {
+                    Alert.show("请选择指标！", "提示");
+                    timerStop(true);
+                    return;
+                }
+
+                var moOrAreaPrompt:String = "请选择" + (moRB.selected ? '网元' : '区域') + "！";
+
+                if (moOrAreaDropDown.selectedItemArray.length <= 0)
+                {
+                    Alert.show(moOrAreaPrompt, "提示");
+                    timerStop(true);
+                    return;
+                }
+                var item:*;
+
+                moOrAreaIDs.splice(0);
+
+                for each (item in moOrAreaDropDown.selectedItemArray)
+                {
+                    moOrAreaIDs.push(item.id);
+                }
+
+                var param:Object = new Object();
+                param.sceneID = user.initSceneId;
+                param.moTypeID = moTypeDropDown.selectedItem.id;
+                param.kpiIDs = kpiIDs;
+                param.moAreaFlag = moRB.selected ? "0" : "1";
+                param.startTime = startTime.text + ":00";
+                param.endTime = endTime.text + ":00";
+
+                if (moRB.selected)
+                {
+                    param.moIDs = moOrAreaIDs;
+                }
+                else
+                {
+                    param.areaIDs = moOrAreaIDs;
+                }
+                loadManager.showLoading();
+
+                for each (item in kpisDropDown.selectedItemArray)
+                {
+                    var kpiIDs:Array = new Array();
+                    kpiIDs.push(item.id);
+                    param.kpiIDs = kpiIDs;
+                    var evt:KpiCustomEvent = new KpiCustomEvent(KpiCustomEvent.LOADKPIDATA);
+                    evt.param = param;
+                    dispatcher(evt);
+                }
+                enableOper(false);
+            }
+
+            [MessageHandler(selector = "LOADKPIDATACOMPLETE")]
+            public function loadKpiDataCompleteHandler(e:KpiCustomEvent):void
+            {
+                loadManager.hideLoading();
+//				if(pm.dm.kpisData.length <= 0)
+//				{
+////					Alert.show("查询结果为空", "提示");
+//				}
+                isOuterQuery = false;
+                timerStop(true);
+                enableOper(true);
+            }
+
+            [MessageHandler(selector = "LOADKPIDATAERROR")]
+            public function loadKpiDataErrorHandler(e:KpiCustomEvent):void
+            {
+                loadManager.hideLoading();
+                Alert.show("获取指标数据失败!", "错误");
+                isOuterQuery = false;
+                timerStop(true);
+                enableOper(true);
+            }
+
+
+
+            [MessageHandler(selector = "QUERYKPI")]
+            public function queryKpiHandler(e:KpiCustomEvent):void
+            {
+                pm.dm.kpisData.removeAll();
+                dispatcher(new KpiCustomEvent(KpiCustomEvent.VIEWSHOW));
+                isOuterQuery = true;
+                outerQueryParam = e.param;
+
+                if (outerQueryParam.endTime)
+                {
+                    var date:Date = DateFormatter.parseDateString(outerQueryParam.endTime + ":00");
+                    endTime.text = dateFormatter.format(date);
+                    date.setHours(date.getHours() - 2);
+                    startTime.text = dateFormatter.format(date);
+                }
+
+                if (outerQueryParam.moOrAreaFlag == "0")
+                {
+                    moRB.selected = true;
+                }
+                else if (outerQueryParam.moOrAreaFlag == "1")
+                {
+                    areaRB.selected = true;
+                }
+
+                for each (var item:* in pm.dm.moTypes)
+                {
+                    if (outerQueryParam.moTypeId)
+                    {
+                        if (item.id == outerQueryParam.moTypeId)
+                        {
+                            moTypeDropDown.selectedItem = item;
+                            moTypes_changeHandler();
+                            break;
+                        }
+                    }
+                    else if (outerQueryParam.moTypeName)
+                    {
+                        if (item.name == outerQueryParam.moTypeName)
+                        {
+                            moTypeDropDown.selectedItem = item;
+                            moTypes_changeHandler();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            private function enableOper(flag:Boolean = true):void
+            {
+                startTime.enabled = flag;
+                endTime.enabled = flag;
+                moTypeDropDown.enabled = flag;
+                kpisDropDown.enabled = flag;
+                moOrAreaDropDown.enabled = flag;
+                moRB.enabled = flag;
+                areaRB.enabled = flag;
+                doQueryBtn.enabled = flag;
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+        <parsley:Configure/>
+        <parsley:ContextBuilder>
+            <parsley:FlexConfig type="{KpiCustomContext}"/>
+        </parsley:ContextBuilder>
+    </fx:Declarations>
+
+    <s:TileGroup width="100%"
+                 requestedColumnCount="2"
+                 columnAlign="justifyUsingWidth">
+        <s:HGroup verticalAlign="middle"
+                  width="100%">
+            <s:Label text="开始时间："/>
+            <ailk_compts:UXDateField id="startTime"
+                                     labelFunction="formatDate"
+                                     yearNavigationEnabled="true"
+                                     width="100%"/>
+        </s:HGroup>
+        <s:HGroup verticalAlign="middle"
+                  width="100%">
+            <s:Label text="结束时间："/>
+            <ailk_compts:UXDateField id="endTime"
+                                     labelFunction="formatDate"
+                                     yearNavigationEnabled="true"
+                                     width="100%"/>
+        </s:HGroup>
+
+        <s:HGroup verticalAlign="middle"
+                  width="100%">
+            <s:Label text="网元类型："/>
+            <view:MultiEditDropDownList prompt="请选择网元类型"
+                                               enabled="false"
+                                               id="moTypeDropDown"
+                                               width="100%"
+                                               dataProvider="{pm.dm.moTypes}"
+                                               labelField="name"
+                                               requireSelection="true"
+                                               change="moTypes_changeHandler(event)"/>
+
+
+        </s:HGroup>
+        <s:HGroup verticalAlign="middle"
+                  width="100%">
+            <s:Label text="指标名称："/>
+            <view:MultiEditDropDownList prompt="请选择指标"
+                                               enabled="false"
+                                               id="kpisDropDown"
+                                               allowMultipleSelecte="true"
+                                               labelField="name"
+                                               dataProvider="{pm.dm.kpis}"
+                                               editable="false"
+                                               width="100%"
+                                               change="kpis_changeHandler(event)"/>
+        </s:HGroup>
+        <s:HGroup verticalAlign="middle"
+                  width="100%">
+            <s:RadioButton id="moRB"
+                           groupName="moArea"
+                           label="网元"
+                           selected="true"
+                           change="moRB_changeHandler(0)"/>
+            <s:RadioButton id="areaRB"
+                           groupName="moArea"
+                           label="区域"
+                           change="moRB_changeHandler(1)"/>
+        </s:HGroup>
+
+        <s:HGroup verticalAlign="middle"
+                  width="100%">
+            <s:Label text="{moRB.selected?'网元':'区域'}名称："/>
+            <view:MultiEditDropDownList prompt="请选择{moRB.selected?'网元':'区域'}"
+                                               id="moOrAreaDropDown"
+                                               enabled="false"
+                                               allowMultipleSelecte="true"
+                                               labelField="name"
+                                               dataProvider="{pm.dm.moOrAreas}"
+											   editable="false"
+                                               width="100%"
+                                               change="moOrAreaDropDown_changeHandler(event)"
+                                               textInputChange="moOrAreaDropDown_textInputChangeHandler(event)"/>
+        </s:HGroup>
+        <s:HGroup width="100%">
+
+        </s:HGroup>
+        <s:HGroup width="100%"
+                  horizontalAlign="right"
+                  verticalAlign="middle">
+            <s:Button label="查询"
+                      id="doQueryBtn"
+                      buttonMode="true"
+                      click="doQuery_clickHandler(event)"/>
+        </s:HGroup>
+    </s:TileGroup>
+    <s:Group width="100%"
+             height="100%">
+        <s:VGroup visible="{pm.dm.kpisData.length == 0}"
+                  includeInLayout="{pm.dm.kpisData.length == 0}"
+                  width="100%"
+                  height="100%"
+                  horizontalAlign="center"
+                  verticalAlign="middle">
+            <s:Label text="数据为空"/>
+        </s:VGroup>
+        <s:Scroller width="100%"
+                    height="100%"
+                    styleName="sceneScroller">
+            <s:DataGroup width="100%"
+                         height="100%"
+                         dataProvider="{pm.dm.kpisData}"
+                         itemRenderer="com.linkage.module.cms.gsscene.view.components.kpicustom.view.KpiDataItemRenderer">
+                <s:layout>
+                    <s:VerticalLayout gap="1"/>
+                </s:layout>
+            </s:DataGroup>
+        </s:Scroller>
+    </s:Group>
+</ailk_compts:Window>

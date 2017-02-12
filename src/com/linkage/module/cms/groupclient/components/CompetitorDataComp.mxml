@@ -1,0 +1,861 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="竞争对手数据"
+		 creationComplete="competitorDataComp_creationCompleteHandler(event)"
+		 xmlns:panel="com.linkage.system.component.panel.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="saveEditComData",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+		[Event(name="initComp",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+		[Event(name="exportComp",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.linkage.module.cms.groupclient.event.HealthInfoCompEvent;
+			import com.linkage.module.cms.groupclient.renderer.AlarmCustRenderer;
+			import com.linkage.module.cms.groupclient.renderer.AlarmLerver1Renderer;
+			import com.linkage.module.cms.groupclient.renderer.AlarmLerver2Renderer;
+			import com.linkage.module.cms.groupclient.renderer.AlarmLerver3Renderer;
+			import com.linkage.module.cms.groupclient.renderer.AlarmLerver4Renderer;
+			import com.linkage.system.component.panel.Window;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.core.ScrollPolicy;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+						
+			[Bindable]
+			var isEditOrAdd:String = "";
+			
+			[Bindable]
+			var selectNum:int = 8;
+			
+			[Bindable]
+			private var changeData:Object = {};
+			// log
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.groupclient.components.competitorDataComp");
+			[Bindable]
+			private var clientInfoData:Object=new Object();
+			[Bindable]
+			private var voipList:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var dataList:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var internetList:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var smsList:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var netList:ArrayCollection=new ArrayCollection();
+			
+			[Bindable]
+			public var myDP:ArrayCollection = new ArrayCollection(
+				[ {name:"语音专线", value:"voip"},
+				  {name:"数据专线", value:"data"},
+				  {name:"互联网专线", value:"internet"},
+				  {name:"短信专线", value:"sms"},
+				  {name:"网络服务数据", value:"net"} ]);
+			
+			protected function competitorDataComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(HealthInfoCompEvent.DATACHANGECMP, onClientInfoDataChange);
+				this.addEventListener(HealthInfoCompEvent.REFRESH, onRefresh);
+				this.addEventListener(HealthInfoCompEvent.ISSAVESUC,onIsSUC);
+			}
+			
+			private function onIsSUC(event:HealthInfoCompEvent):void
+			{
+				log.info("onDataChange   onIsSUC");
+				 if(event.param == "no"){
+					Alert.show("保存失败","提示");
+				}else  if(event.param == "yes"){
+					Alert.show("保存成功","提示");
+				}  
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.INITCOMP));
+			}
+			private function onRefresh(event:HealthInfoCompEvent):void
+			{
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.INITCOMP));
+			}
+			
+			private function onClientInfoDataChange(event:HealthInfoCompEvent):void
+			{
+				log.info("log.info() onClientInfoDataChange");
+				voipList.removeAll();
+				voipList.addAll(event.param.voipList);
+				voipList.refresh();
+				
+				dataList.removeAll();
+				dataList.addAll(event.param.dataList);
+				dataList.refresh();
+				
+				internetList.removeAll();
+				internetList.addAll(event.param.internetList);
+				internetList.refresh();
+				
+				smsList.removeAll();
+				smsList.addAll(event.param.smsList);
+				smsList.refresh();
+				
+				netList.removeAll();
+				netList.addAll(event.param.netList);
+				netList.refresh();
+			}
+			
+			private var expData:ArrayCollection=new ArrayCollection;
+			private var headerArr:Array=new Array();
+			
+			private function buildColumns(result:Object):Array
+			{
+				var columns:Array=new Array();
+				var i:Number=0;
+				headerArr.splice(0);
+				for each (var name:String in result.name)
+				{
+//					log.info("[buildColumns]name:" + name + ",column:" + result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+					dataGridColumn.width=150;
+					dataGridColumn.headerText=name;
+					dataGridColumn.dataField=result.colum[i];
+					columns.push(dataGridColumn);
+					headerArr.push({"id": result.colum[i], "name": name});
+					i++;
+				}
+				
+				return columns;
+			}
+			
+			[Bindable]
+			var columDataField:String = null;
+			protected function voipInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(isEditOrAdd == "edit")
+				{
+					PopUpManager.removePopUp(voipChangeDataWin);
+					PopUpManager.addPopUp(voipChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(voipChangeDataWin);
+					voipChangeDataWin.visible = true;
+					voipChangeDataWin.includeInLayout = true;
+					
+					changeData=voipInfoDG.dataProvider[event.rowIndex];
+					rowCount =rowCount=event.rowIndex;;
+					columDataField=String((voipInfoDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+					log.info(columDataField);
+					log.info(changeData);
+					
+					voipInput1.text = voipInfoDG.selectedItem['competitors'];
+					voipInput2.text = voipInfoDG.selectedItem['property'];
+					voipInput3.text = voipInfoDG.selectedItem['model'];
+					voipInput4.text = voipInfoDG.selectedItem['mode_type'];
+					voipInput5.text = voipInfoDG.selectedItem['tra_num'];
+					voipInput6.text = voipInfoDG.selectedItem['fix_num'];
+				}
+				
+			}
+			protected function dataInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(isEditOrAdd == "edit")
+				{
+					PopUpManager.removePopUp(dataChangeDataWin);
+					PopUpManager.addPopUp(dataChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(dataChangeDataWin);
+					dataChangeDataWin.visible = true;
+					dataChangeDataWin.includeInLayout = true;
+					
+					changeData=dataInfoDG.dataProvider[event.rowIndex];
+					rowCount =rowCount=event.rowIndex;
+					columDataField=String((dataInfoDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+					log.info(columDataField);
+					log.info(changeData);
+					
+					dataInput1.text = dataInfoDG.selectedItem['competitors'];
+					dataInput2.text = dataInfoDG.selectedItem['openway'];
+					dataInput3.text = dataInfoDG.selectedItem['trans_equipment'];
+					dataInput4.text = dataInfoDG.selectedItem['line_num'];
+					dataInput5.text = dataInfoDG.selectedItem['bandwidth_total'];
+					dataInput6.text = dataInfoDG.selectedItem['longdistance_num'];
+					dataInput7.text = dataInfoDG.selectedItem['other'];
+				}
+			}
+			
+			protected function internetInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(isEditOrAdd == "edit")
+				{
+					PopUpManager.removePopUp(internetChangeDataWin);
+					PopUpManager.addPopUp(internetChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(internetChangeDataWin);
+					internetChangeDataWin.visible = true;
+					internetChangeDataWin.includeInLayout = true;
+					
+					changeData=internetInfoDG.dataProvider[event.rowIndex];
+					rowCount =rowCount=event.rowIndex;
+					columDataField=String((internetInfoDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+					
+					internetInput1.text = internetInfoDG.selectedItem['competitors'];
+					internetInput2.text = internetInfoDG.selectedItem['openway'];
+					internetInput3.text = internetInfoDG.selectedItem['trans_equipment'];
+					internetInput4.text = internetInfoDG.selectedItem['line_num'];
+					internetInput5.text = internetInfoDG.selectedItem['flow_total'];
+					internetInput6.text = internetInfoDG.selectedItem['longdistance_num'];
+					internetInput7.text = internetInfoDG.selectedItem['other'];
+				}
+			}
+			protected function smsInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(isEditOrAdd == "edit")
+				{
+					PopUpManager.removePopUp(smsChangeDataWin);
+					PopUpManager.addPopUp(smsChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(smsChangeDataWin);
+					smsChangeDataWin.visible = true;
+					smsChangeDataWin.includeInLayout = true;
+					
+					changeData=smsInfoDG.dataProvider[event.rowIndex];
+					rowCount =rowCount=event.rowIndex;
+					columDataField=String((smsInfoDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+					log.info(columDataField);
+					log.info(changeData);
+					
+					smsInput1.text = smsInfoDG.selectedItem['competitors'];
+					smsInput2.text = smsInfoDG.selectedItem['mas_property'];
+					smsInput3.text = smsInfoDG.selectedItem['sms_flow'];
+				}
+			}
+			protected function netInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(isEditOrAdd == "edit")
+				{
+					PopUpManager.removePopUp(netChangeDataWin);
+					PopUpManager.addPopUp(netChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(netChangeDataWin);
+					netChangeDataWin.visible = true;
+					netChangeDataWin.includeInLayout = true;
+					
+					changeData=netInfoDG.dataProvider[event.rowIndex];
+					rowCount =rowCount=event.rowIndex;
+					columDataField=String((netInfoDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+					
+					netInput1.text = netInfoDG.selectedItem['competitors'];
+					netInput2.text = netInfoDG.selectedItem['arrival_time'];
+					netInput3.text = netInfoDG.selectedItem['repair_time'];
+					netInput4.text = netInfoDG.selectedItem['times'];
+					netInput5.text = netInfoDG.selectedItem['failure_lasted'];
+				}
+			}
+			
+			protected function edit_clickHandler(event:MouseEvent):void
+			{
+				isEditOrAdd = "edit";
+			}
+			
+			
+			protected function addInfo_clickHandler(event:MouseEvent):void
+			{
+				isEditOrAdd = "add";
+				PopUpManager.removePopUp(addWin);
+				PopUpManager.addPopUp(addWin, this.parent as DisplayObject);
+				PopUpManager.centerPopUp(addWin);
+				addWin.visible = true;
+				addWin.includeInLayout = true;
+			}
+			[Bindable]
+			var rowCount:int = 0;
+			protected function voipSaveDG_clickHandler(event:MouseEvent):void
+			{
+				log.info("voipSaveDG_clickHandler");
+				
+					changeData['competitors'] = voipInput1.text;
+					changeData['property'] = voipInput2.text;
+					changeData['model'] = voipInput3.text;
+					changeData['mode_type'] = voipInput4.text;
+					changeData['tra_num'] = voipInput5.text;
+					changeData['fix_num'] = voipInput6.text;
+					
+					voipChangeDataWin.visible = false;
+					voipChangeDataWin.includeInLayout = false;
+					
+					var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.SAVEEDITCOMDATA);
+					var param:Object = new Object();
+					param.List = changeData;
+					param.type = "语音专线";
+					param.isEditOrAdd = isEditOrAdd;
+					evt.param = param;
+					this.dispatchEvent(evt);
+				
+			}
+			
+			protected function dataSaveDG_clickHandler(event:MouseEvent):void
+			{
+				log.info("dataSaveDG_clickHandler");
+					changeData['competitors'] = dataInput1.text;
+					changeData['openway'] = dataInput2.text;
+					changeData['trans_equipment'] = dataInput3.text;
+					changeData['line_num'] = dataInput4.text;
+					changeData['bandwidth_total'] = dataInput5.text;
+					changeData['longdistance_num'] = dataInput6.text;
+					changeData['other'] = dataInput7.text;
+					
+					dataChangeDataWin.visible = false;
+					dataChangeDataWin.includeInLayout = false;
+					
+					var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.SAVEEDITCOMDATA);
+					var param:Object = new Object();
+					param.List = changeData;
+					param.type = "数据专线";
+					param.isEditOrAdd = isEditOrAdd;
+					evt.param = param;
+					this.dispatchEvent(evt);
+			}
+			
+			protected function close_clickHandler():void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(addWin);
+				
+				PopUpManager.removePopUp(voipChangeDataWin);
+				
+				PopUpManager.removePopUp(dataChangeDataWin);
+				
+				PopUpManager.removePopUp(internetChangeDataWin);
+				
+				PopUpManager.removePopUp(smsChangeDataWin);
+				
+				PopUpManager.removePopUp(netChangeDataWin);
+				
+			}
+			
+			protected function planeClose_clickHandler():void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(addWin);
+				
+				PopUpManager.removePopUp(voipChangeDataWin);
+				
+				PopUpManager.removePopUp(dataChangeDataWin);
+				
+				PopUpManager.removePopUp(internetChangeDataWin);
+				
+				PopUpManager.removePopUp(smsChangeDataWin);
+				
+				PopUpManager.removePopUp(netChangeDataWin);
+			}
+			protected function makeSure_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(addWin);
+				selectNum = speName.selectedIndex;
+				log.info("selectNum="+selectNum);
+				if(selectNum == 0)
+				{
+					voipInput1.text = "";
+					voipInput2.text = "";
+					voipInput3.text = "";
+					voipInput4.text = "";
+					voipInput5.text = "";
+					voipInput6.text = "";
+					
+					PopUpManager.addPopUp(voipChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(voipChangeDataWin);
+					voipChangeDataWin.visible = true;
+					voipChangeDataWin.includeInLayout = true;
+					voipChangeDataWin.dragable = true;
+				}else if(selectNum == 1)
+				{
+					dataInput1.text = "";
+					dataInput2.text = "";
+					dataInput3.text = "";
+					dataInput4.text = "";
+					dataInput5.text = "";
+					dataInput6.text = "";
+					dataInput7.text = "";
+					
+					PopUpManager.addPopUp(dataChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(dataChangeDataWin);
+					dataChangeDataWin.visible = true;
+					dataChangeDataWin.includeInLayout = true;
+					dataChangeDataWin.dragable = true;
+				}else if(selectNum == 2)
+				{
+					internetInput1.text = "";
+					internetInput2.text = "";
+					internetInput3.text = "";
+					internetInput4.text = "";
+					internetInput5.text = "";
+					internetInput6.text = "";
+					internetInput7.text = "";
+					
+					PopUpManager.addPopUp(internetChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(internetChangeDataWin);
+					internetChangeDataWin.visible = true;
+					internetChangeDataWin.includeInLayout = true;
+					internetChangeDataWin.dragable = true;
+				}else if(selectNum == 3)
+				{
+					smsInput1.text = "";
+					smsInput2.text = "";
+					smsInput3.text = "";
+					
+					PopUpManager.addPopUp(smsChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(smsChangeDataWin);
+					smsChangeDataWin.visible = true;
+					smsChangeDataWin.includeInLayout = true;
+					smsChangeDataWin.dragable = true;
+				}else if(selectNum == 4)
+				{
+					netInput1.text = "";
+					netInput2.text = "";
+					netInput3.text = "";
+					netInput4.text = "";
+					netInput5.text = "";
+					
+					PopUpManager.addPopUp(netChangeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(netChangeDataWin);
+					netChangeDataWin.visible = true;
+					netChangeDataWin.includeInLayout = true;
+					netChangeDataWin.dragable = true;
+				}else{
+					Alert.show("选择编辑类型或关闭","提示");
+				}
+			}
+			
+			protected function internetSaveDG_clickHandler(event:MouseEvent):void
+			{
+				log.info("internetSaveDG_clickHandler");
+				
+					changeData['competitors'] = internetInput1.text;
+					changeData['openway'] = internetInput2.text;
+					changeData['trans_equipment'] = internetInput3.text;
+					changeData['line_num'] = internetInput4.text;
+					changeData['flow_total'] = internetInput5.text;
+					changeData['longdistance_num'] = internetInput6.text;
+					changeData['other'] = internetInput7.text;
+					
+					internetChangeDataWin.visible = false;
+					internetChangeDataWin.includeInLayout = false;
+					
+					var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.SAVEEDITCOMDATA);
+					var param:Object = new Object();
+					param.List = changeData;
+					param.type = "互联网专线";
+					param.isEditOrAdd = isEditOrAdd;
+					evt.param = param;
+					this.dispatchEvent(evt);
+				
+			}
+			
+			protected function smsSaveDG_clickHandler(event:MouseEvent):void
+			{
+				log.info("smsSaveDG_clickHandler");
+				
+					changeData['competitors'] = smsInput1.text;
+					changeData['mas_property'] = smsInput2.text;
+					changeData['sms_flow'] = smsInput3.text;
+					
+					smsChangeDataWin.visible = false;
+					smsChangeDataWin.includeInLayout = false;
+					
+					var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.SAVEEDITCOMDATA);
+					var param:Object = new Object();
+					param.List = changeData;
+					param.type = "短信专线";
+					param.isEditOrAdd = isEditOrAdd;
+					evt.param = param;
+					this.dispatchEvent(evt);
+				
+			}
+			protected function netSaveDG_clickHandler(event:MouseEvent):void
+			{
+				log.info("netSaveDG_clickHandler");
+				
+					changeData['competitors'] = netInput1.text;
+					changeData['arrival_time'] = netInput2.text;
+					changeData['repair_time'] = netInput3.text;
+					changeData['times'] = netInput4.text;
+					changeData['failure_lasted'] = netInput5.text;
+					
+					PopUpManager.removePopUp(netChangeDataWin);
+					
+					var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.SAVEEDITCOMDATA);
+					var param:Object = new Object();
+					param.List = changeData;
+					param.type = "网络服务数据";
+					param.isEditOrAdd = isEditOrAdd;
+					evt.param = param;
+					this.dispatchEvent(evt);
+			}
+			
+			protected function cancel_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				isEditOrAdd = "cancel";
+				PopUpManager.removePopUp(voipChangeDataWin);
+				PopUpManager.removePopUp(dataChangeDataWin);
+				PopUpManager.removePopUp(internetChangeDataWin);
+				PopUpManager.removePopUp(smsChangeDataWin);
+				PopUpManager.removePopUp(netChangeDataWin);
+			}
+			
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.EXPORTCOMP);
+				this.dispatchEvent(evt);
+			}
+			
+		]]>				
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%"
+				  gap="0">
+			<s:HGroup horizontalAlign="right">
+				<s:Button id="editDG" label="编辑表格" click="edit_clickHandler(event)"/>
+				<s:Button id="addInfo" label="添加" click="addInfo_clickHandler(event)"/>
+				<s:Button id="cancel" label="取消编辑或添加" click="cancel_clickHandler(event)"/>
+				<s:Button id="export" label="导出" click="export_clickHandler(event)"/>
+			</s:HGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="yuyinVGroup">
+ 				<panel:Window id="voipInfoWindow"
+							  title="语音专线"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="voipInfoDG"
+										 width="100%"
+										 height="100%"
+										 dataProvider="{voipList}"
+										 itemClick="voipInfoDG_itemClickHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="competitors"/>
+							<mx:AdvancedDataGridColumn headerText="客户交换机产权"
+													   dataField="property"/>
+							<mx:AdvancedDataGridColumn headerText="交换机厂家型号"
+													   dataField="model"/>
+							<mx:AdvancedDataGridColumn headerText="客户综合布线方式"
+													   dataField="mode_type"/>
+							<mx:AdvancedDataGridColumn headerText="话务量"
+													   dataField="tra_num"/>
+							<mx:AdvancedDataGridColumn headerText="固话门数"
+													   dataField="fix_num"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="shujuVGroup">
+				<panel:Window id="dataInfoWindow"
+							  title="数据专线"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="dataInfoDG"
+										 width="100%"
+										 dataProvider="{dataList}"
+										 height="100%" itemClick="dataInfoDG_itemClickHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="competitors"/>
+							<mx:AdvancedDataGridColumn headerText="开通方式"
+													   dataField="openway"/>
+							<mx:AdvancedDataGridColumn headerText="传输设备"
+													   dataField="trans_equipment"/>
+							<mx:AdvancedDataGridColumn headerText="专线条数"
+													   dataField="line_num"/>
+							<mx:AdvancedDataGridColumn headerText="总带宽"
+													   dataField="bandwidth_total"/>
+							<mx:AdvancedDataGridColumn headerText="长途专线数量"
+													   dataField="longdistance_num"/>
+							<mx:AdvancedDataGridColumn headerText="其他附属设备类型与产权"
+													   dataField="other"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="internetVGroup">
+				<panel:Window id="internetInfoWindow"
+							  title="互联网专线"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="internetInfoDG"
+										 width="100%"  dataProvider="{internetList}"
+										 height="100%" itemClick="internetInfoDG_itemClickHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="competitors"/>
+							<mx:AdvancedDataGridColumn headerText="开通方式"
+													   dataField="openway"/>
+							<mx:AdvancedDataGridColumn headerText="传输设备"
+													   dataField="trans_equipment"/>
+							<mx:AdvancedDataGridColumn headerText="专线条数"
+													   dataField="line_num"/>
+							<mx:AdvancedDataGridColumn headerText="总流量"
+													   dataField="flow_total"/>
+							<mx:AdvancedDataGridColumn headerText="长途专线数量"
+													   dataField="longdistance_num"/>
+							<mx:AdvancedDataGridColumn headerText="其他附属设备类型与产权"
+													   dataField="other"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="smsVGroup">
+				<panel:Window id="smsInfoWindow"
+							  title="短信专线"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="smsInfoDG"
+										 width="100%"  dataProvider="{smsList}"
+										 height="100%" itemClick="smsInfoDG_itemClickHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="competitors"/>
+							<mx:AdvancedDataGridColumn headerText="MAS机产权"
+													   dataField="mas_property"/>
+							<mx:AdvancedDataGridColumn headerText="集团短信下发量"
+													   dataField="sms_flow"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="netVGroup">
+				<panel:Window id="netInfoWindow"
+							  title="网络服务数据"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="netInfoDG"
+										 width="100%"  dataProvider="{netList}"
+										 height="100%" itemClick="netInfoDG_itemClickHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="competitors"/>
+							<mx:AdvancedDataGridColumn headerText="客户承诺故障到达时间（小时）"
+													   dataField="arrival_time"/>
+							<mx:AdvancedDataGridColumn headerText="客户承诺故障抢修时间（小时）"
+													   dataField="repair_time"/>
+							<mx:AdvancedDataGridColumn headerText="竞争对手的巡检次数（*次/年）"
+													   dataField="times"/>
+							<mx:AdvancedDataGridColumn headerText="竞争对手承诺的年故障历时（小时）"
+													   dataField="failure_lasted"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+		</s:VGroup>
+	</s:Scroller>
+	<panel:Window id="voipChangeDataWin" title="语音信息编辑窗口" visible="false" includeInLayout="false" close="planeClose_clickHandler()" dragable="true">
+		<s:VGroup>
+			<s:HGroup>
+				<s:Label text="竞争对手:"/>
+				<s:TextInput id="voipInput1" width="100"/>
+				<s:Label text="客户交换机产权:"/>
+				<s:TextInput id="voipInput2" width="100"/>
+				<s:Label text="交换机厂家型号:"/>
+				<s:TextInput id="voipInput3" width="100"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="客户综合布线方式:"/>
+				<s:TextInput id="voipInput4" width="100"/>
+				<s:Label text="话务量:"/>
+				<s:TextInput id="voipInput5" width="100"  restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="固话门数:"/>
+				<s:TextInput id="voipInput6" width="100"  restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+			<!--<s:HGroup width="100%"
+					  horizontalAlign="left">
+				<s:Label text="注：“话务量”和“固话门数”输入框只能输入内容均为数字！" color="red" fontSize="10"/>
+			</s:HGroup>-->
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button id="voipSaveDG" label="保存" 
+						  click="voipSaveDG_clickHandler(event)"/>
+				<s:Button id="voipcancelDG" label="取消" 
+						  click="cancel_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</panel:Window>
+	<panel:Window id="dataChangeDataWin" title="数据信息编辑窗口" visible="false" includeInLayout="false" close="planeClose_clickHandler()" dragable="true">
+		<s:VGroup>
+			<s:HGroup>
+				<s:Label text="竞争对手:"/>
+				<s:TextInput id="dataInput1" width="100"/>
+				<s:Label text="开通方式:"/>
+				<s:TextInput id="dataInput2" width="100"/>
+				<s:Label text="传输设备:"/>
+				<s:TextInput id="dataInput3" width="100"/>
+				<s:Label text="专线条数:"/>
+				<s:TextInput id="dataInput4" width="100" restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="总带宽:"/>
+				<s:TextInput id="dataInput5" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="长途专线数量:"/>
+				<s:TextInput id="dataInput6" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="其他附属设备类型与产权:"/>
+				<s:TextInput id="dataInput7" width="100"/>
+			</s:HGroup>
+		<!--	<s:HGroup width="100%"
+					  horizontalAlign="left">
+				<s:Label text="注：“专线条数”、“总带宽”和“长途专线数量”输入框只能输入内容均为数字！" color="red" fontSize="10"/>
+			</s:HGroup>-->
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button id="dataSaveDG" label="保存" 
+						  click="dataSaveDG_clickHandler(event)"/>
+				<s:Button id="datacancelDG" label="取消" 
+						  click="cancel_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</panel:Window>
+	<panel:Window id="internetChangeDataWin" title="互联网信息编辑窗口" visible="false" includeInLayout="false" close="planeClose_clickHandler()" dragable="true">
+		<s:VGroup>
+			<s:HGroup>
+				<s:Label text="竞争对手:"/>
+				<s:TextInput id="internetInput1" width="100"/>
+				<s:Label text="开通方式:"/>
+				<s:TextInput id="internetInput2" width="100"/>
+				<s:Label text="传输设备:"/>
+				<s:TextInput id="internetInput3" width="100"/>
+				<s:Label text="专线条数:"/>
+				<s:TextInput id="internetInput4" width="100" restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="总流量:"/>
+				<s:TextInput id="internetInput5" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="长途专线数量:"/>
+				<s:TextInput id="internetInput6" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="其他附属设备类型与产权:"/>
+				<s:TextInput id="internetInput7" width="100"/>
+			</s:HGroup>
+			<!--<s:HGroup width="100%"
+					  horizontalAlign="left">
+				<s:Label text="注：“专线条数”、“总流量”和“长途专线数量”输入框只能输入内容均为数字！" color="red" fontSize="10"/>
+			</s:HGroup>-->
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button id="internetSaveDG" label="保存" 
+						  click="internetSaveDG_clickHandler(event)"/>
+				<s:Button id="internetcancelDG" label="取消" 
+						  click="cancel_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</panel:Window>
+	<panel:Window id="smsChangeDataWin" title="短信信息编辑窗口" visible="false" includeInLayout="false" close="planeClose_clickHandler()" dragable="true">
+		<s:VGroup>
+			<s:HGroup>
+				<s:Label text="竞争对手:"/>
+				<s:TextInput id="smsInput1" width="100"/>
+				<s:Label text="MAS机产权:"/>
+				<s:TextInput id="smsInput2" width="100"/>
+				<s:Label text="集团短信下发量:"/>
+				<s:TextInput id="smsInput3" width="100" restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+		<!--	<s:HGroup width="100%"
+					  horizontalAlign="left">
+				<s:Label text="注：“集团短信下发量”输入框只能输入内容均为数字！" color="red" fontSize="10"/>
+			</s:HGroup>-->
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button id="smsSaveDG" label="保存" 
+						  click="smsSaveDG_clickHandler(event)"/>
+				<s:Button id="smscancelDG" label="取消" 
+						  click="cancel_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</panel:Window>
+	<panel:Window id="netChangeDataWin" title="网络服务信息编辑窗口" visible="false" includeInLayout="false" close="planeClose_clickHandler()" dragable="true">
+		<s:VGroup>
+			<s:HGroup>
+				<s:Label text="竞争对手:"/>
+				<s:TextInput id="netInput1" width="100"/>
+				<s:Label text="客户承诺故障到达时间（小时）:"/>
+				<s:TextInput id="netInput2" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="客户承诺故障抢修时间（小时）:"/>
+				<s:TextInput id="netInput3" width="100" restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="竞争对手的巡检次数（*次/年）:"/>
+				<s:TextInput id="netInput4" width="100" restrict="0-9" toolTip="只能输入数字"/>
+				<s:Label text="竞争对手承诺的年故障历时（小时）:"/>
+				<s:TextInput id="netInput5" width="100" restrict="0-9" toolTip="只能输入数字"/>
+			</s:HGroup>
+			<!--<s:HGroup width="100%"
+					  horizontalAlign="left">
+				<s:Label text="注：除“竞争对手”外，其他输入框只能输入内容均为数字！" color="red" fontSize="10"/>
+			</s:HGroup>-->
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button id="netSaveDG" label="保存" 
+						  click="netSaveDG_clickHandler(event)"/>
+				<s:Button id="netcancelDG" label="取消" 
+						  click="cancel_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</panel:Window>
+	<panel:Window id="addWin" title="增加窗口" visible="false" includeInLayout="false" dragable="true" close="close_clickHandler()">
+		<s:HGroup>
+			<s:Label text="请选择添加类型："/>
+			<s:DropDownList id="speName"  width="150" labelField="name" dataProvider="{myDP}" prompt="请选择行窗口名称"/>
+			<s:Button id="makeSure" label="确定" 
+					  click="makeSure_clickHandler(event)"/>
+			<s:Button id="close" label="关闭" 
+					  click="close_clickHandler()"/>
+		</s:HGroup>
+	</panel:Window>
+	<!--</s:VGroup>-->
+</mx:VBox>

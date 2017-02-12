@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					minimizable="false"
+					styleName="windowScene"
+					titleIcon="@Embed(source='../../img/title_ico01.png')"
+					close="closeWindow(1)"
+					maximize="window2_resize(true)"
+					restore="window2_resize(false)"
+					title="赛事信息"
+					width="100%"
+					height="100%"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="window2_creationCompleteHandler(event)">
+	<!--
+		 ***************************************
+		 赛事详细信息
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-7-24
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.RaceInfoCompPM;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.components.RaceInfoGridEditWin;
+			import com.linkage.module.cms.gsscene.view.components.raceinfo.event.RaceInfoEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Group;
+
+			private var log:ILogger = Log.getLoggerByClass(RaceInfoComp);
+
+			public var location:String;
+
+			public var index:String;
+
+			private var maxFlag:Boolean = false;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[Inject("raceInfoCompPM")]
+			[Bindable]
+			public var pm:RaceInfoCompPM;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+
+			[Inject("raceInfoGridEditWin")]
+			public var raceInfoGridEditWin:RaceInfoGridEditWin;
+
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function initRaceInfo(e:SceneEvent):void
+			{
+				pm.getRaceInfo();
+			}
+
+			public function closeWindow(type:int = 0):void
+			{
+
+				if (type == 1)
+				{
+					if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+					{
+						this.visible = false;
+						this.includeInLayout = false;
+					}
+				}
+				else
+					(this.parent as Group).removeElement(this);
+
+				if (type == 1)
+				{
+					var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+					e.panelName = this.name;
+					e.param.index = this.index;
+					e.param.pid = this.parent['id'];
+					msgDispatcher(e);
+				}
+			}
+
+			protected function window2_resize(flag:Boolean):void
+			{
+				log.info("赛事信息 最大化、恢复窗口：" + flag + "_" + maxFlag);
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+				e.panelName = this.name;
+				e.panelIndex = this.index;
+				e.panellocation = this.location;
+				e.panelMaxFlag = this.maxFlag;
+				msgDispatcher(e);
+				log.info("赛事信息 最大化、恢复窗口：派发事件！");
+				this.maxFlag = flag;
+				this.closeButton.visible = !flag;
+				this.closeButton.includeInLayout = !flag;
+			}
+
+			protected function raceAdd_clickHandler(event:MouseEvent):void
+			{
+				log.info("raceInfoGridEditWin.isShow:{0}", raceInfoGridEditWin.isShow);
+				if (!raceInfoGridEditWin.isShow)
+				{
+					PopUpManager.addPopUp(raceInfoGridEditWin, parent as DisplayObject);
+					raceInfoGridEditWin.isShow = true;
+				}
+				raceInfoGridEditWin.initRaceAddOrEdit("1");
+
+			}
+
+			protected function raceEdit_clickHandler(event:MouseEvent):void
+			{
+				log.info("raceInfoGridEditWin.isShow:{0}", raceInfoGridEditWin.isShow);
+				if (!raceInfoGridEditWin.isShow)
+				{
+					PopUpManager.addPopUp(raceInfoGridEditWin, parent as DisplayObject);
+					raceInfoGridEditWin.isShow = true;
+				}
+				raceInfoGridEditWin.initRaceAddOrEdit("2");
+			}
+
+			//删除
+			protected function raceDelete_clickHandler(event:MouseEvent):void
+			{
+				var gameIds:ArrayCollection = new ArrayCollection();
+				for each (var item:Object in raceInfoDataGrid.dataProvider)
+				{
+					if (item.selected == true)
+					{
+						gameIds.addItem(item);
+					}
+				}
+				if (gameIds.length > 0)
+					Alert.show("是否确认删除该赛事纪录？", "提示", Alert.YES | Alert.NO, null, deleteRaceInfos);
+				else
+				{
+					Alert.show("请先选择要删除的赛事纪录", "提示");
+					return;
+				}
+			}
+
+			private function deleteRaceInfos(e:CloseEvent):void
+			{
+				log.info("删除纪录……");
+				if (e.detail == Alert.YES)
+				{
+					var gameIds:ArrayCollection = new ArrayCollection();
+					for each (var item:Object in raceInfoDataGrid.dataProvider)
+					{
+						if (item.selected == true)
+						{
+							gameIds.addItem(item);
+						}
+					}
+					var evt:RaceInfoEvent = new RaceInfoEvent(RaceInfoEvent.CMS_SCENE_RACEINFO_DELETERACEINFO);
+					evt.param = new Object();
+					evt.param.datas = gameIds;
+					evt.param.sceneId = user.sceneId;
+					evt.param.initSceneId = user.sceneId;
+//					msgDispatcher(evt);
+					requestServerUtil.addRequest(evt);
+				}
+
+			}
+
+			protected function window2_creationCompleteHandler(event:FlexEvent):void
+			{
+				raceInfoDataGrid.addEventListener(SceneEvent.CHECKBOX_ALL_SELECTED, allSelectedCheckBox);
+
+			}
+
+			private function allSelectedCheckBox(event:SceneEvent):void
+			{
+				log.info("全选：{0}", event);
+				for each (var item:Object in raceInfoDataGrid.dataProvider)
+				{
+					if (event.param == "1")
+					{
+						item.selected = true;
+					}
+					else
+					{
+						item.selected = false;
+					}
+				}
+				ArrayCollection(raceInfoDataGrid.dataProvider).refresh();
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="raceInfoDataGrid"
+						 width="100%"
+						 height="100%"
+						 horizontalScrollPolicy="auto"
+						 verticalScrollPolicy="auto"
+						 styleName="sceneDG"
+						 verticalAlign="middle"
+						 dataProvider="{pm.dm.raceInfoList}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="gamename"
+									   headerText="赛事名称"
+									   minWidth="100"/>
+			<mx:AdvancedDataGridColumn dataField="gameStatus"
+									   headerText="比赛状态"
+									   itemRenderer="com.linkage.module.cms.gsscene.view.components.renderer.RaceStatusColorRenderer"/>
+			<mx:AdvancedDataGridColumn dataField="venues"
+									   headerText="场馆名称"/>
+			<mx:AdvancedDataGridColumn dataField="gamestarttime"
+									   headerText="开始时间"/>
+			<mx:AdvancedDataGridColumn dataField="gameendtime"
+									   headerText="结束时间"/>
+			<mx:AdvancedDataGridColumn dataField="gamedesc"
+									   headerText="赛事描述"/>
+			<mx:AdvancedDataGridColumn width="50"
+									   sortable="false"
+									   headerRenderer="com.linkage.module.cms.gsscene.view.components.renderer.CheckBoxSelectHeaderRenderer"
+									   itemRenderer="com.linkage.module.cms.gsscene.view.components.renderer.CheckBoxSelectedRenderer"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	<mx:Image source="@Embed(source='../../img/raceadd.png')"
+			  click="raceAdd_clickHandler(event)"
+			  right="90"
+			  buttonMode="true"
+			  top="-23"
+			  toolTip="新增赛事"/>
+	<mx:Image source="@Embed(source='../../img/raceedit.png')"
+			  click="raceEdit_clickHandler(event)"
+			  buttonMode="true"
+			  right="71"
+			  top="-23"
+			  toolTip="编辑赛事"/>
+	<mx:Image source="@Embed(source='../../img/raceDelete.png')"
+			  click="raceDelete_clickHandler(event)"
+			  buttonMode="true"
+			  right="52"
+			  top="-23"
+			  toolTip="删除赛事"/>
+</ailk_compts:Window>

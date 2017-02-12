@@ -1,0 +1,1677 @@
+<?xml version="1.0" encoding="utf-8"?>
+<monitor:CommonGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+                     xmlns:s="library://ns.adobe.com/flex/spark"
+                     xmlns:mx="library://ns.adobe.com/flex/mx"
+                     width="100%"
+                     height="100%"
+                     xmlns:gis="com.linkage.gis.*"
+                     xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+                     xmlns:flow="com.linkage.module.cms.general.monitor.flow.*"
+                     xmlns:city="com.linkage.module.cms.general.monitor.city.*"
+                     xmlns:monitor="com.linkage.module.cms.general.monitor.*"
+                     creationComplete="init();"
+                     xmlns:panel="com.linkage.system.component.panel.*">
+    <monitor:layout>
+        <s:BasicLayout/>
+    </monitor:layout>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+            import com.linkage.gis.core.GisFeature;
+            import com.linkage.gis.core.GisLayer;
+            import com.linkage.gis.core.metry.GisLine;
+            import com.linkage.gis.core.metry.GisPoint;
+            import com.linkage.gis.core.metry.GisRegion;
+            import com.linkage.gis.core.styles.GisFillPredefinedStyle;
+            import com.linkage.gis.core.styles.GisLinePredefinedStyle;
+            import com.linkage.gis.core.styles.GisLineStyle;
+            import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+            import com.linkage.gis.core.styles.GisTextStyle;
+            import com.linkage.gis.event.GisFeatureEvent;
+            import com.linkage.gis.event.MapEvent;
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.module.cms.general.monitor.GeneralMonitorModule;
+            import com.linkage.module.cms.general.monitor.datamanager.LevelThreeService;
+            import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+            import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManagerImp;
+            import com.linkage.system.logging.ILogger;
+            import com.linkage.system.logging.Log;
+
+            import flash.utils.setTimeout;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.ArrayList;
+            import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+            import mx.controls.dataGridClasses.DataGridColumn;
+
+            import nl.demonsters.debugger.MonsterDebugger;
+
+            import org.osmf.layout.AbsoluteLayoutFacet;
+
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>参数配置和缓存<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            [Embed(source = "img/shiftBtn3_1.png")]
+            [Bindable]
+            private static var pic31:Class;
+
+            [Embed(source = "img/shiftBtn3_2.png")]
+            [Bindable]
+            private static var pic32:Class;
+
+            [Embed(source = "img/shiftBtn3_3.png")]
+            [Bindable]
+            private static var pic33:Class;
+
+            [Embed(source = "img/shiftBtn3_4.png")]
+            [Bindable]
+            private static var pic34:Class;
+
+            [Embed(source = "img/shiftBtn4_1.png")]
+            [Bindable]
+            private static var pic41:Class;
+
+            [Embed(source = "img/shiftBtn4_2.png")]
+            [Bindable]
+            private static var pic42:Class;
+
+            [Embed(source = "img/shiftBtn4_3.png")]
+            [Bindable]
+            private static var pic43:Class;
+
+            [Embed(source = "img/shiftBtn4_4.png")]
+            [Bindable]
+            private static var pic44:Class;
+
+            private var loadTsIndex:uint = 0;
+
+            //参数对象
+            private var _param:Object = new Object();
+
+            //告警（分专业）、投诉、工单 、性能、工程  统计数据  分区县
+            private var viewData:Object = null;
+
+            //BSC  RNC 覆盖范围数据
+            private var crData:Object = null;
+
+            //
+            private var borderStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+            private var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x00FF00, 0.3, borderStyle);
+
+            //数据接口
+            public var remoteData:RemoteDataManager = new RemoteDataManagerImp();
+
+            private var logger:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.city.CityMonitorView");
+
+            //地图撒点图标偏移量配置
+            private var TYPE_OFFSETS_CACHE:Object = {'AlarmTotal': [0, 0],
+                    'hexin': [-30, 30],
+                    'wuxian': [0, 30],
+                    'chuanshu': [30, 30],
+                    'donghuan': [-30, 0],
+                    'shuju': [0, 60],
+                    'Complaint': [30, 0],
+                    'Sheet': [-30, -30],
+                    'Performance': [0, -30],
+                    'Project': [30, -30]
+                };
+
+            //缓存添加到地图的feature，  当勾选或者去除某特性时 可以快速隐藏和显示对应图标
+            private var alarmTotalFeatureCache:Array = new Array();
+            private var hexinFeatureCache:Array = new Array();
+            private var wuxianFeatureCache:Array = new Array();
+            private var chuanshuFeatureCache:Array = new Array();
+            private var donghuanFeatureCache:Array = new Array();
+            private var shujuFeatureCache:Array = new Array();
+
+
+            private var performanceFeatureCache:Array = new Array();
+            private var complaintFeatureCache:Array = new Array();
+            private var sheetFeatureCache:Array = new Array();
+            private var projectFeatureCache:Array = new Array();
+
+            private var featureMap:Dictionary = new Dictionary();
+
+            //BSC RNC  覆盖区域feature缓存
+            private var bscFeatureCache:Array = new Array();
+            private var rncFeatureCache:Array = new Array();
+
+
+            //配置面板中一级告警、二级告警是否选中标志。
+            private var alarm1Flag:Boolean = true;
+            private var alarm2Flag:Boolean = true;
+
+            //图例中复选框选中状态。
+            private var alarmTotalFlag:Boolean = true;
+            private var hexinFlag:Boolean = false;
+            private var wuxianFlag:Boolean = false;
+            private var chuanshuFlag:Boolean = false;
+            private var donghuanFlag:Boolean = false;
+            private var shujuFlag:Boolean = false;
+
+            private var performanceFlag:Boolean = false;
+            private var complaintFlag:Boolean = false;
+            private var sheetFlag:Boolean = false;
+            private var projectFlag:Boolean = false;
+
+            private var bscFlag:Boolean = false;
+            private var rncFlag:Boolean = false;
+
+            //信息提示框 数据表格列配置
+            private var alarmColumnArrc:Array = ['专业,专业', '一级告警,一级告警', '二级告警,二级告警', '三级告警,三级告警'];
+            private var alarmColArr:Array = new Array();
+            private var perfColumnArrc:Array = ['指标名称,指标名称', '指标数据,指标数据', '指标级别,指标级别'];
+            private var perfColArr:Array = new Array();
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>参数配置和缓存<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+            private var _generalView:Object = null;
+
+            private var specList:ArrayList = new ArrayList();
+
+            private var t:Timer = new Timer(10000);
+
+            //GIS id 和 属地id 属地名称的 关系缓存对象
+            private var gisCityCacheObj:Object = new Object();
+
+            private var s1:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0xFFFFFF, 0, null);
+            private var s2:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x00FF00, 0.3, null);
+
+            private var _curCityId:String = "";
+
+            private var _curCityName:String = "";
+
+            //数据接口
+            private var _dataService:LevelThreeService = null;
+
+            //等待提示
+            private var loadInfo:LoadManager;
+
+            //GIS图层
+            private var bscLayer:GisLayer = null;
+            private var rncLayer:GisLayer = null;
+            private var projectLayer:GisLayer = new GisLayer();
+
+            //颜色MAP
+            private var colorMap:Array = [0xFF0000, 0xFF3300, 0xFF6600, 0x6600FF, 0x6666FF, 0x66FFFF];
+
+            //当前颜色序号
+            private var colorId:Number = 0;
+
+            //工程网元的测试数据
+            private var projectTestData:ArrayCollection = new ArrayCollection([
+                                                                              {"longitude": "118.793482", "latitude": "32.032400"}
+                                                                              ]);
+
+            private var showPerf:Array = ['语音信道溢出率（不含切换）(%)', '最坏小区数(个)', 'GSM话务量(erl)', '系统寻呼成功率(%)', '互联互通话务量(erl)', '互联互通每线话务量(erl)'];
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>参数注入和初始化<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            public function get dataService():LevelThreeService
+            {
+                return _dataService;
+            }
+
+            public function set dataService(value:LevelThreeService):void
+            {
+                _dataService = value;
+            }
+
+            public function get generalView():Object
+            {
+                return _generalView;
+            }
+
+            public function set generalView(value:Object):void
+            {
+                _generalView = value;
+            }
+
+            public function get curCityName():String
+            {
+                return _curCityName;
+            }
+
+            public function set curCityName(value:String):void
+            {
+                _curCityName = value;
+                dataShow.cityName = _curCityName;
+            }
+
+            public function get curCityId():String
+            {
+                return _curCityId;
+            }
+
+            public function set curCityId(value:String):void
+            {
+                _curCityId = value;
+                dataShow.cityId = _curCityId;
+                mapWork.defaultMapId = _curCityId;
+            }
+
+            public function get param():Object
+            {
+                return _param;
+            }
+
+            public function set param(param:Object):void
+            {
+                _param = param;
+
+                if (param.config != null)
+                {
+                    var configXml:XML = (param.config as XML);
+                    //读取显示的专业
+                    var filterConfigs:XMLList = configXml.child("filter");
+
+                    if (filterConfigs != null && filterConfigs.length() > 0)
+                    {
+                        var specs:XMLList = filterConfigs.child("spec");
+
+                        for each (var spec:XML in specs)
+                        {
+                            var id:String = spec.@id;
+                            specList.addItem(id);
+                        }
+                    }
+                }
+
+            }
+
+            public function init():void
+            {
+                this.dataShow.remoteData = remoteData;
+                this.dataShow.cityName = _curCityName;
+                this.dataShow.cityId = _curCityId;
+                this.dataShow.general = _generalView;
+
+                this.dataShow.param = _param;
+                this.dataShow.init();
+
+                //初始化图例
+                this.legendDiv.init(_param);
+
+                initMsgDataGridCol();
+            }
+
+            public function reloadData():void
+            {
+                this.dataShow.reloadData();
+
+                featureMap = new Dictionary();
+                bscFeatureCache = new Array();
+                rncFeatureCache = new Array();
+
+                if (t != null && t.running)
+                {
+                    t.stop();
+                    //-------------------------------------历史回退修改------------------------------------
+                    this.parentApplication.remove(t);
+                        //-------------------------------------历史回退修改------------------------------------
+                }
+
+                this.removeAlarmFeatures();
+                this.mapWork.map.mapChange(_curCityId);
+            }
+
+            private function initLocation():void
+            {
+                logger.info("加载地市下区县GISID、经纬度数据 ...");
+
+//				集团测试
+                return;
+                var cityNameMap:Object = new Object();
+
+                //加载当前地市下所有区县的GISID或者经纬度
+                remoteData.getCityLocation(_curCityId,
+                                           function(result:Object):void
+                                           {
+                                               if (null != result)
+                                               {
+                                                   logger.info("加载地市下区县GISID、经纬度数据成功 result!" + result);
+
+                                                   for each (var distData:Object in result)
+                                                   {
+                                                       logger.info("处理属地边界  city_id：" + distData['city_id'] + " city_name:" + distData['city_name'] + " GISID:" + distData['gis_id'] + " type:" + distData['type']);
+                                                       var cityId_cityName:String = distData['city_id'] + "_|_" + distData['city_name'];
+
+                                                       if (distData['type'] == "1") //GISID
+                                                       {
+                                                           gisCityCacheObj[distData['gis_id']] = cityId_cityName;
+
+                                                           cityNameMap[distData['gis_id']] = distData['city_name'];
+                                                           mapWork.map.queryGisFeatureByAreaId(distData['gis_id'],
+                                                                                               function dealGisRigion(f:GisFeature):void
+                                                                                               {
+                                                                                                   f.gisStyle = s1;
+                                                                                                   f.autoMoveToTop = false;
+                                                                                                   f.buttonMode = true;
+                                                                                                   f.toolTip = cityNameMap[f.attributes.gis_id];
+                                                                                                   f.onClick = jump2distView;
+                                                                                                   f.onMouseOver = dealFeatureOver;
+                                                                                                   f.onMouseOut = dealFeatureOut;
+//											f.addEventListener(GisFeatureEvent.GISFEATURE_CLICK, jump2distView);
+//											f.addEventListener(GisFeatureEvent.GISFEATURE_OVER, dealFeatureOver);
+//											f.addEventListener(GisFeatureEvent.GISFEATURE_OUT, dealFeatureOut);
+                                                                                                   logger.info("把获取到的GisRegion添加到地图！　　添加成功， gis_id：" + f.attributes.gis_id + " 对应的属地信息：" + gisCityCacheObj[f.attributes.gis_id]);
+
+                                                                                                   mapWork.map.addGisFeatureAt(f, 0, true);
+                                                                                               }, //成功回调
+                                                                                               function():void //失败回调
+                                                                                               {
+                                                                                                   logger.error("查询属地对应的gisfeature失败！");
+                                                                                               });
+                                                       }
+                                                       else if (distData['type'] == "2") //经纬度集合
+                                                       {
+                                                           //多边形样式
+                                                           logger.info("根据区县经纬度集合画多边形区域到地图。。。");
+                                                           var parts:Array = new Array();
+                                                           if (distData['border_info'] != null)
+                                                           {
+                                                               for each (var point:Object in distData['border_info'])
+                                                               {
+                                                                   if (point.meridian != null && point.dimension != null)
+                                                                   {
+                                                                       parts.push(new GisPoint(Number(point.meridian), Number(point.dimension)));
+                                                                   }
+                                                               }
+                                                           }
+
+                                                           if (parts != null && parts.length > 0)
+                                                           {
+                                                               var hexFeature:GisFeature = new GisFeature(new GisRegion(parts), s1);
+                                                               hexFeature.autoMoveToTop = false;
+                                                               hexFeature.buttonMode = true;
+                                                               hexFeature.toolTip = distData['city_name'];
+                                                               if (hexFeature.attributes == null)
+                                                               {
+                                                                   var attrObj:Object = new Object();
+                                                                   attrObj['cityId_cityName'] = cityId_cityName;
+                                                                   hexFeature.attributes = attrObj;
+                                                               }
+                                                               else
+                                                               {
+                                                                   hexFeature.attributes['cityId_cityName'] = cityId_cityName;
+                                                               }
+
+                                                               //TODO feature缓存属地信息 便于点击后跳转
+                                                               hexFeature.onClick = jump2distView2;
+                                                               hexFeature.onMouseOver = dealFeatureOver;
+                                                               hexFeature.onMouseOut = dealFeatureOut;
+//										hexFeature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK, jump2distView2);
+//										hexFeature.addEventListener(GisFeatureEvent.GISFEATURE_OVER, dealFeatureOver);
+//										hexFeature.addEventListener(GisFeatureEvent.GISFEATURE_OUT, dealFeatureOut);
+
+                                                               logger.info("添加属地多边形区域feature到地图成功， cityId_cityName：" + cityId_cityName);
+
+                                                               mapWork.map.addGisFeature(hexFeature, true);
+                                                           }
+                                                           else
+                                                           {
+                                                               logger.info("区县经纬度集合为空！");
+                                                           }
+                                                       }
+                                                   }
+                                               }
+                                               else
+                                               {
+                                                   logger.error("加载地市下区县GISID、经纬度数据为null！");
+                                               }
+                                           },
+                                           function():void {},
+                                           function():void
+                                           {
+                                               logger.error("加载地市下区县GISID、经纬度数据失败！");
+                                           });
+            }
+
+            private function jump2distView(gisFeature:GisFeature, event:MouseEvent):void
+            {
+                logger.info("gis_id==" + gisFeature.attributes.gis_id);
+
+                if (gisFeature.attributes.gis_id != null)
+                {
+                    var gis_id:String = gisFeature.attributes.gis_id;
+                    var cityId_cityName:String = gisCityCacheObj[gis_id];
+                    logger.info(" 跳转到三级视图：cityId:" + curCityId + "_|_" + cityId_cityName.split("_|_")[0] + "\t cityName: " + cityId_cityName.split("_|_")[1]);
+                    _generalView.forward2View("3", cityId_cityName.split("_|_")[0], cityId_cityName.split("_|_")[1], null, curCityId);
+                }
+            }
+
+            private function dealFeatureOver(gisFeature:GisFeature, event:MouseEvent):void
+            {
+                gisFeature.gisStyle = s2;
+                mapWork.map.updateModelFeature(gisFeature);
+            }
+
+            private function dealFeatureOut(gisFeature:GisFeature, event:MouseEvent):void
+            {
+                gisFeature.gisStyle = s1;
+                mapWork.map.updateModelFeature(gisFeature);
+            }
+
+            private function jump2distView2(gisFeature:GisFeature, event:MouseEvent):void
+            {
+                var cityId_cityName:String = gisFeature.attributes.cityId_cityName;
+
+                logger.info(" 跳转到三级视图：cityId:" + curCityId + "_|_" + cityId_cityName.split("_|_")[0] + "\t cityName: " + cityId_cityName.split("_|_")[1]);
+                _generalView.forward2View("3", cityId_cityName.split("_|_")[0], cityId_cityName.split("_|_")[1], null, curCityId);
+            }
+
+            private function initMsgDataGridCol():void
+            {
+                logger.info("initMsgDataGridCol() begin ...");
+
+                for each (var col:String in alarmColumnArrc)
+                {
+
+                    var dgCol:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+                    dgCol.dataField = col.split(",")[1];
+                    dgCol.headerText = col.split(",")[0];
+                    alarmColArr.push(dgCol);
+                }
+
+                for each (var col2:String in perfColumnArrc)
+                {
+
+                    var dgCol2:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+                    dgCol2.dataField = col2.split(",")[1];
+                    dgCol2.headerText = col2.split(",")[0];
+                    perfColArr.push(dgCol2);
+                }
+                logger.info("initMsgDataGridCol() end!");
+
+            }
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>参数注入和初始化<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>地图加载完成触发方法<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            private function initMap():void
+            {
+                logger.info("initMap()");
+
+                loadInfo = new LoadManager(this, "blue");
+                loadInfo.showLoading("正在加载数据，请稍候");
+
+                //添加GIS图层
+                this.mapWork.map.addGisLayer(projectLayer, 1);
+
+                initLocation();
+
+                //加载当前地市中心点和经纬度
+                if (GeneralMonitorModule.provinceName == "广东省")
+                {
+                    logger.info("加载地市中心经纬度和比例尺数据 ...");
+                    remoteData.getLocationByCityId(_curCityId,
+                                                   function(result:Object):void
+                                                   {
+                                                       if (null != result)
+                                                       {
+                                                           logger.info("加载地市中心经纬度和比例尺数据成功： 比例尺：" + result['scale'] + " 经度:" + result['longitude'] + " 纬度:" + result['latitude']);
+
+                                                           mapWork.map.zoomToScale(
+                                                               Number(result['scale']),
+                                                               new GisPoint(Number(result['longitude']), Number(result['latitude']))
+                                                               );
+
+                                                           logger.info("设置地市中心和比例尺成功！");
+                                                       }
+                                                       else
+                                                           logger.error("加载地市中心经纬度和比例尺数据为null！");
+                                                   },
+                                                   function():void {},
+                                                   function():void
+                                                   {
+                                                       logger.error("加载地市中心经纬度和比例尺数据失败！");
+                                                   });
+                }
+                //只显示当前属地的地图
+//				logger.info("mapChange, cityId:" + curCityId);
+//				mapWork.map.mapChange(curCityId);
+
+                //TODO 加载告警、投诉、工单统计数据、性能、工程、BSC覆盖、RNC覆盖。
+                //告警要区分核心网、无线网、传输网、动环、数据网分别统计    
+                //告警总计图标 需要添加鼠标划过事件，展示告警统计详情
+                //性能图标 需要添加鼠标划过事件，展示性能统计详情
+                loadStatisticData();
+
+                //BSC覆盖、RNC覆盖   需要经纬度的集合，构建多边形区域用。
+                //loadCoverRegionData();
+
+                //注册图例和配置选项卡中的事件。
+                initCallBack();
+
+                initTimeOut();
+
+            }
+
+            private function initTimeOut():void
+            {
+                logger.info("initTimeOut()");
+
+                //定时加载数据。
+                t.addEventListener(TimerEvent.TIMER, refreshData);
+                t.start();
+                //-------------------------------------历史回退修改------------------------------------
+                this.parentApplication.add(t);
+                //-------------------------------------历史回退修改------------------------------------
+            }
+
+            private function refreshData(event:TimerEvent = null):void
+            {
+                logger.info("定时加载数据 开始。。。");
+
+                loadStatisticData();
+
+                logger.info("定时加载数据 结束。。。");
+            }
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>地图加载完成触发方法<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>数据加载<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            private function loadStatisticData():void
+            {
+                logger.info(" loadStatisticData() cityId:" + curCityId);
+
+                //根据当前选中的一级告警 和二级告警选项加载数据
+                var alarmLevel:String = "";
+
+                if (alarm1Flag && !alarm2Flag)
+                {
+                    alarmLevel = "1";
+                }
+                else if (alarm2Flag && !alarm1Flag)
+                {
+                    alarmLevel = "2";
+                }
+                else if (alarm1Flag && alarm2Flag)
+                {
+                    alarmLevel = "1,2";
+                }
+                else
+                {
+                    alarmLevel = "1,2";
+                }
+
+                remoteData.getCityDataView(curCityId, specList, alarmLevel,
+                                           function(result:Object):void
+                                           {
+                                               //成功返回数据
+                                               if (null == result)
+                                               {
+                                                   logger.error("概况监控-2级视图-加载地图悬浮数据为空！");
+                                               }
+                                               else
+                                               {
+                                                   logger.info("概况监控-2级视图-加载地图悬浮数据成功！");
+
+                                                   //撒点统计数据到地图
+                                                   initPoitData2Map(result);
+
+                                                   logger.info("悬浮数据加载结束！");
+                                               }
+                                               loadInfo.hideLoading();
+                                           },
+                                           function():void
+                                           {
+                    //完成回调
+                                           },
+                                           function():void
+                                           {
+                                               logger.error("#概况监控-2级视图-加载地图悬浮数据出错！loadTsIndex:" + loadTsIndex);
+                                               loadInfo.hideLoading();
+                                           });
+            }
+
+            private function loadCoverRegionData():void
+            {
+                logger.info(" #loadCoverRegionData()");
+                remoteData.getCoverRegionDataByCityId(curCityId,
+                                                      function(result:Object):void
+                                                      {
+                                                          //成功返回数据
+                                                          if (null == result)
+                                                          {
+                                                              logger.error(" #概况监控-2级视图-加载BSC RNC覆盖范围数据为空！");
+                                                          }
+                                                          else
+                                                          {
+                                                              logger.info(" #概况监控-2级视图-加载BSC RNC覆盖范围数据加载完成！result: " + result);
+                                                              this.crData = result;
+                                                              //撒点覆盖范围到底图
+                                                              initRegionData2Map(false);
+                                                          }
+                                                      },
+                                                      function():void {},
+                                                      function():void
+                                                      {
+                                                          logger.error(" #概况监控-2级视图-加载BSC RNC覆盖范围数据加载出错！");
+                                                          initRegionData2Map(true);
+                                                      });
+            }
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>数据加载<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>告警等撒点处理<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            private function initPoitData2Map(data:Object):void
+            {
+//				this.removeAlarmFeatures();
+
+                for (var disId:String in data)
+                {
+                    var tempFeatureArr:Array = null;
+                    var disStatData:Object = data[disId]; //每一个区县的数据
+                    var centerPoint:String = disStatData['CenterPoint'] as String; //区县中心经纬度
+
+                    if (centerPoint != "0,0")
+                    {
+                        //告警总数
+                        var alarmTotal:Number = convertNum(disStatData['AlarmTotal']);
+
+                        if (!alarm1Flag && !alarm2Flag)
+                            alarmTotal = 0;
+
+                        var alarmMatrix:ArrayList = new ArrayList();
+
+                        for each (var alalrm:Object in disStatData['AlarmMatrix'])
+                        {
+                            alarmMatrix.addItem(alalrm);
+                        }
+
+                        if (featureMap[disId + "_AlarmTotal"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('AlarmTotal', LegendDiv.gaojing, centerPoint, alarmTotal, alarmMatrix, this.alarmTotalFlag);
+
+                            (tempFeatureArr[1] as GisFeature).onMouseOver = function(gisFeature:GisFeature, event:MouseEvent):void {
+                                showMsg(1, gisFeature.attributes as ArrayList, event.stageX, event.stageY);
+                            };
+
+                            (tempFeatureArr[1] as GisFeature).onMouseOut = function(gisFeature:GisFeature, event:MouseEvent):void {
+                                msgPanel.visible = false;
+                            }
+
+                            alarmTotalFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_AlarmTotal"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_AlarmTotal"], 'AlarmTotal', LegendDiv.gaojing, centerPoint, alarmTotal, alarmMatrix, this.alarmTotalFlag);
+                        }
+
+
+                        //分专业告警数据
+                        //核心网
+                        var hexin:Number = convertNum(disStatData['核心网']);
+
+                        if (featureMap[disId + "_hexin"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('hexin', LegendDiv.hexin, centerPoint, hexin, null, this.hexinFlag);
+                            hexinFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_hexin"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_hexin"], 'hexin', LegendDiv.hexin, centerPoint, hexin, null, this.hexinFlag);
+                        }
+
+                        //无线网
+                        var wuxian:Number = convertNum(disStatData['无线网']);
+
+                        if (featureMap[disId + "_wuxian"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('wuxian', LegendDiv.wuxian, centerPoint, wuxian, null, this.wuxianFlag);
+                            wuxianFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_wuxian"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_wuxian"], 'wuxian', LegendDiv.wuxian, centerPoint, wuxian, null, this.wuxianFlag);
+                        }
+
+                        //动环
+                        var donghuan:Number = convertNum(disStatData['动环网']);
+
+                        if (featureMap[disId + "_donghuan"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('donghuan', LegendDiv.donghuan, centerPoint, donghuan, null, this.donghuanFlag);
+                            donghuanFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_donghuan"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_donghuan"], 'donghuan', LegendDiv.donghuan, centerPoint, donghuan, null, this.donghuanFlag);
+                        }
+
+                        //传输网
+                        var chuanshu:Number = convertNum(disStatData['传输网']);
+
+                        if (featureMap[disId + "_chuanshu"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('chuanshu', LegendDiv.chuanshu, centerPoint, chuanshu, null, this.chuanshuFlag);
+                            chuanshuFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_chuanshu"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_chuanshu"], 'chuanshu', LegendDiv.chuanshu, centerPoint, chuanshu, null, this.chuanshuFlag);
+                        }
+
+                        //数据网
+                        var shuju:Number = convertNum(disStatData['数据网']);
+
+                        if (featureMap[disId + "_shuju"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('shuju', LegendDiv.shuju, centerPoint, shuju, null, this.shujuFlag)
+                            shujuFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_shuju"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_shuju"], 'shuju', LegendDiv.shuju, centerPoint, shuju, null, this.shujuFlag);
+                        }
+
+                        //性能数据
+                        var performance:Number = convertNum(disStatData['Performance']);
+
+                        if (!alarm1Flag && !alarm2Flag)
+                            performance = 0;
+                        var perfMatrix:ArrayList = new ArrayList();
+
+                        for each (var perf:Object in disStatData['perfMatrix'])
+                        {
+                            perfMatrix.addItem(perf);
+                        }
+
+                        if (featureMap[disId + "_Performance"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('Performance', LegendDiv.xingneng, centerPoint, performance, perfMatrix, this.performanceFlag);
+
+                            (tempFeatureArr[1] as GisFeature).onMouseOver = function(gisFeature:GisFeature, event:MouseEvent):void {
+                                //网元信息悬浮框
+                                showMsg(2, gisFeature.attributes as ArrayList, event.stageX, event.stageY);
+                            };
+                            (tempFeatureArr[1] as GisFeature).onMouseOut = function(gisFeature:GisFeature, event:MouseEvent):void {
+                                msgPanel.visible = false;
+                            };
+
+                            performanceFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_Performance"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_Performance"], 'Performance', LegendDiv.xingneng, centerPoint, performance, perfMatrix, this.performanceFlag);
+                        }
+
+                        //投诉数据
+                        var complaint:Number = convertNum(disStatData['Complaint']);
+
+                        if (featureMap[disId + "_Complaint"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('Complaint', LegendDiv.toushu, centerPoint, complaint, null, this.complaintFlag);
+                            complaintFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_Complaint"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_Complaint"], 'Complaint', LegendDiv.toushu, centerPoint, complaint, null, this.complaintFlag);
+                        }
+
+                        //工单数据
+                        var sheet:Number = convertNum(disStatData['Sheet']);
+
+                        if (featureMap[disId + "_Sheet"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('Sheet', LegendDiv.gongdan, centerPoint, sheet, null, this.sheetFlag);
+                            sheetFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_Sheet"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+                            updFeature2Map(featureMap[disId + "_Sheet"], 'Sheet', LegendDiv.gongdan, centerPoint, sheet, null, this.sheetFlag);
+                        }
+
+                        //工程数据
+                        var project:Number = convertNum(disStatData['Project']);
+
+                        if (featureMap[disId + "_Project"] == null)
+                        {
+                            tempFeatureArr = addFeature2Map('Project', LegendDiv.gongcheng, centerPoint, project, null, this.projectFlag);
+                            projectFeatureCache.push(tempFeatureArr[0], tempFeatureArr[1]);
+                            featureMap[disId + "_Project"] = tempFeatureArr[1];
+                        }
+                        else
+                        {
+
+                            updFeature2Map(featureMap[disId + "_Project"], 'Project', LegendDiv.gongcheng, centerPoint, project, null, this.projectFlag);
+                        }
+                    }
+                }
+            }
+
+            private function convertNum(obj:Object):Number
+            {
+                if (obj != null)
+                {
+                    return Number(obj);
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+
+            //增加图层点
+            private function addFeature2Map(type:String, imgObj:Class, xy:String, num:Number, cityData:Object, addFlag:Boolean):Array
+            {
+                var tempArr:Array = new Array();
+
+                var pstyle:GisMarkerPictureStyle = new GisMarkerPictureStyle(imgObj);
+                var xyArr:Array = getXYOffsets(type);
+                pstyle.xOffset = xyArr[0] as Number;
+                pstyle.yOffset = xyArr[1] as Number;
+                var feature:GisFeature = new GisFeature(new GisPoint(Number(xy.split(',')[0]), Number(xy.split(',')[1])), pstyle);
+
+                feature.attributes = cityData;
+
+
+
+                feature.autoMoveToTop = false;
+
+                if (addFlag)
+                    mapWork.map.addGisFeature(feature);
+
+                tempArr.push(feature);
+
+                var textStyle:GisTextStyle = new GisTextStyle(String(num), 0x000000, false, 0, false, 0xffffff, 0, "middle", 0, 4)
+                textStyle.xoffset = pstyle.xOffset;
+                textStyle.yoffset = pstyle.yOffset;
+                var numFeature:GisFeature = new GisFeature(
+                    new GisPoint(Number(xy.split(',')[0]), Number(xy.split(',')[1])), textStyle);
+
+                numFeature.attributes = cityData;
+
+                if (addFlag)
+                    mapWork.map.addGisFeature(numFeature);
+
+                tempArr.push(numFeature);
+                return tempArr;
+            }
+
+            private function updFeature2Map(feature:GisFeature, type:String, imgObj:Class, xy:String, num:Number, cityData:Object, addFlag:Boolean):void
+            {
+                var textStyle:GisTextStyle = new GisTextStyle(String(num), 0x000000, false, 0, false, 0xffffff, 0, "middle", 0, 4)
+                var xyArr:Array = getXYOffsets(type);
+                textStyle.xoffset = xyArr[0] as Number;
+                textStyle.yoffset = xyArr[1] as Number;
+
+                feature.gisStyle = textStyle;
+                feature.attributes = cityData;
+
+                if (addFlag)
+                {
+                    mapWork.map.updateFeature(feature);
+                }
+            }
+
+            private function getXYOffsets(type:Object):Array
+            {
+                return TYPE_OFFSETS_CACHE[type];
+            }
+
+            private function showMsg(type:uint, data:ArrayList, lx:Number, ly:Number):void
+            {
+                if (type == 1)
+                {
+                    msgPanel.title = "告警统计信息";
+                    msgGrid.columns = this.alarmColArr;
+                }
+                else if (type == 2)
+                {
+                    msgPanel.title = "性能统计信息";
+                    msgGrid.columns = this.perfColArr;
+                }
+
+                msgGrid.dataProvider = data;
+
+                var x:Number = 0;
+                var y:Number = ly - msgPanel.height / 2;
+
+                if (lx > (gg.width - msgPanel.width - 10))
+                {
+                    x = lx - msgPanel.width - 10;
+                }
+                else
+                {
+                    x = lx + 10;
+                }
+
+                if (ly > (gg.height - msgPanel.height - 10))
+                {
+                    y = ly - msgPanel.height - 10;
+                }
+                else
+                {
+                    y = ly + 10;
+                }
+
+                msgPanel.x = x;
+                msgPanel.y = y;
+
+                msgPanel.visible = true;
+
+            }
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>告警等撒点处理<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>覆盖区域处理<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            private function initRegionData2Map(testFlag:Boolean):void
+            {
+                logger.info("initRegionData2Map()");
+
+                //test
+                if (testFlag)
+                    this.crData = {'BSC': [
+                            {x: 113, y: 23.5},
+                            {x: 112.5, y: 23.5},
+                            {x: 113, y: 24},
+                            {x: 113.5, y: 23.5},
+                            {x: 113, y: 23},
+                            {x: 112, y: 23.5}
+                            ],
+                            'RNC': [
+                            {x: 113.2, y: 23.7},
+                            {x: 112.7, y: 23.7},
+                            {x: 113.2, y: 24.2},
+                            {x: 113.7, y: 23.7},
+                            {x: 113.2, y: 23.2},
+                            {x: 112.2, y: 23.7}
+                            ]
+
+                        };
+                //test
+
+                //BSC
+                var bscparts:Array = new Array();
+
+                for each (var point:Object in crData['BSC'])
+                {
+                    bscparts.push(new GisPoint(point.x, point.y));
+                }
+
+                var bscLine:GisLine = new GisLine(bscparts);
+
+                var bsclineStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0xFF0000, 1, 1);
+                var bscLineFeature:GisFeature = new GisFeature(bscLine, bsclineStyle);
+                bscLineFeature.autoMoveToTop = false;
+                mapWork.map.addGisFeatureAt(bscLineFeature, 0);
+                this.bscFeatureCache.push(bscLineFeature);
+                logger.info("BSC覆盖区域 feature 添加成功！");
+
+
+                //RNC
+                var rncparts:Array = new Array();
+
+                for each (var point2:Object in crData['RNC'])
+                {
+                    rncparts.push(new GisPoint(point2.x, point2.y));
+                }
+
+                var rncLine:GisLine = new GisLine(rncparts);
+
+                var rnclineStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x00FF00, 1, 1);
+                var rncLineFeature:GisFeature = new GisFeature(rncLine, rnclineStyle);
+                rncLineFeature.autoMoveToTop = false;
+                mapWork.map.addGisFeatureAt(rncLineFeature, 0);
+                this.rncFeatureCache.push(rncLineFeature);
+                logger.info("RNC覆盖区域 feature 添加成功！");
+            }
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>覆盖区域处理<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>图例事件处理<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            private function initCallBack():void
+            {
+                confDiv.callBack = dealFeatures;
+
+                legendDiv.callBack = dealFeatures;
+            }
+
+            //响应处理图例和配置中的checkbox改变事件。
+            private function dealFeatures(name:String, selected:Boolean):void
+            {
+                logger.info("图例复选框被触发 name:" + name + " selected:" + selected);
+
+                switch (name)
+                {
+                    case "alarm1":
+                        this.alarm1Flag = selected;
+                        //removeAlarmFeatures();
+                        //loadStatisticData();
+                        confDiv.enableCheckBox(true);
+                        //刷新告警
+                        refreshData();
+                        break;
+
+                    case "alarm2":
+                        this.alarm2Flag = selected;
+                        //removeAlarmFeatures();
+                        //loadStatisticData();
+                        confDiv.enableCheckBox(true);
+                        //刷新告警
+                        refreshData();
+                        break;
+
+                    case "gaojing":
+                        this.alarmTotalFlag = selected;
+                        showFeatures(alarmTotalFeatureCache, selected);
+                        break;
+
+                    case "hexin":
+                        this.hexinFlag = selected;
+                        showFeatures(hexinFeatureCache, selected);
+                        break;
+
+                    case "wuxian":
+                        this.wuxianFlag = selected;
+                        showFeatures(wuxianFeatureCache, selected);
+                        break;
+
+                    case "chuanshu":
+                        this.chuanshuFlag = selected;
+                        showFeatures(chuanshuFeatureCache, selected);
+                        break;
+
+                    case "donghuan":
+                        this.donghuanFlag = selected;
+                        showFeatures(donghuanFeatureCache, selected);
+                        break;
+
+                    case "shuju":
+                        this.shujuFlag = selected;
+                        showFeatures(shujuFeatureCache, selected);
+                        break;
+
+                    case "xingneng":
+                        this.performanceFlag = selected;
+                        showFeatures(performanceFeatureCache, selected);
+                        break;
+
+                    case "toushu":
+                        this.complaintFlag = selected;
+                        showFeatures(complaintFeatureCache, selected);
+                        break;
+
+                    case "gongdan":
+                        this.sheetFlag = selected;
+                        showFeatures(sheetFeatureCache, selected);
+                        break;
+
+                    case "gongcheng":
+                        this.projectFlag = selected;
+                        showFeatures(projectFeatureCache, selected);
+                        showProjectArea(selected);
+                        break;
+
+                    case "bsc":
+                        this.bscFlag = selected;
+                        //showFeatures(this.bscFeatureCache, selected, true);
+                        loadTSArea(name, selected);
+                        break;
+
+                    case "rnc":
+                        this.rncFlag = selected;
+                        //showFeatures(this.rncFeatureCache, selected, true);
+                        loadTSArea(name, selected);
+                        break;
+                }
+            }
+
+            private function removeAlarmFeatures():void
+            {
+                logger.info("removeAlarmFeatures()...");
+                showFeatures(alarmTotalFeatureCache, false);
+                alarmTotalFeatureCache = new Array();
+
+                showFeatures(hexinFeatureCache, false);
+                hexinFeatureCache = new Array();
+
+                showFeatures(wuxianFeatureCache, false);
+                wuxianFeatureCache = new Array();
+
+                showFeatures(chuanshuFeatureCache, false);
+                chuanshuFeatureCache = new Array();
+
+                showFeatures(donghuanFeatureCache, false);
+                donghuanFeatureCache = new Array();
+
+                showFeatures(shujuFeatureCache, false);
+                shujuFeatureCache = new Array();
+
+                showFeatures(performanceFeatureCache, false);
+                performanceFeatureCache = new Array();
+
+                showFeatures(this.complaintFeatureCache, false);
+                complaintFeatureCache = new Array();
+
+                showFeatures(sheetFeatureCache, false);
+                sheetFeatureCache = new Array();
+
+                showFeatures(this.projectFeatureCache, false);
+                projectFeatureCache = new Array();
+            }
+
+            private function showFeatures(dataArr:Array, flag:Boolean, add0Level:Boolean = false):void
+            {
+                for each (var f:GisFeature in dataArr)
+                {
+                    if (flag)
+                    {
+                        if (add0Level)
+                            mapWork.map.addGisFeatureAt(f, 0);
+                        else
+                            mapWork.map.addGisFeature(f);
+
+
+                    }
+                    else
+                    {
+                        try
+                        {
+                            mapWork.map.removeGisFeature(f);
+                        }
+                        catch (e:Error)
+                        {
+                            logger.info("feature not added to map! can not remove!");
+                        }
+                    }
+                }
+            }
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>图例事件处理<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>页面处理<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            private function resizeWindow(type:int):void
+            {
+                //主界面向左伸缩
+                if (type == 1 && dataShowGroup.visible)
+                {
+                    if (gg.visible)
+                    {
+                        _generalView.treeDiv.visible = false;
+                        _generalView.search.visible = false;
+
+                        gg.width = 0;
+                        gg.visible = false;
+
+                        changePic(img1, pic44, pic43);
+                        changePic(img2, pic32, pic32);
+                        this.img2.visible = false;
+                        this.img2.includeInLayout = false;
+
+                        ggHide.play();
+
+                        this.dataShow.validateNow();
+                    }
+                    else
+                    {
+                        _generalView.treeDiv.visible = true;
+                        _generalView.search.visible = true;
+
+                        gg.width = 750;
+                        gg.visible = true;
+
+                        changePic(img1, pic42, pic41);
+                        changePic(img2, pic32, pic31);
+                        this.img2.visible = true;
+                        this.img2.includeInLayout = true;
+
+                        ggShow.play();
+
+                        this.dataShow.validateNow();
+                    }
+                }
+                //主界面向右伸缩
+                else if (type == 2 && gg.visible)
+                {
+                    if (dataShowGroup.visible)
+                    {
+                        dataShowGroup.percentWidth = 0;
+                        dataShowGroup.visible = false;
+                        gg.percentWidth = 100;
+
+                        changePic(img1, pic42, pic42);
+                        changePic(img2, pic34, pic33);
+                        this.img1.visible = false;
+                        this.img1.includeInLayout = false;
+
+                        dataGroupHide.play();
+                    }
+                    else
+                    {
+                        dataShowGroup.percentWidth = 100;
+                        dataShowGroup.visible = true;
+                        gg.width = 750;
+
+                        changePic(img1, pic42, pic41);
+                        changePic(img2, pic32, pic31);
+                        this.img1.visible = true;
+                        this.img1.includeInLayout = true;
+
+                        dataGroupShow.play();
+                    }
+                }
+            }
+
+            private function changePic(img:Image, pic1:Class, pic2:Class):void
+            {
+                img.source = pic1;
+                img.addEventListener(MouseEvent.MOUSE_OVER, function():void {
+                    img.source = pic2;
+                });
+                img.addEventListener(MouseEvent.MOUSE_OUT, function():void {
+                    img.source = pic1;
+                });
+            }
+
+            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>页面布局<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+            //显示页面，启动定时任务
+            override public function showView():void
+            {
+                if (t != null && !t.running)
+                {
+                    t.start();
+                    //-------------------------------------历史回退修改------------------------------------
+                    this.parentApplication.add(t);
+                        //-------------------------------------历史回退修改------------------------------------
+                }
+
+                this.dataShow.showView();
+            }
+
+            //隐藏页面，停止定时任务
+            override public function hideView():void
+            {
+                if (t != null && t.running)
+                {
+                    t.stop();
+                    //-------------------------------------历史回退修改------------------------------------
+                    this.parentApplication.remove(t);
+                        //-------------------------------------历史回退修改------------------------------------
+                }
+
+                this.dataShow.hideView();
+            }
+
+            //切换快速检索窗口
+            protected function mapWork_toolbar_gotoHandler(event:MapEvent):void
+            {
+                _generalView.switchSearch();
+            }
+
+            //查询网元覆盖范围
+            private function loadTSArea(name:String, isShow:Boolean):void
+            {
+                loadInfo.showLoading("正在处理数据，请稍候");
+                loadTsIndex = 0;
+
+                if (isShow)
+                {
+                    var layer:GisLayer = null;
+                    //查询
+                    var param:Object = new Object();
+                    param.city_id = _curCityId;
+                    param.type_name = name;
+
+                    if (name == "bsc")
+                    {
+                        param.mo_type_id = "15";
+                        layer = bscLayer;
+                    }
+                    else if (name == "rnc")
+                    {
+                        param.mo_type_id = "27";
+                        layer = rncLayer;
+                    }
+                    else
+                    {
+                        param.mo_type_id = "15";
+                        layer = bscLayer;
+                    }
+
+                    if (layer != null && layer.gisFeatures != null && layer.gisFeatures.length > 0)
+                    {
+                        this.mapWork.map.addGisLayer(layer, 2);
+                    }
+                    else
+                    {
+                        logger.info("——————><—————— 查询网元覆盖范围参数　city_id=" + param.city_id + " mo_type_id=" + param.mo_type_id);
+                        _dataService.getCoverData(param, loadTSAreaSucc, null, loadTSAreaErr);
+                    }
+                }
+                else
+                {
+                    removeTSArea(name);
+                }
+            }
+
+            private function loadTSAreaSucc(obj:Object, name:String):void
+            {
+                if (obj != null)
+                {
+                    logger.info("——————><—————— 查询int_id成功！");
+
+                    for each (var data:Object in obj)
+                    {
+                        addTSAreaToMap(data, name);
+                    }
+                }
+                else
+                {
+                    logger.info("——————><—————— 隐藏loading 查询int_id为空！");
+                    loadInfo.hideLoading();
+                }
+
+//				loadInfo.hideLoading();
+            }
+
+            private function loadTSAreaErr(obj:Object):void
+            {
+                logger.info("——————><—————— 隐藏loading 查询int_id失败！");
+                loadInfo.hideLoading();
+            }
+
+            private function addTSAreaToMap(idList:Object, name:String):void
+            {
+                if (idList != null)
+                {
+                    var arr:Array = new Array();
+
+                    for each (var id:String in idList)
+                    {
+                        arr.push(id);
+                    }
+
+                    var color:Number = 0x00000;
+
+                    if (colorId < colorMap.length)
+                    {
+                        color = Number(colorMap[colorId]);
+                        colorId++;
+                    }
+                    else
+                    {
+                        color = Number(colorMap[0]);
+                        colorId = 1;
+                    }
+
+                    if (name == "rnc")
+                    {
+                        //添加
+                        rncLayer = new GisLayer();
+                        mapWork.map.addGisLayer(rncLayer, 2);
+
+                        if (arr != null && arr.length > 0)
+                        {
+                            logger.info("——————><—————— 查询NodeB覆盖范围。。。loadTsIndex:" + loadTsIndex + "idList:" + arr);
+                            loadTsIndex++;
+                            this.mapWork.map.queryNodeBGisFeaturesByAreaIds(arr, function(gisFeatures:Array):void {
+                                loadTsIndex--;
+                                logger.info("——————><—————— 查询NodeB 泰森多边形成功： loadTsIndex:" + loadTsIndex + " " + gisFeatures.length);
+                                if (loadTsIndex <= 0)
+                                {
+                                    loadInfo.hideLoading();
+                                }
+                                polygonStyle.color = color;
+                                for each (var gisFeature:GisFeature in gisFeatures) {
+//									var obj:Object = new Object();
+                                    gisFeature.attributes.mo_type = "tsArea";
+                                    gisFeature.attributes.area_type = name;
+//									gisFeature.attributes = obj;
+                                    gisFeature.gisStyle = polygonStyle;
+                                    rncLayer.addGisFeature(gisFeature);
+                                }
+                            });
+                        }
+                    }
+                    else
+                    {
+                        //添加
+                        bscLayer = new GisLayer();
+                        mapWork.map.addGisLayer(bscLayer, 2);
+
+                        if (arr != null && arr.length > 0)
+                        {
+                            logger.info("——————><—————— 查询BTS覆盖范围。。。loadTsIndex:" + loadTsIndex + "idList:" + arr);
+                            loadTsIndex++;
+                            this.mapWork.map.queryBTSGisFeaturesByAreaIds(arr, function(gisFeatures:Array):void {
+                                loadTsIndex--;
+                                logger.info("——————><—————— 查询 BTS 泰森多边形成功 ： loadTsIndex:" + loadTsIndex + " " + gisFeatures.length);
+                                if (loadTsIndex <= 0)
+                                {
+                                    loadInfo.hideLoading();
+                                }
+                                polygonStyle.color = color;
+                                for each (var gisFeature:GisFeature in gisFeatures) {
+//									var obj:Object = new Object();
+                                    gisFeature.attributes.mo_type = "tsArea";
+                                    gisFeature.attributes.area_type = name;
+//									gisFeature.attributes = obj;
+                                    gisFeature.gisStyle = polygonStyle;
+                                    bscLayer.addGisFeature(gisFeature);
+                                }
+                            });
+                        }
+                    }
+                }
+
+                if (loadTsIndex <= 0)
+                {
+                    logger.info("——————><—————— 隐藏loading loadTsIndex <= 0");
+                    loadInfo.hideLoading();
+                }
+            }
+
+            private function removeTSArea(name:String):void
+            {
+                var layer:GisLayer = null;
+
+                if (name == "rnc")
+                {
+                    layer = rncLayer;
+                }
+                else
+                {
+                    layer = bscLayer;
+                }
+
+                this.mapWork.map.removeGisLayer(layer);
+
+                logger.info("——————><—————— 隐藏loading removeTSArea");
+                loadInfo.hideLoading();
+            }
+
+            //查询工程覆盖范围
+            private function showProjectArea(show:Boolean):void
+            {
+                if (show)
+                {
+                    var param:Object = new Object();
+                    param.cityId = _curCityId;
+
+                    remoteData.getProjBtsInfo(param, loadProjectAreaSucc, null, loadProjectAreaErr);
+                        //loadProjectAreaSucc(projectTestData);
+                }
+                else
+                {
+                    removeProjectCoverArea();
+                }
+            }
+
+            private function loadProjectAreaSucc(obj:Object):void
+            {
+                if (obj != null)
+                {
+                    logger.info("查询工程覆盖范围成功！");
+
+                    //for each (var project:Object in projectTestData)
+                    for each (var project:Object in obj)
+                    {
+                        createProjectCoverArea(project.longitude, project.latitude);
+                    }
+
+                    this.mapWork.map.viewRefresh();
+                }
+                else
+                {
+                    logger.info("查询工程覆盖范围为空！");
+                }
+            }
+
+            private function loadProjectAreaErr(obj:Object):void
+            {
+                logger.info("查询工程覆盖范围失败！");
+            }
+
+            //创建覆盖范围
+            private function createProjectCoverArea(x:Number, y:Number):void
+            {
+                logger.info("创建工程覆盖范围：x=" + x + " y=" + y);
+
+                //覆盖范围的点坐标集合
+                var parts:Array = new Array();
+                var distance:Number = 500;
+                parts = [new GisPoint(x - distance * Math.sin(30 * Math.PI / 180) / 96490, y + distance * Math.cos(30 * Math.PI / 180) / 110850),
+                         new GisPoint(x + distance * Math.sin(30 * Math.PI / 180) / 96490, y + distance * Math.cos(30 * Math.PI / 180) / 110850),
+                         new GisPoint(x + distance / 96490, y),
+                         new GisPoint(x + distance * Math.sin(30 * Math.PI / 180) / 96490, y - distance * Math.cos(30 * Math.PI / 180) / 110850),
+                         new GisPoint(x - distance * Math.sin(30 * Math.PI / 180) / 96490, y - distance * Math.cos(30 * Math.PI / 180) / 110850),
+                         new GisPoint(x - distance / 96490, y)];
+
+                //多边形样式
+                var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, null);
+                var hexFeature:GisFeature = new GisFeature(new GisRegion(parts), polygonStyle);
+                projectLayer.addGisFeature(hexFeature);
+            }
+
+            private function removeProjectCoverArea():void
+            {
+                for each (var feature:GisFeature in projectLayer.gisFeatures)
+                {
+                    projectLayer.removeGisFeature(feature);
+                }
+            }
+
+            //刷新页面大小
+            override public function validateGroup():void
+            {
+                this.gg.percentHeight = 100;
+                this.gg.validateNow();
+            }
+
+            //动态调整大小
+            override public function resizeWindowGroup(h:int):void
+            {
+                this.dataShow.resizeThisGroup(h);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+        <s:Resize id="ggHide"
+                  target="{gg}"
+                  widthFrom="750"
+                  widthTo="0"
+                  duration="300">
+        </s:Resize>
+        <s:Resize id="ggShow"
+                  target="{gg}"
+                  widthFrom="0"
+                  widthTo="750"
+                  duration="300">
+        </s:Resize>
+        <s:Resize id="dataGroupHide"
+                  target="{gg}"
+                  widthFrom="750"
+                  widthTo="{this.width-15}"
+                  duration="300">
+        </s:Resize>
+        <s:Resize id="dataGroupShow"
+                  target="{gg}"
+                  widthFrom="{this.width-15}"
+                  widthTo="750"
+                  duration="300">
+        </s:Resize>
+    </fx:Declarations>
+    <s:HGroup id="mainGroup"
+              width="100%"
+              height="100%"
+              gap="0"
+              paddingLeft="5"
+              paddingRight="5">
+        <s:Group width="750"
+                 height="100%"
+                 id="gg">
+            <s:Scroller width="100%"
+                        height="100%"
+                        verticalScrollPolicy="auto">
+                <s:Group width="100%"
+                         height="100%">
+                    <gis:MapWork id="mapWork"
+                                 width="100%"
+                                 height="100%"
+                                 mapCreationComplete="initMap()"
+                                 showOverView="false"
+                                 showZoomSlider="true"
+                                 toolbar_goto="mapWork_toolbar_gotoHandler(event)"/>
+                    <panel:Window id="msgPanel"
+                                  visible="false"
+                                  width="380"
+                                  minimizable="false"
+                                  maximizable="false"
+                                  closable="false">
+                        <mx:AdvancedDataGrid id="msgGrid"
+                                             width="100%"/>
+                    </panel:Window>
+                </s:Group>
+            </s:Scroller>
+            <city:AlarmConfDiv id="confDiv"
+                               includeInLayout="false"/>
+            <city:LegendDiv id="legendDiv"
+                            includeInLayout="false"/>
+        </s:Group>
+
+        <s:VGroup width="5"
+                  height="100%"
+                  verticalAlign="middle">
+            <mx:Image id="img1"
+                      source="{pic42}"
+                      mouseOver="this.img1.source=pic41"
+                      mouseOut="this.img1.source=pic42"
+                      click="resizeWindow(1)"
+                      buttonMode="true">
+            </mx:Image>
+            <mx:Image id="img2"
+                      source="{pic32}"
+                      mouseOver="this.img2.source=pic31"
+                      mouseOut="this.img2.source=pic32"
+                      click="resizeWindow(2)"
+                      buttonMode="true">
+            </mx:Image>
+        </s:VGroup>
+
+        <s:Group id="dataShowGroup"
+                 width="100%"
+                 height="100%">
+            <datashow:DataShowEx id="dataShow"
+                                 width="100%"
+                                 height="100%"
+                                 popParent="{this}">
+            </datashow:DataShowEx>
+        </s:Group>
+    </s:HGroup>
+</monitor:CommonGroup>

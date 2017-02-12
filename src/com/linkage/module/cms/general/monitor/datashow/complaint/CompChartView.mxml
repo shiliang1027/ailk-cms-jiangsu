@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="400" height="350" xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+			  preinitialize="window1_preinitializeHandler(event)" dragable="true" maximizable="false" minimizable="false" close="closeMe();">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.events.FusionChartsLKEvent;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.complaintStat");
+			
+			//当前属地名称
+			private var curCityName:String = "";
+			
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+			
+			//图标背景
+			private var fcBgColor:Object = null;
+			
+			// 图表参数
+			private var chartParamsTemplate:ArrayCollection=new ArrayCollection([
+				{numberPrefix:""},                  
+				{showValues:"0"},
+				{xAxisName:"时间"},
+				{yAxisName:"投诉量"},
+				{anchorRadius:"0"},
+				{canvasBorderAlpha: "0"}
+			]); 
+			
+			private var testData:ArrayCollection = new ArrayCollection([
+				{label:'1点'}, 
+				{label:'2点'},
+				{label:'3点'},
+				{label:'4点'},  
+				{label:'5点'},
+				{seriesName:'语音基本业务-网络覆盖类'},
+				{value:'96'}, 
+				{value:'90'},
+				{value:'58'},
+				{value:'50'},  
+				{value:'28'},
+				{seriesName:'语音基本业务-通话质量'},
+				{value:'66'}, 
+				{value:'80'},
+				{value:'78'},
+				{value:'60'},  
+				{value:'48'}
+			]);
+			
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+			
+			private function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			//初始化
+			public function initData(cityName:String,type1:String,type2:String):void
+			{
+				curCityName = cityName;
+				
+				log.info("查询投诉预警趋势图参数 cityName=" + cityName + " type1=" + type1 + " type2=" + type2);
+				_remoteData.getComplaintDispatchChart(cityName,type1,type2,createChart,null,loadChartDataErr);
+			}
+
+			//生成CHART
+			private function createChart(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询投诉预警趋势图成功！");
+					var chartParams:ArrayCollection = new ArrayCollection();
+					for each (var param:Object in chartParamsTemplate)
+					{
+						chartParams.addItem(param);
+					}
+					
+					//添加背景色
+					if (fcBgColor != null)
+					{
+						var p:Object = new Object();
+						p.bgColor = fcBgColor;
+						chartParams.addItem(p);
+					}
+					//添加标题
+					var caption:Object = new Object();
+					caption.caption = "投诉趋势";
+					chartParams.addItem(caption);
+					//生成趋势图
+					perfChart.FCParams = chartParams;
+					perfChart.FCData = obj;
+				}
+				else
+				{
+					log.info("查询投诉预警趋势图为空！");
+				}
+			}
+
+			private function loadChartDataErr(obj:Object):void
+			{
+				log.info("查询投诉预警趋势图失败！");
+			}
+			
+			protected function window1_preinitializeHandler(event:FlexEvent):void
+			{
+				var sd:CSSStyleDeclaration = styleManager.getStyleDeclaration("fcBgColor");
+				if (sd != null)
+				{
+					fcBgColor = sd.getStyle("bgc");
+				}
+			}
+
+
+			protected function perfChart_FCClickEventHandler(event:FusionChartsLKEvent):void
+			{
+				// TODO Auto-generated method stub
+				showNextData(String(event.param));
+			}
+			
+			//点击图表查看详情
+			private function showNextData(linkParam:String):void
+			{
+				var arr:Array = linkParam.split("_");
+				
+				if (arr != null)
+				{
+					if (arr.length == 3)
+					{
+						this.initData(arr[0],arr[1],arr[2]);
+						this.visible = true;
+						this.includeInLayout = true;
+					}
+					else
+					{
+						Alert.show("参数错误！");
+					}
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group id="chartGroup" width="100%" height="100%">
+		<fusioncharts:FusionChartsLK  id="perfChart" FCChartType="MSLine" FCFolder="/cms/flex-release/FusionCharts"  width="400" height="300"
+									  FCParams="{new ArrayCollection()}" FCData="{new ArrayCollection()}" FCClickEvent="perfChart_FCClickEventHandler(event)">
+		</fusioncharts:FusionChartsLK>
+	</s:Group>
+</panel:Window>

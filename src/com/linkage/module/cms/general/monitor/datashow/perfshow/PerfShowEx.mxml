@@ -1,0 +1,1264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					 xmlns:s="library://ns.adobe.com/flex/spark"
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					 width="100%"
+					 height="100%"
+					 xmlns:perfshow="com.linkage.module.cms.general.monitor.datashow.perfshow.*"
+					 creationComplete="datawindow1_creationCompleteHandler(event)"
+					 xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+					 config="initConfig(event)"
+					 configable="true">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.view.filter.InAlarmFilter;
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.StringUtils;
+
+			import flash.utils.setTimeout;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.collections.IList;
+			import mx.containers.Canvas;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+
+			import nl.demonsters.debugger.MonsterDebugger;
+
+			import org.osmf.layout.AbsoluteLayoutFacet;
+
+			import spark.components.Group;
+			import spark.components.NavigatorContent;
+			import spark.components.TitleWindow;
+			import spark.events.IndexChangeEvent;
+
+			private var _this:Object;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.perfshow");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时调度
+			private var t:Timer = new Timer(300000);
+
+			//性能配置界面
+			private var perfSelect:PerfSelect = new PerfSelect();
+
+			//查询得到的数据
+			private var dataObj:Object = null;
+
+			//当前轮循序号
+			private var loopIndex:Number = 0;
+			private var loopTimer:Timer = new Timer(600000);
+			private var loopPerfList:ArrayCollection;
+
+			//是否轮循
+			private var isLoop:Boolean = false;
+
+			//图标背景
+			private var fcBgColor:Object = null;
+
+			//时间周期
+			private var timeArr:ArrayCollection = new ArrayCollection(["60分钟", "15分钟", "5分钟"]);
+
+			//时间对应的性能指标
+			private var timePerfMap:Dictionary = new Dictionary();
+
+			public var perfTableArray:ArrayCollection = new ArrayCollection([{title: "15分钟", column: ["stat_time", "a", "b", "c", "d"], name: ["统计时段", "系统呼叫成功率", "寻呼响应次数", "系统应答次数", "VLR利用率"], datalist: [{stat_time: "2011-05-14 09:00", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 09:15", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 09:30", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 09:45", a: "90%", b: "3264", c: "3456", d: "92.1%"}]}, {title: "30分钟", column: ["stat_time", "a", "b", "c", "d"], name: ["统计时段", "系统呼叫成功率", "寻呼响应次数", "系统应答次数", "VLR利用率"], datalist: [{stat_time: "2011-05-14 09:00", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 09:15", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 09:30", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 09:45", a: "90%", b: "3264", c: "3456", d: "92.1%"}]}, {title: "60分钟", column: ["stat_time", "a", "b", "c", "d"], name: ["统计时段", "系统呼叫成功率", "寻呼响应次数", "系统应答次数", "VLR利用率"], datalist: [{stat_time: "2011-05-14 09:00", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 10:00", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 11:00", a: "90%", b: "3264", c: "3456", d: "92.1%"}, {stat_time: "2011-05-14 12:00", a: "90%", b: "3264", c: "3456", d: "92.1%"}]}]);
+
+			public var matrixDataArr:ArrayCollection = new ArrayCollection([{city: "南京", city_id: "0001", alarmNum: "2"}, {city: "苏州", alarmNum: "0"}, {city: "无锡", alarmNum: "0"}]);
+
+			// 图表数据
+			//			private var chartData:ArrayCollection = new ArrayCollection([
+			//				{label:'1点',value:'96'}, 
+			//				{label:'2点',value:'90'},
+			//				{label:'3点',value:'98'},
+			//				{label:'4点',value:'90'},  
+			//				{label:'5点',value:'98'}
+			//			]);
+
+			// 图表数据
+			//private var chartData:ArrayCollection = new ArrayCollection([{label: '1点'}, {label: '2点'}, {label: '3点'}, {label: '4点'}, {label: '5点'}, {seriesName: 'HLR主处理器负荷'}, {value: '96'}, {value: '90'}, {value: '58'}, {value: '50'}, {value: '28'}]);
+			private var chartData:ArrayCollection = null;
+
+			//同比、环比数据
+			//private var chartData1:ArrayCollection = new ArrayCollection([{seriesName: '位置更新成功率'}, {value: '86'}, {value: '50'}, {value: '88'}, {value: '70'}, {value: '98'}]);
+			private var chartData1:ArrayCollection = new ArrayCollection();
+
+			//是否初次加载
+			private var isFirst:Boolean = true;
+
+			private var _unit:String = "";
+
+			//当前选择的内容
+			private var curSelCity:String = "";
+			private var curSelType:String = "";
+			private var curSelMo:String = "";
+			private var curSelPerf:String = "";
+
+			// 图表参数
+			private var chartParams:ArrayCollection = new ArrayCollection([
+				{caption: "性能趋势图"},
+				{numberPrefix: ""},
+				{showValues: "0"},
+				{drawAnchors: "1"},
+				{xAxisName: "时间"},
+				{yAxisName: "性能值"},
+				{legendBgAlpha: "0"},
+//				{anchorRadius: "0"},
+				{canvasBorderAlpha: "0"},
+//				{lineColor:"0x00FF00"},
+				{lineThickness: "4"}
+				]);
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			override public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//初始化弹出界面
+				typeSelect.init(changeType);
+				typeSelect.visible = false;
+				PopUpManager.addPopUp(perfSelect, this, false);
+				perfSelect.init(switchColumn, switchTable);
+				perfSelect.visible = false;
+
+				//初始化轮循配置界面界面
+				this.configWindow.cityId = _cityId;
+				this.configWindow.remoteData = _remoteData;
+				this.configWindow.callback = startLoop;
+				this.configWindow.initSelectOption();
+
+				//初始化性能矩阵
+				this.matrixList.remoteData = _remoteData;
+				this.matrixList.specList = _specList;
+
+				//初始化下拉框
+				initSelectOption();
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+
+				//结束轮循
+				isLoop = false;
+			}
+
+			private function changeType(type:int):void
+			{
+				if(type == 1)
+				{
+					this.tableShow.visible = true;
+					this.tableShow.includeInLayout = true;
+					this.matrixShow.visible = false;
+					this.matrixShow.includeInLayout = false;
+					this.chartShow.visible = false;
+					this.chartShow.includeInLayout = false;
+
+					this.compare1.visible = false;
+					this.compare2.visible = false;
+					this.configWindow.visible = false;
+				}
+				else if(type == 2)
+				{
+					this.tableShow.visible = false;
+					this.tableShow.includeInLayout = false;
+					this.matrixShow.visible = true;
+					this.matrixShow.includeInLayout = true;
+					this.chartShow.visible = false;
+					this.chartShow.includeInLayout = false;
+
+					this.compare1.visible = false;
+					this.compare2.visible = false;
+					this.configWindow.visible = false;
+				}
+				else
+				{
+					this.tableShow.visible = false;
+					this.tableShow.includeInLayout = false;
+					this.matrixShow.visible = false;
+					this.matrixShow.includeInLayout = false;
+					this.chartShow.visible = true;
+					this.chartShow.includeInLayout = true;
+
+					if(this.loopCheck.selected)
+					{
+						this.configWindow.visible = true;
+					}
+					if(this.check1.selected)
+					{
+						this.compare1.visible = true;
+					}
+					if(this.check2.selected)
+					{
+						this.compare2.visible = true;
+					}
+				}
+			}
+
+			protected function initConfig(event:WindowExtEvent):void
+			{
+				typeSelect.visible = true;
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				var t1:int = (new Date()).getTime() / 1000;
+				var t2:int = t1 - 24 * 60 * 60;
+				log.info("输入时间参数：" + t1 + " " + t2);
+				//_remoteData.getKpiPerfDataByInterval(String(t2),String(t1),new ArrayList(),getResInfo,null,getResInfoErr);
+
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityKpiPerfDataByInterval(_cityId, t2.toFixed(0), t1.toFixed(0), new ArrayList(), _specList, getResInfo, null, getResInfoErr);
+					//二级视图
+					_remoteData.getProvincePerfAlarmNe(_cityId, "", _specList, getMatrixInfo, null, getMatrixInfoErr);
+						//_remoteData.getCityMatrixAlarmList(_cityId,_specList,getMatrixInfo,null,getMatrixInfoErr);
+				}
+				else
+				{
+					_remoteData.getKpiPerfDataByInterval(t2.toFixed(0), t1.toFixed(0), new ArrayList(), _specList, getResInfo, null, getResInfoErr);
+					_remoteData.getMatrixAlarmList(_specList, getMatrixInfo, null, getMatrixInfoErr);
+				}
+			}
+
+			public function getMatrixInfo(obj:Object):void
+			{
+				log.info("性能告警矩阵查询结果：" + obj);
+				if(obj != null && obj[0] != null)
+				{
+					createMatrix(obj);
+					obj = null;
+				}
+				//查询无数据
+				else
+				{
+					log.info("性能告警矩阵：查询无数据");
+					createMatrix(matrixDataArr);
+				}
+			}
+
+			public function getMatrixInfoErr(obj:Object):void
+			{
+				log.info("性能告警矩阵：查询数据异常");
+				createMatrix(matrixDataArr);
+			}
+
+			//生成性能矩阵
+			private function createMatrix(obj:Object):void
+			{
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					this.matrixList.initPerfGridData(obj);
+				}
+				else
+				{
+					this.matrixList.initPerfListData(obj);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("性能指标统计结果：" + obj);
+				if(obj != null && obj[0] != null)
+				{
+					createTable(obj);
+					dataObj = obj;
+					obj = null;
+				}
+				//查询无数据
+				else
+				{
+					log.info("性能指标统计：查询无数据");
+					Alert.show("查询性能指标统计数据为空！");
+						//createTable(perfTableArray);
+						//dataObj = perfTableArray;
+				}
+
+				//loadInfo.hideLoading();
+			}
+
+			//缓存表格
+			private var tableMap:Dictionary = new Dictionary();
+			//缓存窗口
+			private var navigatorMap:Dictionary = new Dictionary();
+
+			private function createTable(obj:Object):void
+			{
+				//根据时间排序
+				for each(var time:String in timeArr)
+				{
+					//生成性能表格
+					for each(var perfTable:Object in obj)
+					{
+						if(perfTable.title == time)
+						{
+							var grid:AdvancedDataGrid = null;
+
+							//如果没有当前的TABLE，则重新生成
+							if(tableMap[perfTable.title] == null)
+							{
+								grid = new AdvancedDataGrid();
+								grid.horizontalScrollPolicy = "off";
+								grid.verticalScrollPolicy = "auto";
+								grid.sortableColumns = false;
+								grid.percentHeight = 100;
+
+								//生成列
+								var colArr:Array = new Array();
+								for(var i:String in perfTable.column)
+								{
+									var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+									col.dataField = perfTable.column[i];
+									col.headerText = perfTable.name[i];
+									if(perfTable.column[i] == "city")
+									{
+										col.width = 120;
+									}
+									else
+									{
+										col.width = 250;
+									}
+									colArr = colArr.concat(col);
+								}
+								grid.columns = colArr;
+
+								//生成TAB
+								var n:NavigatorContent = new NavigatorContent();
+								n.label = perfTable.title;
+								n.addElement(grid);
+
+								//缓存当前的TABLE
+								tableMap[perfTable.title] = grid;
+								navigatorMap[perfTable.title] = n;
+								this.perfTab.addElement(n);
+
+								perfSelect.addSelectOption(perfTable.title, true, perfTable.name);
+							}
+							//否则直接赋值
+							else
+							{
+								grid = (tableMap[perfTable.title] as AdvancedDataGrid);
+							}
+
+							//数据
+							grid.dataProvider = perfTable.datalist;
+						}
+					}
+				}
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("性能指标统计：查询数据异常");
+				Alert.show("查询性能指标统计数据异常！");
+				//createTable(perfTableArray);
+				//dataObj = perfTableArray;
+				//loadInfo.hideLoading();
+			}
+
+			//初始化性能选择页面
+			public function initPerfSelect(event:MouseEvent):void
+			{
+				perfSelect.visible = true;
+				perfSelect.move(event.stageX - 400, event.stageY);
+			}
+
+			//切换表格显示
+			public function switchTable(tableName:String, isShow:Boolean):void
+			{
+				log.info("调用switchTable方法  tableName=" + tableName + " isShow=" + isShow);
+
+				if(navigatorMap[tableName] != null)
+				{
+					var tmp:NavigatorContent = (navigatorMap[tableName] as NavigatorContent);
+					if(!isShow)
+					{
+						this.perfTab.removeElement(tmp);
+					}
+					else
+					{
+						this.perfTab.addElement(tmp);
+					}
+				}
+			}
+
+			//切换列显示
+			public function switchColumn(tableName:String, colName:String, isShow:Boolean):void
+			{
+				log.info("调用switchColumn方法  tableName=" + tableName + " colName=" + colName + " isShow=" + isShow);
+
+				if(tableMap[tableName] != null)
+				{
+					var tmp:AdvancedDataGrid = (tableMap[tableName] as AdvancedDataGrid);
+
+					//删除列
+					if(!isShow)
+					{
+						//遍历所有列
+						var arr:Array = new Array();
+						for each(var tmpCol:AdvancedDataGridColumn in tmp.columns)
+						{
+							if(tmpCol.headerText != colName)
+							{
+								arr = arr.concat(tmpCol);
+							}
+						}
+						tmp.columns = arr;
+					}
+					//添加列
+					else
+					{
+						//判断是否已经存在
+						var hasCol:Boolean = false;
+						for each(var tmpCol1:AdvancedDataGridColumn in tmp.columns)
+						{
+							if(tmpCol1.headerText == colName)
+							{
+								hasCol = true;
+							}
+						}
+
+						//没有该列才添加
+						if(!hasCol)
+						{
+							//遍历数据
+							for each(var perfTable:Object in dataObj)
+							{
+								if(perfTable.title == tableName)
+								{
+									for(var i:String in perfTable.name)
+									{
+										if(perfTable.name[i] == colName)
+										{
+											var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+											col.headerText = perfTable.name[i];
+											col.dataField = perfTable.column[i];
+											tmp.columns = tmp.columns.concat(col);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			protected function showPerfMRTG(event:MouseEvent = null):void
+			{
+				//结束轮循
+				isLoop = false;
+
+				if(this.cityName.selectedItem != null && this.deviceModel.selectedItem != null)
+				{
+					//取参数
+					var curCityId:String = this.cityName.selectedItem.city_id;
+					var moTypeId:String = this.deviceModel.selectedItem.mo_type_id;
+					var moId:String = "-1";
+					if(this.moName.selectedItem != null)
+					{
+						moId = this.moName.selectedItem.mo_id;
+					}
+					if(this.perfName.selectedItem == null)
+					{
+						Alert.show("请选择性能指标！");
+						return;
+					}
+
+					_unit = this.perfName.selectedItem.unit;
+
+					var perfTypeId:String = this.perfName.selectedItem.perf_type_id;
+					var now:Number = new Date().getTime() / 1000;
+
+					//记录
+					this.curSelCity = curCityId;
+					this.curSelType = moTypeId;
+					this.curSelMo = moId;
+					this.curSelPerf = perfTypeId;
+
+					log.info("性能趋势图查询参数　curCityId=" + curCityId + " moTypeId=" + moTypeId + " moId=" + moId + " perfTypeId=" + perfTypeId + " time=" + now.toFixed(0));
+					//_remoteData.getKpiGraphics("6", "10", "0.GZSGSN1101BEr", "15", "1307563200", _specList,1,getGraphicsInfo,null,getGraphicsInfoErr);
+					_remoteData.getKpiGraphics(curCityId, moTypeId, moId, perfTypeId, now.toFixed(0), _specList, 1, getGraphicsInfo, null, getGraphicsInfoErr);
+				}
+			}
+
+			public function getGraphicsInfo(obj:Object):void
+			{
+				log.info("加载趋势图数据成功！");
+				chartData = new ArrayCollection();
+				chartData.removeAll();
+				for each(var tmp:Object in obj)
+				{
+					chartData.addItem(tmp);
+				}
+
+				if(chartData.length > 1)
+				{
+					//设置横坐标显示单位数量
+					setChartStep(chartData.length);
+
+					//如果有同比和环比，则默认查一下
+					if(this.check1.selected)
+					{
+						showCompareChart(1);
+					}
+					else if(this.check2.selected)
+					{
+						showCompareChart(2);
+					}
+					else
+					{
+						//生成趋势图
+						perfChart.FCParams = getParamArr();
+						perfChart.FCData = chartData;
+						perfChart.FCRender();
+					}
+				}
+				else
+				{
+					Alert.show("查询趋势图数据为空！");
+				}
+			}
+
+			private function getParamArr(setColor:Boolean = true):ArrayCollection
+			{
+				var tempParaArr:ArrayCollection = new ArrayCollection();
+				tempParaArr.addAll(chartParams);
+//				if(_unit != null && _unit != "null")
+//					tempParaArr.addItem({'numberSuffix':_unit});
+
+				if(setColor)
+					tempParaArr.addItem({'lineColor': "00FF00"});
+
+				if(String(_unit) == "%")
+				{
+					log.info(" 图表数据，百分比数据 设置最大值为100！");
+					tempParaArr.addItem({'yAxisMaxValue': "100"});
+				}
+				return tempParaArr;
+			}
+
+			public function getGraphicsInfoErr(obj:Object):void
+			{
+				log.info("加载趋势图数据失败！");
+			}
+
+			//初始化下拉框
+			private function initSelectOption():void
+			{
+				_remoteData.queryNextCity(_cityId, initCityOption, null, initCityErr);
+			}
+
+			public function initCityOption(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				if(obj != null)
+				{
+					for each(var cityInfo:Object in obj)
+					{
+						arr.addItem(cityInfo);
+					}
+				}
+
+				this.cityName.dataProvider = arr;
+				this.cityName.labelField = "city_name";
+				this.cityName.selectedIndex = 0;
+
+				//初始化完属地再加载网元类型
+				_remoteData.querMoType(initTypeOption, null, initTypeErr);
+			}
+
+			public function initCityErr(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				this.cityName.dataProvider = arr;
+				this.cityName.labelField = "city_name";
+			}
+
+			public function initTypeOption(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				if(obj != null)
+				{
+					for each(var cityInfo:Object in obj)
+					{
+						arr.addItem(cityInfo);
+					}
+				}
+
+				this.deviceModel.dataProvider = arr;
+				this.deviceModel.labelField = "mo_type_name";
+				this.deviceModel.selectedIndex = 0;
+
+				//初始化类型后，加载网元和性能配置
+				deviceModel_changeHandler(null);
+			}
+
+			public function initTypeErr(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				this.deviceModel.dataProvider = arr;
+				this.deviceModel.labelField = "mo_type_name";
+			}
+
+			//网元类型联动
+			protected function deviceModel_changeHandler(event:IndexChangeEvent = null):void
+			{
+				//选择的属地和网元类型
+				var curCityId:String = "";
+				var curtypeId:String = "";
+
+				curCityId = this.cityName.selectedItem.city_id;
+				curtypeId = this.deviceModel.selectedItem.mo_type_id;
+				log.info("选择内容 curCityId=" + curCityId + "  curtypeId=" + curtypeId);
+
+				_remoteData.queryMoByType(curCityId, curtypeId, initMoOption, null, initMoErr);
+				_remoteData.queryPerfByMo(curtypeId, null, initPerfOption, null, null);
+			}
+
+			public function initMoOption(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+
+				//添加全部选项
+				var allOp:Object = new Object();
+				allOp.mo_id = "-1";
+				allOp.mo_name = "全部";
+				arr.addItem(allOp);
+
+				if(obj != null)
+				{
+					for each(var cityInfo:Object in obj)
+					{
+						arr.addItem(cityInfo);
+					}
+				}
+
+				this.moName.dataProvider = arr;
+				this.moName.labelField = "mo_name";
+				this.moName.validateNow();
+				this.moName.selectedIndex = 0;
+			}
+
+			public function initMoErr(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				this.moName.dataProvider = arr;
+				this.moName.labelField = "mo_name";
+				this.moName.validateNow();
+				this.moName.selectedIndex = 0;
+			}
+
+			public function initPerfOption(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				if(obj != null)
+				{
+					for each(var cityInfo:Object in obj)
+					{
+						arr.addItem(cityInfo);
+					}
+				}
+
+				this.perfName.dataProvider = arr;
+				this.perfName.labelField = "show_name";
+				this.perfName.validateNow();
+				this.perfName.selectedIndex = 0;
+
+				//如果是初次加载，则默认查询一次
+				if(isFirst)
+				{
+					showPerfMRTG(null);
+					isFirst = false;
+				}
+			}
+
+			public function initPerfErr(obj:Object):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+				this.perfName.dataProvider = arr;
+				this.perfName.labelField = "show_name";
+				this.perfName.validateNow();
+				this.perfName.selectedIndex = 0;
+			}
+
+			protected function showPerfCompare(event:MouseEvent, model:int):void
+			{
+				var check:CheckBox = event.target as CheckBox
+
+				//结束轮循
+				isLoop = false;
+
+				if(check.selected)
+				{
+					//显示配置
+					if(model == 1)
+					{
+						this.compare2.visible = false;
+						this.check2.selected = false;
+						this.compare1.visible = true;
+						this.compare1.move(check.x + 20, check.y + 40);
+					}
+					else
+					{
+						this.compare1.visible = false;
+						this.check1.selected = false;
+						this.compare2.visible = true;
+						this.compare2.move(check.x + 20, check.y + 40);
+					}
+
+						//显示同比、环比趋势图
+						//showCompareChart(model);
+				}
+				else
+				{
+					//隐藏选项和数据
+					this.compare2.visible = false;
+					this.compare1.visible = false;
+
+						//显示原始数据的趋势图
+						//showPerfMRTG(null);
+				}
+			}
+
+			//显示同比、环比趋势图
+			private function showCompareChart(model:int):void
+			{
+				if(this.cityName.selectedItem != null && this.deviceModel.selectedItem != null)
+				{
+					//取参数
+//					var curCityId:String = this.cityName.selectedItem.city_id;
+//					var moTypeId:String = this.deviceModel.selectedItem.mo_type_id;
+//					if (this.moName.selectedItem == null)
+//					{
+//						Alert.show("请选择网元！");
+//						return;
+//					}
+//					var moId:String = this.moName.selectedItem.mo_id;
+//					if (this.perfName.selectedItem == null)
+//					{
+//						Alert.show("请选择性能指标！");
+//						return;
+//					}
+//					var perfTypeId:String = this.perfName.selectedItem.perf_type_id;
+
+					var curCityId:String = this.curSelCity;
+					var moTypeId:String = this.curSelType;
+					var moId:String = this.curSelMo;
+					var perfTypeId:String = this.curSelPerf;
+
+					_unit = this.perfName.selectedItem.unit;
+
+					//取时间
+					var now:Date = new Date();
+					var time:Number = now.getTime() / 1000;
+					if(model == 1)
+					{
+						//月
+						if(this.checkType11.selected)
+						{
+							time = time - 30 * 24 * 60 * 60;
+						}
+						//年
+						else if(this.checkType12.selected)
+						{
+							time = time - 256 * 24 * 60 * 60;
+						}
+						else
+						{
+							time = time - 30 * 24 * 60 * 60;
+						}
+
+					}
+					else if(model == 2)
+					{
+						//24h
+						if(this.checkType21.selected)
+						{
+							time = time - 24 * 60 * 60;
+						}
+						//48h
+						else if(this.checkType22.selected)
+						{
+							time = time - 48 * 60 * 60;
+						}
+						//周
+						else if(this.checkType23.selected)
+						{
+							time = time - 7 * 24 * 60 * 60;
+						}
+						else
+						{
+							time = time - 24 * 60 * 60;
+						}
+					}
+
+					log.info("性能趋势图查询参数　curCityId=" + curCityId + " moTypeId=" + moTypeId + " moId=" + moId + " perfTypeId=" + perfTypeId + " time=" + time.toFixed(0));
+					//_remoteData.getKpiGraphics("6", "10", "0.ZSDHLR", "15", "1305817200", _specList,2,createPerfCompare,null,createPerfCompareErr);
+					_remoteData.getKpiGraphics(curCityId, moTypeId, moId, perfTypeId, time.toFixed(0), _specList, 2, createPerfCompare, null, createPerfCompareErr);
+				}
+			}
+
+			public function createPerfCompare(obj:Object):void
+			{
+				log.info("生成同比、环比数据成功！");
+				chartData1.removeAll();
+				var index:int = 0;
+				for each(var tmp:Object in obj)
+				{
+					chartData1.addItem(tmp);
+					index++;
+				}
+
+				if(chartData1.length > 1)
+				{
+					var data:ArrayCollection = new ArrayCollection();
+					data.addAll(chartData);
+					data.addAll(chartData1);
+
+					//设置横坐标宽度
+					setChartStep(chartData.length);
+
+					//生成趋势图
+					perfChart.FCParams = getParamArr(false);
+					perfChart.FCData = data;
+					perfChart.FCRender();
+				}
+				else
+				{
+					Alert.show("比较对象性能数据为空！");
+				}
+			}
+
+			public function createPerfCompareErr(obj:Object):void
+			{
+				log.info("生成同比、环比数据失败！");
+				Alert.show("比较对象性能数据为空！");
+			}
+
+			//轮循配置
+			public function configLoop(event:MouseEvent):void
+			{
+				var check:CheckBox = event.target as CheckBox;
+
+				if(check.selected)
+				{
+					this.configWindow.visible = true;
+					this.configWindow.move(check.x + 30, check.y + 70);
+				}
+				else
+				{
+					this.configWindow.visible = false;
+				}
+			}
+
+			//开始轮循
+			public function startLoop(perfList:ArrayCollection, timeStep:Number):void
+			{
+				log.info("重新设置指标轮询：timeStep：" + timeStep);
+
+				loopTimer.stop();
+				isLoop = true;
+				loopPerfList = perfList;
+				loopTimer.delay = timeStep * 60 * 1000;
+				loopTimer.start();
+			}
+
+			private function loopPerfChart(event:TimerEvent = null):void
+			{
+				if(isLoop)
+				{
+					var perfInfo:Object = null;
+					if(loopIndex < loopPerfList.length)
+					{
+						perfInfo = loopPerfList.getItemAt(loopIndex);
+					}
+					else
+					{
+						//重新开始
+						loopIndex = 0;
+						perfInfo = loopPerfList.getItemAt(loopIndex);
+					}
+					loopIndex++;
+					log.info("指标轮询被触发！ perfTypeId：" + perfInfo.perfTypeId);
+
+					//解析参数
+					var curCityId:String = perfInfo.curCityId;
+					var moTypeId:String = perfInfo.moTypeId;
+					var moId:String = perfInfo.moId;
+					var perfTypeId:String = perfInfo.perfTypeId;
+					var now:Number = new Date().getTime() / 1000;
+					_remoteData.getKpiGraphics(curCityId, moTypeId, moId, perfTypeId, now.toFixed(0), _specList, 1, getGraphicsInfo, null, getGraphicsInfoErr);
+
+//					//设置下次轮循
+//					setTimeout(loopPerfChart, timeStep * 60 * 1000, perfList, timeStep);
+				}
+			}
+
+
+			protected function datagroup1_preinitializeHandler(event:FlexEvent):void
+			{
+				var sd:CSSStyleDeclaration = styleManager.getStyleDeclaration("fcBgColor");
+				if(sd != null)
+				{
+					fcBgColor = sd.getStyle("bgc");
+				}
+			}
+
+
+			protected function button1_clickHandler(event:MouseEvent, model:int):void
+			{
+				showCompareChart(model);
+			}
+
+			protected function button2_clickHandler(event:MouseEvent, model:int):void
+			{
+				showCompareChart(model);
+			}
+
+			override public function hideDataGroup():void
+			{
+				this.showGroup.visible = false;
+				this.showGroup.includeInLayout = false;
+			}
+
+			override public function showDataGroup():void
+			{
+				this.showGroup.visible = true;
+				this.showGroup.includeInLayout = true;
+			}
+
+			override public function showGroupInfo():Group
+			{
+				return this.showGroup;
+			}
+
+			protected function showGroup_resizeHandler(event:ResizeEvent):void
+			{
+				this.perfChart.width = this.showGroup.width - 10;
+				if((this.showGroup.height - 60) > 300)
+				{
+					this.perfChart.height = this.showGroup.height - 60;
+				}
+				else
+				{
+					this.perfChart.height = 300;
+				}
+
+				setTimeout(refreshChart, 200);
+			}
+
+			private function refreshChart():void
+			{
+				if(chartData != null && chartData.length > 1)
+				{
+					this.perfChart.FCParams = getParamArr();
+					this.perfChart.FCData = chartData;
+//					this.perfChart.validateNow();
+					this.perfChart.FCRender();
+				}
+			}
+
+			private function setChartStep(len:int):void
+			{
+				var index:int = 0;
+				for each(var tmp:Object in chartParams)
+				{
+					if(tmp.labelStep != null)
+					{
+						break;
+					}
+					index++;
+				}
+				if(index < chartParams.length)
+				{
+					chartParams.removeItemAt(index);
+				}
+
+				log.info("length==" + len);
+				var step:int = len / 12;
+				var stepObj:Object = new Object();
+				if(step > 1)
+				{
+					stepObj.labelStep = String(step);
+					chartParams.addItem(stepObj);
+					log.info("横坐标步长==" + step);
+				}
+				else
+				{
+					stepObj.labelStep = "1";
+					chartParams.addItem(stepObj);
+					log.info("横坐标步长==" + step);
+				}
+			}
+
+
+			protected function datawindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//轮询定时器。
+				loopTimer.addEventListener(TimerEvent.TIMER, loopPerfChart);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group id="showGroup"
+			 width="100%"
+			 height="100%"
+			 visible="false"
+			 includeInLayout="false"
+			 resize="showGroup_resizeHandler(event)">
+		<s:Scroller width="100%"
+					height="100%"
+					verticalScrollPolicy="auto"
+					horizontalScrollPolicy="auto">
+			<s:VGroup id="info"
+					  width="100%"
+					  height="100%">
+				<s:VGroup width="100%"
+						  height="100%"
+						  textAlign="center">
+					<s:Group id="tableShow"
+							 width="100%"
+							 height="100%"
+							 visible="false"
+							 includeInLayout="false">
+						<s:Scroller width="100%"
+									height="100%"
+									verticalScrollPolicy="auto"
+									horizontalScrollPolicy="auto">
+							<s:Group>
+								<s:Group right="10">
+									<s:Button height="20"
+											  id="typeButton2"
+											  click="initPerfSelect(event)"
+											  label="配置"
+											  buttonMode="true">
+									</s:Button>
+								</s:Group>
+								<mx:ViewStack id="perfTab"
+											  height="100%"
+											  top="23"
+											  paddingBottom="2"
+											  paddingLeft="2"
+											  paddingRight="2"
+											  paddingTop="2">
+								</mx:ViewStack>
+								<s:TabBar dataProvider="{perfTab}"
+										  styleName="commonTabBar">
+								</s:TabBar>
+							</s:Group>
+						</s:Scroller>
+					</s:Group>
+					<s:VGroup id="matrixShow"
+							  width="100%"
+							  height="100%"
+							  visible="false"
+							  includeInLayout="false">
+						<perfshow:PerfGridList id="matrixList"
+											   width="100%"
+											   height="100%">
+						</perfshow:PerfGridList>
+					</s:VGroup>
+					<s:VGroup id="chartShow"
+							  width="100%"
+							  height="100%"
+							  visible="true"
+							  includeInLayout="true">
+						<s:HGroup width="100%"
+								  height="20">
+							<s:DropDownList id="cityName"
+											change="deviceModel_changeHandler(event)"
+											width="20%">
+							</s:DropDownList>
+							<s:DropDownList id="deviceModel"
+											width="20%"
+											change="deviceModel_changeHandler(event)">
+							</s:DropDownList>
+							<s:DropDownList id="moName"
+											width="20%">
+							</s:DropDownList>
+							<s:DropDownList id="perfName"
+											width="20%">
+							</s:DropDownList>
+							<s:Button label="查询"
+									  click="showPerfMRTG(event)">
+							</s:Button>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="20"
+								  x="20">
+							<s:CheckBox label="轮循"
+										id="loopCheck"
+										click="configLoop(event);">
+							</s:CheckBox>
+							<s:CheckBox label="同比"
+										id="check1"
+										click="showPerfCompare(event,1);">
+							</s:CheckBox>
+							<s:CheckBox label="环比"
+										id="check2"
+										click="showPerfCompare(event,2);">
+							</s:CheckBox>
+						</s:HGroup>
+						<s:Group id="chartGroup"
+								 width="100%"
+								 height="100%">
+							<fusioncharts:FusionChartsLK id="perfChart"
+														 FCChartType="MSSpline"
+														 FCFolder="/cms/flex-release/FusionCharts"
+														 minHeight="300"
+														 minWidth="400"
+														 width="400"
+														 height="300"
+														 FCData="{new ArrayCollection()}"
+														 FCParams="{new ArrayCollection()}">
+							</fusioncharts:FusionChartsLK>
+						</s:Group>
+					</s:VGroup>
+				</s:VGroup>
+			</s:VGroup>
+		</s:Scroller>
+		<perfshow:LoopConfig id="configWindow"
+							 visible="false"
+							 includeInLayout="false">
+		</perfshow:LoopConfig>
+		<!-- 同比、环比配置 -->
+		<s:HGroup id="compare1"
+				  visible="false"
+				  alpha="1">
+			<s:RadioButton id="checkType11"
+						   groupName="checkType1"
+						   value="1"
+						   label="月"
+						   selected="true">
+			</s:RadioButton>
+			<s:RadioButton id="checkType12"
+						   groupName="checkType1"
+						   value="2"
+						   label="年"
+						   selected="false">
+			</s:RadioButton>
+			<s:Button label="确定"
+					  click="button1_clickHandler(event,1)">
+			</s:Button>
+		</s:HGroup>
+		<s:HGroup id="compare2"
+				  visible="false"
+				  alpha="1">
+			<s:RadioButton id="checkType21"
+						   groupName="checkType2"
+						   value="1"
+						   label="24h"
+						   selected="true">
+			</s:RadioButton>
+			<s:RadioButton id="checkType22"
+						   groupName="checkType2"
+						   value="2"
+						   label="48h"
+						   selected="false">
+			</s:RadioButton>
+			<s:RadioButton id="checkType23"
+						   groupName="checkType2"
+						   value="3"
+						   label="周"
+						   selected="false">
+			</s:RadioButton>
+			<s:Button label="确定"
+					  click="button2_clickHandler(event,2)">
+			</s:Button>
+		</s:HGroup>
+	</s:Group>
+
+	<perfshow:typeSelect id="typeSelect"
+						 visible="false"
+						 horizontalCenter="0"
+						 verticalCenter="0">
+	</perfshow:typeSelect>
+</datashow:DataWindow>

@@ -1,0 +1,2254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:components="com.linkage.module.cms.gsscene.view.components.mapview.components.*"
+		 xmlns:components1="com.linkage.module.cms.gsscene.view.components.*"
+		 xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:view="com.linkage.module.cms.viewroam.view.*"
+		 width="100%" height="100%" creationComplete="group_creationCompleteHandler()"
+		 resize="group_resizeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.rpc.http.HttpUtil;
+			import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.ailk.common.ui.gis.Constants;
+			import com.ailk.common.ui.gis.core.GisContextMenuItem;
+			import com.ailk.common.ui.gis.core.GisContextUtil;
+			import com.ailk.common.ui.gis.core.GisDynamicServiceLayer;
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.GisLayer;
+			import com.ailk.common.ui.gis.core.metry.GisPoint;
+			import com.ailk.common.ui.gis.core.styles.GisFillPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLinePredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLineStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerStyle;
+			import com.ailk.common.ui.gis.event.GisExtentEvent;
+			import com.ailk.common.ui.gis.event.MapEvent;
+			import com.ailk.common.ui.gis.utils.IPUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneResource;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.event.EmpyEvent;
+			import com.linkage.module.cms.gsscene.view.components.kpicustom.event.KpiCustomEvent;
+			import com.linkage.module.cms.gsscene.view.components.neroom.event.NeRoomEvent;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.event.ResMatrixEvent;
+			import com.linkage.module.cms.gsscene.view.util.ImageFactory;
+			import com.linkage.module.cms.gsscene.view.util.ImageLayerFactory;
+			import com.linkage.module.cms.viewroam.event.ViewRoamEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CollectionEvent;
+			import mx.events.CollectionEventKind;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			import mx.rpc.remoting.RemoteObject;
+			import mx.utils.URLUtil;
+			
+			import spark.filters.GlowFilter;
+			private var log:ILogger = Log.getLoggerByClass(MapGis);
+			
+			private var _city_id:String;
+			[Bindable]
+			private var _isdd:Boolean=false;
+			[Bindable]
+			private var _mgc:Boolean=false;
+			[Bindable]
+			private var _vlc:Boolean=false; 
+			[Inject("user")]
+			public var user:IUser;
+			private var longitude:Number=0;
+			private var latitude:Number=0;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			private var detailSource:DetailSource;
+			
+//			var viewRoam:ViewPerfWindow = new ViewPerfWindow();
+			
+			private var offsets:ArrayCollection = new ArrayCollection([{xOffSet: -23, yOffSet: -23},
+				{xOffSet: 21, yOffSet: -25},
+				{xOffSet: 35, yOffSet: 11},
+				{xOffSet: 12, yOffSet: 36},
+				{xOffSet: -23, yOffSet: 24},
+				{xOffSet: -44, yOffSet: -1},
+				{xOffSet: -1, yOffSet: -43},
+				{xOffSet: 43, yOffSet: -48},
+				{xOffSet: 56, yOffSet: -12},
+				{xOffSet: 64, yOffSet: 22},
+				{xOffSet: 43, yOffSet: 49},
+				{xOffSet: 22, yOffSet: 71},
+				{xOffSet: -9, yOffSet: 60},
+				{xOffSet: -43, yOffSet: 47},
+				{xOffSet: -65, yOffSet: 25},
+				{xOffSet: -75, yOffSet: -13},
+				{xOffSet: -53, yOffSet: -38},
+				{xOffSet: -32, yOffSet: -61},
+				{xOffSet: 21, yOffSet: -73},
+				{xOffSet: 78, yOffSet: -37},
+				{xOffSet: 87, yOffSet: 0}]);
+			private var moInfoMap:Object = new Object;
+			private var scaleMoLayer:GisLayer = new GisLayer();
+			
+			protected function group_resizeHandler(event:ResizeEvent):void
+			{
+				
+			}
+			
+			private var isMoLocation:Boolean=false;
+			[MessageHandler(selector = "GIS_CHANGE")]
+			public function GIS_CHANGE(e:SceneEvent):void
+			{
+				if(quitLegendImgPath==""){
+					quitLegendImgPath = user.context+"flex-release/com/linkage/module/cms/gsscene/img/mo/";
+				}
+				
+				_isdd=e.param.isdd;
+				log.debug("[GIS_CHANGE]_isdd:{0}",_isdd);
+				try{
+					removeAllLayers();
+					_mgc=_isdd&&(user.logicalType=='1'||user.logicalType=='2')&&(user.level=='1'||user.level=='3')?true:false;
+					if(_mgc){
+						requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_GIS_QUIT_NUM));
+					}
+				}catch(e:Error){
+					log.error(e);
+				}
+				log.debug("[GIS_CHANGE]user.logicalType:{0},user.level:{1},e.param.isMoLocation:{2}",user.logicalType,user.level,e.param.isMoLocation);
+				if(e.param.centerlongitude && e.param.centerlatitude){
+					longitude = Number(e.param.centerlongitude);
+					latitude = Number(e.param.centerlatitude);
+				}
+				if(e.param.isMoLocation){
+					isMoLocation=e.param.isMoLocation;
+					_city_id = GsSceneConts.Province_KEY;
+					mapChange(GsSceneConts.Province_KEY,true);
+					moLocation();
+					return;
+				}else{
+					log.debug("场景地市区域-2--:"+isMoLocation);
+					isMoLocation=false;
+				}
+				switch(user.logicalType){
+					case "1":
+					{//日常节假日场景
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							{
+								_city_id = GsSceneConts.Province_KEY;
+								mapChange(GsSceneConts.Province_KEY);
+//								addLayerHandler(GsSceneConts.Province_KEY);
+								break;
+							}
+							case "2"://（全省地图）区域定位
+							{
+								_city_id = GsSceneConts.Province_KEY;
+								mapChange(GsSceneConts.Province_KEY,false);
+								break;
+							}
+							case "3"://（地市地图）地市图层
+							{
+								_city_id = e.param.city_id;
+								mapChange(e.param.city_id);
+//								addLayerHandler(e.param.city_id);
+								break;
+							}
+							case "4"://（全省地图）全省图层+定位
+							{
+								_city_id = GsSceneConts.Province_KEY;
+								mapChange(GsSceneConts.Province_KEY,false);
+//								addLayerHandler(GsSceneConts.Province_KEY);
+								break;
+							}
+							default:
+							{
+								break;
+							}
+						}
+						break;
+					}
+					case "2"://LTE场景
+					{
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							{
+								_city_id = GsSceneConts.Province_KEY;
+								mapChange(GsSceneConts.Province_KEY);
+								break;
+							}
+							case "2"://（全省地图）区域LTE图层+定位
+							{
+								_city_id = e.param.city_id;
+								mapChange(GsSceneConts.Province_KEY,false);
+								break;
+							}
+							case "3"://（地市地图）地市图层
+							{
+								_city_id = e.param.city_id;
+								mapChange(e.param.city_id);
+								break;
+							}
+							case "4"://（全省地图）全省图层+定位
+							{
+								_city_id = GsSceneConts.Province_KEY;
+								mapChange(GsSceneConts.Province_KEY,false);
+								break;
+							}
+							default:
+							{
+								break;
+							}
+						}
+						break;
+					}
+					case "3":
+					{//重大活动场景
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							{
+								_city_id = GsSceneConts.Province_KEY;
+								mapChange(GsSceneConts.Province_KEY);
+								break;
+							}
+							case "2"://（全省地图）区域定位
+							{
+								_city_id = GsSceneConts.Province_KEY;
+								mapChange(GsSceneConts.Province_KEY,false);
+								break;
+							}
+							case "3"://（地市地图）地市图层
+							{
+								_city_id = e.param.city_id;
+								mapChange(e.param.city_id);
+								break;
+							}
+							case "4"://（全省地图）全省图层+定位
+							{
+								_city_id = GsSceneConts.Province_KEY;
+								mapChange(GsSceneConts.Province_KEY,false);
+								break;
+							}
+							default:
+							{
+								break;
+							}
+						}
+						break;
+					}
+					case "4"://场景-区域
+					{
+						_city_id = GsSceneConts.Province_KEY;
+						mapChange(GsSceneConts.Province_KEY,false);
+					}
+						break;
+				}
+				log.debug("[GIS_CHANGE]_city_id:{0}",_city_id);
+				
+			}
+			
+			private function removeAllLayers():void{
+				mapwork.map.removeAllGisLayers();
+				if(this.mapwork.map.getGisLayer("LTEAREA")){
+					mapwork.map.removeGisLayer(this.mapwork.map.getGisLayer("LTEAREA"));//删除图层
+				}
+				if(this.mapwork.map.getGisLayer(_city_id+"_BTS")){
+					mapwork.map.removeGisLayer(this.mapwork.map.getGisLayer(_city_id+"_BTS"));//删除图层
+				}
+				if(this.mapwork.map.getGisLayer(_city_id+"_NodeB")){
+					mapwork.map.removeGisLayer(this.mapwork.map.getGisLayer(_city_id+"_NodeB"));//删除图层
+				}
+				if(this.mapwork.map.getGisLayer(_city_id+"_eNodeB")){
+					mapwork.map.removeGisLayer(this.mapwork.map.getGisLayer(_city_id+"_eNodeB"));//删除图层
+				}
+			}
+			//地图切换
+			private function mapChange(city:String,isCenter:Boolean=true):void{
+				log.warn("[mapChange]");
+				if(_isdd){
+					setTimeout(function():void{
+						mapwork.map.mapChange(city);
+						if(isCenter){
+//							mapwork.map.viewEntireMap();
+						}else{
+							setTimeout(location,500);
+//							location();
+						}
+					},500);
+				}else{
+					mapwork.map.mapChange(city);
+					if(isCenter){
+//						mapwork.map.viewEntireMap();
+					}else{
+						setTimeout(location,500);
+//						location();
+					}
+				}
+			}
+			/**
+			 * LTE 区域 图层
+			 * 
+			 * 
+			 * */
+			private function addLTEAreaLayerHandler(city:String):void{
+				if(this.mapwork.map.getGisLayer("LTEAREA")){
+					mapwork.map.removeGisLayer(this.mapwork.map.getGisLayer("LTEAREA"));//删除图层
+				}
+				log.info("增加LTE区域图层");
+				var layer:GisDynamicServiceLayer = new GisDynamicServiceLayer();
+				layer.id="LTEAREA";
+				getDynamicLayer(layer,city, "eNodeB", mapwork.map.scale);
+				mapwork.map.addGisLayer(layer,3);//增加图层(把图层默认显示在3级别，放在后面。)
+			}	
+			/**
+			 * 图层
+			 * 
+			 * 
+			 * */
+			private function addLayerHandler(city:String):void{
+				log.info("[GIS打点图]");
+				if ((user.logicalType == "4"||user.sceneId=="2017"||user.sceneId=="2027") && user.usinglayer == "1")
+				{
+					try{
+						if(viewLayerCfg.moNormalCb.selected){
+							log.info("加载动态图层!" + user.layerurl);
+	
+							/* if(user.layerurl!=""){
+								
+							var url:String="http://10.40.102.17:8888/"+user.layerurl;
+							var visibleLayers:ArrayCollection = new ArrayCollection(user.layerId.split(','));
+							var dynamicGisLayer:GisDynamicServiceLayer = new GisDynamicServiceLayer(url,visibleLayers);
+							mapwork.map.addGisLayer(dynamicGisLayer,3);
+							} */
+							
+							 var dlayer:GisDynamicServiceLayer = GisContextUtil.getBean(user.layerurl) as GisDynamicServiceLayer;
+							dlayer.visibleLayers = new ArrayCollection(user.layerId.split(','));
+							mapwork.map.addGisLayer(dlayer, 3); 
+						}else{
+							var dlayer:GisDynamicServiceLayer = GisContextUtil.getBean(user.layerurl) as GisDynamicServiceLayer;
+							mapwork.map.removeGisLayer(this.mapwork.map.getGisLayer(dlayer.id));//删除图层
+						}
+					}catch(e:Error){
+						log.info("加载动态图层出错!");
+						log.error(e);
+					}
+					
+				}else 
+				{
+					var bts:Boolean=viewLayerCfg.moNormalCb.selected&&viewLayerCfg.btsCb.selected?true:false;
+					var nodeB:Boolean=viewLayerCfg.moNormalCb.selected&&viewLayerCfg.nodebCb.selected?true:false;
+					var eNodeB:Boolean=viewLayerCfg.moNormalCb.selected&&viewLayerCfg.eNodeBCb.selected?true:false;
+					log.info("[GIS打点图]bts show:{0},nodeB show:{1},eNodeB show:{2}",bts,nodeB,eNodeB);
+					bts?addDDGisLayer(city,"BTS"):removeDDGisLayer(city,"BTS");
+					nodeB?addDDGisLayer(city,"NodeB"):removeDDGisLayer(city,"NodeB");
+					eNodeB?addDDGisLayer(city,"eNodeB"):removeDDGisLayer(city,"eNodeB");
+				}
+				dispatchMsg(new EmpyEvent(EmpyEvent.SHOW_EMPY_TO_GIS));	
+			}
+			
+			private function addDDGisLayer(city:String,id:String):void{
+				log.warn("[addDDGisLayer]");
+				if(!this.mapwork.map.getGisLayer(city+"_"+id)){
+					var layer:GisDynamicServiceLayer = new GisDynamicServiceLayer();
+					layer.id=city+"_"+id;
+					getDynamicLayer(layer,city, id, mapwork.map.scale);
+					mapwork.map.addGisLayer(layer,3);//增加图层(把图层默认显示在3级别，放在后面。)
+				}
+			}
+			
+			private function removeDDGisLayer(city:String,id:String):void{
+				log.warn("[removeDDGisLayer]");
+				if(this.mapwork.map.getGisLayer(city+"_"+id)){
+					mapwork.map.removeGisLayer(this.mapwork.map.getGisLayer(city+"_"+id));//删除图层
+				}
+			}
+
+			/**
+			 *创建图层。 
+			 ****/
+			private function getDynamicLayer(ly:GisDynamicServiceLayer,cityId:Object, moTypeName:String, scale:Number):GisDynamicServiceLayer
+			{
+				log.warn("[getDynamicLayer]");
+				var url:String = layerCache[cityId]['moTypeMap'][moTypeName]['layerUrl'];
+				var id:String = layerCache[cityId]['moTypeMap'][moTypeName]['showIds'];
+				var showIds:ArrayCollection = new ArrayCollection([id]);
+				log.info("url--->"+url);
+				log.info("id--->"+id);
+				ly.url = url;
+				ly.visibleLayers = showIds;
+				return ly;
+			}
+			
+			private function location():void{
+				log.debug("latitude:{0},latitude:{1}",longitude,latitude);
+				if(longitude<=0 || latitude<=0){
+					return;
+				}
+				if ("2" == user.logicalType)
+				{
+					mapwork.map.zoomToScale(500000, new GisPoint(longitude, latitude));
+				}
+				else if (user.areaId == "100301" && user.level == "2")
+				{
+					mapwork.map.zoomToScale(32000, new GisPoint(longitude, latitude));
+				}
+				else if (user.areaId == "100329" && user.level == "2")
+				{
+					mapwork.map.zoomToScale(8000, new GisPoint(longitude, latitude));
+				}
+				else if (user.level == "2")
+				{
+					//高铁场景不放大地图
+					if(user.sceneId!="1001" && (user.sceneId!="2017" || user.sceneId!="2027")){
+						mapwork.map.zoomToScale(16000, new GisPoint(longitude, latitude));
+					}else{
+						mapwork.map.viewEntireMap();
+						if(user.sceneId=="2017" || user.sceneId=="2027"){
+							mapwork.map.zoomToScale(1000000, new GisPoint(longitude, latitude));
+						}
+					}
+					
+				}
+				else if (user.level == "4")
+				{
+					mapwork.map.zoomToScale(countyDefScaleCache, new GisPoint(longitude, latitude));
+				}
+				else
+				{
+					mapwork.map.zoomToScale(125000, new GisPoint(longitude, latitude));
+				}
+			}
+			
+			[MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+			public function COMPONENT_REFRESH_DATA(e:SceneEvent = null):void
+			{
+				log.warn("[COMPONENT_REFRESH_DATA]");
+				if(!this.visible){
+					return;
+				}
+				switch(user.logicalType){
+					case "1"://日常节假日场景
+					{
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							case "3"://（地市地图）地市图层
+							case "4"://（全省地图）全省图层+定位
+							{
+								layer_changeHandler();
+								break;
+							}
+							case "2"://（全省地图）区域定位
+							{
+								if(user.sceneId=="2017" || user.sceneId=="2027"){
+									layer_changeHandler();
+								}else{
+									requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+								}
+								
+								break;
+							}
+						}
+						break;
+					}
+					case "2"://LTE场景
+					{
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							case "2"://（全省地图）区域LTE图层+定位
+							case "3"://（地市地图）地市图层
+							case "4"://（全省地图）全省图层+定位
+							{
+								layer_changeHandler();
+								break;
+							}
+						}
+						break;
+					}
+					case "3"://场景地市区域
+					{
+						switch(user.level)
+						{
+							case "3"://（地市地图）地市图层
+							{
+							requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_SNAPSHOTS)); //加载缩略图
+								break;
+							}
+							case "2"://（全省地图）区域定位
+							{
+								log.info("场景地市区域-1-:"+isMoLocation);
+								if(!isMoLocation){
+									requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));//加载多边形
+								}
+								break;
+							}
+						}
+						break;
+					}
+					case "4"://场景区域
+					{
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							case "3"://（地市地图）地市图层
+//							case "2"://（全省地图）区域定位
+							case "4"://（全省地图）全省图层+定位
+							{
+								layer_changeHandler();
+								break;
+							}
+							case "2"://（全省地图）区域定位
+							{
+								layer_changeHandler();
+//								if(user.sceneId=="2017"){
+//									requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+//								}
+//								requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+								break;
+							}
+						}
+						break;
+					}
+				}
+			}
+			
+			protected function mapwork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+//				mapwork.map.viewEntireMap();
+//				log.debug("mapwork_mapCreationCompleteHandler-------------->{0}",_isdd);
+//				if(_isdd){//GIS打点图
+//					addLayerHandler();//处理GIS打点图
+//					return ;
+//				}
+//				location();
+			}
+			
+			
+			protected function mapwork_toolbar_picLayerHandler(event:MapEvent):void
+			{
+				_vlc=!_vlc;
+			}
+			
+			
+			protected function viewLayerCfg_closeHandler(event:WindowEvent):void
+			{
+				_vlc=false;
+			}
+			
+			private var offsetsIndex:Object = {};
+			private var sectorOffSet2:ArrayCollection = new ArrayCollection([{'offx': 0, 'offy': 0}, {'offx': 20, 'offy': 0}]);
+			
+			private var sectorOffSet3:ArrayCollection = new ArrayCollection([{'offx': 1, 'offy': -5},
+				{'offx': 9.66, 'offy': 10},
+				{'offx': 18.32, 'offy': -5}]);
+			private var backCellSet3:Object = {'offx': 10, 'offy': 0.5};
+			
+			private var sectorOffSet4:ArrayCollection = new ArrayCollection([{'offx': -1, 'offy': 0},
+				{'offx': 10, 'offy': 11},
+				{'offx': 21, 'offy': 0},
+				{'offx': 10, 'offy': -11}]);
+			private var backCellSet4:Object = {'offx': 11, 'offy': 0};
+			private var taisenMap:Object = new Object;
+			
+			private var cameraMap:Object = new Object;
+			
+			
+			
+			[MessageHandler(selector = "DEAL_SCENE_SNAPSHOTS")]
+			public function dealSnapshot(e:SceneEvent):void
+			{
+				log.info("处理区域缩略图信息 。。。" + scenePM.mapViewDM.snapshotList.length);
+				
+				scenePM.mapViewDM.gisLayerMap['_img'] = new ArrayCollection();
+				
+				for each (var imgInfo:Object in scenePM.mapViewDM.snapshotList)
+				{
+					log.debug("往地图上撒点缩略图：" + imgInfo['imgUrl']);
+					log.debug(imgInfo);
+					
+					var w:Number = 60;
+					var h:Number = 60;
+					
+					if (imgInfo.hasOwnProperty('left_longitude') && user.level != "2")
+						continue;
+					
+					var p:GisPoint = new GisPoint(Number(imgInfo['longitude']), Number(imgInfo['latitude']));
+					
+					var pic:GisMarkerPictureStyle;
+					
+					if (user.sceneId != "1003"){
+						pic = new GisMarkerPictureStyle(user.context + imgInfo['imgUrl'], w, h);
+					}else{
+						pic = new GisMarkerPictureStyle(user.context + imgInfo['imgUrl'], 60, 40);
+					}
+					var feature:GisFeature = new GisFeature(p, pic);
+					
+					if ((user.showMoLayer != "1" && user.level == "1") || user.level == "3")
+						feature.onClick = changeViewByGisImg;
+					
+					feature.buttonMode = true;
+					
+					feature.toolTip = imgInfo['areaName'];
+					feature.attributes = imgInfo;
+					feature.attributes['fType'] = 'img';
+					feature.attributes['layerurl'] = (imgInfo['layerurl'] == null ? "" : imgInfo['layerurl']);
+					feature.attributes['layerId'] = (imgInfo['layerId'] == null ? "" : imgInfo['layerId']);
+					
+					if (user.level == "2" && user.showMoLayer == "0")
+					{
+						feature.attributes.left_longitude = imgInfo['left_longitude'];
+						feature.attributes.left_latitude = imgInfo['left_latitude'];
+						feature.attributes.right_longitude = imgInfo['right_longitude'];
+						feature.attributes.right_latitude = imgInfo['right_latitude'];
+					}
+					
+					//				log.debug("添加imgFeature 到 缩略图缓存");
+					
+					(scenePM.mapViewDM.gisLayerMap['_img'] as ArrayCollection).addItem(feature);
+					
+					if (user.level != "2")
+					{
+						{
+							//生成区域缩略图 性能等级图标（泡泡点）
+							if (user.sceneId == "1003")
+							{
+								pic = new GisMarkerPictureStyle(getImgSmall(imgInfo['warn_level']));
+							}
+							else
+							{
+								pic = new GisMarkerPictureStyle(getImg(imgInfo['warn_level']));
+							}
+							
+						}
+						
+						var f:GisFeature = new GisFeature(p, pic);
+						(scenePM.mapViewDM.gisLayerMap['_img'] as ArrayCollection).addItem(f);
+					}
+				}
+				dispatchMsg(new SceneEvent(SceneEvent.SHOW_SCENE_SNAPSHOTS));
+			}
+			private function getImgSmall(level:String):Object
+			{
+				switch (level)
+				{
+					case "1":
+						return GsSceneResource.sperf_1;
+					case "2":
+						return GsSceneResource.sperf_2;
+					case "3":
+						return GsSceneResource.sperf_3;
+					case "4":
+						return GsSceneResource.sperf_4;
+					default:
+						return GsSceneResource.sperf_0;
+				}
+			}
+			private function getImg(level:String):Object
+			{
+				switch (level)
+				{
+					case "1":
+						return GsSceneResource.perf_1;
+					case "2":
+						return GsSceneResource.perf_2;
+					case "3":
+						return GsSceneResource.perf_3;
+					case "4":
+						return GsSceneResource.perf_4;
+					default:
+						return GsSceneResource.perf_0;
+				}
+			}
+			private function changeViewByGisImg(gisFeature:GisFeature, event:MouseEvent):void
+			{
+				log.info("切换到区域视图：");
+				var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+				e.param = new Object();
+				e.param.currentState="gisMap";
+				e.param.iscounty=true;
+				e.param.city_id="";
+				e.param.city_name="";
+				e.param.level = "2";
+				e.param.centerlongitude = gisFeature.attributes.longitude;
+				e.param.centerlatitude = gisFeature.attributes.latitude;
+				user.areaId = gisFeature.attributes.areaId;
+				dispatchMsg(e);
+				
+			}
+			
+			private function findOffset(key:String):Object
+			{
+				var temp:Object;
+				
+				if (offsetsIndex.hasOwnProperty(key) && int(offsetsIndex[key]) < 21) //offsets对象中只有21个偏移点，2013-9-12，胡任吾
+				{
+					temp = offsets[offsetsIndex[key]];
+					offsetsIndex[key] = int(offsetsIndex[key]) + 1;
+				}
+				else
+				{
+					offsetsIndex[key] = 0;
+					temp = {xOffSet: 0, yOffSet: 0};
+				}
+				return temp;
+				
+				
+			}
+			
+			private var jingqu0Layer:GisLayer;
+			private var jingquLayer:GisLayer;
+			private var dyPic:ArrayCollection = new ArrayCollection;
+			[MessageHandler(selector = "SHOW_SCENE_SNAPSHOTS")]
+			public function showImg(e:SceneEvent = null):void
+			{
+				log.warn("[showImg]");
+//				log.info("SHOW_SCENE_SNAPSHOTS begin! refreshPolygon:" + user.refreshPolygon + "  idDealingTyphoon:" + idDealingTyphoon + " refreshDataFlag:" + refreshDataFlag);
+				log.info("longitude:" + longitude + "  latitude:" + latitude);
+				
+				scenePM.mapViewDM.sportImgGisLayer.clear();
+				
+				if (jingquLayer)
+					jingquLayer.clear();
+				
+				if (jingqu0Layer)
+					jingqu0Layer.clear();
+				
+//				if (!user.refreshPolygon)
+//				{
+					log.info("@@@处理缩略图！" + scenePM.mapViewDM.gisLayerMap['_img'].length);
+					
+					if (user.showMoLayer != "1" || user.level == "3" || user.level == "2")
+					{
+						dyPic.removeAll();
+						
+						if (jingqu0Layer && scenePM.mapViewDM.gisLayerMap['_img_0'])
+							for each (var f:GisFeature in scenePM.mapViewDM.gisLayerMap['_img_0'])
+						{
+							jingqu0Layer.addGisFeature(f);
+							jingqu0Layer.addGisFeatureMenu(f, "性能数据", popupDealer);
+						}
+						
+						for each (var f:GisFeature in scenePM.mapViewDM.gisLayerMap['_img'])
+						{
+							if (user.level == "2")
+							{
+								dyPic.addItem(f);
+								
+								if (!f.attributes.hasOwnProperty("isShow"))
+								{
+									f.attributes.isShow = true;
+									mapwork.map.addGisFeatureAt(f, 0, true);
+								}
+								
+							}
+							else
+							{
+								if (user.initSceneId == "1452" && user.level == "1")
+								{
+									jingquLayer.addGisFeature(f);
+									jingquLayer.addGisFeatureMenu(f, "性能数据", popupDealer);
+								}
+								else
+								{
+									log.info("添加区域图片。。。。")
+									mapwork.map.addGisFeature(f);
+									mapwork.map.addGisFeatureMenu(f, "性能数据", popupDealer);
+								}
+							}
+							
+						}
+					}
+//				}
+				if (isNaN(Number(longitude)) || isNaN(Number(latitude)) || "1"==user.level)
+				{
+					log.error("定位经纬度信息错误。1");
+					mapwork.map.viewEntireMap();
+					return;
+				}else{
+					mapwork.map.zoomToScale(125000, new GisPoint(longitude, latitude));
+				}
+			}
+			
+			private static var cellDetailURL:String = "cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=";
+			private static var perfDetailURL:String = "cms/performance/report/permsg!initForm.action";
+			private static var alarmDetailURL:String = "cms/warn/report/query/ShowAlarmList.jsp";
+			private static var logicTopoURL:String = "cms/webtopo/topo/topolocate.action";
+			//点击详情派发应急轨迹
+			private var currentEmgyResId:Object;
+			[Inject("neRoomWindow")]
+			public var neRoomWindow:NeRoomWindowNew;
+			private function popupDealer(feature:GisFeature):void
+			{
+				var url:String = "";
+				var context:String = user.context;
+				var moId:String = feature.attributes.moId;
+				var moName:String = feature.attributes.moName;
+				var moTypeId:String = feature.attributes.moTypeId;
+				log.info("[moId]" + moId + "[moTypeId]" + moTypeId + "[moName]" + moName);
+				
+				//菜单名称
+				switch (feature.attributes.selectMenuName)
+				{
+					case "资源信息":
+						if ("-11" == moTypeId)
+						{
+							var evt2:NeRoomEvent = new NeRoomEvent(NeRoomEvent.LOAD_NEROOM_DATA);
+							evt2.data.roomId = moId;
+							//							msgDispatcher(evt2);
+							requestServerUtil.addRequest(evt2);
+							neRoomWindow.width = 470;
+							neRoomWindow.height = 230;
+							neRoomWindow.x = (this.stage.width - neRoomWindow.width) / 2;
+							neRoomWindow.y = 5;
+							PopUpManager.addPopUp(neRoomWindow, this.parent as DisplayObject);
+						}
+						else
+						{
+							navigateToURL(new URLRequest(context + cellDetailURL + moId));
+						}
+						break;
+					
+					case "性能详情":
+						var param = {};
+						param.neid=moId;
+						param.sceneid=user.initSceneId;
+						var viewEvent:ViewRoamEvent = new ViewRoamEvent("VIEWROAM_SHOW");
+						viewEvent.param=param;
+						dispatchMsg(viewEvent);
+						break;
+					
+					case "告警信息":
+						var e:ResMatrixEvent = new ResMatrixEvent(ResMatrixEvent.EQU_ALARMINFO);
+						e.data = new Object();
+						if ("-11" == moTypeId)
+						{
+							e.data.neroom = moId;
+							e.data.moTypeName = "机房";
+						}
+						else if ("-12" == moTypeId)
+						{
+							e.data.circ_name = moName;
+							e.data.moTypeName = "电路";
+						}
+						else
+							e.data.moId = moId;
+						log.info("抛出事件EQU_ALARMINFO，告警信息：");
+						log.info(e.data);
+						dispatchMsg(e);
+						break;
+					case "性能信息":
+						navigateToURL(new URLRequest(context + "/scene/report/pmlast/pmlastAction!execute.action?neid=" + moId + "&sceneid=" + user.initSceneId), "_blank");
+						break;
+					
+					case "性能趋势":
+						var evt:KpiCustomEvent = new KpiCustomEvent(KpiCustomEvent.QUERYKPI);
+						var p:Object = new Object();
+						p.moTypeId = moTypeId;
+						if (user.kpiId != null)
+							p.kpiIDs = [user.kpiId];
+						else if (feature.attributes.hasOwnProperty("kpiId"))
+						{
+							p.kpiIDs = [feature.attributes.kpiId];
+						}
+						p.moOrAreaFlag = "0";
+						p.moOrAreaId = moId;
+						evt.param = p;
+						
+						log.info("GIS 网元-性能趋势 右键菜单处理：");
+//						log.info(evt.param);
+						
+						dispatchMsg(evt);
+						break;
+					
+					case "传输管线":
+//						scenePM.loadLineInfo(feature.attributes.moId);
+						var eee:SceneEvent = new SceneEvent(SceneEvent.LOAD_LINE_INFO);
+						eee.param = feature.attributes.moId;
+						requestServerUtil.addRequest(eee);
+						break;
+					
+					case "关联拓扑-软交换拓扑":
+						navigateToURL(new URLRequest(context + logicTopoURL + "?specId=1&moId=" + moId));
+						break;
+					
+					case "关联拓扑-传输拓扑":
+						navigateToURL(new URLRequest(context + logicTopoURL + "?specId=3&moId=" + moId));
+						break;
+					case "性能数据":
+						var se:SceneEvent = new SceneEvent(SceneEvent.CMS_SCENE_MAPVIEW_SHOWKPIFLOAT);
+						se.param = new Object();
+						se.param = feature;
+						dispatchMsg(se);
+						break;
+					case "应急资源信息":
+						var rmtobj:RemoteObject = BlazeDSUtil.newService(
+							"flexdestination_cms_scene_panels", "com.linkage.module.cms.scene.panels.serv.ScenePanelsServImpl", "/cms/messagebroker/amf",
+							function(data:Object):void
+							{
+								log.debug(data);
+								if (data == null){
+									Alert.show(data.toString());
+								}
+								else
+								{
+									log.debug("查询应急资源详情 成功, 弹出详情窗口");
+									log.debug(data);
+									for(var key:String in data){
+										log.info("属性：" +　key);
+//										log.info(data[key]);
+									}
+									
+									if (detailSource == null)
+									{
+										detailSource = new DetailSource;
+										detailSource.cityId = user.cityId;
+									}
+									detailSource.editData = data;
+									PopUpManager.addPopUp(detailSource, parent as DisplayObject);
+									detailSource.x = 100;
+									detailSource.y = 50;
+									detailSource.init();
+								}
+							}
+							,
+							function(e:FaultEvent):void
+							{
+								Alert.show("查询失败！");
+								log.error("查询应急资源失败：" + e.fault.faultDetail);
+							});
+						currentEmgyResId = feature.attributes.currentEmgyResId;
+						rmtobj.queryEmgy({"emergresid": currentEmgyResId});
+						log.info("emergresid:" + currentEmgyResId);
+						break;
+				}
+			}
+			//popupDealerRRU
+			private function popupDealerRRU(feature:GisFeature):void
+			{
+				var url:String = "";
+				var context:String = user.context;
+				var moId:String = feature.attributes.moId;
+				var moName:String = feature.attributes.moName;
+				var moTypeId:String = feature.attributes.moTypeId;
+				var moIdNew:String = feature.attributes.moIdNew;
+//				log.info(feature.attributes);
+				if(feature.attributes.hasOwnProperty("cells")){
+					moIdNew = feature.attributes.cells[0].moId;
+				}
+				log.info("[moId]" + moId + "[moTypeId]" + moTypeId + "[moName]" + moName + "[moIdNew]" + moIdNew);
+				
+				//菜单名称
+				switch (feature.attributes.selectMenuName)
+				{
+					case "资源信息":
+							navigateToURL(new URLRequest(context + cellDetailURL + moId));
+						break;
+					
+					case "归属小区性能详情":
+						var param = {};
+						param.neid=moIdNew;
+						param.sceneid=user.initSceneId;
+						var viewEvent:ViewRoamEvent = new ViewRoamEvent("VIEWROAM_SHOW");
+						viewEvent.param=param;
+						dispatchMsg(viewEvent);
+						break;
+					
+					case "归属小区告警信息":
+						var e:ResMatrixEvent = new ResMatrixEvent(ResMatrixEvent.EQU_ALARMINFO);
+						e.data = new Object();
+						e.data.moId = moIdNew;
+						log.info("抛出事件EQU_ALARMINFO，告警信息：");
+						log.info(e.data);
+						dispatchMsg(e);
+						break;
+				}
+			}
+			
+			private var gssceneParam:*;
+			private var addDynamicLayer:Boolean=false;
+			private var initNodeType:*={};
+			private var initZoom:Number=0;
+			
+			private var httpService:HTTPService = new HTTPService();
+			protected function group_creationCompleteHandler():void
+			{
+				// TODO Auto-generated method stub
+				httpService.method = "get";
+				httpService.resultFormat = "e4x";
+				httpService.addEventListener(ResultEvent.RESULT, catchLayerCfg);
+				if (IPUtil.isInnerIP(URLUtil.getServerName(FlexGlobals.topLevelApplication.url))){
+					log.info("mapview-----内网");
+					httpService.url = Constants.ConfigBaseUrl+"GisLayersConfig.xml";
+				}else{
+					log.info("mapview-----外网");
+					httpService.url = Constants.ConfigBaseUrl+"OutGisLayersConfig.xml";
+				}
+				httpService.send();
+				
+				
+				scenePM.mapViewDM.polygonList.addEventListener(CollectionEvent.COLLECTION_CHANGE,onPolygonListChange);
+				
+				
+				
+				
+				HttpUtil.httpService(null,"json/gsscene.json",function(result:Object){
+					var params = JSON.decode(String(result));
+					gssceneParam = params[user.sceneId]?params[user.sceneId]:params["all"];
+					log.debug(gssceneParam);
+					addDynamicLayer=gssceneParam[user.level]["动态图层"];
+					initNodeType=gssceneParam[user.level]["撒点级别"];
+					initZoom=gssceneParam[user.level]["放大级别"];
+					log.debug(addDynamicLayer);
+					log.debug(initNodeType);
+					log.debug(initZoom);
+				},null,function(e:FaultEvent){
+					log.error("获取配置参数异常 : {0}",e);
+				});
+				
+			}
+			
+			
+			private var polygonindex:Number=0;
+			private function onPolygonListChange(event:CollectionEvent):void{
+				switch (event.kind)
+				{
+					case CollectionEventKind.ADD:
+						buildPolygonItem(event.items[0]);
+						if(polygonindex==scenePM.mapViewDM.polygonListSize-1){
+							polygonindex=0;
+							dispatchMsg(new Event("REQUEST_COMPLETE"));
+						}else{
+							polygonindex++;
+						}
+						break;
+					case CollectionEventKind.REMOVE:
+						break;
+					case CollectionEventKind.REFRESH:
+					case CollectionEventKind.RESET:
+						offsetsIndex = {};
+						scenePM.mapViewDM.gisFeatureList.removeAll();
+						break;
+				}
+			}
+			
+			private function buildPolygonItem(moInfo:*):void{
+				log.info(moInfo);
+				var p:GisPoint = new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude));
+				var offset:Object = this.findOffset(moInfo.longitude + "-" + moInfo.latitude);
+				var pic:GisMarkerPictureStyle;
+				var obj:Object = {'quitType': moInfo['quitType'] ? moInfo['quitType'] : null,
+					'moId': moInfo['moId'],
+					'moName': moInfo['moName'],
+					'moTypeId': moInfo['moTypeId'],
+					'moTypeName': moInfo['moTypeName'],
+					'warnLevel': moInfo['warnLevel'] ? moInfo['warnLevel'] : '0',
+					'sceneId': user.sceneId,
+					'fType': 'mo'};
+				
+				//判断是否是基站，如果是基站，那么下面的小区多一层，也撒上
+				if (moInfo['moTypeId'] == '16' || moInfo['moTypeId'] == '28' || moInfo['moTypeId'] == '320')
+				{
+					//                    pic = new GisMarkerPictureStyle(ImageFactory.getImage("backCell", moInfo['warnLevel']), 0, 0, backCellSet3['offx'] + Number(offset['xOffSet']), backCellSet3['offy'] + Number(offset['yOffSet']));
+					if (scenePM.mapViewDM.emgCarMap.indexOf(moInfo["moId"]) != -1)
+					{
+						pic = new GisMarkerPictureStyle(ImageFactory.getImage('emgcar', moInfo['warnLevel']));
+					}
+					else if (scenePM.mapViewDM.superBTSArray.indexOf(moInfo["moId"]) != -1)
+					{
+						pic = new GisMarkerPictureStyle(ImageFactory.getImage("backCell_S", moInfo['warnLevel']), 0, 0, backCellSet3['offx'] + Number(offset['xOffSet']), backCellSet3['offy'] + Number(offset['yOffSet']));
+					}
+					else
+					{
+						pic = new GisMarkerPictureStyle(ImageFactory.getImage("backCell_" + moInfo['moTypeName'], moInfo['warnLevel']), 0, 0, backCellSet3['offx'] + Number(offset['xOffSet']), backCellSet3['offy'] + Number(offset['yOffSet']));
+					}
+					
+					obj.cells = moInfo['cells'];
+				}
+				else
+					pic = new GisMarkerPictureStyle(ImageFactory.getImage(moInfo['moTypeName'], moInfo['warnLevel']), 0, 0, Number(offset['xOffSet']), Number(offset['yOffSet']));
+				
+				var feature:GisFeature = new GisFeature(p, pic);
+				
+				feature.attributes = obj;
+				feature.toolTip = moInfo['moName'];
+				feature.contentMenus = getContentMenus(feature);
+				mapwork.map.addGisFeature(feature);
+				scenePM.mapViewDM.gisFeatureList.addItem(feature);
+				if (moInfo['moTypeId'] == '16' || moInfo['moTypeId'] == '28' || moInfo['moTypeId'] == '320')
+				{
+					var angle:int = 0;
+					var cellLen:int = moInfo['cells'].length;
+					
+					if (cellLen == 3)
+					{
+						angle = -30;
+					}
+					
+					for (var i:int = 0; i < moInfo['cells'].length && i < 4; i++)
+					{
+						var temp:Object = moInfo['cells'][i];
+						var picTemp:GisMarkerPictureStyle;
+						if (cellLen < 3)
+						{
+							picTemp = new GisMarkerPictureStyle(ImageFactory.getImage('sector', temp["warnLevel"]), 15, 20, sectorOffSet2[i]['offx'] + Number(offset['xOffSet']), sectorOffSet2[i]['offy'] + Number(offset['yOffSet']), 1, angle);
+							angle = angle + 180;
+						}
+						else if (cellLen == 3)
+						{
+							picTemp = new GisMarkerPictureStyle(ImageFactory.getImage('sector', temp["warnLevel"]), 15, 20, sectorOffSet3[i]['offx'] + Number(offset['xOffSet']), sectorOffSet3[i]['offy'] + Number(offset['yOffSet']), 1, angle);
+							angle = angle + 120;
+							
+						}
+						else
+						{
+							picTemp = new GisMarkerPictureStyle(ImageFactory.getImage('sector', temp["warnLevel"]), 15, 20, sectorOffSet4[i]['offx'] + Number(offset['xOffSet']), sectorOffSet4[i]['offy'] + Number(offset['yOffSet']), 1, angle);
+							angle = angle + 90;
+						}
+						
+						if (angle >= 360)
+							angle = angle - 360;
+						var featuretemp:GisFeature = new GisFeature(p, picTemp);
+						obj = {'quitType': temp['quitType'] ? temp['quitType'] : null,
+							'moId': temp['moId'],
+							'moName': temp['moName'] ? temp['moName'] : null,
+							'moTypeId': temp['moTypeId'],
+							'moTypeName': temp['moTypeName'],
+							'warnLevel': temp['warnLevel'] ? temp['warnLevel'] : '0',
+							'sceneId': user.sceneId,
+							'fType': 'mo'};
+						featuretemp.attributes = obj;
+						featuretemp.toolTip = temp['moName'];
+						featuretemp.contentMenus = getContentMenus(featuretemp);
+						mapwork.map.addGisFeature(featuretemp);
+						scenePM.mapViewDM.gisFeatureList.addItem(featuretemp);
+					}
+				}
+				
+			}
+			
+			
+			private function getContentMenus(feature:GisFeature):Array{
+				var contentMenus:Array = new Array();
+				if (feature.attributes.fType == "mo")
+				{
+					contentMenus.push(new GisContextMenuItem("资源信息",popupDealer));
+					contentMenus.push(new GisContextMenuItem("告警信息",popupDealer));
+					contentMenus.push(new GisContextMenuItem("性能详情",popupDealer));
+					//BTS  NODEB 添加传输管线 菜单
+					if (feature.attributes.moTypeId == "16" || feature.attributes.moTypeId == "28")
+						contentMenus.push(new GisContextMenuItem("传输管线",popupDealer));
+					contentMenus.push(new GisContextMenuItem("关联拓扑-软交换拓扑",popupDealer));
+					
+					if (feature.attributes.moTypeId != "101" && feature.attributes.moTypeId != "102")
+						contentMenus.push(new GisContextMenuItem("关联拓扑-传输拓扑",popupDealer));
+				}
+				return contentMenus;
+			}
+			private var layerCache:Object = {};
+			private var scaleLevelCache:Array = [500000,125000,64000,32000];//只取前四个
+			private var countyDefScaleCache:Number = 16000;////地市GIS放大级别
+			
+			private function catchLayerCfg(event:ResultEvent):void
+			{
+				var xml:XML = event.result as XML;
+				var layerList:XMLList = xml.child('layer');
+				for each (var layer:XML in layerList)
+				{
+					var cityId:String = String(layer.@cityId);
+					var moTypeMap:* = JSON.decode(String(layer.@moTypeMap));
+					
+					if (!layerCache.hasOwnProperty(cityId))
+						layerCache[cityId] = {};
+					
+					layerCache[cityId].moTypeMap = moTypeMap;
+				}
+				var configList:XMLList = xml.child('config');
+				log.info("configList:");
+				log.info(configList);
+				if(configList.length()>0){
+					var scaleConfig:XML = configList[0];
+					var scaleStr:String = String(scaleConfig.@scaleCfg);
+					var arr:Array = scaleStr.split(",");
+					if(arr.length>3){
+						scaleLevelCache = arr;
+					}
+					
+					//地市GIS放大级别
+					var countyDefScale:String = String(scaleConfig.@countyDefScale);//countyDefScale='10000'
+					log.info("countyDefScaleCache="+countyDefScale);
+					if(!isNaN(Number(countyDefScale))){
+						countyDefScaleCache = Number(countyDefScale);
+					}
+				}
+			}
+			
+			
+			
+			/**
+			 * 
+			 * 使用判断图层是否为空来判断是否要处理该图层，因为在初始化的时候会根据场景类型来初始化创建图层。
+			 **/
+			private function refreDyLayer(motypeArr:Array):void
+			{
+				onTimerHander();
+			}
+			
+			
+			private var showMoinfoParams:Object = {};
+			//TODO
+			protected function doShowMoInfo():void{
+				log.warn("[doShowMoInfo]");
+				if(addDynamicLayer){
+					addLayerHandler(_city_id);
+				}
+				if(mapwork.map.level<initNodeType["退服"]){
+					showMoinfoParams.loadNodeBType = "1";
+				}else if(mapwork.map.level<initNodeType["基站及告警"]){
+					showMoinfoParams.loadNodeBType = "2";
+				}else if(mapwork.map.level<initNodeType["基站及小区"]){
+					showMoinfoParams.loadNodeBType = "3";
+				}
+//				switch(user.logicalType){
+//					case "1":
+//					{
+//					//日常节假日场景
+//						switch(user.level)
+//						{
+//							case "1"://（全省地图）全省图层
+//							case "3"://（地市地图）地市图层
+//							case "4"://（全省地图）全省图层+定位
+//							{
+//								addLayerHandler(_city_id);
+//								break;
+//							}
+//								
+//							case "2"://（全省地图）全省图层+定位
+//							{
+//								if(user.sceneId=="2017" || user.sceneId=="2027"){
+//									addLayerHandler(_city_id);
+//								}
+//								break;
+//							}
+//						}
+//						break;
+//				}
+//					case "2"://LTE场景
+//					{
+//						switch(user.level)
+//						{
+//							case "1"://（全省地图）全省图层
+//							case "3"://（地市地图）地市图层
+//							case "4"://（全省地图）全省图层+定位
+//							{
+//								addLayerHandler(_city_id);
+//								break;
+//							}
+//							case "2"://（全省地图）区域LTE图层+定位
+//							{
+//								addLTEAreaLayerHandler(_city_id);
+//								break;
+//							}
+//						}
+//						break;
+//				}
+//					case "3":
+//					{
+//						//重大活动场景
+//						switch(user.level)
+//						{
+//							case "1"://（全省地图）全省图层
+//							case "3"://（地市地图）地市图层
+//							case "4"://（全省地图）全省图层+定位
+//							{
+//								addLayerHandler(_city_id);
+//								break;
+//							}
+//						}
+//						break;
+//					}
+//					case "4":
+//					{
+//						switch(user.level)
+//						{
+//							case "1"://（全省地图）全省图层
+//							case "3"://（地市地图）地市图层
+//							case "4"://（全省地图）全省图层+定位
+//							{
+//								addLayerHandler(_city_id);
+//								break;
+//							}
+//							case "2"://（全省地图）全省图层+定位
+//							{
+//								if(user.sceneId=="1001" || user.sceneId=="2017" || user.sceneId=="2027"){
+//									addLayerHandler(_city_id);
+//								}
+//								break;
+//							}
+//						}
+//						break;
+//					}
+//				}
+				
+				// loadNodeBType参数：
+				//1-->查询撒点，只需要查询框选点内的退服基站；
+				//2-->查询基站，及其告警信息；
+				//3-->查询基站及其小区信息。
+//				if(getMapScaleLevel(mapwork.map.scale)==0){
+//					//1-->查询撒点
+//					showMoinfoParams.loadNodeBType = "1";
+//				}else if(getMapScaleLevel(mapwork.map.scale)==1){
+//					//20000:1~8000:1以内，显示基站信息。
+//					showMoinfoParams.loadNodeBType = "2";
+//				}else{
+//					//4000:1以内，显示小区信息。
+//					showMoinfoParams.loadNodeBType = "3";
+//				}
+				
+				showMoinfoParams.moTypeId = "";
+				//BTS
+				//				if(viewLayerCfg.btsCb.selected&&"2"!=user.logicalType){
+				if(viewLayerCfg.btsCb.selected){
+					showMoinfoParams.moTypeId += "16";
+				}
+				//				if(viewLayerCfg.nodebCb.selected&&"2"!=user.logicalType){
+				if(viewLayerCfg.nodebCb.selected){
+					if(""!=showMoinfoParams.moTypeId){
+						showMoinfoParams.moTypeId += ",28";
+					}else{
+						showMoinfoParams.moTypeId += "28";
+					}
+				}
+				if(viewLayerCfg.eNodeBCb.selected){
+					if(""!=showMoinfoParams.moTypeId){
+						showMoinfoParams.moTypeId += ",320";
+					}else{
+						showMoinfoParams.moTypeId += "320";
+					}
+				}
+				
+				if(showMoinfoParams.moTypeId==""){
+					scenePM.mapViewDM.pointQuitGisLayer.clear();
+					return;
+				}
+				
+				if("3" == showMoinfoParams.loadNodeBType){
+					//warnLevelFlag查询基站类型，1，正常的基站，2，有告警的基站，3，全部基站，4，不查基站
+					if(!viewLayerCfg.moFaultCb.selected&&viewLayerCfg.moNormalCb.selected){
+						showMoinfoParams.warnLevelFlag = "1";
+					}else if(viewLayerCfg.moFaultCb.selected&&!viewLayerCfg.moNormalCb.selected){
+						showMoinfoParams.warnLevelFlag = "2";
+					}else if(viewLayerCfg.moFaultCb.selected&&viewLayerCfg.moNormalCb.selected){
+						showMoinfoParams.warnLevelFlag = "3";
+					}else{
+						showMoinfoParams.warnLevelFlag = "4";
+						scenePM.mapViewDM.pointQuitGisLayer.clear();
+						return;
+					}
+				}else{
+					if(viewLayerCfg.moFaultCb.selected){
+						showMoinfoParams.warnLevelFlag = "2";
+					}else{
+						scenePM.mapViewDM.pointQuitGisLayer.clear();
+						return;
+					}
+				}
+				//增加地市场景信息。
+				user.getImportParamsForRemoteObject(showMoinfoParams);
+				log.info(showMoinfoParams);
+//				begin =new Date().getTime();
+				var ro:RemoteObject = null;
+				if("1" == showMoinfoParams.loadNodeBType){
+					ro = BlazeDSUtil.newService(
+						"flexdestination_cms_gsscene_panels", "", scenePM.parameters['context']+"/messagebroker/amf",
+						doAddGisPointinfo_resultHandler,errorHandler);
+				}else{
+					ro = BlazeDSUtil.newService(
+						"flexdestination_cms_gsscene_panels", "", scenePM.parameters['context']+"/messagebroker/amf",
+						doAddGisMoinfo_resultHandler,errorHandler);
+				}
+				log.info("[查询queryNeInfoByXY]");
+				log.info(showMoinfoParams);
+				ro.queryNeInfoByXY(showMoinfoParams);
+			}
+			
+			private function errorHandler(e:FaultEvent):void
+			{
+				log.error(e.fault.content);
+			}
+			
+			private var begin:Number;
+			private var begin1:Number;
+			//用于gis定位后特别显示的效果，放入filters
+			private var myGlowFilter:GlowFilter = new GlowFilter(0x229AA2, .85, 6, 6, 5, 1, false, false);
+			private var fArr:ArrayCollection = new ArrayCollection();
+			private function doAddGisPointinfo_resultHandler(data:Object):void
+			{
+				begin1 = new Date().getTime();
+				log.info("[doAddGisPointinfo_resultHandler]查询时间："+(begin1 - begin));
+				log.info(data);
+				var dataArrList:ArrayCollection = new ArrayCollection();
+				dataArrList.addAll(data as IList);
+				log.info("mapWork.map.level-->"+mapwork.map.level);
+				log.info(dataArrList.length);
+				this.doAddGisPointinfoAction(dataArrList);
+				log.info("处理时间："+(new Date().getTime() - begin1));
+			}
+			
+			private function doAddGisPointinfoAction(dataArrList:ArrayCollection):void{
+				var p:GisPoint = null;//返回要定位的点
+				if (scenePM.mapViewDM.pointQuitGisLayer == null){
+					scenePM.mapViewDM.pointQuitGisLayer = new GisLayer();
+				}else{
+					scenePM.mapViewDM.pointQuitGisLayer.clear();
+				}
+				fArr.removeAll();
+				log.info("开始加载退服基站 begin");
+				log.debug(dataArrList);
+				var imgurl:String="";
+				//然后重新glow新的gis数据
+				for each (var moInfo:Object in dataArrList)
+				{
+//					var feature:GisFeature = new GisFeature(new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude)), 
+//						new GisMarkerPredefinedStyle(GisMarkerStyle.STYLE_CIRCLE, getCilcleIdMap(mapwork.map.scale), 0X0000FF, 1));//0XEE9800
+					switch(moInfo.moTypeId){
+						case "16":
+							imgurl=quitLegendImgPath+"o_G_30.png";
+							break;
+						case "28":
+							imgurl=quitLegendImgPath+"o_T_30.png";
+							break;
+						case "320":
+							imgurl=quitLegendImgPath+"o_L_30.png";
+							break;
+					}
+					var feature:GisFeature = new GisFeature(new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude)),
+						new GisMarkerPictureStyle(imgurl));
+					fArr.addItem(feature);
+				}
+				log.info("退服基站 撒点："+fArr.length);
+				scenePM.mapViewDM.pointQuitGisLayer.gisFeatures.addAll(fArr);
+				dataArrList.removeAll();
+				if(!mapwork.map.getGisLayer(scenePM.mapViewDM.pointQuitGisLayer.id)){
+					mapwork.map.addGisLayer(scenePM.mapViewDM.pointQuitGisLayer);
+				}
+				log.info("显示 end");
+			}
+			
+			private function getCilcleIdMap(scale:Number):Number
+			{
+				log.info("scale="+scale);
+//				log.info(scaleLevelCache);
+				if(scale >Number(scaleLevelCache[0]))
+					return 6;
+				else if(scale >= Number(scaleLevelCache[1]))
+					return 6;
+				else if (scale >= Number(scaleLevelCache[2]))
+					return 8;
+				else if (scale >= Number(scaleLevelCache[3]))
+					return 12;
+				else 
+					return 16;
+			}
+			/**
+			 * 
+			 * 获取当前scale等级
+			 * */
+			private function getMapScaleLevel(scale:Number):Number
+			{
+				var levelflag:Number = this.getCilcleIdMap(scale);
+				log.info("levelflag="+levelflag);
+				if (levelflag == 4 || levelflag == 6 || levelflag == 8)
+					return 0;
+				else if (levelflag == 12)
+					return 1;
+				else 
+					return 2;
+			}
+			private function doAddGisMoinfo_resultHandler(data:Object):void
+			{
+				begin1 = new Date().getTime();
+				log.info("[doAddGisMoinfo_resultHandler]查询时间："+(begin1 - begin));
+				log.info(data);
+				var dataArrList:ArrayCollection = new ArrayCollection();
+				dataArrList.addAll(data as IList);
+				log.info("[doAddGisMoinfo_resultHandler]:mapWork.map.level-->"+mapwork.map.level);
+				if(getMapScaleLevel(mapwork.map.scale)==1){
+					this.doAddGisMoinfoAction(scenePM.mapViewDM.pointQuitGisLayer,dataArrList,false);
+				}else if(getMapScaleLevel(mapwork.map.scale)==2){
+					this.doAddGisMoinfoAction(scenePM.mapViewDM.pointQuitGisLayer,dataArrList,true);
+				}
+				log.info("处理时间："+(new Date().getTime() - begin1));
+			}
+			private function doAddGisMoinfoAction(layer:GisLayer,dataArrList:ArrayCollection,flag:Boolean=true):GisPoint{
+				var p:GisPoint = null;//返回要定位的点
+				if (layer == null){
+					layer = new GisLayer();
+				}else{
+					layer.clear();
+				}
+				fArr.removeAll();
+				log.info("开始凸显效果处理 begin");
+				//然后重新glow新的gis数据
+				
+				log.info("gis定位，确定数据存在");
+				log.debug("[===================>]{0}",dataArrList.length);
+				var source:Object;
+				var cellLen:int = 0;
+				var rruMap:Dictionary = new Dictionary();
+//				if(user.sceneId=="1001"){
+//					for each (var moInfo:Object in dataArrList)
+//					{
+//						
+//						if(moInfo['moTypeId'] == '213'){//RRU
+//							var gispointRru:GisPoint = new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude));
+//							fArr.addItem(createFeatureRRU(gispointRru,new GisMarkerPictureStyle(ImageFactory.getImage("rru", moInfo["alarmLevel"])),moInfo,moInfo));
+//						}
+//					}
+//				}else{
+				for each (var moInfo:Object in dataArrList)
+				{
+					var offset:Object = findOffset(moInfo.longitude + "-" + moInfo.latitude);
+					var pic:GisMarkerPictureStyle;
+					log.info(moInfo);
+					if (moInfo['moTypeName'] == "BTS")
+					{
+						if (moInfo['gisId'] && !StringUtils.isEmpty(moInfo['gisId'])){
+							scenePM.mapViewDM.gisIdList.addItem(moInfo['gisId']);
+							scenePM.mapViewDM.gisIdColorMap[moInfo['gisId']] = moInfo['color'];
+							scenePM.mapViewDM.gisIdKpiValueMap[moInfo['gisId']] = moInfo['kpiName'] + ":" + moInfo['kpiValue'];
+							scenePM.mapViewDM.gisIdPerfLevelMap[moInfo['gisId']] = moInfo['perfLevel'];
+							scenePM.mapViewDM.gisIdMoInfoMap[moInfo['gisId']] = moInfo;
+						}else
+						{
+							log.error("错误的BTS，不存在gisId！");
+						}
+					}
+					else if (moInfo['moTypeName'] == "NodeB")
+					{
+						if (moInfo['gisId'] && !StringUtils.isEmpty(moInfo['gisId'])){
+							scenePM.mapViewDM.gisIdListNodeB.addItem(moInfo['gisId']);
+							scenePM.mapViewDM.gisIdColorMap[moInfo['gisId']] = moInfo['color'];
+							scenePM.mapViewDM.gisIdKpiValueMap[moInfo['gisId']] = moInfo['kpiName'] + ":" + moInfo['kpiValue'];
+							scenePM.mapViewDM.gisIdPerfLevelMap[moInfo['gisId']] = moInfo['perfLevel'];
+							scenePM.mapViewDM.gisIdMoInfoMap[moInfo['gisId']] = moInfo;
+						}else
+						{
+							log.error("错误的NodeB，不存在gisId！");
+						}
+					}
+
+					
+					if(moInfo['moTypeId'] == '213'){//RRU
+//						var rruArr:ArrayCollection = rruMap[moInfo.longitude+"_"+moInfo.latitude+"_"+moInfo["cells"][0]["moId"]];
+//						if(!rruArr){
+//							rruArr = new ArrayCollection();
+//							rruMap[moInfo.longitude+"_"+moInfo.latitude+"_"+moInfo["cells"][0]["moId"]]=rruArr;
+//						}
+//						rruArr.addItem(moInfo);
+						
+//						if(moInfo['moTypeId'] == '213'){//RRU
+							var gispointRru:GisPoint = new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude));
+							fArr.addItem(createFeatureRRU(gispointRru,new GisMarkerPictureStyle(ImageFactory.getImage("rru", moInfo["alarmLevel"])),moInfo,moInfo));
+//						}
+						
+//						var gispointRru:GisPoint = new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude));
+//						fArr.addItem(createFeatureRRU(gispointRru,new GisMarkerPictureStyle(ImageFactory.getImage("rru", moInfo["alarmLevel"])),moInfo,moInfo));
+						//小区撒点
+						
+//						if(moInfo.hasOwnProperty("cells")){
+//							for each(var cell:Object in moInfo['cells']){
+//							var gispointCell:GisPoint = new GisPoint(Number(cell.longitude), Number(cell.latitude));
+//							fArr.addItem(createFeatureRRUCenter(gispointCell,new GisMarkerPictureStyle(ImageFactory.getImage('sector',cell["alarmLevel"])),cell));
+//							fArr.addItem(new GisFeature(new GisLine([gispointRru,gispointCell]),new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0x00ff00)));				
+//							
+//						}
+//					}
+						
+
+					}else{
+						if (flag&&(moInfo['moTypeId'] == '16' || moInfo['moTypeId'] == '28' || moInfo['moTypeId'] == '320' || moInfo['moTypeId'] == '321'))
+						{//处理基站信息
+							if(moInfo.hasOwnProperty("cells")){
+							cellLen = moInfo['cells'].length;
+							}
+							//						source = ImageFactory.getImage("backCell", moInfo["alarmLevel"]);
+							source = ImageFactory.getImage("backCell_" + moInfo['moTypeName'], moInfo["alarmLevel"]);
+							
+							if (cellLen < 4)
+							{
+								pic = new GisMarkerPictureStyle(source, 0, 0, backCellSet3['offx'] + Number(offset['xOffSet']), backCellSet3['offy'] + Number(offset['yOffSet']));
+							}
+							else{
+								pic = new GisMarkerPictureStyle(source, 0, 0, backCellSet4['offx'] + Number(offset['xOffSet']), backCellSet4['offy'] + Number(offset['yOffSet']));
+							}
+						}
+						else
+						{
+							source = ImageLayerFactory.getImage(moInfo['moTypeName'], moInfo["alarmLevel"]);
+							if(!source){
+								source = ImageFactory.getImage(moInfo['moTypeName'], moInfo["alarmLevel"]);
+							}
+							pic = new GisMarkerPictureStyle(source, 0, 0, Number(offset['xOffSet']), Number(offset['yOffSet']));
+						}
+						
+						p = new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude));
+						var feature:GisFeature = this.createFeature(p,pic,moInfo);
+						fArr.addItem(feature);
+						//					mapWork.map.addGisFeature(feature);
+						if (flag&&(moInfo['moTypeId'] == '16' || moInfo['moTypeId'] == '28' || moInfo['moTypeId'] == '320' || moInfo['moTypeId'] == '321'))
+						{
+							var angle:int = 0;
+							
+							if (cellLen == 3)
+							{
+								angle = -30;
+							}
+							var m:int = 0;
+							if(moInfo.hasOwnProperty("cells")){
+								
+							for each (var cell:Object in moInfo['cells'])
+							{
+								if (m > 3)
+									break;
+								//							log.info("angle:{0},moName:{1}", angle, cell['moName']);
+								if (cellLen < 3)
+								{
+									pic = new GisMarkerPictureStyle(ImageFactory.getImage('sector', cell["alarmLevel"]), 0, 0, sectorOffSet2[m]['offx'] + Number(offset['xOffSet']), sectorOffSet2[m]['offy'] + Number(offset['yOffSet']), 1, angle);
+									angle = angle + 180;
+								}
+								else if (cellLen == 3)
+								{
+									pic = new GisMarkerPictureStyle(ImageFactory.getImage('sector', cell["alarmLevel"]), 0, 0, sectorOffSet3[m]['offx'] + Number(offset['xOffSet']), sectorOffSet3[m]['offy'] + Number(offset['yOffSet']), 1, angle);
+									angle = angle + 120;
+								}
+								else
+								{
+									pic = new GisMarkerPictureStyle(ImageFactory.getImage('sector', cell["alarmLevel"]), 0, 0, sectorOffSet4[m]['offx'] + Number(offset['xOffSet']), sectorOffSet4[m]['offy'] + Number(offset['yOffSet']), 1, angle);
+									angle = angle + 90;
+								}
+								
+								if (angle >= 360)
+									angle = angle - 360;
+								
+								p = new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude));
+								feature = this.createFeature(p,pic,cell);
+								fArr.addItem(feature);
+								//							mapWork.map.addGisFeature(feature);
+								m++;
+							}
+							}
+						}
+					}
+//				}
+				}
+				try{
+//					for(var k:String in rruMap){
+////						log.debug("[===================>]{0},{1}",k,rruMap[k]);
+//						var moInfo:*=rruMap[k].getItemAt(0)["cells"][0];
+////						var gisPoint:GisPoint = new GisPoint(Number(moInfo.longitude), Number(moInfo.latitude));
+////						mapwork.map.getCirclePoints(gisPoint,0.1,rruMap[k].length).forEach(function(point:*, index:int, array:Array):void {
+////							fArr.addItem(new GisFeature(new GisLine([point,gisPoint]),new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0x00ff00)));
+////							fArr.addItem(createFeatureRRU(point,new GisMarkerPictureStyle(ImageFactory.getImage("rru", rruMap[k].getItemAt(index)["alarmLevel"])),rruMap[k].getItemAt(index),moInfo));//new GisFeature(point,new GisMarkerPictureStyle(ImageFactory.getImage("rru_" + moInfo['moTypeName'], moInfo["alarmLevel"]))));
+////						});
+////						fArr.addItem(createFeatureRRUCenter(gisPoint,new GisMarkerPictureStyle(ImageFactory.getImage("respoint", moInfo["alarmLevel"])),moInfo));//(new GisFeature(gisPoint,new GisMarkerPictureStyle(ImageFactory.getImage("respoint_" + moInfo['moTypeName'], moInfo["alarmLevel"]))));
+//						var rru:*;
+//						for(var index:int=0;index<rruMap[k].length;index++){
+//							rru=rruMap[k].getItemAt(index);
+//							fArr.addItem(createFeatureRRU(new GisPoint(Number(rru.longitude), Number(rru.latitude)),new GisMarkerPictureStyle(ImageFactory.getImage("rru", rru["alarmLevel"])),rru,moInfo));
+//						}
+//						
+//					}
+				}catch(e:Error){
+					log.error(e);
+				}
+				
+				log.debug("fArr.length-->"+fArr.length);
+				layer.gisFeatures.addAll(fArr);
+				if(!mapwork.map.getGisLayer(layer.id)){
+					mapwork.map.addGisLayer(layer);
+				}
+				dataArrList.removeAll();
+//				createPolygon();
+				log.info("显示 end");
+				return p;
+			}
+			private function createFeatureRRU(p:GisPoint,pic:GisMarkerPictureStyle,moInfo:Object,moInfoP:Object):GisFeature{
+				var feature:GisFeature = new GisFeature(p, pic);
+				feature.toolTip = moInfo['moName'];
+				feature.attributes = moInfo;
+				feature.attributes.moIdNew = moInfoP.moId;
+				if (moInfo.hasOwnProperty("isShow") && moInfo["isShow"] == "1")
+				{
+					feature.filters = [myGlowFilter];
+				}
+				mapwork.map.addGisFeatureMenu(feature, "资源信息", popupDealerRRU);
+				mapwork.map.addGisFeatureMenu(feature, "归属小区告警信息", popupDealerRRU);
+				if (feature.attributes.moTypeId != "-11")
+				{
+					mapwork.map.addGisFeatureMenu(feature, "归属小区性能详情", popupDealerRRU);
+				}
+				return feature;
+			}
+			
+			
+			private function createFeatureRRUCenter(p:GisPoint,pic:GisMarkerPictureStyle,moInfo:Object):GisFeature{
+				var feature:GisFeature = new GisFeature(p, pic);
+				feature.toolTip = moInfo['moName'];
+				feature.attributes = moInfo;
+				if (moInfo.hasOwnProperty("isShow") && moInfo["isShow"] == "1")
+				{
+					feature.filters = [myGlowFilter];
+				}
+				//mapwork.map.addGisFeatureMenu(feature, "资源信息", popupDealerRRU);
+				return feature;
+			}
+			
+			/**
+			 * 创建定位网元右键菜单
+			 * */
+			private function  createFeature(p:GisPoint,pic:GisMarkerPictureStyle,moInfo:Object):GisFeature{
+				var feature:GisFeature = new GisFeature(p, pic);
+				feature.toolTip = moInfo['moName'];
+				feature.attributes = moInfo;
+				if (moInfo.hasOwnProperty("isShow") && moInfo["isShow"] == "1")
+				{
+					feature.filters = [myGlowFilter];
+				}
+				//feature.onClick = featureClickHandler;
+				mapwork.map.addGisFeatureMenu(feature, "资源信息", popupDealer);
+				mapwork.map.addGisFeatureMenu(feature, "告警信息", popupDealer);
+				if (feature.attributes.moTypeId != "-11")
+				{
+//					mapwork.map.addGisFeatureMenu(feature, "性能信息", popupDealer);
+//					mapwork.map.addGisFeatureMenu(feature, "性能趋势", popupDealer);
+					mapwork.map.addGisFeatureMenu(feature, "性能详情", popupDealer);
+					
+					//BTS  NODEB 添加传输管线 菜单
+					if (feature.attributes.moTypeId == "16" || feature.attributes.moTypeId == "28") //基站
+					{
+						this.mapwork.map.addGisFeatureMenu(feature, "传输管线", popupDealer);
+					}
+					mapwork.map.addGisFeatureMenu(feature, "关联拓扑-软交换拓扑", popupDealer);
+					if (feature.attributes.moTypeId != "101" && feature.attributes.moTypeId != "102") //小区
+					{
+						mapwork.map.addGisFeatureMenu(feature, "关联拓扑-传输拓扑", popupDealer);
+					}
+				}
+				return feature;
+			}
+			/***
+			 * 
+			 * GIS定位
+			 * 
+			 * */
+			//如果当前是需要跳转的区域，那么直接凸显指定网元即可
+			[MessageHandler(selector = "SEARCH_MOGIS_LAYER")]
+			public function searchMoGisLayaer(event:SceneEvent = null):void
+			{
+				
+				if (scenePM.mapViewDM.gisPositionList.length == 0)
+				{
+					Alert.show("未查询到指定的网元数据！", "错误");
+					return;
+				}
+				if(isMoLocation&&this.visible){
+					removeAllLayers();
+					moLocation();
+				}else{
+					switch(user.logicalType){
+						case "1"://日常节假日场景
+						case "2"://LTE场景
+						{
+							{
+								var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+								e.param = new Object();
+								e.param.currentState="gisMap";
+								e.param.iscounty=true;
+								e.param.city_id="";
+								e.param.city_name="";
+								e.param.isMoLocation=true;
+								dispatchMsg(e);
+							}
+							break;
+						}
+						case "3"://场景-地市-区域
+						case "4"://场景-区域
+						{
+							{
+								log.info("判断所选数据是否在一个区域");
+								var areaObj:Object;//区域信息
+								for each (var obj:Object in scenePM.mapViewDM.gisPositionList)
+								{
+									if(undefined==obj["areaId"]||"null"==obj["areaId"]||""==obj["areaId"])
+									{	
+										areaObj = null;
+										break;	
+									}
+									if(null==areaObj)
+									{	
+										areaObj=obj;
+										continue;
+									}
+									if(obj["areaId"]!=areaObj["areaId"]){
+										areaObj = null;
+										log.info("多网元gis定位，属于多区域");
+										break;
+									}
+								}
+								
+								log.info("gis定位---1");
+								log.info(areaObj);
+								var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+								e.param = new Object();
+								e.param.currentState="gisMap";
+								e.param.iscounty=true;
+								e.param.city_id="";
+								e.param.city_name="";
+								e.param.isMoLocation=true;
+								if(null!=areaObj)
+								{
+									e.param.level="2";
+									e.param.centerlongitude = areaObj.longitude;
+									e.param.centerlatitude = areaObj.latitude;
+									user.areaId = areaObj.areaId;
+								}
+								log.info("gis定位---2");
+								dispatchMsg(e);
+							}
+							break;
+						}
+					}
+				}
+			}
+			
+			private function moLocation():void{
+				log.info("GIS定位！");
+				mapwork.map.removeAllGisLayers();
+				var p:GisPoint = this.doAddGisMoinfoAction(scenePM.mapViewDM.moLocationGisLayer,scenePM.mapViewDM.gisPositionList,true);
+				log.info(p);
+				if(null!=p){
+					mapwork.map.zoomToScale(32000, p);
+				}
+			}
+
+			//图层配置面板 点击后过滤相关feature
+			[MessageHandler(selector = "FILTER_LAYER")]
+			public function filterFeatures(e:SceneEvent):void
+			{
+				log.info("filter features!" + e.filterType);
+				
+				if (e.filterType == 'mo')
+				{
+					for each (var f:GisFeature in scenePM.mapViewDM.gisFeatureList)
+					{
+						f.visible = viewLayerCfg.filterFeature(f.attributes);
+						f.attributes.isShow = f.visible;
+						mapwork.map.updateFeature(f);
+					}
+//					var polygonLayer:GisLayer = scenePM.mapViewDM.gisLayerMap['_polygon'] as GisLayer;
+					
+//					if (polygonLayer)
+//					{
+//						for each (var feature:GisFeature in polygonLayer.gisFeatures)
+//						{
+//							feature.visible = viewLayerCfg.filterFeature(feature.attributes, "ts");
+//							polygonLayer.updateFeature(feature);
+//						}
+//					}
+					
+				}
+				else
+				{
+					log.info("filter refresh 泰森多边形数据:" + user.sceneId);
+					
+//					if (user.currentMapType == "0" && user.level != "3")
+//						requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+					//						msgDispatcher(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+				}
+				
+				
+				dispatchMsg(new SceneEvent(SceneEvent.ENABLE_VIEW_CFG));
+			}
+			
+			private var timer:Timer;
+			private function onTimerHander(event:TimerEvent=null):void{
+				log.warn("mapWork_extent_changeHandler【timer handler】_city_id:{0}",_city_id);
+				timer.stop();
+				log.info("_city_id={0}",_city_id);
+				if(!_city_id){
+					return;
+				}
+				switch(user.logicalType){
+					case "1":
+					{//日常节假日场景
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							case "3"://（地市地图）地市图层
+							case "4"://（全省地图）全省图层+定位
+							{
+								layer_changeHandler();
+								break;
+							}
+							case "2"://（全省地图）区域定位
+							{
+//								if(user.sceneId=="2017" || user.sceneId=="2027"){
+									layer_changeHandler();
+//								}
+								break;
+							}
+						}
+						break;
+					}
+					case "2"://LTE场景
+					{
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							case "2"://（全省地图）区域LTE图层+定位
+							case "3"://（地市地图）地市图层
+							case "4"://（全省地图）全省图层+定位
+							{
+								layer_changeHandler();
+								break;
+							}
+						}
+						break;
+					}
+					case "3":
+					{
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							case "2"://（全省地图）区域定位
+							case "3"://（地市地图）地市图层
+							case "4"://（全省地图）全省图层+定位
+							{
+								layer_changeHandler();
+								break;
+							}
+//							case "2"://（全省地图）区域定位
+//							{
+//								break;
+//							}
+						}
+						break;
+					}
+					case "4":
+					{
+						switch(user.level)
+						{
+							case "1"://（全省地图）全省图层
+							case "2"://（全省地图）区域LTE图层+定位
+							case "3"://（地市地图）地市图层
+							case "4"://（全省地图）全省图层+定位
+							{
+								layer_changeHandler();
+								break;
+							}
+						}
+						break;
+					}
+				}
+			}
+			
+			private var _currMapLevel:Number;
+			protected function mapWork_extent_changeHandler(event:GisExtentEvent):void
+			{
+				log.info("mapWork_extent_changeHandler- begin!");
+				if(!this.visible){
+					return;
+				}
+				if(_currMapLevel!=mapwork.map.level){
+					_currMapLevel=mapwork.map.level;
+					scenePM.mapViewDM.pointQuitGisLayer.clear();
+				}
+				if(!timer){
+					timer=new Timer(1500);
+					timer.addEventListener(TimerEvent.TIMER,onTimerHander);
+				}
+				if(isMoLocation){
+					return;
+				}
+				timer.reset();
+				timer.start();
+			}
+			protected function layer_changeHandler():void
+			{
+				//mapWork.map.removeAllGisFeature(); //删除上次的图标。
+				//scenePM.mapViewDM.pointQuitGisLayer.clear();
+//				scenePM.mapViewDM.pointQuitGisLayer.clear();
+				//当地图尺度在7级别切换到网元视图模式。
+				log.info("mapReady-----1");
+				showMoinfoParams.minX = mapwork.map.gisExtent.xmin;
+				showMoinfoParams.minY = mapwork.map.gisExtent.ymin;
+				showMoinfoParams.maxX = mapwork.map.gisExtent.xmax;
+				showMoinfoParams.maxY = mapwork.map.gisExtent.ymax;
+				doShowMoInfo();
+			}
+			
+			[MessageHandler(selector = "SHOW_EMPY_JW_INFO")]
+			public function showEmgyLocation(e:EmpyEvent):void
+			{
+				log.info("撒点应急资源！");
+				log.debug(e.emergresName + "::" + e.emgyTypeId + "::" + e.longitude + "::" + e.latitude+"::::" + e.currentEmgyResId);
+				
+				var param:Object={};
+				param['emergrestype'] = e.emgyTypeId;
+				param['emergresid'] = e.emgyResId;
+				param['emergresname'] = e.emergresName;
+				param['latitude'] = e.latitude;
+				param['longitude'] = e.longitude;
+				
+				EMPYGisLayer.clear();
+				if(!mapwork.map.getGisLayer(EMPYGisLayer.id)){
+					mapwork.map.addGisLayer(EMPYGisLayer);
+				}
+				this.mapwork.map.zoomToScale(8000, this.addEMPY(param));
+				
+			}
+			
+			private var EMPYGisLayer:GisLayer = new GisLayer(); //应急车图层
+			[MessageHandler(selector = "SHOW_EMPY_TO_GIS")]
+			public function SHOW_EMPY_TO_GIS(e:EmpyEvent):void
+			{
+				if(viewLayerCfg.car.selected){
+					var param:Object = new Object;
+					param.empergResType = "1";
+					param.isUsed = "0";
+					var empyDetailEvent:EmpyEvent = new EmpyEvent(EmpyEvent.LOAD_EMPY_TO_GIS);
+					empyDetailEvent.param = param;
+					requestServerUtil.addRequest(empyDetailEvent);
+				}else{
+					EMPYGisLayer.clear();
+				}
+			}
+			[MessageHandler(selector = "LOAD_EMPY_TO_GIS_SUCC")]
+			public function LOAD_EMPY_TO_GIS_SUCC(e:EmpyEvent):void
+			{
+				EMPYGisLayer.clear();
+				log.info("撒点应急资源");
+				for each (var imgInfo:Object in scenePM.emgyResourceDM.emgyCarTotal)
+				{
+					log.debug(imgInfo);
+					addEMPY(imgInfo);
+				}
+				if(!mapwork.map.getGisLayer(EMPYGisLayer.id)){
+					mapwork.map.addGisLayer(EMPYGisLayer);
+				}
+			}
+			public function addEMPY(imgInfo:Object):GisPoint
+			{
+				log.debug(imgInfo);
+				var point:GisPoint = new GisPoint(Number(imgInfo['longitude']), Number(imgInfo['latitude']));
+				var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(ImageFactory.getImage("emg", imgInfo['emergrestype']), 60, 60);
+				var feature:GisFeature = new GisFeature(point, pic);
+				feature.toolTip = imgInfo['emergresname'];
+				var obj:Object = new Object();
+				obj.moId = imgInfo['emergresid'];
+				obj.moName = imgInfo['emergresname'];
+				obj.moTypeId = imgInfo['emergrestype'];
+				obj.currentEmgyResId = imgInfo['emergresid'];
+				feature.attributes = obj;
+				mapwork.map.addGisFeatureMenu(feature, "应急资源信息", popupDealer);
+				EMPYGisLayer.addGisFeature(feature);
+				return point;
+			}
+			
+			
+			[Bindable]
+			private var quitLegendImgPath:String="";
+			
+			
+			
+			private function createPolygon():void
+			{
+				log.warn("开始加载泰森多边形");
+				log.warn(scenePM.mapViewDM.gisIdColorMap);
+				log.warn(scenePM.mapViewDM.gisIdKpiValueMap);
+				log.warn(scenePM.mapViewDM.gisIdPerfLevelMap);
+				log.warn(scenePM.mapViewDM.gisIdMoInfoMap);
+				
+				//添加泰森多边形图层
+				if (scenePM.mapViewDM.gisLayerMap.hasOwnProperty('_polygon'))
+					(scenePM.mapViewDM.gisLayerMap['_polygon'] as GisLayer).clear();
+				else
+				{
+					scenePM.mapViewDM.gisLayerMap['_polygon'] = new GisLayer();
+//					mapwork.map.addGisLayer((scenePM.mapViewDM.gisLayerMap['_polygon'] as GisLayer), 2);
+				}
+				if(!mapwork.map.getGisLayer((scenePM.mapViewDM.gisLayerMap['_polygon'] as GisLayer).id)){
+					mapwork.map.addGisLayer((scenePM.mapViewDM.gisLayerMap['_polygon'] as GisLayer), 2);
+				}
+				
+				
+				if (scenePM.mapViewDM.gisPositionList.length > 0)
+				{
+					log.info("如果是gis定位，那么无需啥进去区域的泰森多边形！！");
+					return;
+				}
+				
+				log.info("开始 生成BTS泰森多边形gisFeature!" + scenePM.mapViewDM.gisIdList.length);
+				var polygonLayer:GisLayer = scenePM.mapViewDM.gisLayerMap['_polygon'] as GisLayer;
+				
+				if (user.initSceneId == "1003" && user.level == "2")
+					return;
+
+				//生成泰森多边形gisFeature
+				mapwork.map.queryBTSGisFeaturesByAreaIds(scenePM.mapViewDM.gisIdList.toArray(), function(gisFeatures:Array):void
+				{
+					var borderStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, .8, 1);
+					var color:Number = 0X00ff00;
+					log.info("bts.length:{0}", gisFeatures.length);
+					for each (var gisFeature:GisFeature in gisFeatures)
+					{
+						if (scenePM.mapViewDM.gisIdColorMap.hasOwnProperty([gisFeature.attributes.gis_id]))
+						{
+							color = Number(scenePM.mapViewDM.gisIdColorMap[gisFeature.attributes.gis_id]);
+							//								log.info("泰森多边形颜色和gis对应：{0}，{1}", color, gisFeature.attributes.gis_id);
+						}
+						
+						var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, color, 0.5, borderStyle);
+						
+						gisFeature.gisStyle = polygonStyle;
+						gisFeature.autoMoveToTop = false;
+						gisFeature.attributes.perfLevel = scenePM.mapViewDM.gisIdPerfLevelMap[gisFeature.attributes.gis_id];
+						
+						if (scenePM.mapViewDM.gisIdKpiValueMap.hasOwnProperty(gisFeature.attributes.gis_id))
+							gisFeature.toolTip = scenePM.mapViewDM.gisIdKpiValueMap[gisFeature.attributes.gis_id];
+						
+						gisFeature.attributes = scenePM.mapViewDM.gisIdMoInfoMap[gisFeature.attributes.gis_id];
+						//							if (viewLayerCfg.filterFeature(gisFeature.attributes, "ts"))
+						//								polygonLayer.addGisFeature(gisFeature);
+//						gisFeature.visible = viewLayerCfg.filterFeature(gisFeature.attributes, "ts");
+//						gisFeature.attributes.isShow = gisFeature.visible;
+						polygonLayer.addGisFeature(gisFeature);
+					}
+				});
+
+				log.info("开始 生成NodeB泰森多边形gisFeature!" + scenePM.mapViewDM.gisIdListNodeB.length);
+				//生成泰森多边形gisFeature
+				mapwork.map.queryNodeBGisFeaturesByAreaIds(scenePM.mapViewDM.gisIdListNodeB.toArray(), function(gisFeatures:Array):void
+				{
+					log.info("nodeb.length:{0}", gisFeatures.length);
+					for each (var gisFeature:GisFeature in gisFeatures)
+					{
+						var borderStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0xF7CF0B, 1, 2);
+						var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, Number(scenePM.mapViewDM.gisIdColorMap[gisFeature.attributes.gis_id]), 0.5, borderStyle);
+						
+						gisFeature.gisStyle = polygonStyle;
+						gisFeature.autoMoveToTop = false;
+						gisFeature.toolTip = scenePM.mapViewDM.gisIdKpiValueMap[gisFeature.attributes.gis_id];
+						gisFeature.attributes = scenePM.mapViewDM.gisIdMoInfoMap[gisFeature.attributes.gis_id];
+						
+						//							if (viewLayerCfg.filterFeature(gisFeature.attributes, "ts"))
+						//								polygonLayer.addGisFeature(gisFeature);
+						
+						//							(scenePM.mapViewDM.gisLayerMap['_polygon'] as GisLayer).addGisFeature(gisFeature);
+						
+//						gisFeature.visible = viewLayerCfg.filterFeature(gisFeature.attributes, "ts");
+//						gisFeature.attributes.isShow = gisFeature.visible;
+						polygonLayer.addGisFeature(gisFeature);
+					}
+				});
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<ailk_gis:MapWork id="mapwork" width="100%" height="100%"
+					  extent_change="mapWork_extent_changeHandler(event)"
+					  mapCreationComplete="mapwork_mapCreationCompleteHandler(event)"
+					  toolbar_picLayer="mapwork_toolbar_picLayerHandler(event)">
+		
+	</ailk_gis:MapWork>
+	
+	<s:HGroup width="100%" height="100%" horizontalAlign="center" verticalAlign="middle">
+		<viewnew:ViewLayerCfgNew id="viewLayerCfg" visible="{_vlc}"
+								 close="viewLayerCfg_closeHandler(event)"
+								 layerCallback="{refreDyLayer}"/>
+	</s:HGroup>
+	<viewnew:MapGisCollectNew id="mapGisCollect" visible="{_mgc}" right="5" top="63"/>
+	
+	
+	<ailk_compts:NavBar id="roadColor" visible="false" x="0" top="10" includeInLayout="false"
+						location="right" styleName="sceneNavBar" title="图例">
+		<components:RoadColor/>
+	</ailk_compts:NavBar>
+	
+	
+	<s:BorderContainer id="quitLender" visible="{_isdd}" left="20" bottom="20"
+					   includeInLayout="{_isdd}" styleName="sceneBorderContainer">
+		<s:HGroup paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+			<s:VGroup>
+				<s:Label styleName="sceneNewsLable4" text="打点图"/>
+				<s:HGroup>
+					<mx:Image source="{quitLegendImgPath}legend_o_G_20.png"/>
+					<s:Label styleName="sceneNewsLable3" text="GSM基站"/>
+				</s:HGroup>
+				<s:HGroup>
+					<mx:Image source="{quitLegendImgPath}legend_o_T_20.png"/>
+					<s:Label styleName="sceneNewsLable3" text="TD基站"/>
+				</s:HGroup>
+				<s:HGroup>
+					<mx:Image source="{quitLegendImgPath}legend_o_L_20.png"/>
+					<s:Label styleName="sceneNewsLable3" text="LTE基站"/>
+				</s:HGroup>
+			</s:VGroup>
+			<s:VGroup>
+				<s:Label styleName="sceneNewsLable4" text="退服基站"/>
+				<s:HGroup>
+					<mx:Image source="{quitLegendImgPath}legend_r_G_20.png"/>
+					<s:Label styleName="sceneNewsLable3" text="一级告警"/>
+				</s:HGroup>
+				<s:HGroup>
+					<mx:Image source="{quitLegendImgPath}legend_o_G_20.png"/>
+					<s:Label styleName="sceneNewsLable3" text="二级告警"/>
+				</s:HGroup>
+				<s:HGroup>
+					<mx:Image source="{quitLegendImgPath}legend_y_G_20.png"/>
+					<s:Label styleName="sceneNewsLable3" text="三级告警"/>
+				</s:HGroup>
+			</s:VGroup>
+		</s:HGroup>
+	</s:BorderContainer>
+</s:Group>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  verticalAlign="middle"
+		  paddingLeft="2"
+		  paddingTop="2"
+		  paddingRight="2"
+		  paddingBottom="2" visible="false" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-11-29
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.oneline.event.wireless.WirelessEvent;
+			[Bindable]
+			private var nowDate:Date = new Date();
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			protected function doQuery_clickHandler(event:MouseEvent):void
+			{
+				var evt:WirelessEvent = new WirelessEvent(WirelessEvent.DOLOADKPICOLLECTDATA);
+				var param:Object = new Object();
+				param.startTime = startDate.text;
+				param.endTime = endDate.text;
+				evt.param = param;
+				dispatcher(evt);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<s:Label text="开始时间"/>
+	<mx:DateField id="startDate"
+				  width="120"
+				  formatString="YYYY-MM-DD"
+				  selectedDate="{new Date(nowDate.getFullYear(),nowDate.getMonth(),nowDate.getDate()-1)}"/>
+	<s:Label text="结束时间"/>
+	<mx:DateField id="endDate"
+				  width="120"
+				  formatString="YYYY-MM-DD"
+				  selectedDate="{new Date()}"/>
+	<s:Button label="查询"
+			  buttonMode="true"
+			  click="doQuery_clickHandler(event)"/>
+</s:HGroup>

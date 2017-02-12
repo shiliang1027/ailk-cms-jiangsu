@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  height="100%"
+		  gap="0"
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.kpichart.event.KpiChartEvent;
+			import com.linkage.module.cms.kpichart.view.components.HorChartWin;
+			
+			import mx.collections.ArrayCollection;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var log:ILogger = Log.getLoggerByClass(KpiChartView);
+
+			private var refreshTimer:Timer = new Timer(2*60*1000);
+			
+//			private var changeTimer:Timer = new Timer(25*6*1000);
+			
+			[Inject("kpiChartViewPM")]
+			[Bindable]
+			public var pm:KpiChartViewPM;
+			
+			public function initView():void
+			{
+				//初始化数据
+				pm.queryKpiCharts(0);
+				
+				//启动定时器刷新页面
+				refreshTimer.addEventListener(TimerEvent.TIMER,refreshCharts);
+				refreshTimer.start();
+			}
+			
+			public function refreshCharts(e:TimerEvent):void
+			{
+				//刷新当前页面
+				var type:int  = tabBar.selectedIndex;
+				var typeNum:int = type+1;
+				if(typeNum == 3)
+				{
+					typeNum = 0;
+				}
+				log.info("typeNum:"+typeNum);
+				pm.queryKpiCharts(typeNum);
+			}
+			
+			protected function tabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				var type:int = event.newIndex;
+				
+				if(refreshTimer.running)
+					refreshTimer.stop();
+				
+//				var flag:Boolean = false;
+//				if(type == 0)
+//				{
+//					if(sixChartsFlow.numElements>0)
+//						flag = true;
+//				}else if(type == 1)
+//				{
+//					if(sixChartsUser.numElements>0)
+//						flag = true;
+//				}else if(type == 2)
+//				{
+//					if(sixChartsTelep.numElements>0)
+//						flag = true;
+//				}
+//				if(!flag)
+					pm.queryKpiCharts(type);
+			}
+			
+			[MessageHandler(selector="CMS_KPICHART_INITCHARTS")]
+			public function initCharts(e:KpiChartEvent):void
+			{
+				if(refreshTimer.running)
+					refreshTimer.stop();
+				log.info(e.param);
+				if(e.param)
+				{
+					var obj:VGroup = null;
+					if(e.param.type == 0)
+						obj = sixChartsFlow;
+					else if(e.param.type == 1)
+						obj = sixChartsUser;
+					else if(e.param.type == 2)
+						obj = sixChartsTelep;
+					
+					//加入图表数据
+					log.info("插入图表开始:{0}",obj.id);
+					obj.removeAllElements();
+//					log.debug(pm.dm.charts);
+					
+					if (pm.dm.charts.length > 0)
+					{
+						var colNum:Number = 2;
+						var next:int = 0;
+						
+						var chartWidth:Number = (obj.width - 3 * colNum + 3) / colNum;
+						var chartHeight:Number = (obj.height - 3 * 3 + 3) / 3;
+						
+						log.info("chartW:{0},chartH:{1},w:{2},h:{3}", chartWidth, 205, obj.width, obj.height);
+						var hcc:HorChartWin = null;
+						for each (var chart:Object in pm.dm.charts)
+						{
+//							log.debug(chart);
+							if (next == 0 || next % colNum == 0)
+							{
+								hcc = new HorChartWin();
+								hcc.width = obj.width;
+								hcc.height = chartHeight;
+								hcc.chartWidth = chartWidth;
+								hcc.chartHeight = chartHeight-5;
+								obj.addElement(hcc);
+							}
+							//按照顺序组装chart 放入group中
+							hcc.addChart(chart as ArrayCollection);
+							next++;
+						}
+					}
+					log.info("加入图表结束");
+					
+					if(!refreshTimer.running)
+						refreshTimer.start();
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:TabBar id="tabBar"
+			  styleName="sceneTabBar"
+			  width="100%"
+			  change="tabBar_changeHandler(event)"
+			  dataProvider="{viewStack}"/>
+	<mx:ViewStack id="viewStack"
+				  creationPolicy="all"
+				  styleName="sceneViewStack"
+				  height="100%"
+				  width="100%"
+				  backgroundAlpha="0">
+		<s:NavigatorContent label="流量"
+							height="100%"
+							width="100%"
+							creationPolicy="all">
+			<s:VGroup id="sixChartsFlow"
+					  height="100%"
+					  width="100%">
+			</s:VGroup>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="用户数"
+							height="100%"
+							width="100%"
+							creationPolicy="all">
+			<s:VGroup id="sixChartsUser"
+					  height="100%"
+					  width="100%">
+			</s:VGroup>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="话务量"
+							height="100%"
+							width="100%"
+							creationPolicy="all">
+			<s:VGroup id="sixChartsTelep"
+					  height="100%"
+					  width="100%">
+			</s:VGroup>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+</s:VGroup>

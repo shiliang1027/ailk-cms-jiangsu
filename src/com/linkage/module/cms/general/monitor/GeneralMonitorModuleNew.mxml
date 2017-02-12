@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   creationComplete="module_creationCompleteHandler(event);">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.ImageServ;
+			import com.linkage.module.cms.general.monitor.datamanager.ImageServImp;
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeService;
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeServiceImp;
+			import com.linkage.module.cms.general.monitor.datamanager.LineInfo;
+			import com.linkage.module.cms.general.monitor.datamanager.LineInfoImp;
+			import com.linkage.module.cms.general.monitor.district.MapLocation;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.core.IVisualElement;
+			import mx.core.IVisualElementContainer;
+			import mx.events.DividerEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			
+			import spark.components.Group;
+			import spark.events.IndexChangeEvent;			
+
+			//参数
+			public var param:Object;
+
+			//三级视图数据接口
+			public var dataService:LevelThreeService = null;
+
+			//管线信息查询接口
+			public var lineInfo:LineInfo = null;
+
+			//日志
+			public var log:ILogger = null;
+
+			//主界面高度
+			[Bindable]
+			private var topHeight:int = 400;
+
+			//是否拖动
+			private var isDivide:Boolean = false;
+
+			//图片路径缓存
+			public var imageUrlMap:Dictionary = new Dictionary();
+
+			//网元图片信息查询接口
+			private var imageServ:ImageServ = null;
+
+			public var parameters:Object;
+			
+			[Embed(source="../../../../../../assets/shiftBtn1_1.png")]
+			[Bindable]
+			private static var pic11:Class;
+			
+			[Embed(source="../../../../../../assets/shiftBtn1_2.png")]
+			[Bindable]
+			private static var pic12:Class;
+			
+			[Embed(source="../../../../../../assets/shiftBtn1_3.png")]
+			[Bindable]
+			private static var pic13:Class;
+			
+			[Embed(source="../../../../../../assets/shiftBtn1_4.png")]
+			[Bindable]
+			private static var pic14:Class;
+			
+			[Embed(source="../../../../../../assets/shiftBtn2_1.png")]
+			[Bindable]
+			private static var pic21:Class;
+			
+			[Embed(source="../../../../../../assets/shiftBtn2_2.png")]
+			[Bindable]
+			private static var pic22:Class;
+			
+			[Embed(source="../../../../../../assets/shiftBtn2_3.png")]
+			[Bindable]
+			private static var pic23:Class;
+			
+			[Embed(source="../../../../../../assets/shiftBtn2_4.png")]
+			[Bindable]
+			private static var pic24:Class;
+
+			private var isAlarmFlowInit:Boolean = false;
+			public function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				//初始化日志
+				log = Log.getLogger("com.linkage.module.cms.general.monitor.GeneralMonitor");
+
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				log.info("初始化开始......");
+				//初始化数据
+				dataService = new LevelThreeServiceImp();
+				dataService.setEndPoint(this.parameters.context);
+				lineInfo = new LineInfoImp();
+				lineInfo.setEndPoint(this.parameters.context);
+				imageServ = new ImageServImp(this.parameters.context);
+
+				param = this.parameters;
+
+				//查询所有网元的图片路径（供三级视图用）
+				imageServ.getAllTopoIconInfo(loadImageUrlSucc, null, loadImageUrlErr);
+
+				initView();
+
+				if(flowGroup.visible)
+				{
+					setTimeout(function():void
+					{
+						resizeWindow(4);
+					}, 2000);
+				}
+			}
+
+
+			//初始化视图
+			public function initView():void
+			{
+				//默认进去全省视图
+				if(this.parameters.type != null && this.parameters.type != "")
+				{
+					if(this.parameters.moId == null || this.parameters.moId == "")
+					{
+						Alert.show("网元信息不存在！");
+						return;
+					}
+
+					queryMoLocationInfo(this.parameters.moId, this.parameters.type);
+					
+				}
+
+				log.info("初始化结束......");
+			}
+
+			//查询定位网元信息
+			private function queryMoLocationInfo(neId:String, type:String):void
+			{
+				var viewObj:MapLocation = new MapLocation();
+				viewObj.dataService = dataService;
+				viewObj.lineInfo = lineInfo;
+				viewObj.locationNeId = neId;
+				viewObj.locationType = type;
+				viewObj.param = param;
+				viewObj.general = this;
+				viewObj.iconUrl = this.parameters.iconPath;
+				topGroup.addElement(viewObj);
+			}
+
+			private function validate(h:int):void
+			{
+				var view:CommonGroup = null;
+				//重新刷新页面大小
+				if(topGroup.numElements > 0 && topGroup.getElementAt(0) != null)
+				{
+					view = (topGroup.getElementAt(0) as CommonGroup);
+					view.validateGroup();
+					view.resizeWindowGroup(h);
+				}
+			}
+
+			public function resizeWindow(type:int, initAlarmFlag:Boolean=true):void
+			{
+				//主界面向上伸缩
+				if (type == 3 && flowGroup.visible)
+				{
+					if (topGroup.visible)
+					{
+						topVGroup.height=10;
+						topGroup.height=0;
+						topGroup.visible=false;
+						
+						changePic(img3, pic14, pic13);
+						changePic(img4, pic22, pic22);
+						this.img4.visible=false;
+						this.img4.includeInLayout=false;
+						
+						mainHide.play();
+						
+						//刷新页面
+						setTimeout(validate, 600, 0);
+					}
+					else
+					{
+						topVGroup.height=topHeight + 10;
+						topGroup.height=topHeight;
+						topGroup.visible=true;
+						
+						changePic(img3, pic12, pic11);
+						changePic(img4, pic22, pic21);
+						this.img4.visible=true;
+						this.img4.includeInLayout=true;
+						
+						mainShow.play();
+						
+						//刷新页面
+						setTimeout(validate, 600, topHeight);
+					}
+				}
+					//主界面向下伸缩
+				else if (type == 4 && topGroup.visible)
+				{
+					if (flowGroup.visible)
+					{
+						flowGroup.percentHeight=0;
+						flowGroup.visible=false;
+						flowGroup.includeInLayout=false;
+						topGroup.height=this.height - 25;
+						topVGroup.height=this.height - 15;
+						
+						changePic(img3, pic12, pic12);
+						changePic(img4, pic24, pic23);
+						this.img3.visible=false;
+						this.img3.includeInLayout=false;
+						
+						flowHide.play();
+						
+						//刷新页面
+						setTimeout(validate, 600, this.height - 25);
+						
+						//停止告警刷新
+						this.alarmFlow.stop();
+					}
+					else
+					{
+						flowGroup.percentHeight=100;
+						flowGroup.visible=true;
+						flowGroup.includeInLayout=true;
+						topGroup.height=topHeight;
+						topVGroup.height=topHeight + 10;
+						
+						changePic(img3, pic12, pic11);
+						changePic(img4, pic22, pic21);
+						this.img3.visible=true;
+						this.img3.includeInLayout=true;
+						
+						flowShow.play();
+						
+						//刷新页面
+						setTimeout(validate, 600, topHeight);
+						
+						//开始告警刷新
+						if (initAlarmFlag)
+						{
+							if(!isAlarmFlowInit)
+							{
+								var mapInfo:String = parentApplication.parameters["mapInfo"];
+								alarmFlow.params = {mapInfo: mapInfo};
+								alarmFlow.initInfo();
+								isAlarmFlowInit = true;
+							}
+							alarmFlow.reload("alarmneid=\""+ parentApplication.parameters["moId"]+"\"");
+						}
+					}
+				}
+			}
+			private function changePic(img:Image, pic1:Class, pic2:Class):void
+			{
+				img.source=pic1;
+				img.addEventListener(MouseEvent.MOUSE_OVER, function():void
+				{
+					img.source=pic2;
+				});
+				img.addEventListener(MouseEvent.MOUSE_OUT, function():void
+				{
+					img.source=pic1;
+				});
+			}
+			protected function mainGroup_updateCompleteHandler(event:FlexEvent):void
+			{
+				//拖动后更新大小
+				if(isDivide)
+				{
+					topHeight = this.topVGroup.height - 10;
+					setTimeout(validate, 300, this.topVGroup.height - 10);
+					isDivide = false;
+				}
+			}
+
+			protected function mainGroup_dividerReleaseHandler(event:DividerEvent):void
+			{
+				//只有显示主界面时，拖动才有效
+				if(this.topGroup.visible)
+				{
+					isDivide = true;
+				}
+			}
+
+			//初始化图片缓存
+			private function loadImageUrlSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("查询图片缓存信息成功");
+					for each(var icon:Object in obj)
+					{
+						imageUrlMap[icon.type] = icon.iconpath;
+					}
+				}
+				else
+				{
+					log.info("查询图片缓存信息为空");
+				}
+			}
+
+			private function loadImageUrlErr(obj:Object):void
+			{
+				log.info("查询图片缓存信息失败！");
+			}
+
+
+			protected function resizeHandler(event:ResizeEvent):void
+			{
+				this.topGroup.width = mainGroup.width;
+				this.flowGroup.width = mainGroup.width;
+			}
+
+//-------------------------------------历史回退修改------------------------------------
+//-------------------------------------历史回退修改------------------------------------
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->		
+		<s:Resize id="mainHide"
+				  target="{topGroup}"
+				  heightFrom="{topHeight}"
+				  heightTo="0"
+				  duration="600">
+		</s:Resize>
+		<s:Resize id="mainShow"
+				  target="{topGroup}"
+				  heightFrom="0"
+				  heightTo="{topHeight}"
+				  duration="600">
+		</s:Resize>
+		<s:Resize id="flowHide"
+				  target="{topGroup}"
+				  heightFrom="{topHeight}"
+				  heightTo="{this.height-25}"
+				  duration="300">
+		</s:Resize>
+		<s:Resize id="flowShow"
+				  target="{topGroup}"
+				  heightFrom="{this.height-25}"
+				  heightTo="{topHeight}"
+				  duration="300">
+		</s:Resize>
+		<s:Fade id="fadeEffect"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="3000"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<!-- 加载1、2、3级视图组件。-->
+	<mx:VDividedBox id="mainGroup"
+					width="100%"
+					height="100%"
+					paddingBottom="10"
+					resize="resizeHandler(event)"
+					paddingTop="5"
+					dividerRelease="mainGroup_dividerReleaseHandler(event)"
+					updateComplete="mainGroup_updateCompleteHandler(event)">
+		<s:VGroup id="topVGroup"
+				  width="100%"
+				  height="405"
+				  paddingBottom="10">
+			<s:VGroup id="topGroup"
+					  width="100%"
+					  height="{this.topVGroup.height-10}">
+			</s:VGroup>		
+			<s:HGroup width="100%"
+					  height="5"
+					  horizontalAlign="center">
+				<mx:Image id="img3"
+						  source="{pic12}"
+						  mouseOver="this.img3.source=pic11"
+						  mouseOut="this.img3.source=pic12"
+						  click="resizeWindow(3);"
+						  buttonMode="true">
+				</mx:Image>
+				<mx:Image id="img4"
+						  source="{pic22}"
+						  mouseOver="this.img4.source=pic21"
+						  mouseOut="this.img4.source=pic22"
+						  click="resizeWindow(4);"
+						  buttonMode="true">
+				</mx:Image>
+			</s:HGroup>
+		</s:VGroup>
+		<s:VGroup id="flowGroup"
+				  width="100%"
+				  height="100%"
+				  paddingLeft="5"
+				  paddingRight="5">
+			<pubflow:alarm id="alarmFlow"
+						   moduleKey="totalflowalarm"
+						   width="100%"
+						   height="100%">
+			</pubflow:alarm>
+		</s:VGroup>
+	</mx:VDividedBox>
+</mx:Module>

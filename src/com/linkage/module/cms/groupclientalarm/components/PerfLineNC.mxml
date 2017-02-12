@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:fusioncharts="com.linkage.common.fusioncharts.*" creationComplete="navigatorcontent1_creationCompleteHandler(event)">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclient.control.GroupMonitorControl;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			[Bindable]
+			public var servertargetData:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			public var chartData:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			public var chartParams:ArrayCollection = new ArrayCollection([{caption: "性能曲线"}, {numberPrefix: ""}, {showValues: "0"}]);
+			public var servData:Object;
+			public var control:GroupMonitorControl;
+
+			protected function navigatorcontent1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+			}
+
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(servertargetDropDown.selectedIndex<0){
+					Alert.show("请选择指标");
+					return;
+				}
+				var perfTypeId:String=String(servertargetDropDown.selectedItem["perfTypeId"]);
+				var param:Object = new Object();
+				param.perfTypeId=perfTypeId;
+				param.bussType=servData.serv_type_id;
+				control.queryPM(param);
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Scroller width="100%" height="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+		<s:VGroup width="100%">
+			<mx:Form width="100%">
+				<s:HGroup width="100%">
+					<mx:FormItem label="指标:">
+						<s:DropDownList id="servertargetDropDown" labelField="showName" prompt="请选择指标" dataProvider="{servertargetData}"/>
+					</mx:FormItem>
+					<s:Button label="查询" buttonMode="true" click="button1_clickHandler(event)"/>
+				</s:HGroup>
+			</mx:Form>
+			<fusioncharts:FusionCharts id="chart" visible="false" includeInLayout="false"
+									   FCChartType="Line" width="100%" height="100%"
+									   FCFolder="/cms/flex-release/FusionCharts" FCData="{chartData}"
+									   FCParams="{chartParams}">
+			</fusioncharts:FusionCharts>
+		</s:VGroup>
+	</s:Scroller>
+</s:NavigatorContent>

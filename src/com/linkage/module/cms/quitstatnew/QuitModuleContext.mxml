@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.quitstatnew.dao.MultKpiDAO;
+			import com.linkage.module.cms.quitstatnew.dao.QuitStatDAO;
+			import com.linkage.module.cms.quitstatnew.dao.QuotaConfigDAO;
+			import com.linkage.module.cms.quitstatnew.dao.ThresHoldDyeDAO;
+			import com.linkage.module.cms.quitstatnew.domain.QuitStatDM;
+			import com.linkage.module.cms.quitstatnew.domain.User;
+			import com.linkage.module.cms.quitstatnew.serv.MultKpiRenderDataCMD;
+			import com.linkage.module.cms.quitstatnew.serv.MultKpiRenderSaveCMD;
+			import com.linkage.module.cms.quitstatnew.serv.QuitStatCitysCMD;
+			import com.linkage.module.cms.quitstatnew.serv.QuitStatDataCMD;
+			import com.linkage.module.cms.quitstatnew.serv.QuitStatDetailDataCMD;
+			import com.linkage.module.cms.quitstatnew.serv.QuitStatHistoryDataCMD;
+			import com.linkage.module.cms.quitstatnew.serv.QuitStatMapCMD;
+			import com.linkage.module.cms.quitstatnew.serv.QuotaConfigDataCMD;
+			import com.linkage.module.cms.quitstatnew.serv.QuotaConfigSaveCMD;
+			import com.linkage.module.cms.quitstatnew.serv.ThresHoldDyeDataCMD;
+			import com.linkage.module.cms.quitstatnew.serv.ThresHoldDyeSaveCMD;
+			import com.linkage.module.cms.quitstatnew.view.QuitDataViewPM;
+			import com.linkage.module.cms.quitstatnew.view.QuitMapViewPM;
+			import com.linkage.module.cms.quitstatnew.view.components.ConfigCompPM;
+			import com.linkage.module.cms.quitstatnew.view.components.MultKpiConfigCompPM;
+			import com.linkage.module.cms.quitstatnew.view.components.QuitDataTitleCompPM;
+			import com.linkage.module.cms.quitstatnew.view.components.QuitDetailCompPM;
+			import com.linkage.module.cms.quitstatnew.view.components.QuitHistoryCompPM;
+			import com.linkage.module.cms.quitstatnew.view.components.QuitHistoryResultCompPM;
+			import com.linkage.module.cms.quitstatnew.view.components.QuotaConfigCompPM;
+			import com.linkage.module.cms.quitstatnew.view.components.ThresHoldDyeCompPM;
+			
+			import mx.rpc.remoting.RemoteObject;
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		
+		<parsley:Object id="remoteObject" type="{RemoteObject}">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_alarm_quittableinfo"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		
+		<!--<parsley:Object id="user" type="{User}">
+			<parsley:Property name="account"
+							  value="a"/>
+			<parsley:Property name="areaId"
+							  value="1"/>
+		</parsley:Object>-->
+		<parsley:Object id="user" type="{User}"/>
+		
+		<parsley:Object id="quitStatDM" type="{QuitStatDM}"/>
+		
+		<parsley:Object id="quitModulePM" type="{QuitModulePM}"/>
+		
+		<parsley:Object id="quitDataViewPM" type="{QuitDataViewPM}"/>
+		
+		<parsley:Object id="quitMapViewPM" type="{QuitMapViewPM}"/>
+		
+		<parsley:Object id="quitHistoryCompPM" type="{QuitHistoryCompPM}"/>
+		
+		<parsley:Object id="quitHistoryResultCompPM" type="{QuitHistoryResultCompPM}"/>
+		
+		<parsley:Object id="quotaConfigCompPM" type="{QuotaConfigCompPM}"/>
+		
+		<parsley:Object id="quitDataTitleCompPM" type="{QuitDataTitleCompPM}"/>
+		
+		<parsley:Object id="quitDetailCompPM" type="{QuitDetailCompPM}"/>
+		
+		<parsley:Object id="thresHoldDyeCompPM" type="{ThresHoldDyeCompPM}"/>
+		
+		<parsley:Object id="multKpiConfigCompPM" type="{MultKpiConfigCompPM}"/>
+		
+		<parsley:Object id="configCompPM" type="{ConfigCompPM}"/>
+		
+		<parsley:Object id="quitStatDAO" type="{QuitStatDAO}"/>
+		
+		<parsley:Object id="quotaConfigDAO" type="{QuotaConfigDAO}"/>
+		
+		<parsley:Object id="thresHoldDyeDAO" type="{ThresHoldDyeDAO}"/>
+		
+		<parsley:Object id="multKpiDAO" type="{MultKpiDAO}"/>
+		
+		<parsley:MapCommand selector="QUITSTAT_LOADDATA">
+			<parsley:Command type="{QuitStatDataCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="QUITSTAT_LOADDATA_MAP">
+			<parsley:Command type="{QuitStatMapCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="LOADCITYS">
+			<parsley:Command type="{QuitStatCitysCMD}"/>
+		</parsley:MapCommand>
+		
+		
+		<parsley:MapCommand selector="QUITSTAT_LOADDATA_HISTORY">
+			<parsley:Command type="{QuitStatHistoryDataCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="LOADQUIT_DETAILDATA">
+			<parsley:Command type="{QuitStatDetailDataCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="LOAD_THRESHOLD_DATA">
+			<parsley:Command type="{ThresHoldDyeDataCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="LOAD_QUOTASH_CONFIGDATA">
+			<parsley:Command type="{QuotaConfigDataCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="SAVE_QUOTASH_CONFIGDATA">
+			<parsley:Command type="{QuotaConfigSaveCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="SAVE_THRESHOLD_DATA">
+			<parsley:Command type="{ThresHoldDyeSaveCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="LOAD_MULTKPI_CONFIGDATA">
+			<parsley:Command type="{MultKpiRenderDataCMD}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="SAVE_MULTKPI_CONFIGDATA">
+			<parsley:Command type="{MultKpiRenderSaveCMD}"/>
+		</parsley:MapCommand>
+		
+	</fx:Declarations>
+</fx:Object>

@@ -1,0 +1,1013 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+    
+         width="100%"
+         height="100%"
+         xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*" 
+		 xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart" 
+		 xmlns:alarm="com.linkage.module.cms.perfmonitornew.alarm.*"
+		 xmlns:view="com.linkage.module.cms.alarm.framework.view.*">
+	
+<!--	creationComplete="group1_creationCompleteHandler(event)"-->
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitornew.dao.AlarmMonitorDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Alert;
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.BorderContainer;
+
+            [Embed(source = "../img/up_gray.png")]
+            private static var _up_gray:Class;
+
+            [Embed(source = "../img/up_blue.png")]
+            private static var _up_blue:Class;
+
+            [Embed(source = "../img/down_gray.png")]
+            private static var _down_gray:Class;
+
+            [Embed(source = "../img/down_blue.png")]
+            private static var _down_blue:Class;
+
+            private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.alarm.MatrixMonitor");
+
+            private var defaultFilter:String = 'nmsalarmtype=3';
+			//日常节假日时，初始化的告警过滤器参数
+//			private var defaultSceneFilter:String = '(equipmentclass="HSS_FE"|equipmentclass="MGW"|equipmentclass="GGSN"|equipmentclass="SGSN"|equipmentclass="BSC"|equipmentclass="BTS"|equipmentclass="RNC"|equipmentclass="NodeB"|equipmentclass="CELL"|equipmentclass="UTRANCELL"|equipmentclass="MME"|equipmentclass="PGW"|equipmentclass="SGW"|equipmentclass="eNodeB"|equipmentclass="EUtranCell"|equipmentclass="HSS")&(alarmseverity=1|alarmseverity=2)&(locatenestatus=2)';
+			
+			private var defaultSceneFilterDate:String = String((new Date().getTime() - 24*3600000*10)/1000);
+			
+			private var defaultSceneFilter:String = '(equipmentclass="MSC_Server"|equipmentclass="MSC"|equipmentclass="GMSC Server"|equipmentclass="SSA"|equipmentclass="HLR"|equipmentclass="TMSC"|equipmentclass="MGW"|equipmentclass="TMG"|equipmentclass="BSC"|equipmentclass="RNC")&(alarmseverity=1|alarmseverity=2)&(locatenestatus=2)&(daltime>'+defaultSceneFilterDate+')';
+			//当前过滤器的过滤规则
+			private var currentFilter:String = '';
+			
+			private var context:String;
+			
+			private var showAllImg:Image;
+			
+			[Embed(source="../img/show_all.gif")]
+			private var allImg:Class;
+
+            //复合网元单元格右键菜单
+            private var moMenu:ContextMenu;
+
+            public static var _levelColorMap:Object = {'一级告警': 0XFF0000, '二级告警': 0XEE9800, '三级告警': 0XFED701, '四级告警': 0X4169E1, '0': 0X00CC00, '1': 0XFF0000, '2': 0XEE9800, '3': 0XFED701, '4': 0X4169E1};
+
+            private var moCache_city:Object = {};
+            private var moCache_motype:Object = {};
+            private var moCache_vendor:Object = {};
+
+            private var moCache_city_motype:Object = {};
+            private var moCache_city_vendor:Object = {};
+            private var moCache_motype_vendor:Object = {};
+
+            private var moCache_city_motype_vendor:Object = {};
+
+            private var rowCacheObj:Object;
+            private var rowCacheArr:ArrayCollection = new ArrayCollection();
+            private var gridIndex:int = 0;
+            private var maxColNum:int = 7;
+
+			private var showMoreFlag:Boolean = false;
+			
+			public var isSceneFlag:Boolean = false;
+			
+			public var isInitFlag:Boolean = true;
+			
+			[Bindable]
+            private var alarmLevelMap:Object = {"1": 0, "2": 0, "3": 0, "4": 0};
+
+            private var allCitys:ArrayCollection = new ArrayCollection;
+            private var cityMap:Object = new Object;
+            private var allMotypes:ArrayCollection = new ArrayCollection;
+            private var motypeMap:Object = new Object;
+            private var allVendors:ArrayCollection = new ArrayCollection;
+            private var vendorMap:Object = new Object;
+            private var allMos:ArrayCollection = new ArrayCollection;
+            private var alarmMos:ArrayCollection = new ArrayCollection;
+			
+			//过滤器中的 属地  设备类型 厂家的name和checkbook的对应关系
+			private var nameCheckboxMap:Object = {};
+
+			private var typeMap:Object;
+			
+			private var lm:LoadManager = new LoadManager(this, "blue");
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				
+				log.info("group1_creationCompleteHandler");
+				context = this.parentApplication.parameters['context'].toString();
+				
+				initAlarms();
+				initMoMenus();
+				
+				
+			}
+			
+			public function init():void
+			{
+				log.info("init");
+				context = this.parentApplication.parameters['context'].toString();
+				initAlarms();
+				initMoMenus();
+				
+				
+			}
+			
+            public function changeScheme(schemeId:String, schemeName:String):void  //其他正常指标监控
+            {
+				log.info("告警监控，方案切换：" + schemeId + "  " +schemeName);
+				
+				if(kpiChart.visible)
+				{
+					kpiChart.visible = false;
+					kpiChart.includeInLayout = false;
+					PopUpManager.removePopUp(kpiChart);
+				}
+				
+				AlarmMonitorDAO.getInstance().lm = lm;
+                AlarmMonitorDAO.getInstance().getKpiAlarm(
+                    {"scheme_id": schemeId},
+                    function(data:Object):void
+                    {
+						log.info(data);
+                        dealData(data);
+                    });
+            }
+            public function changeImportantScheme(schemeId:String, schemeName:String):void  //重点关注网元
+            {
+				log.info("告警监控，重点网元关注 方案切换：" + schemeId + "  " +schemeName);
+				isSceneFlag = true;
+				AlarmMonitorDAO.getInstance().lm = lm;
+                AlarmMonitorDAO.getInstance().getBadNeList(
+                    {"scheme_id": schemeId},
+                    function(data:Object):void
+                    {
+						log.info(data);
+                        dealData(data);
+                    });
+            }
+            public function changeAllPFScheme(schemeId:String, schemeName:String):void   //性能告警监控
+            {
+				log.info("告警监控，性能告警监控  关注 方案切换：" + schemeId + "  " +schemeName);
+				AlarmMonitorDAO.getInstance().lm = lm;
+                AlarmMonitorDAO.getInstance().getAllPfList(
+                    {"scheme_id": schemeId},
+                    function(data:Object):void
+                    {
+						log.info(data);
+                        dealData(data);
+                    });
+            }
+
+            private function dealData(data:Object):void
+            {
+				log.info("1 ");
+				log.info(data);
+				cityMap = {};
+				motypeMap = {};
+				vendorMap = {};
+				
+                allCitys.removeAll();
+                allMotypes.removeAll();
+                allVendors.removeAll();
+				allMos.removeAll();
+				
+				moCache_city = {};
+				moCache_motype = {};
+				moCache_vendor = {};
+				
+				moCache_city_motype = {};
+				moCache_city_vendor = {};
+				moCache_motype_vendor = {};
+				
+				moCache_city_motype_vendor = {};
+				
+				typeMap = 
+					{
+						1:moCache_city,
+						2:moCache_motype,
+						3:moCache_city_motype,
+						4:moCache_vendor,
+						5:moCache_city_vendor,
+						6:moCache_motype_vendor,
+						7:moCache_city_motype_vendor
+					};
+				
+				alarmLevelMap = {"1": 0, "2": 0, "3": 0, "4": 0};
+
+                for each (var mo:Object in data)
+                {
+                    cacheItem(makeGridItem(mo.mo_name,  mo), mo);
+					
+					cacheList(mo);
+
+                    if (alarmLevelMap.hasOwnProperty(mo.maxseverity))
+						alarmLevelMap[mo.maxseverity] = alarmLevelMap[mo.maxseverity] + 1;
+                }
+				
+				level1Label.text = String(alarmLevelMap['1']);
+				level2Label.text = String(alarmLevelMap['2']);
+				level3Label.text = String(alarmLevelMap['3']);
+				level4Label.text = String(alarmLevelMap['4']);
+				
+				dealNavigate();
+
+				//延迟显示数据，待过滤条件处理好了 再显示
+				prepare2ShowData();
+            }
+			
+			private function dealNavigate():void
+			{
+				nameCheckboxMap = {};
+				
+				log.debug("处理过滤条件组件：");
+				log.debug(allVendors);
+				
+				creatCheckBox(allCitys, cityFilter);
+				creatCheckBox(allMotypes, motypeFilter);
+				creatCheckBox(allVendors, vendorFilter);
+			}
+			
+			private function creatCheckBox(data:ArrayCollection, vg:VGroup):void
+			{
+				vg.removeAllElements();
+				
+				for each(var obj:Object in data)
+				{
+					var cb:CheckBox = new CheckBox;
+					cb.label = obj.name;
+					cb.selected = true;
+					
+					nameCheckboxMap[obj.name] = cb;
+					
+					vg.addElement(cb);
+				}
+				
+			}
+			
+			private function prepare2ShowData():void
+			{
+				lm.showLoading();
+					
+				cityCB.enabled = false;
+				motypeCB.enabled = false;
+				motypeCB.enabled = false;
+				alarmCB.enabled = false;
+				
+				var type:int = getSelectedTypes();
+				
+				log.info("type:"+type);
+				if(type < 1)
+				{
+					Alert.show("区域、设备类型、厂家，至少选择一个！","提示");
+					cityCB.enabled = true;
+					motypeCB.enabled = true;
+					motypeCB.enabled = true;
+					alarmCB.enabled = true;
+					return;
+				}
+				
+				badMoGrid.removeAllElements();
+				rowCacheObj = null;
+				showMoreFlag = false;
+				
+//				log.info(typeMap[type]);
+				showData(typeMap[type], badMoGrid);
+				
+				showMoreImg.visible = rowCacheObj != null;
+				
+				cityCB.enabled = true;
+				motypeCB.enabled = true;
+				motypeCB.enabled = true;
+				alarmCB.enabled = true;
+				
+				lm.hideLoading();
+			}
+			
+			private function getSelectedTypes():int
+			{
+				var city:int = cityCB.selected ? 1 : 0;
+				var motype:int = motypeCB.selected ? 2 : 0;
+				var vendor:int = vendorCB.selected ? 4 : 0;
+				
+				return city + motype + vendor;
+			}
+			
+			private function cacheList(mo:Object):void
+			{
+				if(!cityMap.hasOwnProperty(mo.city_name))
+				{
+					cityMap[mo.city_name] = 1;
+					allCitys.addItem({"name":mo.city_name});
+				}
+				
+				if(!motypeMap.hasOwnProperty(mo.mo_type_name))
+				{
+					motypeMap[mo.mo_type_name] = 1;
+					allMotypes.addItem({"name":mo.mo_type_name});
+				}
+				
+				if(!vendorMap.hasOwnProperty(mo.vendor_id))
+				{
+					vendorMap[mo.vendor_id] = 1;
+					allVendors.addItem({"name":mo.vendor_id});
+				}
+				
+				allMos.addItem(mo);
+			}
+
+            private function cacheItem(item:GridItem, mo:Object):void
+            {
+                if (moCache_city[mo.city_name] == null)
+                    moCache_city[mo.city_name] = new ArrayCollection;
+                moCache_city[mo.city_name].addItem(item);
+
+                if (moCache_motype[mo.mo_type_name] == null)
+                    moCache_motype[mo.mo_type_name] = new ArrayCollection;
+                moCache_motype[mo.mo_type_name].addItem(item);
+
+                if (moCache_vendor[mo.vendor_id] == null)
+                    moCache_vendor[mo.vendor_id] = new ArrayCollection;
+                moCache_vendor[mo.vendor_id].addItem(item);
+
+
+
+                if (moCache_city_motype[mo.city_name] == null)
+                    moCache_city_motype[mo.city_name] = {};
+
+                if (moCache_city_motype[mo.city_name][mo.mo_type_name] == null)
+                    moCache_city_motype[mo.city_name][mo.mo_type_name] = new ArrayCollection;
+                moCache_city_motype[mo.city_name][mo.mo_type_name].addItem(item);
+
+                if (moCache_city_vendor[mo.city_name] == null)
+                    moCache_city_vendor[mo.city_name] = {};
+
+                if (moCache_city_vendor[mo.city_name][mo.vendor_id] == null)
+                    moCache_city_vendor[mo.city_name][mo.vendor_id] = new ArrayCollection;
+                moCache_city_vendor[mo.city_name][mo.vendor_id].addItem(item);
+
+                if (moCache_motype_vendor[mo.mo_type_name] == null)
+                    moCache_motype_vendor[mo.mo_type_name] = {};
+
+                if (moCache_motype_vendor[mo.mo_type_name][mo.vendor_id] == null)
+                    moCache_motype_vendor[mo.mo_type_name][mo.vendor_id] = new ArrayCollection;
+                moCache_motype_vendor[mo.mo_type_name][mo.vendor_id].addItem(item);
+
+
+
+                if (moCache_city_motype_vendor[mo.city_name] == null)
+                    moCache_city_motype_vendor[mo.city_name] = {};
+
+                if (moCache_city_motype_vendor[mo.city_name][mo.mo_type_name] == null)
+                    moCache_city_motype_vendor[mo.city_name][mo.mo_type_name] = {};
+
+                if (moCache_city_motype_vendor[mo.city_name][mo.mo_type_name][mo.vendor_id] == null)
+                    moCache_city_motype_vendor[mo.city_name][mo.mo_type_name][mo.vendor_id] = new ArrayCollection;
+
+                moCache_city_motype_vendor[mo.city_name][mo.mo_type_name][mo.vendor_id].addItem(item);
+            }
+
+            private function showData(data:Object, grid:Grid):void
+            {
+                //如果是列表   这是网元层
+                if (data.hasOwnProperty("length"))
+                {
+                    var colIndex:uint = 0;
+                    var rowIndex:uint = 0;
+
+                    while (colIndex < data.length)
+                    {
+                        var row:GridRow = new GridRow();
+                        row.percentWidth = 100;
+						row.setStyle("borderStyle", "none");
+
+                        rowIndex++;
+
+                        while (true)
+                        {
+                            if (colIndex < data.length)
+                            {
+                                var moItem:GridItem = data[colIndex] as GridItem;
+								
+								//只显示告警网元
+								if(alarmCB.selected)
+								{
+									if(Number(moItem.name) > 0)
+										row.addElement(moItem);
+								}
+								else
+									row.addElement(moItem);
+                            }
+                            else
+                                break;
+
+                            //一行满7个就换行
+                            if (++colIndex % maxColNum == 0)
+                                break;
+                        }
+
+                        //默认显示第一行
+                        if (rowIndex != 1)
+                        {
+                            if (rowCacheObj == null)
+                            {
+                                rowCacheObj = new Object();
+                            }
+
+                             if (rowCacheObj[gridIndex] == null)
+                            {
+                                rowCacheObj[gridIndex] = {};
+                                rowCacheObj[gridIndex]['rows'] = new ArrayCollection();
+                            } 
+
+							/* rowCacheArr.addItem(row);
+							rowCacheArr.refresh();
+							rowCacheObj['rows'] = rowCacheArr;
+							rowCacheObj['grid'] = grid; */
+                            rowCacheObj[gridIndex]['rows'].addItem(row);
+                            rowCacheObj[gridIndex]['grid'] = grid;
+							
+							if(showMoreFlag)
+                            	grid.addElement(row);
+
+                        }
+                        else
+                        {
+                            grid.addElement(row);
+                        }
+                    }
+                }
+                else
+                {
+					gridIndex = 0;
+                    for (var name:String in data)
+                    {
+						if(nameCheckboxMap[name] == null)
+						{
+							log.debug("过滤失败：");
+							log.debug(name);
+							continue;
+						}
+						else if(!nameCheckboxMap[name].selected)
+							continue;
+						
+						//根据当前导航列的选择情况，判断是否继续
+						//该类型没有选中 则continue；
+						
+                        var item:GridItem = makeGridItem(name);
+
+                        var subItem:GridItem = new GridItem;
+                        subItem.percentWidth = 92;
+
+                        var subGrid:Grid = new Grid;
+                        subGrid.percentWidth = 100;
+                        subGrid.setStyle("horizontalGap", "3");
+                        subGrid.setStyle("verticalGap", "3");
+						subGrid.id = "subGrid" + String(Math.random()*100);
+						
+                        subItem.addElement(subGrid);
+
+                        var gridRow:GridRow = new GridRow;
+                        gridRow.percentWidth = 100;
+						gridRow.setStyle("borderStyle", "none");
+
+                        gridRow.addElement(item);
+                        gridRow.addElement(subItem);
+
+                        grid.addElement(gridRow);
+
+                        showData(data[name], subGrid);
+						gridIndex++;
+                    }
+                }
+            }
+			
+
+            private function makeGridItem(name:String, mo:Object = null):GridItem
+            {
+                var item:GridItem = new GridItem();
+                item.height = 33;
+                item.width = Math.ceil((matrixWin.width - 78) / (maxColNum + 3));
+
+				var bc:BorderContainer = new BorderContainer;
+				bc.setStyle("cornerRadius", 5);
+				bc.setStyle("borderStyle", "solid");
+				bc.setStyle("backgroundAlpha", "1");
+				bc.minHeight = 10;
+				bc.minWidth = 10;
+				bc.percentHeight = 100;
+				bc.percentWidth = 100;
+				
+                var label:Label = new Label();
+				label.setStyle("verticalCenter", "0");
+				label.setStyle("horizontalCenter", "0");
+				label.maxDisplayedLines = 2;
+				label.percentWidth = 100;
+                label.text = name;
+                label.toolTip = name;
+
+                if (mo!=null)
+                {
+//					log.info("mo.maxseverity"+mo.hasOwnProperty('maxseverity'));
+					if(mo.hasOwnProperty('maxseverity'))
+						bc.setStyle("backgroundColor", _levelColorMap[mo.maxseverity]);
+					else
+						bc.setStyle("backgroundColor", '0X0FF00');
+						
+					item.contextMenu = moMenu;
+					
+					
+					if(mo.hasOwnProperty('maxseverity'))
+						item.name = mo.maxseverity;
+					else
+						item.name = "";
+					
+					item.id = mo['mo_id'] + "_|_" + mo['mo_type_id']  + "_|_" + mo['kpi_id'];
+					item.data = mo;
+                }
+				else
+					bc.setStyle("backgroundColor", "0x9BB4CA");
+				
+				bc.addElement(label);
+                item.addElement(bc);
+				
+                return item;
+            }
+
+            private function showAllMatrix():void
+            {
+//				log.info(rowCacheObj);
+				//当前是单行模式
+				if(!showMoreFlag)
+				{
+	                 for each (var gridRows:Object in rowCacheObj)
+	                {
+//						log.info("id:"+gridRows['grid'].id);
+	                    for each (var row:* in gridRows['rows'])
+	                    {
+                       		gridRows['grid'].addElement(row);
+							showMoreImg.toolTip = "切换到单行模式";
+	                    }
+	                } 
+				}
+				else
+				{
+	                for each (var gridRows:Object in rowCacheObj)
+	                {
+	                    for each (var row:* in gridRows['rows'])
+	                    {
+							gridRows['grid'].removeElement(row);
+							showMoreImg.toolTip = "切换到多行模式";
+	                    }
+	                }
+				}
+				
+				showMoreFlag = !showMoreFlag;
+            }
+
+             private function initAlarms():void
+            {
+				log.info("initAlarms");
+                log.info('初始化告警流水：' + this.parentApplication.parameters['mapInfo']);
+				log.info(this.parentApplication.parameters['mapInfo']);
+				
+				//初始化告警流水
+				showAllImg = new Image();
+				showAllImg.source = allImg;
+				showAllImg.buttonMode = true;
+				showAllImg.toolTip = "显示全部";
+				showAllImg.visible = false;
+				showAllImg.addEventListener(MouseEvent.CLICK, showAllAlarms);
+				alarmFlow.addToolButton(showAllImg);
+				
+				var mapInfo:String = parentApplication.parameters["mapInfo"];
+				alarmFlow.params = {mapInfo: mapInfo};
+				if(isSceneFlag == true)
+				{
+					log.info("场景告警流水");
+					if(isInitFlag == true)
+					{
+						log.info("isInitFlag == true");
+						alarmFlow.moduleKey ="sceneflowalarm";
+						alarmFlow.ruleContent = defaultSceneFilter;
+//						var ex_info:String = "1#1006";
+						var ex_info:String = "1006#1";
+						alarmFlow.initInfo(null, 1, ex_info);
+						
+						isInitFlag = false;
+					}
+					else{
+						log.info("isInitFlag == false");
+						alarmFlow.statReload(defaultSceneFilter,"sceneflowalarm");
+					}
+				}else{
+					log.info("性能告警流水");
+//					alarmFlow.moduleKey ="totalflowalarm";
+					alarmFlow.statReload(defaultFilter,"totalflowalarm");
+//					alarmFlow.ruleContent = defaultFilter;
+//					alarmFlow.reload(defaultFilter);
+				}
+				
+            } 
+			
+			private function showAllAlarms(e:MouseEvent):void
+			{
+				if(isSceneFlag == true)
+				{
+					log.info("场景告警流水 重载");
+					var ex_info:String = "1006#1";
+					alarmFlow.exInfo=ex_info;
+					alarmFlow.statReload(defaultSceneFilter,"sceneflowalarm");
+				}else{
+					log.info("性能告警流水 重载");
+					alarmFlow.statReload(defaultFilter,"totalflowalarm");
+				}
+				
+				showAllImg.visible = false;
+			}
+
+            private function resizeWindow():void
+            {
+                if (img.name == "down")
+                {
+                    hideAlarm();
+                }
+                else if (img.name == "up")
+                {
+                    showAlarm();
+                }
+            }
+
+            private function hideAlarm(dura:Number = 400):void
+            {
+                alarmFlow.visible = false;
+                alarmFlow.includeInLayout = false;
+
+                resize.duration = dura;
+                resize.heightTo = 25;
+                resize.play();
+
+                img.source = _up_gray;
+                img.name = "up";
+            }
+
+            private function showAlarm(dura:Number = 400):void
+            {
+                alarmFlow.visible = false;
+                alarmFlow.includeInLayout = false;
+
+                alarmVgroup.percentWidth = 100;
+
+                resize.duration = dura;
+                resize.heightTo = 167;
+                resize.play();
+
+                img.source = _down_gray;
+                img.name = "down";
+            }
+
+            private function resize_effectEndHandler(event:EffectEvent):void
+            {
+                alarmFlow.includeInLayout = alarmVgroup.height > 35;
+                alarmFlow.visible = alarmVgroup.height > 35;
+                alarmVgroup.percentWidth = 100;
+            }
+
+            private function changeImg(type:Object):void
+            {
+                img.source = getImg(type);
+            }
+
+            private function getImg(type:Object):Object
+            {
+                if (img.name == "down")
+                {
+                    if (type == 1)
+                        return _down_blue;
+                    else
+                        return _down_gray;
+                }
+                else if (img.name == "up")
+                {
+                    if (type == 1)
+                        return _up_blue;
+                    else
+                        return _up_gray;
+                }
+
+                return _down_gray;
+            }
+
+            private function initMoMenus():void
+            {
+                log.info('初始化 网元表格右键菜单 ~~');
+                moMenu = new ContextMenu();
+                moMenu.hideBuiltInItems();
+                moMenu.addEventListener(
+                    ContextMenuEvent.MENU_SELECT,
+                    function(e:ContextMenuEvent):void
+                    {
+                        moMenu.customItems = [];
+
+                        var resCMI:ContextMenuItem = new ContextMenuItem("资源详情");
+                        resCMI.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, contexMenuDeal);
+
+                        var kpiCMI:ContextMenuItem = new ContextMenuItem("性能详情");
+						kpiCMI.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, contexMenuDeal);
+
+                      /*   var kpiAlarmCMI:ContextMenuItem = new ContextMenuItem("性能告警");
+						kpiAlarmCMI.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, contexMenuDeal); */
+						
+                        var kpiAlarmCMI:ContextMenuItem = new ContextMenuItem("告警信息");
+						kpiAlarmCMI.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, contexMenuDeal);
+
+                        var projectCMI:ContextMenuItem = new ContextMenuItem("工程详情");
+						projectCMI.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, contexMenuDeal);
+
+                        moMenu.customItems.push(resCMI);
+                        moMenu.customItems.push(kpiCMI);
+                        moMenu.customItems.push(kpiAlarmCMI);
+                        moMenu.customItems.push(projectCMI);
+                    });
+            }
+			
+			private function contexMenuDeal(e:ContextMenuEvent):void
+			{
+				var moId:String = e.contextMenuOwner['id'].split('_|_')[0];
+				log.info(e.contextMenuOwner["data"]);
+				
+				var moData:Object = e.contextMenuOwner["data"];
+				
+				log.info('右键菜单处理：' +　e.currentTarget.caption + ' moId:');
+				var alarmDetailURL:String = "cms/warn/report/query/ShowAlarmList.jsp";
+				switch(e.currentTarget.caption)
+				{
+					case "资源详情":
+						var detailURL:String = context 
+						+ "cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=" + moId;
+						navigateToURL(new URLRequest(detailURL));
+						break;
+					case "性能详情":
+						 if(!kpiChart.visible)
+						{ 
+							kpiChart.visible = true; 
+							kpiChart.includeInLayout = true;
+							kpiChart.allMos.removeAll();
+							kpiChart.allMos.addAll(allMos);
+							PopUpManager.addPopUp(kpiChart, this);
+							PopUpManager.centerPopUp(kpiChart);
+						 } 
+						kpiChart.setMoId(moId);
+//						kpiChart.loadChartData();
+						break;
+					/* case "性能告警":
+						filterAlarm('alarmneid="' + moData["mo_id"] + '"');
+						break; */
+					case "告警信息":
+						url = alarmDetailURL + "?alarmStatus=1&neId=" + moId;
+						navigateToURL(new URLRequest(context + url));
+						break;
+					case "工程详情":
+						var url:String = "/cms/warn/menu/neidGetAction!showLocatene.action?moId="+moId;
+						var params:URLVariables = new URLVariables();
+						params.moId = moId;
+						log.info('工程详情'+url);
+						navigateToURL(new URLRequest(url));
+						break;
+				}
+			}
+
+			private function filterAlarm(filter:String):void
+			{
+				
+				log.info("过滤页面statReload告警：filter：" + filter);
+				
+				if(isSceneFlag == true)
+				{
+					var ex_info:String = "1006#1";
+					alarmFlow.exInfo=ex_info; 
+					alarmFlow.statReload(filter + '&' + defaultSceneFilter,"sceneflowalarm");
+				}else
+				{
+					alarmFlow.statReload(filter + '&' + defaultFilter,"totalflowalarm");
+				}
+				
+				
+				//如果没有显示则显示流水窗口
+				if(alarmVgroup.height < 50)
+					showAlarm();
+				
+				this.showAllImg.visible = true;
+			}
+			
+            private function alarmWindow_resizeHandler(event:ResizeEvent):void
+            {
+                if (alarmVgroup.height > 157)
+                {
+                    img.source = _down_gray;
+                    img.name = "down";
+                }
+                else if (alarmVgroup.height < 35)
+                {
+                    img.source = _up_gray;
+                    img.name = "up";
+                }
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <s:Resize heightTo="0"
+                  id="resize"
+                  target="{alarmVgroup}"
+                  effectEnd="resize_effectEndHandler(event)"/>
+    </fx:Declarations>
+
+    <mx:VDividedBox id="mainDivBox"
+                    width="100%"
+                    height="100%">
+        <ailk_compts:Window id="matrixWin" width="100%"
+                            height="100%"
+                            minimizable="false"
+                            maximizable="false"
+                            closable="false"
+                            styleName="window">
+            <s:BorderContainer width="100%"
+							   top="8"
+							   borderStyle="solid"
+	                           height="100%">
+	            <s:Scroller width="100%"
+	                        height="100%"
+	                        id="mainScroller" 
+	                        verticalScrollPolicy="auto">
+					<s:Group width="100%"
+							 bottom="5"
+							 height="100%">
+				                    <mx:Grid id="badMoGrid"
+											 left="5" 
+											 top="5" 
+											 right="5" 
+											 backgroundAlpha="0" 
+											 borderAlpha="0"
+				                             width="100%"
+				                             height="100%"
+				                             horizontalGap="3"
+				                             verticalGap="3" 
+				                             borderStyle="none"
+				                             textAlign="center"/>
+					</s:Group>
+	            </s:Scroller>
+            </s:BorderContainer>
+
+            <s:HGroup textAlign="left"
+                      horizontalAlign="right"
+                      verticalAlign="middle"
+                      right="0"
+                      top="-16">
+
+                <s:Label id="vTitle"
+                         minWidth="16"
+                         text="告警网元"/>
+                <mx:Image source="@Embed('../img/icon_alarm_red.png')"
+                          width="12"
+                          height="12"/>
+                <s:Label id="level1Label"
+                         text="0"/>
+                <mx:Image source="@Embed('../img/icon_alarm_orange.png')"
+                          width="12"
+                          height="12"/>
+                <s:Label id="level2Label"
+                         text="0"/>
+                <mx:Image source="@Embed('../img/icon_alarm_yellow.png')"
+                          width="12"
+                          height="12"/>
+                <s:Label id="level3Label"
+                         text="0"/>
+                <mx:Image source="@Embed('../img/icon_alarm_blue.png')"
+                          width="12"
+                          height="12"/>
+                <s:Label id="level4Label"
+                         text="0"/>
+
+				<mx:Spacer width="25"/>
+                <s:CheckBox id="cityCB" label="区域" selected="true" change="prepare2ShowData()"/>
+                <s:CheckBox id="motypeCB" label="设备" selected="true" change="prepare2ShowData()"/>
+                <s:CheckBox id="vendorCB" label="厂家" selected="true" change="prepare2ShowData()"/>
+                <s:CheckBox id="alarmCB" label="告警网元" selected="false" change="prepare2ShowData()"/>
+
+                <mx:Image source="@Embed('../img/filter.png')" 
+						  buttonMode="true"
+                          toolTip="过滤条件"
+						  click="{filterWin.visible = !filterWin.visible;filterWin.includeInLayout = !filterWin.includeInLayout;}"/>
+				
+				<mx:Image id="showMoreImg" 
+						  visible="false"
+						  alpha="1"
+						  source="@Embed('../img/more.png')"
+						  buttonMode="true" 
+						  click="showAllMatrix()" 
+						  toolTip="单行/全显"/>
+            </s:HGroup>
+			
+			<ailk_compts:Window id="filterWin"
+								right="0" 
+								top="8" 
+								styleName="window"
+								minimizable="false" 
+								maximizable="false" 
+								visible="false"
+								height="250"
+								includeInLayout="false"
+								close="{filterWin.visible=false;filterWin.includeInLayout=false;}">
+				
+				<s:Scroller width="100%"
+							height="100%"
+							verticalScrollPolicy="auto">
+					<s:VGroup>
+						<s:HGroup>
+							<s:VGroup>
+								<s:Label text="区域:"/>
+								<s:VGroup minWidth="100" id="cityFilter" enabled="{cityCB.selected}"/>
+							</s:VGroup>
+							<s:VGroup>
+								<s:Label text="设备:"/>
+								<s:VGroup minWidth="110" id="motypeFilter" enabled="{motypeCB.selected}"/>
+							</s:VGroup>
+							<s:VGroup>
+								<s:Label text="厂家:"/>
+								<s:VGroup minWidth="110" id="vendorFilter" enabled="{vendorCB.selected}"/>
+							</s:VGroup>
+						</s:HGroup>
+						<s:HGroup width="100%" horizontalAlign="center">
+							<s:Button label="确定" click="prepare2ShowData()" 
+									  doubleClickEnabled="false"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:Scroller>
+				
+			</ailk_compts:Window>
+        </ailk_compts:Window>
+
+        <!--告警流水-->
+        <s:VGroup id="alarmVgroup"
+                  width="100%"
+                  gap="0" 
+				  height="167"
+                  bottom="0"
+                  resize="alarmWindow_resizeHandler(event)">
+            <s:Group width="100%"
+                     height="100%">
+                <ailk_compts:Window id="alarmWin"
+                                    width="100%"
+                                    height="100%" 
+                                    minimizable="false"
+                                    maximizable="false"
+                                    closable="false"
+                                    styleName="window">
+					<pubflow:alarm id="alarmFlow"
+								   top="-15"
+								   moduleKey="totalflowalarm"
+								   width="100%"
+								   height="100%">
+					<!--<view:AlarmView id="alarmFlow"
+									top="-15"
+									moduleKey="totalflowalarm"
+									width="100%"
+									height="100%">-->
+					</pubflow:alarm>
+                </ailk_compts:Window>
+                <s:HGroup width="100%"
+                          height="5"
+                          horizontalAlign="center"
+                          gap="0"
+                          y="{alarmWin.y + 1}">
+                    <mx:Image id="img"
+                              source="{_down_gray}"
+                              name="down"
+                              click="resizeWindow()"
+                              mouseOver="changeImg(1)"
+                              mouseOut="changeImg(2)"
+                              buttonMode="true"/>
+                </s:HGroup>
+            </s:Group>
+        </s:VGroup>
+    </mx:VDividedBox>
+	<mx:Box visible="false" includeInLayout="false">
+		<!--<alarm:MoKpiChart  id="kpiChart"/>-->
+		<alarm:ChartComponent  id="kpiChart"/> 
+	</mx:Box>
+</s:Group>

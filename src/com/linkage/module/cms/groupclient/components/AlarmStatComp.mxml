@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" label="告警统计"
+		 width="100%" height="100%" creationComplete="alarmStatComp_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:states>
+		<s:State name="hasData"/>
+		<s:State name="noData"/>
+	</mx:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="dataQuery",type="com.linkage.module.cms.groupclient.event.AlarmStatCompEvent")]
+		[Event(name="alarmQuery",type="com.linkage.module.cms.groupclient.event.AlarmStatCompEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.module.cms.groupclient.event.AlarmStatCompEvent;
+			import com.linkage.module.cms.groupclient.renderer.CustAlarmGroupWarnRenderer;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+			// log
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.GroupMonitorModuleControl_TREE");
+			private var df:DateFormatter=new DateFormatter();
+			[Bindable]
+			private var infoMessage:String;
+			//告警统计图表参数数据集
+			[Bindable]
+			private var alarmStatChartParams:ArrayCollection=new ArrayCollection([{caption: "告警统计柱状图"}, {showvalues: "0"}, {decimalPrecision: "0"}]);
+			//告警统计图表数据集
+			[Bindable]
+			private var alarmStatChartData:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var alarmStatChartTrendLinesData:ArrayCollection=new ArrayCollection();
+			
+			protected function alarmStatComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				var date:Date=new Date();
+				df.formatString="YYYY-MM-DD";
+				alarmStat_endTime.text=df.format(date);
+				alarmStat_endTime.selectedDate=date;
+				date.setDate(date.getDate() - 1);
+				alarmStat_startTime.text=df.format(date);
+				alarmStat_startTime.selectedDate=date;
+				this.addEventListener(AlarmStatCompEvent.DATACHANGE,onDataChange);
+				this.addEventListener(AlarmStatCompEvent.REFRESH,onRefresh);
+				this.dispatchEvent(new AlarmStatCompEvent(AlarmStatCompEvent.REFRESH));
+			}
+			
+			private function onDataChange(event:AlarmStatCompEvent):void{
+				var result:Object = event.param;
+				var columns:Array = buildColumns(result);
+				alarmStatChartData.removeAll();
+				chartGroup.removeAllElements();
+				var productTypes:Array=new Array();
+				for each(var column:AdvancedDataGridColumn in columns){
+					if(column.dataField == "warnLevel"){
+						column.itemRenderer = new ClassFactory(CustAlarmGroupWarnRenderer);
+					}
+					column.width=200;
+				}
+				alarmStatDG.columns = columns;
+				if(result.dataList && result.dataList.length>0){
+					this.currentState="hasData";
+					for each(var data:Object in result.dataList){
+						//					var i:Number=productTypes[data["productType"]];
+						//					if(!i || i==0){
+						//						i=1;
+						//						productTypes[data["productType"]]=i;
+						//					}
+						var obj:Object = new Object();
+						//					obj.label = String(data["productType"]+"专线"+i);
+						obj.label = " "+String(data["businesssystem"]);
+						obj.value=String(data["warnNum"]);
+						alarmStatChartData.addItem(obj);
+						log.info("[告警统计]:"+obj.label+","+obj.value+","+data.warnSeverity);
+						//					data["product_id"]=obj.label;
+						//					app.alarmStatData.addItem(data);
+					}
+					alarmStatDG.dataProvider = result.dataList;
+					
+					var chart:FusionChartsLK = new FusionChartsLK();
+					if(this.width<50){
+						chart.width = 1200;
+					}else{
+						chart.width = this.width-50;
+					}
+					log.info("[告警统计]this.width:{0},chart.width:{1}",this.width,chart.width);
+					chart.height = 300;
+					chart.FCChartType = "Column2D";
+					chart.FCFolder = "/cms/flex-release/FusionCharts";
+					chart.FCParams = alarmStatChartParams;
+					chart.FCData = alarmStatChartData;
+					chartGroup.addElement(chart);
+				}else{
+					infoMessage="查询无结果";
+					this.currentState="noData";
+				}
+			}
+			
+			private function buildColumns(result:Object):Array{
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+					log.info("[buildColumns]name:"+name+",column:"+result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.width=100;
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					columns.push(dataGridColumn);
+					i++;
+				}
+				return columns;
+			}
+			
+			private function onRefresh(event:AlarmStatCompEvent):void{
+				alarmStatQuery.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+			}
+
+			private function alarmStatQuery_clickHandler(event:MouseEvent):void{
+				if(alarmStat_startTime.selectedDate == null){
+					Alert.show("请选择开始时间","提示");
+					return;
+				}else if(alarmStat_endTime.selectedDate == null){
+					Alert.show("请选择结束时间","提示");
+					return;
+				}else if(alarmStat_startTime.selectedDate.getTime()>alarmStat_endTime.selectedDate.getTime()){
+					Alert.show("开始时间不能大于结束时间","提示");
+					return;
+				}
+				var param:Object = new Object();
+				param.startTime=String(alarmStat_startTime.selectedDate.getTime()/1000);
+				param.endTime=String(alarmStat_endTime.selectedDate.getTime()/1000);
+				var evt:AlarmStatCompEvent = new AlarmStatCompEvent(AlarmStatCompEvent.DATAQUERY);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			protected function alarmStatDG_itemClickHandler(event:ListEvent):void
+			{
+				if (event.columnIndex == 3)
+				{
+					var productId:String=event.target.dataProvider[event.rowIndex].product_id;
+					var startTime:Number=alarmStat_startTime.selectedDate.getTime() / 1000;
+					var endTime:Number=alarmStat_endTime.selectedDate.getTime() / 1000;
+					var param:Object = new Object();
+					param.productId = productId;
+					param.startTime = startTime;
+					param.endTime = endTime;
+					var evt:AlarmStatCompEvent = new AlarmStatCompEvent(AlarmStatCompEvent.ALARMQUERY);
+					evt.param = param;
+					this.dispatchEvent(evt);
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%">
+			<mx:Form width="100%">
+				<s:HGroup width="100%">
+					<mx:FormItem label="开始时间：">
+						<mx:DateField id="alarmStat_startTime"
+									  width="120"
+									  formatString="YYYY-MM-DD"/>
+					</mx:FormItem>
+					<mx:FormItem label="结束时间：">
+						<mx:DateField id="alarmStat_endTime"
+									  width="120"
+									  formatString="YYYY-MM-DD"/>
+					</mx:FormItem>
+					<s:Button label="查询"
+							  id="alarmStatQuery"
+							  buttonMode="true"
+							  click="alarmStatQuery_clickHandler(event)"/>
+				</s:HGroup>
+			</mx:Form>
+			<s:HGroup includeIn="noData" paddingLeft="10">
+				<s:Label text="{infoMessage}"/>
+			</s:HGroup>
+			<mx:AdvancedDataGrid id="alarmStatDG" includeIn="hasData"
+								 width="100%"
+								 horizontalScrollPolicy="auto"
+								 columnWidth="200"
+								 itemClick="alarmStatDG_itemClickHandler(event)">
+			</mx:AdvancedDataGrid>
+			<s:Group width="100%" height="100%" id="chartGroup" includeIn="hasData">
+				
+			</s:Group>
+		</s:VGroup>
+	</s:Scroller>
+</mx:VBox>

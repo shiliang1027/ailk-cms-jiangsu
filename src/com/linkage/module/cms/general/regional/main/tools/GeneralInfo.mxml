@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  maximize="window1_maximizeHandler(event)"
+			  restore="window1_restoreHandler(event)"
+			  resizable="true"
+			  title="概况信息"
+			  dragable="true"
+			  width="300"
+			  height="236"
+			  close="closeMe();"
+			  creationComplete="window1_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.regional.data.GisServ;
+			import com.linkage.module.cms.general.regional.main.tools.render.PercentValueRender;
+			import com.linkage.module.cms.general.regional.main.tools.render.UpDownRender;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			private var lm:LoadManager;
+
+			//原始离顶部距离
+			private var storeTop:Object=null;
+			//原始离左边距离
+			private var storeLeft:Object=null;
+			//深度
+			private var panelDepth:int=0;
+			//是否初始化
+			private var isInit:Boolean=false;
+			//数据接口
+			private var _gisServ:GisServ=null;
+			//当前显示的场景编号
+			private var _monitorId:String=null;
+
+			[Bindable]
+			private var pRender:IFactory=new ClassFactory(PercentValueRender);
+
+			[Bindable]
+			private var upDownRender:IFactory=new ClassFactory(UpDownRender);
+
+			//日志
+			public var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.tools.GeneralInfo");
+
+			public function get monitorId():String
+			{
+				return _monitorId;
+			}
+
+			public function set monitorId(value:String):void
+			{
+				_monitorId=value;
+			}
+
+			public function get gisServ():GisServ
+			{
+				return _gisServ;
+			}
+
+			public function set gisServ(value:GisServ):void
+			{
+				_gisServ=value;
+			}
+
+			private function closeMe():void
+			{
+				lm.hideLoading();
+				this.visible=false;
+			}
+
+			public function init(isHistory:Boolean, historyTime:String):void
+			{
+				//第一次进入才加载
+				if (!isInit)
+				{
+					lm.showLoading("正在加载数据, 请稍后...");
+					var param:Object=new Object();
+					param.monitor_id=_monitorId;
+					if (isHistory)
+					{
+						param.type="2";
+						param.time=historyTime;
+					}
+					else
+					{
+						param.type="1";
+						param.time="";
+					}
+
+					log.info("查询概况信息参数　monitor_id=" + param.monitor_id + " type=" + param.type + " time=" + param.time);
+					_gisServ.getGeneralInfo(param, loadData, null, loadErrData);
+				}
+			}
+
+			public function loadData(obj:Object):void
+			{
+				lm.hideLoading();
+				if (obj != null)
+				{
+					log.info("查询概况信息成功！");
+					this.grid.dataProvider=obj;
+				}
+				else
+				{
+					log.info("查询概况信息为空！");
+				}
+			}
+
+			public function loadErrData(obj:Object):void
+			{
+				lm.hideLoading();
+				log.info("查询概况信息失败！");
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				lm=new LoadManager(ginfoGroup);
+
+				var col:AdvancedDataGridColumn=null;
+				var cellarr:Array=new Array();
+				//创建列
+				col=new AdvancedDataGridColumn();
+				col.headerText="指标名称";
+				col.dataField="show_name";
+				//grid.columns = grid.columns.concat(col);
+				cellarr=cellarr.concat(col);
+
+				col=new AdvancedDataGridColumn();
+				col.headerText="指标当前值";
+				col.dataField="perf_value";
+				//grid.columns = grid.columns.concat(col);
+				cellarr=cellarr.concat(col);
+
+				col=new AdvancedDataGridColumn();
+				col.itemRenderer=new ClassFactory(GeneralRenderer);
+				col.headerText="预案值";
+				col.dataField="base_value";
+				//grid.columns = grid.columns.concat(col);
+				cellarr=cellarr.concat(col);
+
+				col=new AdvancedDataGridColumn();
+				col.headerText="较平时变化情况";
+				col.dataField="compare_num";
+				col.itemRenderer=upDownRender;
+				//grid.columns = grid.columns.concat(col);
+				cellarr=cellarr.concat(col);
+
+				col=new AdvancedDataGridColumn();
+				col.headerText="变化百分比";
+				col.dataField="compare_rate";
+				col.itemRenderer=pRender;
+				//grid.columns = grid.columns.concat(col);
+				cellarr=cellarr.concat(col);
+
+				col=new AdvancedDataGridColumn();
+				col.headerText="统计时间";
+				col.dataField="stat_time";
+				col.width=255;
+				//grid.columns = grid.columns.concat(col);
+				cellarr=cellarr.concat(col);
+
+				col=new AdvancedDataGridColumn();
+				col.headerText="统计分类";
+				col.dataField="stat_type";
+				//grid.columns = grid.columns.concat(col);
+				cellarr=cellarr.concat(col);
+
+				grid.columns=cellarr;
+			}
+
+			//保存值
+			public function saveBaseValue(value:String, data:Object):void
+			{
+				var perfTypeId:String=data.perf_type_id;
+				log.info("保存预案值value=" + value + ",perfTypeId=" + perfTypeId + ",monitorId=" + _monitorId);
+				if (value == null || value == "" || perfTypeId == null || perfTypeId == "")
+				{
+					return;
+				}
+				if (!checkNum(value))
+				{
+					Alert.show("输入预案值不正确，请重新输入!");
+					return;
+				}
+				//参数
+				var params:Object=new Object();
+				params.base_value=value;
+				params.monitor_id=_monitorId;
+				params.perf_type_id=perfTypeId;
+				_gisServ.editBaseValue(params, function(result:Object):void
+					{
+						log.info("保存预案值成功!");
+						data.base_value=value;
+					}, function():void
+					{
+						log.info("保存预案值失败!");
+					});
+			}
+
+
+			//验证是否是数值
+			public function checkNum(value:String):Boolean
+			{
+				var result:Boolean=true;
+				var str:String="0123456789.-";
+				var len:int=value.length;
+				for (var i:int; i < len; i++)
+				{
+					var ch:String=value.charAt(i);
+					if (str.indexOf(ch) < 0)
+					{
+						result=false;
+						break;
+					}
+				}
+				return result;
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				storeTop=top;
+				storeLeft=left;
+				panelDepth=depth;
+				top=0;
+				left=0;
+				depth=1000;
+			}
+
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				top=storeTop;
+				left=storeLeft;
+				depth=panelDepth;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group width="100%"
+			 height="100%"
+			 id="ginfoGroup">
+		<mx:AdvancedDataGrid width="100%"
+							 height="100%"
+							 id="grid"
+							 horizontalScrollPolicy="auto"
+							 textAlign="left"/>
+	</s:Group>
+</panel:Window>

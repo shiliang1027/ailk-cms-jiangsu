@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" 
+			   xmlns:panel="com.linkage.system.component.panel.*"
+			   close="closeMe();" maximizable="false" minimizable="false" dragable="true">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.CheckBox;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			//是否需要初始化
+			private var flag:Boolean = true;
+			
+			protected function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			public function initConfigList(obj:Object,fun:Function):void
+			{
+				if (flag){
+					for each (var str:String in obj)
+					{
+						var check:CheckBox = new CheckBox();
+						check.selected = true;
+						check.label = str;
+						this.perfList.addElement(check);
+					}
+					
+					this.button1.addEventListener(MouseEvent.CLICK,function():void{
+						closeMe();
+						
+						//取所有CHECKBOX的值
+						var list:ArrayCollection = new ArrayCollection();
+						var count:int = perfList.numElements;
+						var tmp:CheckBox = null;
+						for (var x:int=0;x<count;x++){
+							tmp = (perfList.getElementAt(x) as CheckBox);
+							if (tmp.selected){
+								list.addItem(tmp.label);
+							}
+						}
+						
+						fun.call(null,list);
+					});
+					
+					flag = false;
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="selectGrop" horizontalAlign="center" width="150" height="180">
+		<s:Scroller width="150" height="160" horizontalScrollPolicy="auto">
+			<s:VGroup id="perfList">
+			</s:VGroup>
+		</s:Scroller>
+		<s:Button id="button1" label="关闭" click="closeMe();">
+		</s:Button>
+	</s:VGroup>
+</panel:Window>

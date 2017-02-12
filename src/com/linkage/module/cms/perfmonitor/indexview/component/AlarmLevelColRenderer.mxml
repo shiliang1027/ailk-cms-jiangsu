@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  clipAndEnableScrolling="true"
+								  dataChange="initCountInfo()"
+								  focusEnabled="false"
+								  >
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.indexview.resource.imagesclass.IconParam;
+			
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+			
+			import nl.demonsters.debugger.MonsterDebugger;
+
+			protected function initCountInfo():void
+			{
+				if(listData == null || data == null)
+					return;
+				
+				image.source = null;
+				
+				var dataField:String=(listData as AdvancedDataGridListData).dataField;
+				if (dataField == "level1")
+				{
+					image.source = IconParam.Icon_alarm_level1;
+				}
+				else if (dataField == "level2")
+				{
+					image.source = IconParam.Icon_alarm_level2;
+				}
+				else if (dataField == "perfLevel")
+				{
+					var level:String = data.perfLevel
+					if (level == "一级")
+					{
+						image.source = IconParam.Icon_alarm_level1;
+					}
+					else if (level == "二级")
+					{
+						image.source = IconParam.Icon_alarm_level2;
+					}
+					else if (level == "三级")
+					{
+						image.source = IconParam.Icon_alarm_level3;
+					}
+					else if (level == "四级")
+					{
+						image.source = IconParam.Icon_alarm_level4;
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%"
+			  height="100%"
+			  paddingLeft="20"
+			  verticalAlign="middle"
+			  horizontalAlign="left">
+		<mx:Image id="image"/>
+		<s:Label lineBreak="explicit"
+				 text="{listData.label}"
+				 />
+	</s:HGroup>
+</s:MXAdvancedDataGridItemRenderer>

@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" 
+		 width="100%" height="100%" xmlns:main="com.linkage.module.cms.general.regional.main.*">
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.core.styles.GisTextStyle;
+			import com.linkage.gis.event.GisFeatureEvent;
+			import com.linkage.module.cms.general.regional.data.GisServ;
+			import com.linkage.module.cms.general.regional.data.SpotPicServ;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			[Embed(source="com/linkage/module/cms/general/regional/picmonitor/img/point.png")]
+			[Bindable]
+			private static var point:Class;
+			
+			private var senceInfo:Object = [
+				{"id":"1","name":"test","type":"movie","url":"movie/1.flv","longitdue":"113.289518","latitude":"23.23172"},
+				{"id":"2","name":"test","type":"pic","url":"img/RNC.png","longitdue":"113.359518","latitude":"23.03172"},
+				{"id":"3","name":"test","type":"pic","url":"img/RNC.png","longitdue":"113.209518","latitude":"23.16172"}
+			];
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.RegionalView");
+			
+			//调试标志
+			private var _isDebug:Boolean = false;
+			
+			//当前显示的场景编号
+			private var _monitorId:String = null;
+			
+			//数据接口
+			[Bindable]
+			private var _gisServ:GisServ = null;
+			
+			//数据接口
+			private var _spotPicServ:SpotPicServ = null;
+			
+			//参数对象
+			private var _params:Object = null;
+			
+			//主视图
+			private var _regionalView:Object = null;
+			
+			public function get regionalView():Object
+			{
+				return _regionalView;
+			}
+			
+			public function set regionalView(value:Object):void
+			{
+				_regionalView = value;
+			}
+
+			public function get params():Object
+			{
+				return _params;
+			}
+
+			public function set params(value:Object):void
+			{
+				_params = value;
+			}
+
+			public function get spotPicServ():SpotPicServ
+			{
+				return _spotPicServ;
+			}
+
+			public function set spotPicServ(value:SpotPicServ):void
+			{
+				_spotPicServ = value;
+			}
+
+			public function get gisServ():GisServ
+			{
+				return _gisServ;
+			}
+
+			public function set gisServ(value:GisServ):void
+			{
+				_gisServ = value;
+			}
+
+			public function get monitorId():String
+			{
+				return _monitorId;
+			}
+
+			public function set monitorId(value:String):void
+			{
+				_monitorId = value;
+			}
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function init():void
+			{
+				//先查询场景图片和视频信息
+				_spotPicServ.getSpotPicInfoList(_monitorId,loadData,null,loadDataErr);
+			}
+			
+			public function hideView():void
+			{
+				this.mapView.hideView();
+			}
+			
+			public function showView():void
+			{
+				this.mapView.showView();
+			}
+			
+			public function loadData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询场景图片和视频信息成功！");
+					senceInfo = obj;
+					loadMap();
+				}
+				else
+				{
+					log.info("查询场景图片和视频信息为空！");
+					loadMap();
+				}
+			}
+			
+			public function loadDataErr(obj:Object):void
+			{
+				log.info("查询场景图片和视频信息失败！");
+				loadMap();
+			}
+			
+			private function loadMap():void
+			{
+				//设置地图回调
+				this.mapView.isDebug = _isDebug;
+				this.mapView.monitorId = _monitorId;
+				this.mapView.callBack = this.initMapInfo;
+				this.mapView.params = _params;
+				this.mapView.regionalView = _regionalView;
+				this.mapView.initData();
+			}
+			
+			public function initMapInfo():void
+			{
+				log.info("开始放置图片=================");
+				if (senceInfo != null)
+				{
+					var pic:GisMarkerPictureStyle = null;
+					var text:GisTextStyle = null;
+					var feature:GisFeature = null;
+					var f:TextFormat = new TextFormat();
+					f.size = 20;
+					f.color = 0xFFFFFF;
+					
+					//将监控对象放置到GIS上
+					for each (var sence:Object in senceInfo)
+					{
+						log.info("type====" + sence.img_type);
+						if (sence.img_type == "movie")
+						{
+							log.info("longitude=" + sence.longitude + " latitude=" + sence.latitude);
+							pic = new GisMarkerPictureStyle(point);
+							feature = new GisFeature(new GisPoint(Number(sence.longitude),Number(sence.latitude)),pic);
+							this.mapView.mapWork.map.addGisFeature(feature);
+							feature.attributes = sence;
+//							feature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,function(event:GisFeatureEvent):void{
+//								showMovie(String(event.gisFeature.attributes.img_url),event.gisFeature.attributes.img_id);
+//							});
+							feature.onClick = function(gisFeature:GisFeature,event:MouseEvent):void{
+								showMovie(String(gisFeature.attributes.img_url),gisFeature.attributes.img_id);
+							}
+							
+							text = new GisTextStyle(String(sence.id));
+							text.textFormat = f;
+							feature = new GisFeature(new GisPoint(Number(sence.longitude),Number(sence.latitude)),text);
+							this.mapView.mapWork.map.addGisFeature(feature);
+							feature.attributes = sence;
+//							feature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,function(event:GisFeatureEvent):void{
+//								showMovie(String(event.gisFeature.attributes.img_url),event.gisFeature.attributes.img_id);
+//							});
+							feature.onClick = function(gisFeature:GisFeature,event:MouseEvent):void{
+								showMovie(String(gisFeature.attributes.img_url),gisFeature.attributes.img_id);
+							}
+							
+						}
+						else if (sence.img_type == "picture")
+						{
+							log.info("longitude=" + sence.longitude + " latitude=" + sence.latitude);
+							pic = new GisMarkerPictureStyle(point);
+							feature = new GisFeature(new GisPoint(Number(sence.longitude),Number(sence.latitude)),pic);
+							this.mapView.mapWork.map.addGisFeature(feature);
+							feature.attributes = sence;
+//							feature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,function(event:GisFeatureEvent):void{
+//								showImg(String(event.gisFeature.attributes.img_url),event.gisFeature.attributes.img_id);
+//							});
+							feature.onClick = function(gisFeature:GisFeature,event:MouseEvent):void{
+								showImg(String(gisFeature.attributes.img_url),gisFeature.attributes.img_id);
+							}
+							
+							
+							text = new GisTextStyle(String(sence.id));
+							text.textFormat = f;
+							feature = new GisFeature(new GisPoint(Number(sence.longitude),Number(sence.latitude)),text);
+							this.mapView.mapWork.map.addGisFeature(feature);
+							feature.attributes = sence;
+//							feature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,function(event:GisFeatureEvent):void{
+//								showImg(String(event.gisFeature.attributes.img_url),event.gisFeature.attributes.img_id);
+//							});
+							feature.onClick = function(gisFeature:GisFeature,event:MouseEvent):void{
+								showImg(String(gisFeature.attributes.img_url),gisFeature.attributes.img_id);
+							}
+						}
+					}
+					
+					this.mapView.mapWork.map.viewRefresh();
+				}
+			}
+			
+			private var imgIndex:int = 1;
+			
+			//切换显示图片
+			private function showImg(url:String, id:String):void
+			{
+				if (imgIndex == 1)
+				{
+					this.img1.source = url;
+					this.img1Text.text = id;
+					imgIndex = 2;
+				}
+				else
+				{
+					this.img2.source = url;
+					this.img2Text.text = id;
+					imgIndex = 1;
+				}
+			}
+			
+			//切换显示视频
+			private function showMovie(url:String, id:String):void
+			{
+				this.movieText.text = id;
+				log.info("播放视频：" + url);
+				player.source = url;
+				//player.source = "/cms/flex-release/movie/1.flv";
+				player.play();
+			}
+			
+			/**
+			 * 视频播放器初始化完毕后的调用方法
+			 */ 
+			private function player_creationCompleteHandler(event:FlexEvent):void
+			{
+				systemManager.stage.addEventListener(FullScreenEvent.FULL_SCREEN, fitVideoPlayer);
+			}
+			
+			/**
+			 * 修正视频播放器退出全屏后的尺寸
+			 */ 
+			private function fitVideoPlayer(e:FullScreenEvent):void
+			{
+				var event:Boolean = e.fullScreen;
+				if (event == false)
+				{
+					player.percentHeight = 100;
+					player.percentWidth = 100;
+					player.invalidateDisplayList();
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<main:MapView id="mapView" width="50%" height="100%" gisServ="{_gisServ}" showGeneralInfo="true"/>
+	<s:VGroup width="50%" height="100%">
+		<s:Group width="100%" height="50%">
+			<s:VideoPlayer id="player" source="" autoPlay="false" width="100%" height="100%" creationComplete="player_creationCompleteHandler(event)"/>
+			<mx:Text id="movieText" text="" fontSize="30" color="0xFFFFFF"/>
+		</s:Group>
+		<s:HGroup width="100%" height="50%">
+			<s:Group width="50%" height="100%">
+				<mx:Image id="img1" source="" width="100%" height="100%"/>
+				<mx:Text id="img1Text" text="" fontSize="30" color="0xFFFFFF"/>
+			</s:Group>
+			<s:Group width="50%" height="100%">
+				<mx:Image id="img2" source="" width="100%" height="100%"/>
+				<mx:Text id="img2Text" text="" fontSize="30" color="0xFFFFFF"/>
+			</s:Group>
+		</s:HGroup>
+	</s:VGroup>
+</s:Group>

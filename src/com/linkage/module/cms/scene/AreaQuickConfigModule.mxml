@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+           xmlns:s="library://ns.adobe.com/flex/spark"
+           xmlns:mx="library://ns.adobe.com/flex/mx"
+           layout="absolute"
+           xmlns:parsley="http://www.spicefactory.org/parsley"
+           width="100%"
+           height="100%"
+           xmlns:view="com.linkage.module.cms.scene.view.*"
+           preinitialize="module1_preinitializeHandler(event)"
+           creationComplete="creat_creationCompleteHandler(event)">
+    <!--
+         ***************************************
+         This is Content
+         @author wuchao (Ailk No.)
+         @version 1.0
+         @date 2012-12-14
+         @langversion 3.0
+         @playerversion Flash 11
+         @productversion Flex 4
+         @copyright Ailk NBS-Network Mgt. RD Dept.
+         ***************************************
+    -->
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+        <parsley:Configure/>
+        <parsley:ContextBuilder>
+            <parsley:FlexConfig type="{SceneModuleContext}"/>
+        </parsley:ContextBuilder>
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.linkage.module.cms.scene.domain.common.IUser;
+
+            import mx.events.FlexEvent;
+
+            [Inject("user")]
+            public var user:IUser;
+
+            public var parameters:Object;
+
+            private var log:ILogger = Log.getLoggerByClass(AreaQuickConfigModule);
+
+            [Init]
+            public function moduleInit():void
+            {
+                if (log.infoEnabled)
+                    log.info("--开始初始化用户信息！");
+
+                this.parameters = this.parentApplication.parameters;
+                user.context = this.parameters['context'];
+                user.account = this.parameters['account'];
+
+                if (log.infoEnabled)
+                {
+                    log.info(user);
+                    log.info("--初始化用户信息完成！");
+                }
+
+            }
+
+            protected function module1_preinitializeHandler(event:FlexEvent):void
+            {
+
+            }
+
+            protected function creat_creationCompleteHandler(event:FlexEvent):void
+            {
+                if (log.infoEnabled)
+                    log.info("--开始加载样式！");
+                //读取样式
+                styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+
+                //test
+                //styleManager.loadStyleDeclarations2("/cms/flex-release/css/common/show/ui.swf");
+                if (log.infoEnabled)
+                    log.info("--加载样式完成！");
+                view.init();
+
+            }
+        ]]>
+    </fx:Script>
+    <s:Scroller width="100%"
+                height="100%"
+                styleName="sceneScroller"
+                horizontalScrollPolicy="auto"
+                verticalScrollPolicy="auto">
+        <view:AreaQuickConfigView id="view"
+                                  width="100%"
+                                  height="100%"/>
+    </s:Scroller>
+</mx:Module>

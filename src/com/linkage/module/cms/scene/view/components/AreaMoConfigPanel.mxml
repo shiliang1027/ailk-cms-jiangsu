@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					minimizable="false"
+					maximizable="false"
+					closable="false"
+					dragable="true"
+					styleName="window"
+					creationComplete="createCompleteConfig()">
+
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-12-28
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<s:RadioButtonGroup id="areaOrMo"
+							itemClick="dataChangeDispatch()"/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(AreaMoConfigPanel);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			//初始创建完成后，初始化数据，抛出事件
+			public function createCompleteConfig():void
+			{
+				log.info("配置面板创建完成，初始化面板数据，抛出事件，初始化kpi数据。");
+				areaOrMo.selectedValue = 1;
+//				dataChangeDispatch();
+			}
+
+			public function dataChangeDispatch():void
+			{
+				var evt:SceneEvent = new SceneEvent(SceneEvent.AREAORMO_DATACHANGE);
+				evt.param = new Object;
+				evt.param.rendeType = String(areaOrMo.selectedValue);
+				user.rendeType = evt.param.rendeType;
+				log.info(evt.param);
+				msgDispatcher(evt);
+			}
+
+			protected function hgroup1_mouseOverHandler(event:MouseEvent):void
+			{
+				log.debug("GIS区域网元按钮提示信息...");
+				if (user.isNew == "1")
+				{
+					user.labelTypeId = "407";
+					setTimeout(function():void
+						{
+							var obj:Object = new Object;
+							var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+							obj.labelId = "407";
+							e.obj = obj;
+							log.debug("参数信息...");
+							log.info(e.obj);
+//							msgDispatcher(e);
+							requestServerUtil.addRequest(e);
+						}, 3000);
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  top="-15">
+		<mx:HRule width="100%"
+				  height="1"/>
+		<s:HGroup horizontalAlign="center"
+				  width="100%"
+				  mouseOver="hgroup1_mouseOverHandler(event)">
+			<s:RadioButton group="{areaOrMo}"
+						   value="1"
+						   label="场景"/>
+			<s:RadioButton group="{areaOrMo}"
+						   value="2"
+						   label="网元"/>
+		</s:HGroup>
+		<mx:HRule width="100%"
+				  height="1"/>
+
+	</s:VGroup>
+</ailk_compts:Window>

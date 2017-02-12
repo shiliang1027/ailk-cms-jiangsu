@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TileGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+             xmlns:s="library://ns.adobe.com/flex/spark"
+             xmlns:mx="library://ns.adobe.com/flex/mx"
+			 columnAlign="justifyUsingWidth" rowAlign="top" rowHeight="240"
+             orientation="rows"
+             requestedColumnCount="2"
+             horizontalAlign="center"
+             creationComplete="tilegroup1_creationCompleteHandler(event)"
+             width="100%"
+             height="100%">
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+
+            import mx.collections.IList;
+            import mx.core.IVisualElement;
+            import mx.events.FlexEvent;
+
+            private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.kpi.MoMonitor");
+
+            private var chartCompCache:Object = {};
+
+            private var dataTimer:Timer = new Timer(600000);
+            private var viewTimer:Timer = new Timer(60000);
+
+            protected function tilegroup1_creationCompleteHandler(event:FlexEvent):void
+            {
+                dataTimer.addEventListener(TimerEvent.TIMER, refreshData);
+                dataTimer.start();
+
+                viewTimer.addEventListener(TimerEvent.TIMER, refreshView);
+            }
+
+            public function startMonitor(schemeId:String, schemeName:String):void
+            {
+
+				log.info("mo:"+this.currentState);
+                PerfMonitorDAO.getInstance().getMoAndKpiByScheme(
+                    {"scheme_id": schemeId},
+                    function(result:Object):void
+                    {
+                        chartCompCache = {};
+                        removeAllElements();
+
+                        for each (var obj:Object in result)
+                        {
+                            var chartComp:ChartComponent = new ChartComponent;
+
+                            chartComp.title = obj.kpi_name;
+                            chartComp.kpiName = obj.kpi_name;
+                            chartComp.kpiId = obj.kpi_id;
+                            chartComp.moTypeId = obj.mo_type_id;
+
+                            chartComp.compareMoAC.removeAll();
+                            chartComp.compareMoAC.addAll(obj['molist'] as IList);
+
+                            chartComp.currentState = "kpimo";
+
+//                            chartComp.width = width / 2 - 10;
+//                            chartComp.height = 240;
+
+                            addElement(chartComp);
+
+                            chartComp.loadMoMonitorData(true);
+
+                            chartCompCache[chartComp.kpiId + chartComp.moTypeId] = chartComp;
+
+                            if (contentHeight > height)
+                                viewTimer.start();
+                        }
+                    });
+            }
+
+            private function refreshData(e:TimerEvent):void
+            {
+                for each (var cc:ChartComponent in chartCompCache)
+                {
+                    cc.loadCityMoMonitorData(false);
+                }
+            }
+
+            private function refreshView(e:TimerEvent):void
+            {
+                var ele0:IVisualElement = this.getElementAt(0);
+                var ele1:IVisualElement = this.getElementAt(1);
+
+                this.removeElementAt(0);
+                this.removeElementAt(0);
+
+                this.addElement(ele0);
+                this.addElement(ele1);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+</s:TileGroup>

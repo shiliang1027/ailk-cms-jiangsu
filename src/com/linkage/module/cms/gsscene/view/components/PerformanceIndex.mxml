@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					creationPolicy="all"
+					dragable="true"
+					minimizable="false"
+					styleName="windowScene"
+					close="closeWindow(1)"
+					maximize="window2_resize(true)"
+					restore="window2_resize(false)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+
+	<!--  性能指标
+		 ***************************************
+		 This is Content
+		 * @author xudx (69291)
+		 @version 1.0
+		 @date 2012-7-30
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.performanceindex.PerformanceIndexPM;
+			import com.linkage.module.cms.gsscene.view.components.performanceindex.event.PerformanceIndexEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Group;
+
+			private var log:ILogger = Log.getLoggerByClass(PerformanceIndex);
+
+			public var location:String;
+			public var index:String;
+			private var maxFlag:Boolean = false;
+
+			[Inject("performanceIndexPM")]
+			[Bindable]
+			public var performanceIndexPM:PerformanceIndexPM;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			public var type:String;
+
+			public function init(e:SceneEvent = null):void
+			{
+				log.info("load float data:");
+				performanceIndexPM.loadData();
+			}
+
+			[MessageHandler(selector="CMS_SCENE_PERFORMANCEINDEX_SHOWORHIDDENDATAGRID")]
+			public function showOrHiddenHandler(e:PerformanceIndexEvent):void
+			{
+				if (type == "1")
+				{
+					khgz.dataProvider = null;
+					ywxn.dataProvider = null;
+					sbxn.dataProvider = null;
+					gjxx.dataProvider = null;
+				}
+				else
+				{
+					khgz.dataProvider = performanceIndexPM.performanceIndexDM.custPerfDP;
+					ywxn.dataProvider = performanceIndexPM.performanceIndexDM.servPerfDP;
+					sbxn.dataProvider = performanceIndexPM.performanceIndexDM.moPerfDP;
+					gjxx.dataProvider = performanceIndexPM.performanceIndexDM.alarmDP
+				}
+			}
+
+			public function closeWindow(type:int = 0):void
+			{
+				this.visible = false;
+				this.includeInLayout = false;
+			}
+
+			protected function window2_resize(flag:Boolean):void
+			{
+				log.info("##_## 最大化、恢复窗口：" + flag + "_" + maxFlag);
+				this.closeButton.visible = !flag;
+				this.closeButton.includeInLayout = !flag;
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				user.floatTime = fTime.text;
+
+//				var e:SceneEvent = new SceneEvent(SceneEvent.SHOW_PERFORMANCEINDEX);
+//				e.param = this.title;
+				performanceIndexPM.loadData();
+			}
+
+			/**
+			 * 时间格式
+			 */
+			private static const dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			protected function fTime_creationCompleteHandler(event:FlexEvent):void
+			{
+				var d:Date = new Date;
+				fTime.text = dateFormatter.format(d);
+			}
+
+			public function dealAlarmHandler(value:Object):String
+			{
+				try
+				{
+					if (value != null)
+					{
+						if (value["dealAlarm"] == "0")
+							return "未达到累计次数";
+					}
+					return "";
+				}
+				catch (e:Error)
+				{
+
+				}
+				return "";
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  paddingTop="2"
+			  paddingLeft="3"
+			  paddingRight="3"
+			  paddingBottom="5"
+			  gap="2">
+		<s:HGroup width="100%"
+				  textAlign="center"
+				  horizontalAlign="center"
+				  verticalAlign="middle">
+			<ailk_compts:UXDateField id="fTime"
+									 color="0"
+									 creationComplete="fTime_creationCompleteHandler(event)"
+									 labelFunction="formatDate"
+									 height="100%"
+									 width="185"/>
+			<s:Button label="查询"
+					  click="button1_clickHandler(event)"
+					  height="100%"
+					  width="50"
+					  right="2"/>
+		</s:HGroup>
+		<mx:Accordion id="accordion"
+					  width="100%"
+					  creationPolicy="all"
+					  height="100%">
+			<mx:VBox label="劣化指标"
+					 width="100%"
+					 height="100%">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 dataProvider="{performanceIndexPM.performanceIndexDM.badKpiDP}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="kpiName"
+												   headerText="指标名"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="kpiValue"
+												   headerText="指标值"
+												   width="65"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"
+												   itemRenderer="com.linkage.module.cms.gsscene.view.components.renderer.ColumnColorDyeRenderer"/>
+						<mx:AdvancedDataGridColumn dataField="gatherTime"
+												   headerText="采集时间"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="numerator"
+												   headerText="分子"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="denominator"
+												   headerText="分母"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="calcute"
+												   headerText="算法"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</mx:VBox>
+
+			<mx:VBox label="客户感知指标"
+					 width="100%"
+					 height="100%">
+				<mx:AdvancedDataGrid id="khgz"
+									 width="100%"
+									 height="100%"
+									 styleName="sceneDG">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="kpiName"
+												   headerText="指标名"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="kpiValue"
+												   headerText="指标值"
+												   width="65"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"
+												   itemRenderer="com.linkage.module.cms.gsscene.view.components.renderer.ColumnColorDyeRenderer"/>
+						<mx:AdvancedDataGridColumn dataField="gatherTime"
+												   headerText="采集时间"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="numerator"
+												   dataTipFunction="dealAlarmHandler"
+												   headerText="分子"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="denominator"
+												   dataTipFunction="dealAlarmHandler"
+												   headerText="分母"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="calcute"
+												   headerText="算法"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</mx:VBox>
+
+			<mx:VBox label="业务性能指标"
+					 width="100%"
+					 height="100%">
+				<mx:AdvancedDataGrid id="ywxn"
+									 width="100%"
+									 height="100%"
+									 styleName="sceneDG">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="kpiName"
+												   headerText="指标名"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="kpiValue"
+												   headerText="指标值"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"
+												   width="65"
+												   itemRenderer="com.linkage.module.cms.gsscene.view.components.renderer.ColumnColorDyeRenderer"/>
+						<mx:AdvancedDataGridColumn dataField="gatherTime"
+												   headerText="采集时间"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="numerator"
+												   headerText="分子"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="denominator"
+												   dataTipFunction="dealAlarmHandler"
+												   headerText="分母"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="calcute"
+												   headerText="算法"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</mx:VBox>
+
+			<mx:VBox label="设备性能指标"
+					 width="100%"
+					 height="100%">
+				<mx:AdvancedDataGrid id="sbxn"
+									 width="100%"
+									 height="100%"
+									 styleName="sceneDG">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="kpiName"
+												   headerText="指标名"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="kpiValue"
+												   headerText="指标值"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"
+												   width="65"
+												   itemRenderer="com.linkage.module.cms.gsscene.view.components.renderer.ColumnColorDyeRenderer"/>
+						<mx:AdvancedDataGridColumn dataField="gatherTime"
+												   headerText="采集时间"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="numerator"
+												   headerText="分子"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="denominator"
+												   dataTipFunction="dealAlarmHandler"
+												   headerText="分母"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="calcute"
+												   headerText="算法"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</mx:VBox>
+
+			<mx:VBox label="告警信息"
+					 width="100%"
+					 height="100%">
+				<mx:AdvancedDataGrid id="gjxx"
+									 width="100%"
+									 height="100%"
+									 styleName="sceneDG">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="alarmType"
+												   headerText="告警类别"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="alarmNum"
+												   headerText="告警数量"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"
+												   width="65"/>
+						<mx:AdvancedDataGridColumn dataField="gatherTime"
+												   headerText="采集时间"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="numerator"
+												   headerText="分子"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="denominator"
+												   headerText="分母"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+						<mx:AdvancedDataGridColumn dataField="calcute"
+												   headerText="算法"
+												   dataTipFunction="dealAlarmHandler"
+												   showDataTips="true"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</mx:VBox>
+		</mx:Accordion>
+	</s:VGroup>
+</ailk_compts:Window>

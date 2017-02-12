@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute"
+		   xmlns:panel="com.linkage.system.component.panel.*"  
+		   xmlns:local="com.linkage.module.cms.groupclient.components.*"
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   backgroundColor="0xD7E0E7"
+		   width="100%" height="100%" creationComplete="module_creationCompleteHandler()">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			
+			import com.linkage.module.cms.alarm.framework.common.event.MenuEvent;
+			import com.linkage.module.cms.alarm.pubflow.alarm;
+			import com.linkage.module.cms.alarm.pubflow.custalarm;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManager;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManagerBS;
+			import com.linkage.module.cms.groupclient.event.CustWindowEvent;
+			import com.linkage.module.cms.groupclient.event.FilterFormEvent;
+			import com.linkage.module.cms.groupclient.event.RealMonitorCustListGroupEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.EffectEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.GroupEqAlarmMonitor");
+			public var parameters:Object;	
+
+			
+//			private var defaultFilter:String = 'ismetropolis!=&businesslevel!=';//暂时模拟的集客告警
+			private var defaultFilter:String = 'alarmtitle=\"端口Down\"&equipmentclass=\"BRAS\"&customerflag=\"1\"';//局端设备告警监控
+			public var lm:LoadManager = null;
+			
+			[Embed(source="./assets/up_gray.png")]
+			[Bindable]
+			private static var _up_gray:Class;
+			
+			[Embed(source="./assets/up_blue.png")]
+			[Bindable]
+			private static var _up_blue:Class;
+			
+			[Embed(source="./assets/down_gray.png")]
+			[Bindable]
+			private static var _down_gray:Class;		
+			
+			[Embed(source="./assets/down_blue.png")]
+			[Bindable]
+			private static var _down_blue:Class;
+			[Bindable]
+			private var _winTitle:String = "";//局端设备告警监控  重大故障监控
+			[Bindable]
+			private var _moduleKey:String = "groupbuss_p2pdevice";//局端设备告警监控  重大故障监控
+			//数据刷新定时器
+			protected function module_creationCompleteHandler():void
+			{
+				parameters = parentApplication.parameters;
+				
+				
+				lm = new LoadManager(this);
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//初始化manager
+				initServerClass();
+				//初始化告警流水
+				initDefaultAlarm();
+				log.info("初始化完成！");
+				
+//				doDemo();
+			}
+			
+			private var alarmType:String;
+			private function initDefaultAlarm():void
+			{
+				log.info('初始化告警流水：');
+				
+				//初始化告警流水
+				var alarmParams:Object = {};
+				alarmParams.mapInfo=this.parameters['mapInfo'];
+				alarmParams.defaultDisplay="alarmstatus";
+				
+				alarmType = parameters["alarmType"];
+				if(alarmType=="equipalarm"){
+					_winTitle = "局端设备告警监控";
+					defaultFilter = 'alarmtitle=\"端口Down\"&equipmentclass=\"BRAS\"&customerflag=\"1\"';//局端设备告警监控
+					_moduleKey="groupbuss_p2pdevice";
+
+					this.currentState = "custAlarmState";
+					//设置过滤规则
+					alarmFlow.params = alarmParams;
+					alarmFlow.ruleContent = defaultFilter;
+					alarmFlow.initInfo();
+					alarmFlow.addAlarmListener("QUERYCUST",queryCustHandler);
+				}else if(alarmType=="importAlarm"){
+					_winTitle = "重大故障监控";
+					defaultFilter = 'systemname=\"综合监控\"&alarmtitle=\"[阀值衍生]大面积IAD退服\"';//集客告警
+					_moduleKey = "groupbuss_majorfault";
+					
+					this.currentState = "flowAlarmState";
+					//设置过滤规则
+					flowAlarm.params = alarmParams;
+					flowAlarm.ruleContent = defaultFilter;
+					flowAlarm.initInfo();
+					flowAlarm.addAlarmListener("QUERYCUST",queryCustHandler);
+				}
+				log.info("告警规则：‘"+defaultFilter +"’");
+			}
+			private var groupEqPerfDataManager:GroupEqPerfDataManager= null;
+			//初始化groupEqPerfDataManager，并给数据类注入context
+			private function initServerClass():void
+			{
+				if(null==groupEqPerfDataManager)
+					groupEqPerfDataManager = new GroupEqPerfDataManagerBS(this.parameters['context']);
+			}
+			private function queryCustHandler(event:MenuEvent):void
+			{
+				log.info("关联集客事件，告警参数：");
+				log.info(event.data);
+				var alarmuniqueid:String = event.data.alarmuniqueid;
+				var paserialno:String = event.data.paserialno;
+				var param:Object = {};
+				param.alarmuniqueid = alarmuniqueid;
+				param.paserialno = paserialno;
+				log.info("关联集客事件：param：");
+				log.info(param);
+				var quEvent:RealMonitorCustListGroupEvent = new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.REFRESH);
+				quEvent.param = param;
+				this.supportLevelsRep.dispatchEvent(quEvent);
+			}
+			private function doDemo():void
+			{
+				var param:Object = {};
+				param.alarmuniqueid = "";//模拟数据
+				var event:RealMonitorCustListGroupEvent = new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.REFRESH);
+				event.param = param;
+				this.supportLevelsRep.dispatchEvent(event);
+			}
+			private var datas:Object = {};
+			protected function supportLevelsRep_queryAllCustHandler(event:RealMonitorCustListGroupEvent):void
+			{
+				log.info("");
+				if(alarmType=="equipalarm"){//局端设备监控
+					loadEqRelatedGroupServDetail(event);
+				}else if(alarmType=="importAlarm"){//重大故障监控
+					loadEqCatastrophicServDetail(event);
+				}
+				
+			}
+			private function loadEqRelatedGroupServDetail(event:RealMonitorCustListGroupEvent):void
+			{
+				lm.showLoading();
+				groupEqPerfDataManager.loadEqRelatedGroupServDetail(event.param,
+					function(result:Object):void
+					{
+						if(result.datas){
+							log.info('加载集客局端告警 对应的集客业务等详情成功！');
+						}
+						datas = result;
+						if(null!=datas){
+							if(img.name == "up")
+							{
+								showCustList();
+							}
+							supportLevelsRep.dataProvider = datas;
+						}
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('加载集客局端告警 对应的集客业务等详情失败！');
+						lm.hideLoading();
+					});
+			}
+			private function loadEqCatastrophicServDetail(event:RealMonitorCustListGroupEvent):void
+			{
+				lm.showLoading();
+				groupEqPerfDataManager.loadEqCatastrophicServDetail(event.param,
+					function(result:Object):void
+					{
+						if(result.datas){
+							log.info('加载集客重大告警 对应的集客业务等详情成功！');
+						}
+						datas = result;
+						if(null!=datas){
+							if(img.name == "up")
+							{
+								showCustList();
+							}
+							supportLevelsRep.dataProvider = datas;
+						}
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('加载集客重大告警 对应的集客业务等详情失败！');
+						lm.hideLoading();
+					});
+			}
+			private function changeImg(type:Object):void
+			{
+				img.source = getImg(type);
+			}			
+			private function getImg(type:Object):Object
+			{
+				if(img.name == "down")
+				{
+					if(type == 1)
+						return _down_blue;
+					else
+						return _down_gray;
+				}
+				else if(img.name == "up")
+				{
+					if(type == 1)
+						return _up_blue;
+					else
+						return _up_gray;
+				}
+				
+				return _down_gray;
+			}
+			private function resizeTopWindow():void
+			{
+				if(img.name == "down")
+				{
+					hideCustList();
+				}
+				else if(img.name == "up")
+				{
+					showCustList();
+				}
+			}
+			private function hideCustList(dura:Number=400):void
+			{
+				supportLevelsRep.visible = false;
+				supportLevelsRep.includeInLayout = false; 
+				
+				resize.removeEventListener(EffectEvent.EFFECT_END,resize_effectEndHandler);
+				resize.duration = dura;
+				resize.heightTo = 5;
+				resize.play();
+				
+				img.source = _up_gray;
+				img.name = "up";
+			}
+			private function showCustList(dura:Number=400):void
+			{
+				supportLevelsRep.visible = false;
+				supportLevelsRep.includeInLayout = false; 
+				custVgroup.percentWidth = 100;
+				
+				resize.addEventListener(EffectEvent.EFFECT_END,resize_effectEndHandler);
+				resize.duration = dura;
+				resize.heightTo = 250;
+				resize.play();
+				
+				img.source = _down_gray;
+				img.name = "down";
+			}	
+			private function resize_effectEndHandler(event:EffectEvent):void
+			{
+				supportLevelsRep.includeInLayout = true;
+				supportLevelsRep.visible = true; 
+				custVgroup.percentWidth = 100;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Resize heightTo="0" id="resize" target="{custVgroup}"/>
+	</fx:Declarations>
+	<mx:states>
+		<s:State name="flowAlarmState"/>
+		<s:State name="custAlarmState"/>
+	</mx:states>
+	<s:VGroup width="100%" height="100%" verticalAlign="middle" gap="10" right="10" left="10" top="10" bottom="10">
+		<mx:VDividedBox id="mainDivBox" width="100%" height="100%">
+		<!--告警流水-->
+			<panel:Window id="alarmWin" 
+						  width="100%"
+						  height="100%"
+						  minimizable="false"
+						  maximizable="false"
+						  closable="false"
+						  dragable="false"
+						  horizontalCenter="0"
+						  verticalCenter="0"
+						  title="{_winTitle}">
+				<!-- 局端设备流水 -->
+				<pubflow:custalarm id="alarmFlow" moduleKey="{_moduleKey}" width="100%" height="100%" includeIn="custAlarmState"/>
+				<!-- 重大故障流水 -->
+				<pubflow:alarm id="flowAlarm" moduleKey="{_moduleKey}"  width="100%" height="100%" includeIn="flowAlarmState"/>
+			</panel:Window>
+			<s:VGroup id="custVgroup" width="100%" horizontalAlign="center">
+				<mx:Image id="img" source="{_up_gray}" name="up" 
+						  click="resizeTopWindow()"
+						  mouseOver="changeImg(1)"
+						  mouseOut="changeImg(2)"
+						  buttonMode="true"/>
+				<local:GroupServRelatedDetailWindow id="supportLevelsRep" width="100%" height="100%"
+													visible="false" includeInLayout="false"
+													queryAllCust="supportLevelsRep_queryAllCustHandler(event)"/>
+			</s:VGroup>
+			
+		</mx:VDividedBox>
+	</s:VGroup>
+</mx:Module>

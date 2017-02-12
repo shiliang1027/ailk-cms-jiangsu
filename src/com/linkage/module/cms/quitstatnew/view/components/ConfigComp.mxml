@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					dragable="true" resizable="true"
+					title="配置"
+					styleName="windowScene"
+					minimizable="false"
+					visible="false" includeInLayout="false"
+					close="this.visible = false;this.includeInLayout = false;pm.timerStart();if(pm.dm.saveFlag){dispatchMsg(new QuitStatEvent(QuitStatEvent.QUITSTAT_LOADDATA))};"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:components="com.linkage.module.cms.quitstatnew.view.components.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-8-28
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<ailk_compts:states>
+		<s:State name="ThresHoldDye"/>
+		<s:State name="QuotaConfig"/>
+		<s:State name="MultKpiConfig"/>
+	</ailk_compts:states>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.quitstatnew.QuitModulePM;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+			
+			import mx.events.ListEvent;
+			[Inject("quitModulePM")]
+			[Bindable]
+			public var pm:QuitModulePM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			protected function tree_itemClickHandler(event:ListEvent):void
+			{
+				this.currentState = tree.selectedItem.state;
+			}
+			[MessageHandler(selector="QUITSTAT_CONFIG_WINDOW_SHOW")]
+			public function quitStatConfigWindowShow(e:QuitStatEvent):void
+			{
+				this.visible=this.includeInLayout=true;
+				this.x=(this.parent.width - this.width) / 2;
+				this.y=(this.parent.height - this.height) / 2;
+				pm.timerStop();
+				tree.selectedIndex=0;
+				this.currentState = tree.selectedItem.state;
+			}
+
+		]]>
+	</fx:Script>
+
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto" horizontalScrollPolicy="auto">
+		<s:HGroup width="100%"
+				  gap="5" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
+			<s:BorderContainer height="100%"
+							   width="180">
+				<mx:Tree id="tree" itemClick="tree_itemClickHandler(event)"
+						 selectedIndex="0"
+						 styleName="sceneTree"
+						 dataProvider="{pm.dm.configs}"
+						 height="100%"
+						 width="100%"
+						 borderAlpha="0"
+						 verticalAlign="middle"
+						 contentBackgroundAlpha="0"
+						 showRoot="true"
+						 showScrollTips="true"
+						 wordWrap="false"
+						 variableRowHeight="true"
+						 labelField="name"
+						 editorHeightOffset="0"
+						 indentation="12"
+						 openDuration="250"
+						 paddingLeft="10"
+						 folderClosedIcon="{null}"
+						 folderOpenIcon="{null}"
+						 defaultLeafIcon="{null}"
+						 disclosureClosedIcon="@Embed('../../assets/+.png')"
+						 disclosureOpenIcon="@Embed('../../assets/-.png')"/>
+			</s:BorderContainer>
+			<s:Group width="100%"
+					 height="100%">
+				<components:QuotaConfigComp visible="false" visible.QuotaConfig="true" includeInLayout="false" includeInLayout.QuotaConfig="true"/>
+				
+				<components:ThresHoldDyeComp visible="false" visible.ThresHoldDye="true" includeInLayout="false" includeInLayout.ThresHoldDye="true"/>
+				
+				<components:MultKpiConfigComp visible="false" visible.MultKpiConfig="true" includeInLayout="false" includeInLayout.MultKpiConfig="true"/>
+			</s:Group>
+		</s:HGroup>
+	</s:Scroller>
+
+</ailk_compts:Window>

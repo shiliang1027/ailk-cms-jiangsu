@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 width="100%" height="100%">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.linkage.module.cms.viewroam.event.ViewRoamEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			
+			[Inject("viewRoamPM")]
+			[Bindable]
+			public var pm:ViewRoamPM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			//动态生成表格
+			[MessageHandler(selector="VIEWROAM_REFRESH")]
+			public function group1_creationCompleteHandler(event:ViewRoamEvent):void
+			{
+				var viewRoamData:AdvancedDataGrid = new AdvancedDataGrid();
+				viewRoamData.percentHeight = 100;
+				viewRoamData.percentWidth = 100;
+				viewRoamData.styleName = "sceneDG";
+				viewRoamData.resizableColumns = true;
+				viewRoamData.sortableColumns = true;
+				viewRoamData.sortExpertMode = true;
+				viewRoamData.horizontalScrollPolicy = "on";
+				
+				
+				viewRoamData.columns = [];
+				var configTemp:Array = new Array();
+				var config:ArrayCollection = pm.dm.viewRoamConfigData;
+				for(var i:int=0;i<config.length;i++)
+				{
+					var dc:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dc.headerText = config[i].show_name;
+					dc.dataField = config[i].perf_type_id;
+					dc.headerWordWrap = true;
+					dc.draggable = false;
+					dc.width  = dc.headerText.length*18;
+					configTemp.push(dc);
+				}
+				viewRoamData.columns = configTemp;
+				var dg:ArrayCollection = new ArrayCollection();
+				for(var i:int = pm.dm.viewRoamData.length -1;i>=0;i--){
+					dg.addItem(pm.dm.viewRoamData[i]);
+				}
+				viewRoamData.dataProvider = dg;
+				viewRoamData.showDataTips = true;
+				
+				DG.addElement(viewRoamData);
+				dispatchMsg(new ViewRoamEvent("VIEWROAM_REFRESH_DEFAULT"));
+			}
+		]]>
+	</fx:Script>
+	<s:Group id="DG" width="100%" height="100%" >
+		
+	</s:Group>
+</s:Group>

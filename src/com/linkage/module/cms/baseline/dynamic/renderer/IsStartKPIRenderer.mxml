@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+								  xmlns:s="library://ns.adobe.com/flex/spark" 
+								  xmlns:mx="library://ns.adobe.com/flex/mx" 
+								  focusEnabled="true" 
+								  creationComplete="kpi_creationCompleteHandler()" 
+								  dataChange="kpi_creationCompleteHandler()">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.baseline.dynamic.event.BaseLineEvent;
+			import com.linkage.module.cms.groupclient.event.AlarmSheetNoticeEvent;
+			
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.dynamic.IsStartKPIRenderer");
+			[Bindable]
+			private var buttonStr:String;
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				log.info("button1_clickHandler  其停用操作");
+				var evt:BaseLineEvent = new BaseLineEvent(BaseLineEvent.CHANGEKPISTATUS,true,true);
+				var param:Object = new Object();
+				evt.param = data;
+				this.dispatchEvent(evt);
+			}
+			
+			protected function kpi_creationCompleteHandler():void
+			{
+				if('1'==data.isActive){
+					isActiveEditBtn.visible = true;
+					buttonStr = "停用";
+				}else if('0'==data.isActive){
+					isActiveEditBtn.visible = true;
+					buttonStr = "启用";
+				}else{
+					isActiveEditBtn.visible = false;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:HBox  width="100%" textAlign="center">
+		<mx:Spacer width="50%"/>
+		<s:Button id="isActiveEditBtn" label="{buttonStr}" click="button1_clickHandler(event)" width="60"/>
+		<mx:Spacer width="50%"/>
+	</mx:HBox>
+	
+</s:MXAdvancedDataGridItemRenderer>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:NavBar xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:panel="com.linkage.system.component.panel.*"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    location="right"
+                    styleName="sceneNavBar"
+                    title="场景树图"
+                    mouseOver="navbar1_mouseOverHandler(event)"
+                    width="100%"
+                    height="100%"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+    <!--
+         ***************************************
+         This is Content
+         @author hrw (Ailk No.)
+         @version 1.0
+         @date 2012-7-30
+         @langversion 3.0
+         @playerversion Flash 11
+         @productversion Flex 4
+         @copyright Ailk NBS-Network Mgt. RD Dept.
+         ***************************************
+    -->
+    <fx:Declarations>
+        <parsley:Configure/>
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.MapVectorEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+
+            private var log:ILogger = Log.getLoggerByClass(SceneTreeComp);
+
+            [Inject("sceneTreeCompPM")]
+            [Bindable]
+            public var stcpm:SceneTreeCompPM;
+
+            private var initFlag:Boolean = false;
+
+
+            //初始化区域导航tree数据
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+            public function loadData(e:SceneEvent = null):void
+            {
+                if (initFlag)
+                    return;
+
+                log.info("into SceneTreeComp");
+                stcpm.getSceneAreaList();
+//				setTimeout(stcpm.getSceneAreaList, 50);
+                initFlag = true;
+            }
+//			[MessageHandler(selector = "CMS_SCENE_GENERAL_MAPVECTOR_DYEMAP")]
+//			public function dyeMapHandler(e:MapVectorEvent):void
+//			{
+//				loadData();
+//			}
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+            [Inject("user")]
+            [Bindable]
+            public var user:IUser;
+
+            protected function navbar1_mouseOverHandler(event:MouseEvent):void
+            {
+                if (user.isNew == "1")
+                {
+					log.debug("GIS场景树图提示信息...");
+                    user.labelTypeId = "401";
+                    setTimeout(function():void
+                    {
+                        var obj:Object = new Object;
+                        var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                        obj.labelId = "401";
+                        e.obj = obj;
+                        log.debug("参数信息...");
+                        log.info(e.obj);
+//                        msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+                    }, 3000);
+                }
+            }
+        ]]>
+    </fx:Script>
+    <mx:Tree id="sceneTree"
+             height="200"
+             width="190"
+             horizontalScrollPolicy="on"
+             borderAlpha="0"
+             openItems="{stcpm.stdm.treeData}"
+             contentBackgroundAlpha="0"
+             dataProvider="{stcpm.stdm.treeData}"
+             labelField="@name"
+             itemClick="{stcpm.getSceneInfo(event)}">
+    </mx:Tree>
+</ailk_compts:NavBar>

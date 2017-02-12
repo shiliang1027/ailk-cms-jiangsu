@@ -1,0 +1,760 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+						 title="导入设备"
+						 width="700"
+						 height="400"
+						 close="closePanel()"
+						 dragable="true"
+						 maximizable="true"
+						 creationComplete="window_creationCompleteHandler()">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.topo.assets.CmsTopoIcons;
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.cms.topo.event.TopoEventTypes;
+			import com.linkage.module.cms.topo.view.component.sparepart.CheckBoxDGRenderer;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.assets.TopoIcons;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.util.MessageUtil;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.module.topo.framework.view.component.panel.spareparts.TopoTreeChooser;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.structure.map.IMap;
+			import com.linkage.system.structure.map.Map;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayList;
+			import mx.collections.XMLListCollection;
+			import mx.events.FlexEvent;
+			import mx.utils.StringUtil;
+
+			import spark.components.CheckBox;
+			import spark.components.Group;
+			import spark.events.IndexChangeEvent;
+			// log
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.view.component.ImportDevicePanel");
+
+			// CMS数据源
+			private var _cmsDataSource:ICmsDataSource = null;
+			// 数据源
+			private var _dataSource:IDataSource = null;
+			// loading
+			private var _loading:ILoadingInfo = null;
+			// 请选择的数据
+			private var _pleaseSelect:XML = new XML("<data k='-1' v='==请选择==' dc='==请选择=='/>");
+
+			// 是否装载过数据的标志
+			private var _creationComplete:Boolean = false;
+			// 鼠标的坐标
+			private var _mousePoint:Point = null;
+
+			// 各数据列表
+			[Bindable]
+			private var cityList:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			private var subCityList:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			private var specList:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			private var moTypeList:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			private var moAttrList:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			private var moList:XMLListCollection = new XMLListCollection();
+
+			// 属性KEY容器映射Map
+			private var attrIdMap:IMap = new Map();
+			// 属性值容器映射map
+			private var attrValueMap:IMap = new Map();
+
+			// ----------- 选择pid --------------
+			// 拓扑选择面板
+			private var _topoChooser:TopoTreeChooser = null;
+			private var _selectSegmentId:String = null;
+			[Bindable]
+			private var _selectSegmentName:String = null;
+
+			// 初始化面板
+			override public function initPanel():void
+			{
+				cityList.addItem(_pleaseSelect);
+				subCityList.addItem(_pleaseSelect);
+				specList.addItem(_pleaseSelect);
+				moTypeList.addItem(_pleaseSelect);
+				moAttrList.addItem(_pleaseSelect);
+			}
+
+			private function window_creationCompleteHandler():void
+			{
+				citys.selectedIndex = 0;
+				subCitys.selectedIndex = 0;
+				specs.selectedIndex = 0;
+				moTypes.selectedIndex = 0;
+			}
+
+			// 关闭面板
+			private function closePanel():void
+			{
+				hide();
+			}
+
+			/**
+			 * 注入CMS数据源
+			 */
+			public function set dataSourceCms(value:ICmsDataSource):void
+			{
+				_cmsDataSource = value;
+			}
+
+			/**
+			 * 注入数据源
+			 */
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				super.topoCanvas = value;
+				_loading = LoadingManager.getInstance().loadingInfo;
+
+				_topoCanvas.addEventListener(TopoEventTypes.IMPORT_DEVICES_INVIEW, function(event:TopoEvent):void
+					{
+						showPanel(event);
+					});
+			}
+
+			// 展示元素的信息
+			private function showPanel(event:TopoEvent):void
+			{
+				show();
+				// 查询数据
+				if (_creationComplete == false)
+				{
+					_creationComplete = true;
+					_topoChooser = new TopoTreeChooser();
+					_topoChooser.pid = Constants.TOP_PID_NET;
+					_topoChooser.topoCanvas = _topoCanvas;
+					_topoChooser.dataSource = _dataSource;
+					// 网段选择面板选中具体树节点
+					_topoChooser.initPanel(function(selectedItem:Object):void
+						{
+							_selectSegmentId = selectedItem.@id;
+							_selectSegmentName = selectedItem.@name;
+							_topoChooser.hide();
+						});
+
+					_loading.loadingStart();
+					_cmsDataSource.queryAllCitys(function(data:XML):void
+						{
+							cityList.source = data.child("city");
+							cityList.addItemAt(_pleaseSelect, 0);
+							log.debug("cityList len={0} list={1}", cityList.length, cityList);
+							citys.selectedIndex = 0;
+							// 触发属地联动
+							citys_changeHandler();
+						}, function():void
+						{
+							_cmsDataSource.queryAllSpecs(function(data:XML):void
+								{
+									specList.source = data.child("spec");
+									specList.addItemAt(_pleaseSelect, 0);
+									log.debug("specList len={0} list={1}", specList.length, specList);
+									specs.selectedIndex = 0;
+									// 触发专业联动
+									specs_changeHandler();
+								}, function():void
+								{
+									_loading.loadingEnd();
+								});
+						});
+
+					attrIdMap.put("attr_0", attr_0);
+					attrValueMap.put("attr_0", attrvalue_0);
+				}
+
+				_selectSegmentId = "";
+				_selectSegmentName = "";
+				_mousePoint = event.mousePoint;
+				this.visible = true;
+
+			}
+
+			// 查找网段按钮click事件
+			private function findSegment_clickHandler():void
+			{
+				_topoChooser.show(_topoCanvas, true);
+			}
+
+			// 属地变更后 (查询对应区县)
+			private function citys_changeHandler():void
+			{
+				var cityId:String = citys.selectedItem.@k;
+				var cityName:String = citys.selectedItem.@v;
+
+				log.debug("切换到属地 {0} {1}", cityId, cityName);
+				if (cityId != "-1")
+				{
+					_loading.loadingStart();
+					_cmsDataSource.querySubCitys(cityId, function(data:XML):void
+						{
+							subCityList.source = data.child("city");
+							subCityList.addItemAt(_pleaseSelect, 0);
+							log.debug("countyList len={0} list={1}", subCityList.length, subCityList);
+							subCitys.selectedIndex = 0;
+						}, function():void
+						{
+							_loading.loadingEnd();
+						});
+				}
+				else
+				{
+					subCityList.removeAll();
+					subCityList.addItemAt(_pleaseSelect, 0);
+					subCitys.selectedIndex = 0;
+				}
+			}
+
+			// 专业变更后(查询对应网元类型)
+			private function specs_changeHandler():void
+			{
+				var specId:String = specs.selectedItem.@k;
+				var specName:String = specs.selectedItem.@v;
+
+				log.debug("切换到专业 {0} {1}", specId, specName);
+				if (specId != "-1")
+				{
+					_loading.loadingStart();
+					_cmsDataSource.queryMoTypesBySpec(specId, function(data:XML):void
+						{
+							moTypeList.source = data.child("mo_type");
+							moTypeList.addItemAt(_pleaseSelect, 0);
+							log.debug("moTypeList len={0} list={1}", moTypeList.length, moTypeList);
+							moTypes.selectedIndex = 0;
+							// 触发网元类型联动
+							moTypes_changeHandler();
+						}, function():void
+						{
+							_loading.loadingEnd();
+						});
+				}
+				else
+				{
+					moTypeList.removeAll();
+					moTypeList.addItemAt(_pleaseSelect, 0);
+					moTypes.selectedIndex = 0;
+				}
+			}
+
+			// 网元类型变更后(查询对应属性key)
+			private function moTypes_changeHandler():void
+			{
+				var moTypeId:String = moTypes.selectedItem.@k;
+				var moTypeName:String = moTypes.selectedItem.@v;
+
+				log.debug("切换到MO_TYPE {0} {1}", moTypeId, moTypeName);
+				if (moTypeId != "-1")
+				{
+					_loading.loadingStart();
+					_cmsDataSource.queryMoTypeAttrId(moTypeId, function(data:XML):void
+						{
+							moAttrList.source = data.child("attr");
+							moAttrList.addItemAt(_pleaseSelect, 0);
+							attr_0.selectedIndex = 0;
+							attrsGroup.visible = true;
+						}, function():void
+						{
+							_loading.loadingEnd();
+						});
+				}
+				else
+				{
+					moAttrList.removeAll();
+					moAttrList.addItemAt(_pleaseSelect, 0);
+					attr_0.selectedIndex = 0;
+					attrsGroup.visible = false;
+				}
+			}
+
+			// 新增属性按钮触发
+			private function imageAdd_clickHandler():void
+			{
+
+				var formItem:FormItem = new FormItem();
+				formItem.label = "属性";
+				var hGroup1:HGroup = new HGroup();
+				var hGroup2:TileGroup = new TileGroup();
+				formItem.addChild(hGroup1);
+				formItem.addChild(hGroup2);
+				// 属性下拉
+				var dropDownList:DropDownList = new DropDownList();
+				dropDownList.id = "attr_" + attrsGroup.numElements;
+				dropDownList.labelField = "@dc";
+				dropDownList.dataProvider = moAttrList;
+				dropDownList.selectedIndex = 0;
+				dropDownList.width = 120;
+				dropDownList.addEventListener(IndexChangeEvent.CHANGE, attr_changeHandler);
+				// 删除图标
+				var icon:Image = new Image();
+				icon.source = CmsTopoIcons.delIcon;
+				icon.buttonMode = true;
+				icon.addEventListener(MouseEvent.CLICK, function(event:MouseEvent):void
+					{
+						attrsGroup.removeElement(formItem);
+					});
+				hGroup1.addElement(dropDownList);
+				hGroup1.addElement(icon);
+				// 属性值
+				hGroup2.id = "attrvalue_" + attrsGroup.numElements;
+				hGroup2.visible = false;
+				hGroup2.includeInLayout = false;
+				hGroup2.percentWidth = 100;
+
+				attrsGroup.addElement(formItem);
+
+				// 属性容器存放在映射中
+				attrIdMap.put(dropDownList.id, dropDownList);
+				attrValueMap.put(dropDownList.id, hGroup2);
+			}
+
+			// 属性id切换
+			private function attr_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				var selectedItem:Object = (event.target as DropDownList).selectedItem;
+				var moTypeId:String = moTypes.selectedItem.@k;
+				var attrId:String = selectedItem.@k;
+				var attrIdDesc:String = selectedItem.@dc;
+				log.debug("切换到属性id {0} {1}  moTypeId:{2}", attrId, attrIdDesc, moTypeId);
+				if (attrId != "-1")
+				{
+					_loading.loadingStart();
+					_cmsDataSource.queryMoAttrValue(moTypeId, attrId, function(data:XML):void
+						{
+							var attrValueContainer:Group = (attrValueMap.get(event.target.id) as Group);
+							attrValueContainer.removeAllElements();
+							log.debug("属性值容器id {0} ,  data={1}", attrValueContainer.id, data);
+							for each (var attr:Object in data.child("attr"))
+							{
+								var cb:CheckBox = new CheckBox();
+								cb.label = attr.@v;
+								cb.name = attr.@v;
+								attrValueContainer.addElement(cb);
+								attrValueContainer.visible = true;
+								attrValueContainer.includeInLayout = true;
+							}
+						}, function():void
+						{
+							_loading.loadingEnd();
+						});
+				}
+				else
+				{
+					var attrValueContainer:Group = (attrValueMap.get(event.target.id) as Group);
+					attrValueContainer.removeAllElements();
+					attrValueContainer.visible = false;
+					attrValueContainer.includeInLayout = false;
+				}
+
+			}
+
+			// 验证表单
+			private function checkForm():Boolean
+			{
+				// 属地,专业,类型 必填
+				if (StringUtils.isEmpty(StringUtil.trim(moName.text)) && StringUtils.isEmpty(StringUtil.trim(upperMoName.text)) && citys.selectedItem.@k == "-1" && specs.selectedItem.@k == "-1" && moTypes.selectedItem.@k == "-1")
+				{
+					MessageUtil.showMessage("必须选择一个查询条件");
+					return false;
+				}
+				return true;
+			}
+
+			// 执行查询
+			private function doQuery_clickHandler():void
+			{
+				if (checkForm())
+				{
+					var moNameValue:String = StringUtil.trim(moName.text);
+					var upperMoNameValue:String = StringUtil.trim(upperMoName.text);
+					var cityId:String = citys.selectedItem.@k;
+					var subCityId:String = subCitys.selectedItem.@k;
+					var specId:String = specs.selectedItem.@k;
+					var moTypeId:String = moTypes.selectedItem.@k;
+					var attrs:Object = {};
+
+					attrIdMap.forEach(function(key:String, value:DropDownList):void
+						{
+							if (value.selectedItem == null)
+							{
+								return;
+							}
+							var attrKey:String = value.selectedItem.@k;
+							if (attrKey == "-1")
+							{
+								return;
+							}
+							var attrValueContainer:Group = attrValueMap.get(key) as Group;
+
+							if (attrValueContainer == null)
+							{
+								return;
+							}
+							var attrValues:ArrayList = new ArrayList();
+							for (var i:int = 0; i < attrValueContainer.numElements; i++)
+							{
+								var cb:CheckBox = attrValueContainer.getElementAt(i) as CheckBox;
+								if (cb != null && cb.selected)
+								{
+									attrValues.addItem(cb.name);
+								}
+							}
+							log.debug("属性 {0} = {1}", attrKey, attrValues);
+							attrs[attrKey] = attrValues;
+						});
+					_loading.loadingStart();
+					_cmsDataSource.queryMos(moNameValue, upperMoNameValue, cityId, subCityId, specId, moTypeId, attrs, function(data:XML):void
+						{
+							_loading.loadingEnd();
+							checkExistInTopo(data);
+						}, function():void
+						{
+
+						}, function():void
+						{
+							_loading.loadingEnd();
+							MessageUtil.showMessage("查找网元异常!(通信异常)");
+						});
+				}
+
+			}
+
+			private function checkExistInTopo(data:XML):void
+			{
+				var dbMoList:XMLList = data.child("mo");
+				if (dbMoList.length() == 0)
+				{
+					MessageUtil.showMessage("未找到网元");
+					moList.removeAll();
+					moList.refresh();
+					return;
+				}
+				var moIds:Array = [];
+				for each (var mo:Object in dbMoList)
+				{
+					moIds.push(mo.@id);
+				}
+
+				// ============= 构造 搜索的boxname ==========
+				var boxNameArray:Array = [];
+				boxNameArray.push(Constants.TOPOSQL_TYPE_NODE);
+				boxNameArray.push(Constants.TOPOSQL_TYPE_SEGMENT);
+				// ============= 构造 topoSql ==============
+				var topoSqlArray:Array = [];
+				if (!StringUtils.isEmpty(_selectSegmentId))
+				{
+					topoSqlArray.push(DataUtil.buildTopoSqlEqual(Constants.XML_KEY_PID, _selectSegmentId));
+				}
+				topoSqlArray.push(DataUtil.buildTopoSqlExist(CmsTopoConstants.XML_KEY_MO_ID, moIds));
+
+				var topoSql:String = DataUtil.buildFinalTopoSql_And(topoSqlArray);
+				var boxnames:String = boxNameArray.join(",");
+
+				_loading.loadingStart();
+				_dataSource.loadTopoDataBySql(_topoCanvas.topoName, boxnames, topoSql, function(data:XML):void
+					{
+						var netView:XML = data.child("NetView")[0];
+						var obj:XML = null;
+						var topoMoList:XMLListCollection = new XMLListCollection();
+						var topoMap:IMap = new Map();
+						// ------------- 拼装查询结果列表 -------------
+						// Nodes
+						var nodes:XMLList = netView.Nodes;
+						for each (obj in nodes.Node)
+						{
+							topoMoList.addItem(obj);
+
+							for each (var o1:Object in obj.p)
+							{
+								if (o1.@k == CmsTopoConstants.XML_KEY_MO_ID)
+								{
+									topoMap.put(o1.toString(), String(obj.@id));
+									break;
+								}
+							}
+
+						}
+						// Segments
+						var segments:XMLList = netView.Segments;
+						for each (obj in segments.Segment)
+						{
+							topoMoList.addItem(obj);
+
+							for each (var o2:Object in obj.p)
+							{
+								if (o2.@k == CmsTopoConstants.XML_KEY_MO_ID)
+								{
+									topoMap.put(o2.toString(), String(obj.@id));
+									break;
+								}
+							}
+						}
+
+						dealWithMoList(dbMoList, topoMoList, topoMap);
+
+					}, function():void
+					{
+						_loading.loadingEnd();
+					}, function():void
+					{
+						MessageUtil.showMessage("拓扑中查找网元异常!(通信异常)");
+					});
+			}
+
+			/**
+			 * 处理查询出来的网元列表
+			 * @param dbMoList 数据库中查询出来的网元列表
+			 * @param topoMoList 拓扑中查询出来的网元列表
+			 * @param topoMap 拓扑中查询出来的 mo_id -> 拓扑id的映射
+			 */
+			private function dealWithMoList(dbMoList:XMLList, topoMoList:XMLListCollection, topoMap:IMap):void
+			{
+				var showMoList:XMLListCollection = new XMLListCollection();
+				var topoId:String = null;
+				for each (var mo:Object in dbMoList)
+				{
+					var moId:String = mo.@id;
+					topoId = topoMap.get(moId);
+					if (topoId != null)
+					{
+						// 注意,此处放入拓扑id,在导入时取此字段
+						mo.@topoid = topoId;
+						showMoList.addItem(mo);
+					}
+				}
+
+				log.debug("DB中找到的网元数量: {0}  拓扑中找到的网元数量: {1} 最终展现的网元数量: {2}", dbMoList.length(), topoMoList.length, showMoList.length);
+				moList.removeAll();
+				moList.source = showMoList.source;
+				moList.refresh();
+			}
+
+
+			// 导入设备
+			private function importDevice_clickHandler():void
+			{
+				var ids:Array = [];
+				for each (var item:Object in moList)
+				{
+					if (item.selected == true)
+					{
+						ids.push(item.@topoid);
+					}
+				}
+				if (ids.length == 0)
+				{
+					MessageUtil.showMessage("请选择待导入的设备");
+					return;
+				}
+
+				log.debug("ids = {0}", ids);
+
+
+				var data:String = DataUtil.buildMapXML(Constants.XML_KEY_PID, _topoCanvas.topoId);
+				data += DataUtil.buildMapXML(Constants.XML_KEY_X, int(_mousePoint.x));
+				data += DataUtil.buildMapXML(Constants.XML_KEY_Y, int(_mousePoint.y));
+				data += DataUtil.buildListXML(Constants.XML_KEY_OBJIDS, ids);
+				data = DataUtil.buildXML(Constants.TP_MC_PASTE_COPY_INVIEW, data);
+
+				_loading.loadingStart();
+				_dataSource.notify(_topoCanvas.topoName, data, function(result:String):void
+					{
+						var map:IMap = DataUtil.getActionResultMap(new XML(result));
+
+						if (map.get(Constants.XML_KEY_SUCCESS) == "1")
+						{
+							MessageUtil.showMessage("导入成功");
+							closePanel();
+							_topoCanvas.loadCurrentTopo();
+						}
+						else
+						{
+							MessageUtil.showMessage("导入失败!\n\n(" + map.get(Constants.XML_KEY_MSG) + ")");
+						}
+					}, function():void
+					{
+						_loading.loadingEnd();
+					}, function():void
+					{
+						MessageUtil.showMessage("导入失败!(通信异常)");
+					});
+			}
+
+			// 全选
+			private function checkbox_clickHandler(event:MouseEvent):void
+			{
+				for each (var item:Object in moList)
+				{
+					item.selected = event.target.selected
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<s:HGroup width="100%"
+			  height="100%">
+		<s:VGroup width="300"
+				  height="100%">
+			<mx:FormHeading label="输入查询条件"/>
+			<s:Scroller width="100%"
+						height="100%"
+						horizontalScrollPolicy="auto"
+						verticalScrollPolicy="auto">
+				<!-- 左侧输入条件 -->
+				<s:VGroup width="100%">
+					<mx:Form width="100%">
+						<mx:FormItem label="所处云图">
+							<s:HGroup gap="10">
+								<s:TextInput text="{_selectSegmentName}"
+											 width="120"
+											 editable="false"/>
+								<mx:Image source="{TopoIcons.searchIcon}"
+										  toolTip="查找云图"
+										  buttonMode="true"
+										  click="findSegment_clickHandler()"/>
+							</s:HGroup>
+						</mx:FormItem>
+						<mx:FormItem label="名称">
+							<s:TextInput id="moName"
+										 width="120"/>
+						</mx:FormItem>
+						<mx:FormItem label="上联名称">
+							<s:TextInput id="upperMoName"
+										 width="120"/>
+						</mx:FormItem>
+						<mx:FormItem label="属地">
+							<s:DropDownList id="citys"
+											width="120"
+											dataProvider="{cityList}"
+											labelField="@v"
+											selectedIndex="0"
+											change="citys_changeHandler()"/>
+						</mx:FormItem>
+						<mx:FormItem label="区县">
+							<s:DropDownList id="subCitys"
+											width="120"
+											dataProvider="{subCityList}"
+											labelField="@v"
+											selectedIndex="0"/>
+						</mx:FormItem>
+						<mx:FormItem label="专业">
+							<s:DropDownList id="specs"
+											width="120"
+											dataProvider="{specList}"
+											labelField="@v"
+											selectedIndex="0"
+											change="specs_changeHandler()"/>
+						</mx:FormItem>
+						<mx:FormItem label="类型">
+							<s:DropDownList id="moTypes"
+											width="120"
+											dataProvider="{moTypeList}"
+											labelField="@v"
+											selectedIndex="0"
+											change="moTypes_changeHandler()"/>
+						</mx:FormItem>
+						<s:VGroup id="attrsGroup"
+								  visible="false"
+								  width="100%">
+							<mx:FormItem label="属性">
+								<s:HGroup>
+									<s:DropDownList id="attr_0"
+													width="120"
+													dataProvider="{moAttrList}"
+													labelField="@dc"
+													selectedIndex="0"
+													change="attr_changeHandler(event)"/>
+									<mx:Image source="{CmsTopoIcons.addIcon}"
+											  toolTip="新增属性"
+											  buttonMode="true"
+											  click="imageAdd_clickHandler()"/>
+								</s:HGroup>
+								<s:TileGroup id="attrvalue_0"
+											 visible="false"
+											 includeInLayout="false"
+											 width="100%">
+
+								</s:TileGroup>
+							</mx:FormItem>
+						</s:VGroup>
+					</mx:Form>
+				</s:VGroup>
+			</s:Scroller>
+			<s:HGroup width="100%"
+					  horizontalAlign="center">
+				<s:Button label="查 询"
+						  click="doQuery_clickHandler()"/>
+			</s:HGroup>
+		</s:VGroup>
+		<!-- 右侧查询结果列表 -->
+		<s:VGroup width="100%"
+				  height="100%">
+			<mx:FormHeading label="查询结果"/>
+			<mx:AdvancedDataGrid id="dataGrid"
+								 width="100%"
+								 height="100%"
+								 dataProvider="{moList}">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn dataField=""
+											   headerText=""
+											   itemRenderer="com.linkage.module.cms.topo.view.component.sparepart.CheckBoxDGRenderer"/>
+					<mx:AdvancedDataGridColumn dataField="@n"
+											   headerText="名称"/>
+					<mx:AdvancedDataGridColumn dataField="@an"
+											   headerText="别名"/>
+					<mx:AdvancedDataGridColumn dataField="@cn"
+											   headerText="属地"/>
+					<mx:AdvancedDataGridColumn dataField="@scn"
+											   headerText="区县"/>
+					<mx:AdvancedDataGridColumn dataField="@sn"
+											   headerText="专业"/>
+					<mx:AdvancedDataGridColumn dataField="@tn"
+											   headerText="类型"/>
+
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+			<s:HGroup width="100%">
+				<s:HGroup width="50%"
+						  horizontalAlign="left">
+					<s:CheckBox label="全 选"
+								click="checkbox_clickHandler(event)"/>
+				</s:HGroup>
+				<s:HGroup width="50%"
+						  horizontalAlign="right"
+						  gap="20">
+					<s:Button label="导 入"
+							  click="importDevice_clickHandler()"/>
+					<s:Button label="关 闭"
+							  click="closePanel()"/>
+				</s:HGroup>
+			</s:HGroup>
+		</s:VGroup>
+	</s:HGroup>
+</panel:AbstractCEPWindow>

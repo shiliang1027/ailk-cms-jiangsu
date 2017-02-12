@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="700"
+					height="400"
+					title="{windowTitle}小区指标列表"
+					styleName="windowScene"
+					dragable="true"
+					minimizableBottom="5"
+					minimizableLeft="5"
+					minWidth="300"
+					minHeight="30"
+					resizable="true"
+					visible="false"
+					close="this.visible=false;"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-10
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.ListEvent;
+			
+			private static var log:ILogger=Log.getLoggerByClass(GisHotKpiListView);
+			[Bindable]
+			[Inject("gisHotViewPM")]
+			public var pm:GisHotViewPM;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			[Bindable]
+			private var windowTitle:String="";
+			
+			private var currentParam:Object;
+			[MessageHandler(selector="LOADKPILISTDATA")]
+			public function loadKpiListDataHandler(e:GisHotEvent):void
+			{
+				windowTitle=e.param.def=="0"?"自定义":"动态发现";
+				currentParam = e.param;
+				this.restoreButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+			}
+			
+			[MessageHandler(selector="LOADKPILISTDATACOMPLETE")]
+			public function loadKpiListDataCompleteHandler(e:GisHotEvent):void
+			{
+				if (!this.visible)
+				{
+					this.visible=true;
+					var s:Rectangle=systemManager.screen;
+					var appWidth:Number;
+					var appHeight:Number;
+					var parentWidth:Number;
+					var parentHeight:Number;
+
+					appWidth=s.width;
+					appHeight=s.height;
+					parentWidth=this.parent.width;
+					parentHeight=this.parent.height;
+					x=Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+					y=Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+				}
+				
+				buildDG();
+			}
+			
+			[MessageHandler(selector="LOADKPILISTDATAERROR")]
+			public function loadKpiListDataErrorHandler(e:GisHotEvent):void
+			{
+				Alert.show("查询列表数据失败","错误");
+			}
+			
+			private function buildDG():void{
+				var column:AdvancedDataGridColumn;
+				var columns:Array=new Array();
+				for (var i:int=0; i < pm.dm.kpiData.titles.length; i++)
+				{
+					column=new AdvancedDataGridColumn();
+					column.dataField=pm.dm.kpiData.columns[i];
+					column.headerText=pm.dm.kpiData.titles[i];
+					column.showDataTips=true;
+					column.itemRenderer = new ClassFactory(mx.controls.Label);
+					var width:Number=(pm.dm.kpiData.titles[i].length) * 16;
+					if (width < 80)
+					{
+						width=80;
+					}
+					if(i==1){
+						width=150;
+					}
+					column.width=width;
+					columns.push(column);
+				}
+				kpiDG.columns=columns;
+				kpiDG.dataProvider=pm.dm.kpiData.dataList;
+				
+			}
+			
+			protected function kpiDG_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.debug(kpiDG.selectedItem);
+				var data:Object = kpiDG.selectedItem;
+				if(data.longitude && data.latitude){
+					var evt:GisHotEvent = new GisHotEvent(GisHotEvent.GISLOCATION);
+					var param:Object = new Object();
+					param.longitude = data.longitude;
+					param.latitude = data.latitude;
+					param.kpiId=currentParam.kpiId;
+					param.mo_id=currentParam.mo_id;
+					evt.param = param;
+					dispatcher(evt);
+					
+					this.minimizeButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<ailk_compts:layout>
+		<s:VerticalLayout paddingBottom="5"/>
+	</ailk_compts:layout>
+	<mx:AdvancedDataGrid width="100%"
+						 height="100%" id="kpiDG"
+						 verticalScrollPolicy="auto"
+						 styleName="sceneDG" itemClick="kpiDG_itemClickHandler(event)">
+	</mx:AdvancedDataGrid>
+</ailk_compts:Window>

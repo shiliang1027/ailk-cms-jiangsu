@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  width="100%" 
+			  height="100%"
+			  title="业务统计"
+			  minHeight="60" 
+			  maximizable="false" 
+			  minimizable="false" 
+			  closable="false" xmlns:pager="com.linkage.module.cms.components.pager.*" 
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*" 
+			  creationComplete="servStatWindow_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:VerticalLayout/>
+	</panel:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<panel:states>
+		<s:State name="viewLayer"/>
+		<s:State name="viewLayer_1" stateGroups="view1State"/>
+		<s:State name="viewLayer_2" stateGroups="view2State"/>
+		<s:State name="viewLayer_3" stateGroups="view3State"/>
+	</panel:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="init", type="com.linkage.module.cms.groupclient.event.ServStatWindowEvent")]
+		[Event(name="pageGo", type="com.linkage.module.cms.groupclient.event.ServStatWindowEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.event.ServStatWindowEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.GroupTotalModuleControl");
+			[Bindable]
+			public var custNumServChartData:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			public var custNumServChartParams:ArrayCollection=new ArrayCollection([{caption: "集客业务类型"}, {numberPrefix: ""}, {showValues: "0"}]);
+			[Bindable]
+			public var custNumSafeChartData:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			public var custNumSafeChartParams:ArrayCollection=new ArrayCollection([{caption: "集客服务级别"}, {numberPrefix: ""}, {showValues: "0"}]);
+			[Bindable]
+			public var custNumSafeData:ArrayCollection=new ArrayCollection();
+			//业务类型柱状图数据集
+			private var servTypeChartData:ArrayCollection = new ArrayCollection();
+			//服务级别柱状图数据集
+			private var servLeverChartData:ArrayCollection = new ArrayCollection();
+
+			protected function servStatWindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("[业务统计]状态:"+this.currentState);
+				this.addEventListener(ServStatWindowEvent.SERVTYPEDATACHANGE,onServTypeDataChange);
+				this.addEventListener(ServStatWindowEvent.SERVSAFEDATACHANGE,onServSafeDataChange);
+				this.addEventListener(ServStatWindowEvent.CLEAR,onClear);
+				this.addEventListener(ServStatWindowEvent.PAGECHANGE,onPageChange);
+				this.addEventListener(ServStatWindowEvent.CUSTDATACHANGE,onCustDataChange);
+			}
+			
+			private function onPageChange(event:ServStatWindowEvent):void{
+				var result:Object = event.param;
+				custNumServPager.totalRowCount = result.total;
+				custNumServPager.maxPage = result.maxPage;
+			}
+			private function onCustDataChange(event:ServStatWindowEvent):void{
+				var result:Object = event.param;
+				var columns:Array = new Array();
+				var dataGridColumn:AdvancedDataGridColumn;
+				var i:uint = 0;
+				servTypeChartData.removeAll();
+				var seriesArray:ArrayCollection = new ArrayCollection();
+				var labelArray:ArrayCollection = new ArrayCollection();
+				for each(var name:String in result.name){
+					dataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					columns.push(dataGridColumn);
+					if(i>1){
+						var seriesObj:Object = new Object();
+						seriesObj.seriesName = String(name);
+						seriesObj.colum = result.colum[i];
+						seriesArray.addItem(seriesObj);
+					}
+					i++;
+				}
+				custNumServDG.columns = columns;
+				custNumServDG.dataProvider=result.dataList;
+				if(result.dataList != null && result.dataList.length>0){
+					var j:uint=0;
+					for each(var data:Object in result.dataList){
+						if(data[result.colum[0]]!='总业务' && j<10){
+							var labelObj:Object = new Object();
+							labelObj.label = String(data[result.colum[0]]);
+							labelArray.addItem(labelObj);
+						}
+						j++;
+					}
+				}
+				if(!custNumServDG.visible){
+					custNumServDG.visible=true;
+				}
+				if(labelArray.length>0){
+					for each(var labelObj1:Object in labelArray){
+						servTypeChartData.addItem(labelObj1);
+					}
+				}
+				if(seriesArray.length>0 && result.dataList.length>0){
+					for each(var seriesObj1:Object in seriesArray){
+						servTypeChartData.addItem(seriesObj1);
+						var k:uint=0;
+						for each(var data1:Object in result.dataList){
+							if(data1[result.colum[0]]!='总业务' && k<10){
+								var valueObj:Object = new Object();
+								valueObj.value=String(data1[seriesObj1.colum]);
+								servTypeChartData.addItem(valueObj);
+							}else{
+								break;
+							}
+							k++;
+						}
+					}
+				}
+				if(servTypeChartData && servTypeChartData.length>0){
+					custNumServChartData = servTypeChartData;
+					servTypeChart.FCData=custNumServChartData;
+				}
+				
+			}
+			
+			private function onClear(event:ServStatWindowEvent):void{
+				custNumServDG.dataProvider = null;
+				custNumSafeDG.dataProvider = null;
+				try{
+					servTypeChart.FCData = null;
+					servLeverChart.FCData = null;
+				}catch(e:Error){}
+			}
+			
+			private function onServTypeDataChange(event:ServStatWindowEvent):void{
+				log.info("[业务统计-类型]数据变化");
+				var result:Object = event.param;
+				var columns:Array = new Array();
+				var dataGridColumn:AdvancedDataGridColumn;
+				var i:uint = 0;
+				servTypeChartData.removeAll();
+				var seriesArray:ArrayCollection = new ArrayCollection();
+				var labelArray:ArrayCollection = new ArrayCollection();
+				for each(var name:String in result.name){
+					log.info("[业务统计-类型] name ---->"+name+",column--->"+result.colum[i]);
+					dataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					columns.push(dataGridColumn);
+					if(i>1){
+						var seriesObj:Object = new Object();
+						seriesObj.seriesName = String(name);
+						seriesObj.colum = result.colum[i];
+						seriesArray.addItem(seriesObj);
+					}
+					i++;
+				}
+				custNumServDG.columns = columns;
+				custNumServDG.dataProvider=result.dataList;
+				if(result.dataList != null && result.dataList.length>0){
+					var j:uint=0;
+					for each(var data:Object in result.dataList){
+						if(data[result.colum[0]]!='总业务' && j<10){
+							var labelObj:Object = new Object();
+							labelObj.label = String(data[result.colum[0]]);
+							labelArray.addItem(labelObj);
+						}
+						j++;
+					}
+				}
+				if(labelArray.length>0){
+					for each(var labelObj1:Object in labelArray){
+						servTypeChartData.addItem(labelObj1);
+					}
+				}
+				if(seriesArray.length>0 && result.dataList.length>0){
+					for each(var seriesObj1:Object in seriesArray){
+						servTypeChartData.addItem(seriesObj1);
+						var k:uint=0;
+						for each(var data1:Object in result.dataList){
+							if(data1[result.colum[0]]!='总业务' && k<10){
+								var valueObj:Object = new Object();
+								valueObj.value=String(data1[seriesObj1.colum]);
+								servTypeChartData.addItem(valueObj);
+							}else{
+								break;
+							}
+							k++;
+						}
+					}
+				}
+				if(servTypeChartData && servTypeChartData.length>0){
+					custNumServChartData = servTypeChartData;
+					servTypeChart.FCData=custNumServChartData;
+				}
+				custNumServDG.visible=true;
+			}
+			
+			
+			private function onServSafeDataChange(event:ServStatWindowEvent):void{
+				var result:Object = event.param;
+				var columns:Array = new Array();
+				var dataGridColumn:AdvancedDataGridColumn;
+				var i:uint = 0;
+				servLeverChartData.removeAll();
+				custNumSafeData.removeAll();
+				var seriesArray:ArrayCollection = new ArrayCollection();
+				var labelArray:ArrayCollection = new ArrayCollection();
+				for each(var name:String in result.name){
+					dataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					columns.push(dataGridColumn);
+					if(i>0){
+						var seriesObj:Object = new Object();
+						seriesObj.seriesName = String(name);
+						seriesObj.colum = result.colum[i];
+						seriesArray.addItem(seriesObj);
+					}
+					i++;
+				}
+				custNumSafeDG.columns = columns;
+				custNumSafeDG.dataProvider = result.dataList;
+				if(result.dataList != null && result.dataList.length>0){
+					var j:uint=0;
+					for each(var data:Object in result.dataList){
+						if(j<10){
+							var labelObj:Object = new Object();
+							labelObj.label = String(data[result.colum[0]]);
+							labelArray.addItem(labelObj);
+						}
+					}
+				}
+				if(!custNumSafeDG.visible){
+					custNumSafeDG.visible=true;
+				}
+				if(labelArray.length>0){
+					for each(var labelObj1:Object in labelArray){
+						servLeverChartData.addItem(labelObj1);
+					}
+				}
+				if(seriesArray.length>0){
+					for each(var seriesObj1:Object in seriesArray){
+						servLeverChartData.addItem(seriesObj1);
+						var k:uint = 0;
+						for each(var data1:Object in result.dataList){
+							if(k<10){
+								var valueObj:Object = new Object();
+								valueObj.value=String(data1[seriesObj1.colum]);
+								servLeverChartData.addItem(valueObj);
+							}else{
+								break;
+							}
+						}
+					}
+				}
+				if(servLeverChartData && servLeverChartData.length>0){
+//					custNumSafeChartData = servLeverChartData;
+					servLeverChart.FCData=servLeverChartData;
+				}
+				custNumSafeDG.visible=true;
+				
+				
+			}
+			protected function custNumServPager_pageChangeHandler(event:PagerEvent):void{
+				var evt:ServStatWindowEvent = new ServStatWindowEvent(ServStatWindowEvent.PAGEGO);
+				var param:Object = new Object;
+				param.curPage_splitPage=custNumServPager.currentPage;
+				param.num_splitPage=custNumServPager.pageSize;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+
+
+			protected function custNumServDG_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+			}
+
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				showDataGridGroup(true);
+			}
+
+
+			protected function image2_clickHandler(event:MouseEvent):void
+			{
+				showDataGridGroup(false);
+			}
+			
+			private function showDataGridGroup(flag:Boolean):void{
+				custNumChartGroup.visible=!flag;
+				custNumChartGroup.includeInLayout=!flag;
+				custNumDataGridGroup.visible=flag;
+				custNumDataGridGroup.includeInLayout=flag;
+				
+				servLeverChartGroup.visible=!flag;
+				servLeverChartGroup.includeInLayout=!flag;
+				servLeverDataGridGroup.visible=flag;
+				servLeverDataGridGroup.includeInLayout=flag;
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Group width="100%"
+			 height="100%" minHeight="0">
+		<s:HGroup right="10"
+				  top="4">
+			<mx:Image source="@Embed(source='./../assets/u555.png')"
+					  buttonMode="true"
+					  click="image1_clickHandler(event)"
+					  toolTip="表格显示"/>
+			<mx:Image source="@Embed(source='./../assets/u557.png')"
+					  buttonMode="true"
+					  click="image2_clickHandler(event)"
+					  toolTip="图表显示"/>
+		</s:HGroup>
+		<mx:ViewStack id="servTabViewStack"
+					  width="100%"
+					  height="100%"
+					  top="23"
+					  styleName="commonViewStack"
+					  creationPolicy="all">
+			<s:NavigatorContent id="serviceTypeNav"
+								label="业务类型" width="100%" height="100%">
+				<s:VGroup width="100%" height="100%" id="custNumDataGridGroup">
+					<mx:AdvancedDataGrid id="custNumServDG"
+										 width="100%"
+										 height="100%"
+										 horizontalScrollPolicy="auto"
+										 visible="false" headerStyleName="commonDataGrid" itemClick="custNumServDG_itemClickHandler(event)">
+					</mx:AdvancedDataGrid>
+					<s:HGroup id="custNumServPagerGroup" width="100%" horizontalAlign="right" includeIn="viewLayer_3">
+						<pager:Pager id="custNumServPager"
+									 pageSize="20"
+									 pageChange="custNumServPager_pageChangeHandler(event)">
+						</pager:Pager>
+					</s:HGroup>
+				</s:VGroup>
+				<s:VGroup width="100%" height="100%" id="custNumChartGroup" visible="false" includeInLayout="false">
+					<s:Scroller width="100%" height="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+						<s:VGroup width="100%" height="100%">
+							<fusioncharts:FusionChartsLK width="{this.width-50}" height="200" id="servTypeChart"
+														 FCChartType="MSColumn3D" FCData="{custNumServChartData}" FCParams="{custNumServChartParams}" FCFolder="/cms/flex-release/FusionCharts">
+							</fusioncharts:FusionChartsLK>
+						</s:VGroup>
+					</s:Scroller>
+				</s:VGroup>
+			</s:NavigatorContent>
+			<s:NavigatorContent id="serviceLeverNav"
+								label="业务保障级别" width="100%" height="100%">
+				<s:VGroup width="100%" height="100%" id="servLeverDataGridGroup">
+					<mx:AdvancedDataGrid id="custNumSafeDG"
+										 width="100%"
+										 height="100%"
+										 horizontalScrollPolicy="auto" headerStyleName="commonDataGrid">
+					</mx:AdvancedDataGrid>
+				</s:VGroup>
+				<s:VGroup width="100%" height="100%" id="servLeverChartGroup" visible="false" includeInLayout="false">
+					<s:Scroller width="100%" height="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+						<s:VGroup width="100%" height="100%">
+							<fusioncharts:FusionChartsLK width="{this.width-50}" height="200" id="servLeverChart"
+														 FCChartType="MSColumn3D"
+														 FCFolder="/cms/flex-release/FusionCharts" FCData="{custNumSafeChartData}"
+														 FCParams="{custNumSafeChartParams}">
+								
+							</fusioncharts:FusionChartsLK>
+						</s:VGroup>
+					</s:Scroller>
+				</s:VGroup>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+		<s:TabBar dataProvider="{servTabViewStack}"
+				  styleName="commonTabBar" buttonMode="true"/>
+	</s:Group>
+</panel:Window>

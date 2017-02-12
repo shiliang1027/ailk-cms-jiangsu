@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx" 
+					 xmlns:datashow="com.linkage.module.cms.perfmonitor.subject.datashow.*" width="100%" height="100%"
+					 minimizable="false" maximizable="false" 
+					 restorable="false" configable="true" xmlns:fusioncharts="com.linkage.common.fusioncharts.*" title="停电基站监控">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			private var testData:ArrayCollection = new ArrayCollection([{title:"停电基站统计"
+				,name:["地市","停电基站数","停电基站比例","低电压基站数","低电压基站比例","一次下电基站数","一次下电基站比例"]
+				,column:["city","no_power","no_power_rate","low_power","low_power_rate","drop","drop_rate"]
+				,datalist:[{city:"全省", no_power:"10", no_power_rate:"2%", low_power:"10", low_power_rate:"2%", drop:"10", drop_rate:"2%"}
+					, {city:"南京", no_power:"10", no_power_rate:"2%", low_power:"10", low_power_rate:"2%", drop:"10", drop_rate:"2%"}]}]);
+			
+			private var _btsMonitor:Object;
+			
+			private var chartParams:ArrayCollection=new ArrayCollection([     
+				{caption:"停电基站专题监控"},
+				{numberPrefix:""},
+				{showValues:"0"}]); 
+			
+			private var chartData:ArrayCollection = new ArrayCollection([
+				{label:'南京'},{label:'苏州'},{label:'无锡'},{label:'常州'},{label:'镇江'},
+				{seriesName:'最差小区统计'},
+				{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]);
+			
+			private var _cityId:String = "";
+			
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get btsMonitor():Object
+			{
+				return _btsMonitor;
+			}
+			
+			public function set btsMonitor(value:Object):void
+			{
+				_btsMonitor = value;
+			}
+
+			protected function grid_itemClickHandler(e:ListEvent):void
+			{
+				if (_cityId == null || _cityId == "")
+				{
+					var cityName:String = e.target.dataProvider[e.rowIndex].city;
+					var cityId:String = e.target.dataProvider[e.rowIndex].city_id;
+					
+					if (e.rowIndex > 0)
+					{
+						_btsMonitor.showCityMap(cityId,cityName);
+					}
+				}
+			}
+			
+			public function initData(obj:Object):void
+			{
+				if (obj == null)
+				{
+					obj = testData;
+				}
+				
+				//初始化
+				var dataObj:Object = obj[0];
+				
+				var arr:Array = new Array();
+				for (var index:String in dataObj.column)
+				{
+					var column:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					column.dataField = dataObj.column[index];
+					column.headerText = dataObj.name[index];
+					column.width = column.headerText.length*15 + 30;
+					arr = arr.concat(column);
+				}
+				this.grid.columns = arr;
+				
+				this.grid.dataProvider = dataObj.datalist;
+				
+				createChart(dataObj,this.chart1,dataObj.column[0],dataObj.column[1],dataObj.name[1]);
+				createChart(dataObj,this.chart2,dataObj.column[0],dataObj.column[3],dataObj.name[3]);
+				createChart(dataObj,this.chart3,dataObj.column[0],dataObj.column[5],dataObj.name[5]);
+			}
+
+			private function createChart(obj:Object,chart:FusionChartsLK,column1:String,column2:String,title:String):void
+			{
+				var data:ArrayCollection = new ArrayCollection();
+				
+				//行
+				for each (var labelObj:Object in obj.datalist)
+				{
+					var tmp:Object = new Object();
+					tmp.label = labelObj[column1];
+					data.addItem(tmp);
+				}
+				
+				//标题
+				var tmp2:Object = new Object();
+				tmp2.seriesName = title;
+				data.addItem(tmp2);
+				
+				//值
+				for each (var valueObj:Object in obj.datalist)
+				{
+					var tmp1:Object = new Object();
+					tmp1.value = valueObj[column2];
+					data.addItem(tmp1);
+				}
+				
+				if (data.length >= 3)
+				{
+					chart.FCParams = chartParams;
+					chart.FCData = data;
+					chart.FCRender();
+				}
+			}
+
+			protected function datawindow1_configHandler():void
+			{
+				if (this.grid.visible)
+				{
+					this.grid.visible = false;
+					this.grid.includeInLayout = false;
+					
+					this.chartGroup.visible = true;
+					this.chartGroup.includeInLayout = true;
+				}
+				else
+				{
+					this.grid.visible = true;
+					this.grid.includeInLayout = true;
+					
+					this.chartGroup.visible = false;
+					this.chartGroup.includeInLayout = false;
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group id="showGroup" width="100%" height="100%">
+		<mx:AdvancedDataGrid id="grid" height="100%" width="100%" sortableColumns="false" horizontalScrollPolicy="auto" itemClick="grid_itemClickHandler(event)">
+		</mx:AdvancedDataGrid>
+		<s:Scroller id="chartGroup" width="100%" height="100%" visible="false" includeInLayout="false">
+			<s:VGroup width="100%" height="100%">
+				<fusioncharts:FusionChartsLK id="chart1" width="350" height="280" FCFolder="/cms/flex-release/FusionCharts" FCChartType="MSColumn3D" FCData="{new ArrayCollection()}" FCParams="{new ArrayCollection()}">
+				</fusioncharts:FusionChartsLK>
+				<fusioncharts:FusionChartsLK id="chart2" width="350" height="280" FCFolder="/cms/flex-release/FusionCharts" FCChartType="MSColumn3D" FCData="{new ArrayCollection()}" FCParams="{new ArrayCollection()}">
+				</fusioncharts:FusionChartsLK>
+				<fusioncharts:FusionChartsLK id="chart3" width="350" height="280" FCFolder="/cms/flex-release/FusionCharts" FCChartType="MSColumn3D" FCData="{new ArrayCollection()}" FCParams="{new ArrayCollection()}">
+				</fusioncharts:FusionChartsLK>
+			</s:VGroup>
+		</s:Scroller>
+	</s:Group>
+	<mx:Image source="{chartImg}" right="1" top="-18" id="listChartSwitchImg" click="datawindow1_configHandler()" buttonMode="true" toolTip="图表切换"/>
+</datashow:DataWindow>

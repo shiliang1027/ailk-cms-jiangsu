@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		 xmlns:cell="com.linkage.module.cms.perfmonitor.subject.datashow.cell.*"
+		 creationComplete="group1_creationCompleteHandler(event)">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExt;
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			private var _commonService:SubjectInterfaceCommService;
+			
+			private var _cellService:SubjectCellService;
+			
+			[Bindable]
+			private var _cellMonitor:Object;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.datashow.CellProvinceDataShow");
+			
+			private var _isDebug:Boolean = false;
+			
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+			
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+			
+			public function get cellService():SubjectCellService
+			{
+				return _cellService;
+			}
+			
+			public function set cellService(value:SubjectCellService):void
+			{
+				_cellService = value;
+			}
+			
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+			
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+			
+			public function get cellMonitor():Object
+			{
+				return _cellMonitor;
+			}
+
+			public function set cellMonitor(value:Object):void
+			{
+				_cellMonitor = value;
+			}
+
+			public function initData(type:int):void
+			{
+//				this.cellStat.showThisWindow();
+				
+				//最差小区
+				if (type == 1)
+				{
+					_cellService.worstCellStatList(loadDataSucc, null, loadDataErr);
+				}
+				//劣化小区
+				else if (type == 2)
+				{
+					_cellService.badCellStatList(loadDataSucc, null, loadDataErr);
+				}
+				//零业务量小区
+				else if (type == 3)
+				{
+					_cellService.zeroCellStatList(loadDataSucc, null, loadDataErr);
+				}
+				//低价值小区
+				else if (type == 4)
+				{
+					_cellService.lowCellStatList(loadDataSucc, null, loadDataErr);
+				}
+				//高无线利用率小区
+				else if (type == 5)
+				{
+					_cellService.highUsageRateCellStat(loadDataSucc, null, loadDataErr);
+				}
+				else
+				{
+					_cellService.worstCellStatList(loadDataSucc, null, loadDataErr);
+				}
+			}
+			
+			private function loadDataSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载小区统计数据正常！");
+					this.cellStat.initData(obj);
+				}
+				else
+				{
+					log.info("加载小区统计数据为空！");
+					if (_isDebug)
+					{
+						this.cellStat.initData(null);
+					}
+				}
+			}
+			
+			private function loadDataErr(obj:Object):void
+			{
+				log.info("加载小区统计数据异常！" + obj);
+				if (_isDebug)
+				{
+					this.cellStat.initData(null);
+				}
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				windowArray.push(cellStat);
+				showWindow(WindowExt(windowArray[0]));
+			}
+
+//			private function closeOpenWindow():void
+//			{
+//				if (this.cellStat._defaultShow)
+//				{
+//					this.cellStat.hideThisWindow();
+//				}
+//			}
+			
+			private var windowArray:Array = new Array;
+			protected function windowext_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				showWindow(WindowExt(event.target));
+				WindowExt(event.target).titleDisplay.addEventListener(MouseEvent.CLICK,function(evt:MouseEvent):void{
+					getWindow(evt.target).dispatchEvent(new WindowExtEvent(WindowExtEvent.TOGGLE));
+					function getWindow(target:Object):WindowExt{
+						if(!target){
+							return null;
+						}
+						if(target is WindowExt){
+							return WindowExt(target);
+						}else{
+							return getWindow(target.parent);
+						}
+						return null;
+					}
+					
+				});
+			}
+			
+			protected function windowext_toggleHandler(event:WindowExtEvent):void
+			{
+				// TODO Auto-generated method stub
+				for each(var window:WindowExt in windowArray){
+					showWindow(window);
+				}
+			}
+			
+			private function showWindow(window:WindowExt):void{
+				var vis:Boolean = window.contentGroup.visible;
+				window.contentGroup.visible=!vis;
+				window.contentGroup.includeInLayout=!vis;
+				if(vis){
+					window.height = window.minHeight;
+					window.toggleButton.text="︽";
+				}else{
+					window.percentHeight = 100;
+					window.toggleButton.text="︾";
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%">
+		<cell:CellStat id="cellStat" width="100%" height="100%" cellMonitor="{_cellMonitor}" maxWindowHeight="{this.height}" windowNum="1" creationComplete="windowext_creationCompleteHandler(event)" toggle="windowext_toggleHandler(event)">
+		</cell:CellStat>
+	</s:VGroup>
+</s:Group>

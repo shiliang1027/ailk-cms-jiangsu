@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                autoDrawBackground="true">
+
+    <fx:Script>
+        <![CDATA[
+            import mx.collections.IList;
+            import mx.controls.Alert;
+
+            import spark.components.List;
+
+            protected function image1_clickHandler(event:MouseEvent):void
+            {
+                var dataList:IList = (this.owner as List).dataProvider;
+
+                var e:ListRemoveEvent = new ListRemoveEvent(ListRemoveEvent.LIST_REMOVE);
+                e.data = String(data.label);
+                this.owner.dispatchEvent(e);
+
+                dataList.removeItemAt(dataList.getItemIndex(data));
+            }
+        ]]>
+    </fx:Script>
+
+
+    <s:Button label="{data.label}"
+              buttonMode="false"
+              width="100%"/>
+    <mx:Image source="@Embed('../img/delete.png')"
+              top="3"
+              toolTip="{'删除' + data.label}"
+              right="5"
+              buttonMode="true"
+              click="image1_clickHandler(event)"/>
+</s:ItemRenderer>

@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<flow:FlowGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				width="100%"
+				height="100%"
+				xmlns:flow="com.linkage.module.cms.general.monitor.flow.*">
+	<flow:layout>
+		<s:BasicLayout/>
+	</flow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridItemRenderer;
+			import mx.controls.advancedDataGridClasses.MXAdvancedDataGridItemRenderer;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.flow.sheetflow");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//属地级别
+			private var _cityLayer:String = null;
+
+			//告警级别
+			private var _alarmLevel:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时任务
+			private var t:Timer = new Timer(300000);
+
+			//工单详情菜单
+//			private var sheetDetail:String = "http://10.40.9.225:9081/eoms4/LogonServlet?u=lianchuang&p=123456Lc!&url=/eoms4/tBnsFaultTaskAction!centerHandle2.ilf?formNo=";
+			private var sheetDetail:String = "warn/sheet/sheetAction!tosheetInfo.action?";
+
+			//参数对象
+			private var _param:Object = null;
+
+			private var sheetList:ArrayCollection = new ArrayCollection([
+				{name: ["工单号", "网元", "告警标题", "告警级别", "故障发送时间", "处理环节", "网元类型"],
+					column: ["SHEETID", "b", "c", "d", "e", "f", "g"],
+					datalist: [{SHEETID: "JS-051-0111", b: "南京GS7", c: "以太网断路", d: "一级告警", e: "2011-05-14 12:00:00", f: "T2处理中", g: "BSC"},
+						{SHEETID: "JS-051-0112", b: "南京BTS10", c: "基站退服", d: "一级告警", e: "2011-05-14 13:00:00", f: "T2处理中", g: "BTS"}]
+				}
+				]);
+
+			public function get alarmLevel():String
+			{
+				return _alarmLevel;
+			}
+
+			public function set alarmLevel(value:String):void
+			{
+				_alarmLevel = value;
+			}
+
+			public function get cityLayer():String
+			{
+				return _cityLayer;
+			}
+
+			public function set cityLayer(value:String):void
+			{
+				_cityLayer = value;
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function initData():void
+			{
+				addMenu();
+
+				//加载数据
+				loadData();
+
+				//启动定时任务
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			public function reload():void
+			{
+				//加载数据
+				loadData();
+			}
+
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				//加载数据
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					log.info("查询工单流水参数 _cityId=" + _cityId);
+					//_remoteData.getCityCurrDispatch(_cityId,_specList,getResInfo,null,getResInfoErr);
+					if(_alarmLevel == "1")
+					{
+						_remoteData.getFilterDispatchInfo(_cityId, _cityLayer, "1", getResInfo, null, getResInfoErr);
+					}
+					else
+					{
+						_remoteData.getFilterDispatchInfo(_cityId, _cityLayer, "", getResInfo, null, getResInfoErr);
+					}
+				}
+				else
+				{
+					log.info("查询全省工单流水");
+					_remoteData.getAllProvinceCurrDispach(_specList, getResInfo, null, getResInfoErr);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("工单流水查询结果：" + obj);
+				if(obj != null)
+				{
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+				else
+				{
+					log.info("工单流水：查询无数据");
+						//createTable(sheetList);
+				}
+			}
+
+			private function createTable(obj:Object):void
+			{
+				var sheetData:Object = obj[0];
+
+				if(this.grid.columns == null || this.grid.columns.length != sheetData.column.length)
+				{
+					var colArr:Array = new Array();
+					for(var index:String in sheetData.name)
+					{
+						var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						col.dataField = sheetData.column[index];
+						col.headerText = sheetData.name[index];
+
+						if(sheetData.name[index] == "告警级别")
+						{
+							col.itemRenderer = new ClassFactory(SheetFlowAlarmLevel);
+						}
+
+						colArr = colArr.concat(col);
+					}
+					this.grid.columns = colArr;
+				}
+
+				this.grid.dataProvider = sheetData.datalist;
+
+				sheetData = null;
+				obj = null;
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("工单流水：查询数据异常");
+				//createTable(sheetList);
+			}
+
+			//添加右键菜单
+			public function addMenu():void
+			{
+				var menu:ContextMenu = new ContextMenu();
+				var arr:Array = new Array();
+
+				//查看资源
+				var resMenu:ContextMenuItem = new ContextMenuItem("查看EMOS详情");
+				//SHEETID 对应 表里SHEETNO
+				resMenu.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(e:ContextMenuEvent):void
+					{
+						var url:String = "";
+						if(e.mouseTarget is AdvancedDataGridItemRenderer)
+						{
+							var render:AdvancedDataGridItemRenderer = e.mouseTarget as AdvancedDataGridItemRenderer;
+							if(render.data != null && render.data["SHEETID"] != null)
+							{
+								log.info("查看工单详情：" + render.data["SHEETID"]);
+								url = _param["context"] + sheetDetail.replace(/\$/g, "&") + 'sheetno=' + render.data["SHEETID"] + '&isgroupsheet=' + render.data["ISGROUPSHEET"];
+								log.info('url：' + url);
+								navigateToURL(new URLRequest(url));
+							}
+							else
+							{
+								Alert.show("工单号为空！");
+							}
+						}
+						else if(e.mouseTarget is MXAdvancedDataGridItemRenderer)
+						{
+							var mxrender:MXAdvancedDataGridItemRenderer = e.mouseTarget as MXAdvancedDataGridItemRenderer;
+							if(mxrender.data != null && mxrender.data["SHEETID"] != null)
+							{
+								log.info("查看工单详情：" + mxrender.data["SHEETID"]);
+								url = _param["context"] + sheetDetail.replace(/\$/g, "&") + 'sheetno=' + render.data["SHEETID"] + '&isgroupsheet=' + render.data["ISGROUPSHEET"];
+								log.info('url：' + url);
+								navigateToURL(new URLRequest(url));
+							}
+							else
+							{
+								Alert.show("工单号为空！");
+							}
+						}
+						else
+						{
+							Alert.show("工单号为空！");
+						}
+
+					});
+				arr.push(resMenu);
+
+				menu.customItems = arr;
+				this.grid.contextMenu = menu;
+				this.grid.contextMenu.hideBuiltInItems();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:AdvancedDataGrid sortableColumns="false"
+						 id="grid"
+						 width="100%"
+						 height="100%">
+	</mx:AdvancedDataGrid>
+</flow:FlowGroup>

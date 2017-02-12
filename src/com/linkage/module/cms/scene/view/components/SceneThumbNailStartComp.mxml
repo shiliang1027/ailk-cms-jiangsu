@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					minimizable="false"
+					maximizable="false"
+					title="区域启停"
+					styleName="windowScene"
+					dragable="true"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="window1_creationCompleteHandler(event)"
+					close="window1_closeHandler(event)">
+	<!--
+		 ***************************************
+		 区域启停
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-4-12
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.utils.StringUtil;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.SceneThumbnailEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(SceneThumbNailStartComp);
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[MessageHandler(selector="CMS_SCENE_SCENETHUMBNAIL_CITYTREESHOWDATA")]
+			public function showCityTreeHandler(evt:SceneThumbnailEvent):void
+			{
+				log.info("初始化地市tree");
+
+				log.info(evt.data);
+
+				cityTree.dataProvider = evt.data;
+				cityTree.openItems = evt.data;
+
+				cityTree.validateNow();
+
+				cityTree.visible = true;
+				cityTree.includeInLayout = true;
+
+				log.info("初始化地市tree 结束！");
+
+				log.info("抛出获取所有数据事件！");
+
+				var sievt:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_STARTIMGGETDATA);
+				sievt.data = new Object();
+				sievt.data.sceneId = user.initSceneId;
+				sievt.data.cityId = "00";
+				sievt.data.name = "";
+//				dispatchMsg(sievt);
+				requestServerUtil.addRequest(sievt);
+
+				this.visible = true;
+				this.includeInLayout = true;
+				var s:Rectangle = systemManager.screen;
+				var appWidth:Number;
+				var appHeight:Number;
+				var parentWidth:Number;
+				var parentHeight:Number;
+
+				appWidth = s.width;
+				appHeight = s.height;
+				parentWidth = this.parent.width;
+				parentHeight = this.parent.height;
+				x = Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+				y = Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+
+				log.info("显示启停窗口  结束！");
+			}
+
+			[MessageHandler(selector="CMS_SCENE_SCENETHUMBNAIL_STARTIMGSHOWDATA")]
+			public function showStartHandler(event:SceneThumbnailEvent):void
+			{
+				log.info("处理数据集，改为selected为true或者false:{0}", event);
+
+				var arr:ArrayCollection = new ArrayCollection();
+
+				for each (var obj:Object in event.data)
+				{
+					if (obj.status == "1")
+						obj.selected = true;
+					else
+						obj.selected = false;
+					arr.addItem(obj);
+				}
+
+				areaStartGrid.dataProvider = arr;
+				areaStartGrid.validateNow();
+
+				if (!this.visible)
+				{
+					this.visible = true;
+					this.includeInLayout = true;
+					var s:Rectangle = systemManager.screen;
+					var appWidth:Number;
+					var appHeight:Number;
+					var parentWidth:Number;
+					var parentHeight:Number;
+
+					appWidth = s.width;
+					appHeight = s.height;
+					parentWidth = this.parent.width;
+					parentHeight = this.parent.height;
+					x = Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+					y = Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+				}
+
+			}
+
+			private function allSelectedCheckBox(event:SceneEvent):void
+			{
+				log.info("全选：{0}", event);
+				for each (var item:Object in areaStartGrid.dataProvider)
+				{
+					if (event.param == "1")
+					{
+						item.selected = true;
+					}
+					else
+					{
+						item.selected = false;
+					}
+				}
+				ArrayCollection(areaStartGrid.dataProvider).refresh();
+			}
+
+			//保存启停数据
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+
+				log.info("保存启停数据！！！");
+				var areaIds:ArrayCollection = new ArrayCollection();
+
+				for each (var item:Object in areaStartGrid.dataProvider)
+				{
+					if (item.selected)
+					{
+						item.status = "1";
+						areaIds.addItem(item);
+					}
+					else
+					{
+						item.status = "0";
+						areaIds.addItem(item);
+					}
+				}
+
+				if (areaIds.length == 0)
+				{
+					Alert.show("无数据启停！", "提示");
+					return;
+				}
+
+				var evt:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_STARTIMGSAVEDATA);
+				evt.data = areaIds;
+				log.info(areaIds);
+//				dispatchMsg(evt);
+
+				requestServerUtil.addRequest(evt);
+				this.visible = false;
+				this.includeInLayout = false;
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(SceneEvent.CHECKBOX_ALL_SELECTED, allSelectedCheckBox);
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				this.visible = false;
+				this.includeInLayout = false;
+			}
+
+			//查询过滤
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				log.info("调用查询方法！！");
+
+				var obj:XML = cityTree.selectedItem as XML;
+				var sievt:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_STARTIMGGETDATA);
+				sievt.data = new Object();
+				sievt.data.sceneId = user.initSceneId;
+				if (obj)
+					sievt.data.cityId = String(obj.attribute("id"));
+				else
+					sievt.data.cityId = "00";
+				sievt.data.name = StringUtil.trim(areaNameFilter.text);
+				log.info(sievt.data);
+//				dispatchMsg(sievt);
+				requestServerUtil.addRequest(sievt);
+//				if (StringUtil.trim(areaNameFilter.text).length > 0)
+//				{
+//
+//
+//				}
+//				else
+//				{
+//					Alert.show("请输入区域名称！", "提示");
+//					return;
+//				}
+
+			}
+
+			protected function sceneTree_itemClickHandler(event:ListEvent):void
+			{
+				log.info("触发地市点击事件！");
+				var obj:XML = Tree(event.currentTarget).selectedItem as XML;
+				var sievt:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_STARTIMGGETDATA);
+				sievt.data = new Object();
+				sievt.data.sceneId = user.initSceneId;
+				sievt.data.cityId = String(obj.attribute("id"));
+				log.info(sievt.data);
+//				dispatchMsg(sievt);
+				requestServerUtil.addRequest(sievt);
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%"
+			  height="100%">
+		<mx:Tree id="cityTree"
+				 width="160"
+				 height="100%"
+				 borderAlpha="0"
+				 contentBackgroundAlpha="0"
+				 labelField="@name"
+				 visible="false"
+				 includeInLayout="false"
+				 itemClick="sceneTree_itemClickHandler(event)">
+		</mx:Tree>
+
+		<s:VGroup width="100%"
+				  height="100%">
+			<s:HGroup width="100%"
+					  height="20"
+					  horizontalAlign="center"
+					  verticalAlign="middle">
+				<mx:Form direction="ltr">
+					<mx:FormItem label="区域名称">
+						<s:TextInput id="areaNameFilter"
+									 width="200"/>
+					</mx:FormItem>
+				</mx:Form>
+				<s:Button label="查询"
+						  click="button2_clickHandler(event)"/>
+			</s:HGroup>
+			<mx:AdvancedDataGrid width="100%"
+								 height="100%"
+								 id="areaStartGrid"
+								 styleName="sceneDG"
+								 sortExpertMode="false">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn headerText="是否启动"
+											   sortable="false"
+											   headerRenderer="com.linkage.module.cms.scene.view.components.renderer.CheckBoxSelectHeaderRenderer"
+											   itemRenderer="com.linkage.module.cms.scene.view.components.renderer.CheckBoxSelectedRenderer"/>
+					<mx:AdvancedDataGridColumn headerText="区域名称"
+											   dataField="areaName"
+											   sortable="false"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+			<s:HGroup horizontalAlign="right"
+					  width="100%"
+					  height="20">
+				<s:Button label="保存"
+						  right="20"
+						  click="button1_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:HGroup>
+</ailk_compts:Window>

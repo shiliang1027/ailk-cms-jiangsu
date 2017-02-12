@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window width="100%"
+					height="100%"
+					minimizable="false"
+					maximizable="false"
+					closable="false"
+					title="告警流水窗口"
+					creationComplete="Init()"
+					mouseOver="window1_mouseOverHandler(event)"
+					mouseOut="window1_mouseOutHandler(event)"
+					styleName="windowScene"
+					xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.alarm.framework.common.event.MenuEvent;
+			import com.linkage.module.cms.alarm.framework.view.resource.imagesclass.IconParam;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.kpicustom.event.KpiCustomEvent;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.event.ResMatrixEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.controls.Image;
+
+			private var log:ILogger = Log.getLoggerByClass(SceneAlarmFlow);
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("user")]
+			public var user:IUser;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+
+			private var showAllImg:Image;
+
+			//告警流水网元定位，网游类型名称和id映射， 因为告警流水中有name没有id，定位接口需要id
+			private var moTypeIdName:Object = {'CELL': '101', 'UTRANCELL': '102', 'BTS': '16', 'NodeB': '28'};
+
+			private var cityInfo:Object = {"0100":"南京","0200":"苏州","0300":"无锡","0400":"常州","0500":"镇江",
+					"0600":"扬州","0700":"南通","0800":"泰州","0900":"徐州",
+					"1000":"淮安","1100":"盐城","1200":"连云港","1300":"宿迁"};
+			//日常节假日时，初始化的告警过滤器参数
+			private var defaultFilter:String = '(equipmentclass="HSS_FE"|equipmentclass="MGW"|equipmentclass="GGSN"|equipmentclass="SGSN"|equipmentclass="BSC"|equipmentclass="BTS"|equipmentclass="RNC"|equipmentclass="NodeB"|equipmentclass="CELL"|equipmentclass="UTRANCELL"|equipmentclass="MME"|equipmentclass="PGW"|equipmentclass="SGW"|equipmentclass="eNodeB"|equipmentclass="EUtranCell"|equipmentclass="HSS")';
+			//当前过滤器的过滤规则
+			private var currentFilter:String = '';
+			private var exInfo:String = '';
+			
+			[Bindable]
+			private var sceneflowAlarmFlag:Boolean = true;//场景ModuleKey
+			
+			private var alarmAllFlowInitFlag:Boolean = false;
+			private var alarmFlowInitFlag:Boolean = false;
+			
+			private var currentFlow:sceneAlarm;
+			
+			
+/************************************************************************以下处理外部事件**************************************************************************************************************************************/
+			[MessageHandler(selector = "CHANGE_VIEW")]
+			[MessageHandler(selector = "CHANGE_MAPVIEW")]
+			public function reloadAlarm(e:SceneEvent = null):void
+			{
+				log.info("change view ,  reload alarm flow!");
+				var param:Object = e.param;
+				if("1"==user.logicalType){
+					/**
+					 * 当为日常节假日时，需要判断使用哪一个告警流水对象，当level为2时使用原场景，即为alarmFlow，其他情况用alarmAllFlow；
+					 * 并设置好告警过滤器currentFilter；
+					 **/
+					if(param.level=="2")
+					{
+						if(null!=currentFlow&&"totalflowalarm"==currentFlow.moduleKey){
+							currentFlow.stopLoad(true);
+						}
+						currentFlow = alarmFlow;
+						this.sceneflowAlarmFlag = true;
+						
+						//规则
+						this.currentFilter=null;
+						this.exInfo = param.areaId + "#2";
+					}else{
+						if(null!=currentFlow&&"sceneflowalarm"==currentFlow.moduleKey){
+							currentFlow.stopLoad(true);
+						}
+						currentFlow = alarmAllFlow;
+						this.sceneflowAlarmFlag = false;
+						
+						//规则
+						if(param.level=="1")
+						{
+							this.currentFilter=defaultFilter;
+						}else if(param.level=="3")
+						{
+							this.currentFilter='alarmregion=\"' + cityInfo[param.cityId] + '\"&' +defaultFilter;
+						}else if(param.level=="4")
+						{
+							this.currentFilter='alarmregion=\"' + cityInfo[param.cityId] + '\"&' +defaultFilter;
+						}
+						this.exInfo = null;
+					}
+				}else{
+					/**
+					 * 当为不是日常节假日时，设置告警过滤器currentFilter；
+					 **/
+					//确定告警流水的过滤器，和场景信息
+					if (param.level == "3")
+					{
+						this.currentFilter="alarmregion=\"" + cityInfo[param.cityId] + "\"";
+						this.exInfo = user.sceneId + "#1";
+					}
+					else if(param.level=="2")
+					{
+						this.currentFilter=null;
+						this.exInfo = param.areaId + "#2";
+					}else if(param.level=="1")
+					{
+						this.currentFilter=null;
+						this.exInfo = user.sceneId + "#1";
+					}
+				}
+			}
+			
+			/**
+			 * 
+			 *重载告警流水的规则 ruleContent
+			 * 2014-6-25，mod by 汪炜
+			 **/
+			[MessageHandler(selector="CHANGE_SCENE_ALARM_BYFILTER")]
+			public function filterAlarmByFilter(e:SceneEvent = null):void
+			{
+				var filter:String = e.param["ruleContent"];
+				if("1"==user.logicalType&&user.level!="2"){
+					this.currentFilter = defaultFilter+"&"+filter;
+				}else{
+					this.currentFilter = filter;
+				}
+				this.showAllImg.visible = true;
+			}
+			/**
+			 *加载告警
+			 **/
+			[MessageHandler(selector="LOAD_SCENE_ALARM")]
+			public function loadSceneAlarm(e:SceneEvent = null):void
+			{
+				log.info("LOAD_SCENE_ALARM");
+				log.info("currentFilter-->"+currentFilter);
+				log.info("exInfo-->"+exInfo);
+				if(!sceneflowAlarmFlag){//全网元module
+					if(alarmAllFlowInitFlag){
+						currentFlow.reload(this.currentFilter);
+					}else{
+						doInitFlow(currentFlow,this.currentFilter);
+						alarmAllFlowInitFlag = true;
+					}
+				}else{//场景module
+					if(alarmFlowInitFlag){
+						currentFlow.reload(this.currentFilter,this.exInfo);
+					}else{
+						doInitFlow(currentFlow,this.currentFilter);
+						alarmFlowInitFlag = true;
+					}
+				}
+			}
+			/**
+			 *停止告警
+			 **/
+			[MessageHandler(selector="STOP_SCENE_ALARM")]
+			public function stopSceneAlarm(e:SceneEvent = null):void
+			{
+				log.info("STOP_SCENE_ALARM");
+				currentFlow.stopLoad(true);
+			}
+			
+/************************************************************************以上处理外部事件**************************************************************************************************************************************/
+
+//			初始化告警流水。
+			private function Init():void
+			{
+				log.info("SceneAlarmFlow Init");
+				 if("1"==user.logicalType){
+					//日常节假日场景，需2个流水切换
+					 this.currentFilter = this.defaultFilter;
+					currentFlow = alarmAllFlow;
+					this.sceneflowAlarmFlag = false;
+				}else{
+					this.currentFilter = '';
+					currentFlow = alarmFlow;
+					this.sceneflowAlarmFlag = true;
+				}
+			}
+			/* 初始化告警流水  */
+			private function doInitFlow(flow:sceneAlarm,defaultFilter:String):void{
+				//添加显示全部告警按钮
+				log.info('初始化全部告警按钮~~');
+				showAllImg = new Image();
+				showAllImg.source = IconParam.iconShowAll;
+				showAllImg.buttonMode = true;
+				showAllImg.toolTip = "显示全部告警";
+				showAllImg.visible = false;
+				showAllImg.addEventListener(MouseEvent.CLICK, showAllAlarms);
+				flow.addToolButton(showAllImg);
+				
+				log.info("开始 初始化告警流水！");
+				//初始化告警流水
+				flow.params = parentApplication.parameters;
+				flow.params.defaultDisplay = "perf_type_id,neid";
+				flow.ruleContent = defaultFilter;
+				flow.initInfo(null, 1, this.exInfo);
+				
+				//告警网元性能信息
+				flow.addAlarmListener("QUERYKPI", function(event:MenuEvent):void
+				{
+					var evt:KpiCustomEvent = new KpiCustomEvent(KpiCustomEvent.QUERYKPI);
+					var param:Object = new Object();
+					param.moTypeName = event.data.equipmentclass;
+					
+					if (event.data.perf_type_id != null && event.data.perf_type_id != "")
+						param.kpiIDs = [event.data.perf_type_id];
+					param.moOrAreaFlag = "0";
+					param.moOrAreaId = event.data.neid;
+					evt.param = param;
+					log.info(event.data);
+					log.info(evt.param);
+					msgDispatcher(evt);
+					
+				});
+				
+				//告警网元 GIS定位
+				flow.addAlarmListener("SHOWMO2GIS", function(event:MenuEvent):void
+				{
+					log.info("告警流水，网元定位：");
+					var data:Object = event.data;
+					var e:SceneEvent = new SceneEvent(SceneEvent.SHOWMO2GIS);
+					e.param = new Object();
+					if (data.alarmneid == null)
+						e.param.moId = data.neid;
+					else
+						e.param.moId = data.alarmneid;
+					//modify by donglm at 2013-12-3 20:30
+					e.param.moTypeId = moTypeIdName[data.alarmnetype];
+					e.param.alarmLevel = data.alarmseverity;
+					log.info(e.param);
+//					msgDispatcher(e);
+					requestServerUtil.addRequest(e);
+				});
+				this.parentApplication.add(flow);
+				log.info("初始化告警moduleKey: "+flow.moduleKey+" ,ruleContent：" + flow.ruleContent);
+			}
+			
+			private function showAllAlarms(e:MouseEvent):void
+			{
+				if("1"==user.logicalType&&user.level!="2"){
+					currentFlow.reload(defaultFilter);
+				}else{
+					currentFlow.reload('');
+				}
+				log.info("取消过滤 告警流水 ruleContent：" + alarmFlow.ruleContent);
+
+				showAllImg.visible = false;
+			}
+
+/**************************************************************************************************************************************************************************************************************/
+			private var flag801:Boolean = false;
+			protected function window1_mouseOverHandler(event:MouseEvent):void
+			{
+				flag801 = true;
+				setTimeout(function():void
+				{
+					if (flag801 && user.isNew == "1")
+					{
+						user.labelTypeId = "801";
+						var obj:Object = new Object;
+						obj.sceneId = user.sceneId;
+						obj.level = user.level;
+						obj.labelId = 801;
+						var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+						e.obj = obj;
+						//							msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+					}
+					flag801 = false;
+				}, 3000)
+			}
+			protected function window1_mouseOutHandler(event:MouseEvent):void{flag801 = false;}
+/**************************************************************************************************************************************************************************************************************/
+		]]>
+	</fx:Script>
+	<!-- sceneflowalarm -->
+	<pubflow:sceneAlarm id="alarmAllFlow"
+						width="100%"
+						alarmStyleName="sceneDG"
+						height="100%"
+						visible="{!sceneflowAlarmFlag}"
+						includeInLayout="{!sceneflowAlarmFlag}"
+						moduleKey="totalflowalarm"/>
+	<pubflow:sceneAlarm id="alarmFlow"
+						width="100%"
+						alarmStyleName="sceneDG"
+						height="100%"
+						visible="{sceneflowAlarmFlag}"
+						includeInLayout="{sceneflowAlarmFlag}"
+						moduleKey="sceneflowalarm"/>
+</ailk_compts:Window>

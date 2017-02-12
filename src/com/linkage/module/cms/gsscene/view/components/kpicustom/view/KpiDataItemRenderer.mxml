@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				autoDrawBackground="false"
+				width="100%"
+				xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+				creationComplete="pc_creationCompleteHandler(event)">
+
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+
+			private var horizontalLines:ArrayCollection;
+
+			private static var log:ILogger = Log.getLoggerByClass(KpiDataItemRenderer);
+
+			protected function showHideThreshold_changeHandler(event:Event):void
+			{
+				pc.chartParam.title = data.kpiName;
+				pc.chartParam.xAxisProperty = 'time';
+//				pc.chartParam.showLegend=true;
+				if(CheckBox(event.currentTarget).selected)
+				{
+					pc.chartParam.horizontalLines = horizontalLines;
+					pc.chartData(data.datas, true);
+				}
+				else
+				{
+					pc.chartParam.horizontalLines = new ArrayCollection();
+					pc.chartData(data.datas, true);
+				}
+			}
+
+			protected function pc_creationCompleteHandler(event:FlexEvent):void
+			{
+				pc.percentWidth = 100;
+				buildChart();
+			}
+
+			private var idNameMap:Object = {};
+
+			private function buildChart():void
+			{
+				pc.xAxisFontSize = 13;
+				//				pc.defaultStyleURL = 'style.xml';
+				pc.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+
+				for each(var item:*in data.moOrAreas)
+				{
+					var sp:SerialParam = new SerialParam(item.id, item.name);
+					series.addItem(sp);
+					idNameMap[item.id] = item.name;
+				}
+				pc.series = series;
+				var chartParam:ChartParam = new ChartParam();
+				chartParam.title = data.kpiName;
+				chartParam.xAxisProperty = 'time';
+				chartParam.labelStep = uint(data.datas.length / 4);
+
+				horizontalLines = new ArrayCollection();
+
+				for each(var hdata:Object in data.threshold)
+				{
+					var hl:HorizontalLine = new HorizontalLine();
+					hl.yValue = Number(hdata.down_value);
+					hl.lineColor = uint(hdata.color);
+					hl.lineThickness = 1;
+					hl.dashedLine = false;
+					horizontalLines.addItem(hl);
+
+					hl = new HorizontalLine();
+					hl.yValue = Number(hdata.up_value);
+					hl.lineColor = uint(hdata.color);
+					hl.lineThickness = 1;
+					hl.dashedLine = false;
+					horizontalLines.addItem(hl);
+				}
+
+//				if (data.up_threshold && data.up_threshold != "0")
+//				{
+//					var up_threshold:HorizontalLine=new HorizontalLine()
+//					up_threshold.yValue=data.up_threshold;
+//					up_threshold.lineColor=0xFF0000;
+//					up_threshold.dashedLine=false;
+//					horizontalLines.addItem(up_threshold);
+//				}
+//				if (data.down_threshold && data.down_threshold != "0")
+//				{
+//					var down_threshold:HorizontalLine=new HorizontalLine()
+//					down_threshold.yValue=data.down_threshold;
+//					down_threshold.lineColor=0xFF0000;
+//					down_threshold.dashedLine=false;
+//					horizontalLines.addItem(down_threshold);
+//				}
+
+				if(showHideThresholdCB.selected)
+				{
+					chartParam.horizontalLines = horizontalLines;
+				}
+				pc.chartParam = chartParam;
+				pc.chartData(data.datas, false);
+
+//				log.debug("KPI数据");
+//				for each(var d:* in data.datas){
+//					log.debug(d);
+//				}
+			}
+
+			public function tipFunc(hd:HitData):String
+			{
+				var data:Object = hd.item;
+
+				var moId:Object = hd.element['yField'];
+				var value:Object = data[moId];
+
+				var msg:String = "<B>" + idNameMap[moId] + "</B>\n" + data["time"] + "\n" + value;
+
+				if(data.hasOwnProperty("numberator_name"))
+					msg += "\n分子：" + data['numberator_name'] + "\n分母：" + data['deno_name'];
+
+				return msg;
+			}
+		]]>
+	</fx:Script>
+	<ailk_chart:PrettyChart clipAndEnableScrolling="true"
+							top="20"
+							id="pc"
+							dataTipFunc="tipFunc"
+							width="660"
+							height="180"/>
+	<s:CheckBox label="显隐阈值基线"
+				id="showHideThresholdCB"
+				change="showHideThreshold_changeHandler(event)"
+				visible="{data.datas.length>0?true:false}"
+				right="10"
+				top="0"
+				selected="true"/>
+</s:ItemRenderer>

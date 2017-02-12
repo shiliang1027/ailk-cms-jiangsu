@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<monitor:CommonGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+					 xmlns:s="library://ns.adobe.com/flex/spark"
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 width="100%"
+					 height="100%"
+					 xmlns:base="com.linkage.module.cms.general.monitor.base.*"
+					 xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					 xmlns:flow="com.linkage.module.cms.general.monitor.flow.*"
+					 xmlns:monitor="com.linkage.module.cms.general.monitor.*"
+					 xmlns:component="com.linkage.module.cms.general.monitor.base.core.container.component.*"
+					 creationComplete="init();">
+	<monitor:layout>
+		<s:BasicLayout/>
+	</monitor:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManagerImp;
+
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			[Embed(source="../../../../../../assets/shiftBtn3_1.png")]
+			[Bindable]
+			private static var pic31:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn3_2.png")]
+			[Bindable]
+			private static var pic32:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn3_3.png")]
+			[Bindable]
+			private static var pic33:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn3_4.png")]
+			[Bindable]
+			private static var pic34:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn4_1.png")]
+			[Bindable]
+			private static var pic41:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn4_2.png")]
+			[Bindable]
+			private static var pic42:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn4_3.png")]
+			[Bindable]
+			private static var pic43:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn4_4.png")]
+			[Bindable]
+			private static var pic44:Class;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.monitorView");
+
+			//参数对象
+			private var _param:Object = null;
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//主界面
+			[Bindable]
+			private var _general:Object = null;
+
+			//XML配置信息
+			private var _config:XML = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//属地名称
+			private var _cityName:String = null;
+
+			public function get cityName():String
+			{
+				return _cityName;
+			}
+
+			public function set cityName(value:String):void
+			{
+				_cityName = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get general():Object
+			{
+				return _general;
+			}
+
+			public function set general(value:Object):void
+			{
+				_general = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function get config():XML
+			{
+				return _config;
+			}
+
+			public function set config(value:XML):void
+			{
+				_config = value;
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+
+			public function init():void
+			{
+				//System.useCodePage = true;
+				if(GeneralMonitorModule.provinceName == "江苏省")
+				{
+					_param.mapConf = "xml/map_jiangsu.xml";
+					_param.viewConf = "xml/view_js.xml";
+				}
+				else if(GeneralMonitorModule.provinceName == "广东省")
+				{
+					_param.mapConf = "xml/map_guangdong.xml";
+					_param.viewConf = "xml/view_gd.xml";
+				}
+
+				_param.viewId = "level1";
+
+				this.baseView.remoteData = remoteData;
+				this.dataShow.remoteData = remoteData;
+				this.dataShow.cityName = cityName;
+				this.dataShow.cityId = cityId;
+				this.dataShow.param = _param;
+				this.dataShow.general = _general;
+
+				//初始化视图
+				this.baseView.initView(_param, this);
+				//初始化数据表格
+				this.dataShow.init();
+			}
+
+			//切换视图
+			public function switchView(cityId:String, cityName:String):void
+			{
+				log.info("cityId==" + cityId + " cityName==" + cityName);
+				_general.forward2View("2", cityId, cityName, "");
+			}
+
+			private function resizeWindow(type:int):void
+			{
+				//主界面向左伸缩
+				if(type == 1 && dataShowGroup.visible)
+				{
+					if(baseView.visible)
+					{
+						this.legendBar.visible = false;
+						_general.treeDiv.visible = false;
+						_general.search.visible = false;
+
+						baseViewGroup.width = 0;
+						baseView.visible = false;
+
+						changePic(img1, pic44, pic43);
+						changePic(img2, pic32, pic32);
+						this.img2.visible = false;
+						this.img2.includeInLayout = false;
+
+						baseViewHide.play();
+
+						this.dataShow.validateAll();
+					}
+					else
+					{
+						this.legendBar.visible = true;
+						_general.treeDiv.visible = true;
+						_general.search.visible = true;
+
+						baseViewGroup.width = 750;
+						baseView.visible = true;
+
+						changePic(img1, pic42, pic41);
+						changePic(img2, pic32, pic31);
+						this.img2.visible = true;
+						this.img2.includeInLayout = true;
+
+						baseViewShow.play();
+
+						this.dataShow.validateAll();
+					}
+				}
+				//主界面向右伸缩
+				else if(type == 2 && baseView.visible)
+				{
+					if(dataShowGroup.visible)
+					{
+						dataShowGroup.percentWidth = 0;
+						dataShowGroup.visible = false;
+						dataShowGroup.includeInLayout = false;
+						baseViewGroup.percentWidth = 100;
+
+						changePic(img1, pic42, pic42);
+						changePic(img2, pic34, pic33);
+						this.img1.visible = false;
+						this.img1.includeInLayout = false;
+
+						dataGroupHide.play();
+					}
+					else
+					{
+						dataShowGroup.percentWidth = 100;
+						dataShowGroup.visible = true;
+						dataShowGroup.includeInLayout = true;
+						baseViewGroup.width = 750;
+
+						changePic(img1, pic42, pic41);
+						changePic(img2, pic32, pic31);
+						this.img1.visible = true;
+						this.img1.includeInLayout = true;
+
+						dataGroupShow.play();
+					}
+				}
+			}
+
+			private function changePic(img:Image, pic1:Class, pic2:Class):void
+			{
+				img.source = pic1;
+				img.addEventListener(MouseEvent.MOUSE_OVER, function():void{
+						img.source = pic2;
+					});
+				img.addEventListener(MouseEvent.MOUSE_OUT, function():void{
+						img.source = pic1;
+					});
+			}
+
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				this.baseView.showView();
+				this.dataShow.showView();
+			}
+
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				this.baseView.hideView();
+				this.dataShow.hideView();
+			}
+
+			//刷新页面大小
+			override public function validateGroup():void
+			{
+				this.baseViewGroup.percentHeight = 100;
+				this.baseViewGroup.validateNow();
+			}
+
+			//动态调整大小
+			override public function resizeWindowGroup(h:int):void
+			{
+				this.dataShow.resizeThisGroup(h);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Resize id="baseViewHide"
+				  target="{baseViewGroup}"
+				  widthFrom="750"
+				  widthTo="0"
+				  duration="300">
+		</s:Resize>
+		<s:Resize id="baseViewShow"
+				  target="{baseViewGroup}"
+				  widthFrom="0"
+				  widthTo="750"
+				  duration="300">
+		</s:Resize>
+		<s:Resize id="dataGroupHide"
+				  target="{baseViewGroup}"
+				  widthFrom="750"
+				  widthTo="{this.width-15}"
+				  duration="300">
+		</s:Resize>
+		<s:Resize id="dataGroupShow"
+				  target="{baseViewGroup}"
+				  widthFrom="{this.width-15}"
+				  widthTo="750"
+				  duration="300">
+		</s:Resize>
+	</fx:Declarations>
+	<s:HGroup id="mainGroup"
+			  width="100%"
+			  height="100%"
+			  gap="0"
+			  paddingLeft="5"
+			  paddingRight="5">
+		<s:Group id="baseViewGroup"
+				 width="750"
+				 height="100%">
+			<base:BaseView id="baseView"
+						   width="100%"
+						   height="100%">
+			</base:BaseView>
+		</s:Group>
+		<s:VGroup width="5"
+				  height="100%"
+				  verticalAlign="middle">
+			<mx:Image id="img1"
+					  source="{pic42}"
+					  mouseOver="this.img1.source=pic41"
+					  mouseOut="this.img1.source=pic42"
+					  click="resizeWindow(1);"
+					  buttonMode="true">
+			</mx:Image>
+			<mx:Image id="img2"
+					  source="{pic32}"
+					  mouseOver="this.img2.source=pic31"
+					  mouseOut="this.img2.source=pic32"
+					  click="resizeWindow(2);"
+					  buttonMode="true">
+			</mx:Image>
+		</s:VGroup>
+		<s:Group id="dataShowGroup"
+				 width="100%"
+				 height="100%">
+			<!--<datashow:dataShow id="dataShow" width="100%" height="100%">
+				 </datashow:dataShow>-->
+			<datashow:DataShowEx id="dataShow"
+								 width="100%"
+								 height="100%"
+								 popParent="{this}"
+								 general="{_general}">
+			</datashow:DataShowEx>
+		</s:Group>
+	</s:HGroup>
+	<component:LegendNavbar id="legendBar"
+							x="5">
+	</component:LegendNavbar>
+</monitor:CommonGroup>

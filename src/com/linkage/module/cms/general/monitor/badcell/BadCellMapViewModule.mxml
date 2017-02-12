@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%"
+		   xmlns:gis="com.linkage.gis.*"
+		   xmlns:district="com.linkage.module.cms.general.monitor.district.*" 
+		   xmlns:tools="com.linkage.module.cms.general.monitor.district.tools.*" 
+		   xmlns:badcell="com.linkage.module.cms.general.monitor.badcell.*"
+		   creationComplete="init()">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.event.GisFeatureEvent;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.common.ImageBuffer;
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeService;
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeServiceImp;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			
+			//日志
+			public var log:ILogger = null;
+			
+			[Bindable]
+			private var mapCityId:String = null;
+			
+			private var level3Serv:LevelThreeService = null;
+			
+			[Embed(source="com/linkage/module/cms/general/img/cell/cell_1_bad.png")]
+			[Bindable]
+			private static var badCell:Class;
+			
+			[Embed(source="com/linkage/module/cms/general/img/cell/cell_1_bad_light.png")]
+			[Bindable]
+			private static var badCellSelect:Class;
+			
+			//右键菜单链接
+			private static var cellDetailURL:String = "cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=";
+			private static var perfDetailURL:String = "cms/performance/report/permsg!initForm.action";
+			private static var alarmDetailURL:String = "cms/warn/report/query/ShowAlarmList.jsp";
+			private static var logicTopoURL:String = "cms/webtopo/topo/topolocate.action";
+			private static var scenenimsURL:String = "http://10.40.4.108:18080/js-view/gis/scenenims.jsp?loginSource=nims&scene=";
+			
+			//劣化小区列表数据集
+			
+			private var perfDownArrc:ArrayCollection = new ArrayCollection();
+			private var perfDownColumnArrc:Array = ['序号,index', '地区,city', '县市,district','基站,belong_bts', 'LAC,lac', 'CI,ci', '时间,time'];
+			
+			//缓存CELL对象
+			private var cellMap:Dictionary = new Dictionary();
+			
+			private var testData:ArrayCollection = new ArrayCollection([
+				{"mo_id":"1","mo_name":"test","longitude":"118.796711","latitude":"32.060537","ci":"1234","index":"1"},
+				{"mo_id":"2","mo_name":"test","longitude":"118.756711","latitude":"32.010537","ci":"1234","index":"2"},
+				{"mo_id":"3","mo_name":"test","longitude":"118.786711","latitude":"32.040537","ci":"1234","index":"3"}
+			]);
+			
+			//等待提示
+			private var loadInfo:LoadManager;
+
+			public var parameters:Object;
+			public function init():void
+			{
+				parameters=parentApplication.parameters;
+				var target:ILoggingTarget = new DeMonsterTarget();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.general.*","com.linkage.system.*"];
+				Log.addTarget(target);
+				log = Log.getLogger("com.linkage.module.cms.general.monitor.badcell");
+				
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				
+				mapCityId = this.parameters["mapCityId"];
+				level3Serv = new LevelThreeServiceImp();
+				level3Serv.setEndPoint(this.parameters["context"]);
+				
+				pdtable.setTitle(this.parameters["cityName"] + "劣化小区列表");
+				pdtable.initTable(perfDownArrc, perfDownColumnArrc);
+				pdtable.addClickEvent(selectCell);
+			}
+			
+			protected function mapWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				loadInfo = new LoadManager(this,"blue");
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				var param:Object = new Object();
+				param.city_id = this.parameters["cityId"];
+				param.level = this.parameters["level"];
+				
+				log.info("查询劣化小区参数 city_id=" + param.city_id + " level=" + param.level);
+				level3Serv.getBadCellStat(param,loadBadCell,null,loadBadCellErr);
+			}
+			
+			private function loadBadCell(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询劣化小区数据成功！");
+					
+					//往GIS上洒点
+					
+					initMap(obj);
+					obj = null;
+				}
+				else
+				{
+					log.info("查询劣化小区数据为空！");
+				}
+				
+				loadInfo.hideLoading();
+			}
+			
+			private function loadBadCellErr(obj:Object):void
+			{
+				log.info("查询劣化小区数据异常！");
+				loadInfo.hideLoading();
+			}
+			
+			private function initMap(obj:Object):void
+			{
+				for each (var cell:Object in obj)
+				{
+					var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(badCell);
+					var feature:GisFeature = new GisFeature(new GisPoint(Number(cell.longitude),Number(cell.latitude)),pic);
+					feature.toolTip=cell.mo_name;
+					feature.attributes = cell;
+					feature.attributes.show = "true";
+					feature.onClick = checkTableCell;
+					//					feature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,checkTableCell);
+					mapWork.map.addGisFeature(feature);
+					addMenuCell(feature);
+					cellMap[cell.mo_id] = feature;
+				}
+				
+				//生成表格
+				perfDownArrc.removeAll();
+				for each (var tmp:Object in obj)
+				{
+					perfDownArrc.addItem(tmp);
+				}
+				
+				if (perfDownArrc.length > 0)
+				{
+					setTimeout(location, 1000);
+				}
+			}
+			
+			private function location():void
+			{
+				this.mapWork.map.viewRefresh();
+			}
+			
+			private function selectCell(e:ListEvent):void
+			{
+				//取当前的CELL
+				var moId:String = e.target.dataProvider[e.rowIndex].mo_id;
+				var pic:GisMarkerPictureStyle = null;
+				
+				//清除其他选中的网元
+				
+				for each (var f:GisFeature in cellMap)
+				{
+					pic = new GisMarkerPictureStyle(badCell);
+					f.gisStyle = pic;
+					mapWork.map.updateFeature(f);
+				}
+				
+				//定位小区
+				if (cellMap[moId] != null)
+				{
+					var feature:GisFeature = cellMap[moId] as GisFeature;
+					if (feature != null)
+					{
+						pic = new GisMarkerPictureStyle(badCellSelect);
+						feature.gisStyle = pic;
+						mapWork.map.updateFeature(feature);
+						
+						var point:GisPoint = feature.gisMetry as GisPoint;
+						mapWork.map.panTo(point);
+					}
+				}
+			}
+			
+			private function checkTableCell(gisFeature:GisFeature,event:MouseEvent):void
+			{
+				if (gisFeature != null && gisFeature.attributes != null)
+				{
+					var pic:GisMarkerPictureStyle = null;
+					
+					//清除其他选中的网元
+					
+					for each (var f:GisFeature in cellMap)
+					{
+						pic = new GisMarkerPictureStyle(badCell);
+						f.gisStyle = pic;
+						mapWork.map.updateFeature(f);
+					}
+					
+					//当前网元选中
+					pic = new GisMarkerPictureStyle(badCellSelect);
+					gisFeature.gisStyle = pic;
+					mapWork.map.updateFeature(gisFeature);
+					
+					//选中表格
+					pdtable.selectRow(gisFeature.attributes.mo_id);
+				}
+			}
+			
+			//右键菜单处理函数
+			private function popupDealer(feature:GisFeature):void
+			{
+				//根据网元id加载相关页面
+				var cellId:Object = feature.attributes['mo_id'];
+				var mo_type:Object = feature.attributes['mo_type'];
+				var context:String = this.parameters["context"];
+				var url:String = "";
+				
+				//菜单名称
+				switch(feature.attributes.selectMenuName)
+				{
+					case "资源信息":
+						url = (cellDetailURL + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+					
+					case "告警信息":
+						url = (alarmDetailURL + "?alarmStatus=1&neId=" + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+					
+					case "性能信息":
+						url = (perfDetailURL + "?moId=" + cellId + "&moTypeId=" + mo_type).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+					
+					case "关联拓扑":
+						//加载逻辑topo
+						url = logicTopoURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?moId="+cellId));
+						break;
+					
+					case "关联拓扑-软交换拓扑":
+						//加载逻辑topo
+						url = logicTopoURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?specId=1&moId="+cellId));
+						break;
+					
+					case "关联拓扑-传输拓扑":
+						//加载逻辑topo
+						url = logicTopoURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?specId=3&moId="+cellId));
+						break;
+					
+					case "关联拓扑-无线拓扑":
+						//加载逻辑topo
+						url = logicTopoURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?specId=1&moId="+cellId));
+						break;
+				}
+			}
+			
+			//添加小区的右键菜单
+			
+			private function addMenuCell(feature:GisFeature):void
+			{
+				this.mapWork.map.addGisFeatureMenu(feature,"资源信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"告警信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"性能信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"关联拓扑-无线拓扑",popupDealer);
+			}
+			
+			protected function mapWork_toolbar_picLayerHandler(event:MapEvent):void
+			{
+				this.viewLevel.x = 100;
+				this.viewLevel.y = 40;
+				this.viewLevel.visible = true;
+			}
+			
+			private function filterObject(name:String, type:String, id:String, checked:Boolean):void
+			{
+				for each (var feature:GisFeature in cellMap)
+				{
+					//显示所有
+					
+					if (id == "")
+					{
+						//如果没显示就添加
+						if (feature.attributes.show == "false" && checked)
+						{
+							this.mapWork.map.addGisFeature(feature);
+							feature.attributes.show = "true";
+						}
+						
+						if (feature.attributes.show == "true" && !checked)
+						{
+							this.mapWork.map.removeGisFeature(feature);
+							feature.attributes.show = "false";
+						}
+					}
+					else
+					{
+						if (feature.attributes.district_type == id)
+						{
+							//如果没显示就添加
+							if (feature.attributes.show == "false")
+							{
+								this.mapWork.map.addGisFeature(feature);
+								feature.attributes.show = "true";
+							}
+							else if (feature.attributes.show == "true")
+							{
+								this.mapWork.map.removeGisFeature(feature);
+								feature.attributes.show = "false";
+							}
+						}
+					}
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<gis:MapWork id="mapWork" width="100%" height="100%" showOverView="false" defaultMapId="{mapCityId}" 
+				 mapCreationComplete="mapWork_mapCreationCompleteHandler(event)" toolbar_picLayer="mapWork_toolbar_picLayerHandler(event)">
+	</gis:MapWork>
+	<tools:ShrinkTableBadCell id="pdtable" x="{this.width-505}" top="20"/>
+	<badcell:BadCellView id="viewLevel" visible="false" callBack="{filterObject}">
+	</badcell:BadCellView>
+</mx:Module>
+

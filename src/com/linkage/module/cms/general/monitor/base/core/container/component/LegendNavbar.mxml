@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:navbar="com.linkage.module.cms.components.navbar.*"
+		 includeInLayout="false">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.base.core.ViewSlice;
+			import com.linkage.module.cms.general.monitor.base.core.element.ElementFactory;
+			import com.linkage.module.cms.general.monitor.base.core.element.IAreaMark;
+			import com.linkage.module.cms.general.monitor.base.core.element.ILegend;
+			import com.linkage.module.cms.general.monitor.base.core.element.IMark;
+			
+			import mx.controls.Alert;
+			import mx.controls.Label;
+			
+			import spark.components.CheckBox;
+			import spark.components.HGroup;
+			
+			//创建图例标记对象
+			public function createLegendMarks(_markMap:Dictionary, legendMap:Dictionary, listener:Function):void
+			{
+				navbarGroup.removeAllElements();
+				var hGroup:HGroup = null;
+				var lgMark:ILegend = null;
+				var lgMap:Dictionary = null;
+				var areaMark:IAreaMark = null;
+				for each (lgMap in legendMap)
+				{
+					hGroup = createHGroup();
+					for each (lgMark in lgMap)
+					{
+						var markType:String = lgMark.type
+						var mark:IMark = _markMap[markType];
+						if (mark != null && mark.visible)
+						{
+							areaMark = ElementFactory.buildAreaMark(0, 0, mark);
+							
+							//添加CHECKBOX
+							createCheckBox(hGroup, listener, areaMark.type, lgMark.level, mark.name, mark.show);
+							
+							// 根据模板mark生成areaMark对象
+							areaMark.stage = hGroup;
+							areaMark.show();
+							//创建标签
+							//createLegendLabel(mark.name, hGroup);
+						}
+					}
+				}
+			}
+			
+			//设置图例位置和样式
+			public function setNavbarStyle(top:int, left:int, location:String):void
+			{
+				this.navbar1.top = top;
+				this.navbar1.x = left;
+				this.navbar1.location = location;
+			}
+			
+			//添加CHECKBOX
+			private function createCheckBox(hGroup:HGroup, listener:Function, type:String, level:String, text:String, show:String):void
+			{
+				//占位
+				if (level == "2"){
+					var blank:Group = new Group();
+					blank.width = 10;
+					hGroup.addElement(blank);
+				}
+				//CHECKBOX
+				var check:CheckBox = new CheckBox();
+				if (show == "true")
+				{
+					check.selected = true;
+				}
+				else
+				{
+					check.selected = false;
+				}
+				check.label = text;
+				hGroup.addElement(check);
+				
+				//添加事件
+				check.addEventListener(Event.CHANGE,function(event:Event):void{
+					var check:CheckBox = event.target as CheckBox;
+					listener.call(null,check.selected,type);
+				});
+			}
+			
+			//创建图例标签
+			private function createLegendLabel(text:String, hGroup:HGroup):void
+			{
+				var label:Label = new Label();
+				label.text = text;
+				hGroup.addElement(label);
+			}
+			
+			//创建HBOX容器
+			private function createHGroup():HGroup
+			{
+				var hGroup:HGroup = new HGroup();
+				navbarGroup.addElement(hGroup);
+				return hGroup;
+			}
+			
+			//设置图例位置和样式
+			public function setFilterNavbarStyle(top:int, left:int, location:String):void
+			{
+				this.filterNavbar.top = top;
+				this.filterNavbar.x = left;
+				this.filterNavbar.location = location;
+			}
+			
+			public function addFilterBox(grade:String, name:String, listener:Function):void
+			{
+				//CHECKBOX
+				var check:CheckBox = new CheckBox();
+				if (grade == "1")
+				{
+					check.selected = true;
+				}
+				check.label = name;
+				filterGroup.addElement(check);
+				
+				//添加事件
+				check.addEventListener(Event.CHANGE,function(event:Event):void{
+					var check:CheckBox = event.target as CheckBox;
+					listener.call(null,check.selected,grade);
+				});
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+		<navbar:NavBar id="filterNavbar" title="配置" location="right" y="100">
+			<s:VGroup id="filterGroup" width="100" height="100%">
+			</s:VGroup>
+		</navbar:NavBar>
+		<navbar:NavBar id="navbar1" title="图例" location="right" y="200">
+			<s:VGroup id="navbarGroup" width="100" height="100%">
+			</s:VGroup>
+		</navbar:NavBar>
+</s:Group>

@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:common="com.linkage.module.cms.gsscenecfg.common.*"
+                    width="100%"
+                    height="100%"
+                    creationComplete="group1_creationCompleteHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.module.cms.gsscenecfg.common.CheckBoxDGIR;
+            import com.linkage.module.cms.gsscenecfg.common.LEvent;
+            import com.linkage.module.cms.gsscenecfg.dao.AreaDAO;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+            import mx.events.FlexEvent;
+
+            private var moTypeName:String;
+            public var ac:ArrayCollection = new ArrayCollection;
+
+            private var moTypeId:String;
+            private var searName:String;
+            private var cityIds:String;
+            private var totalRows:int;
+
+            public var selectCallback:Function;
+
+            private var opCol:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+            private var typeCol:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+            private var nameCol:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+
+            private var itemRenderer:IFactory = new ClassFactory(CheckBoxDGIR);
+
+            public var lm:LoadManager;
+
+            protected function group1_creationCompleteHandler(event:FlexEvent):void
+            {
+                dg.addEventListener(LEvent.CHECKBOXCLICKED, selectMo);
+                ppg.totalRows = totalRows;
+
+                dealCols();
+            }
+
+            private function dealCols():void
+            {
+                opCol.width = 60;
+                opCol.headerText = "选择";
+                opCol.itemRenderer = itemRenderer;
+
+                if (moTypeName == "应急资源")
+                {
+                    typeCol.dataField = "type_name";
+                    typeCol.headerText = "类型";
+                    nameCol.dataField = "name";
+                    nameCol.headerText = "名称";
+                    dg.columns = [opCol, typeCol, nameCol];
+                }
+                else
+                {
+                    nameCol.dataField = "mo_name";
+                    nameCol.headerText = "名称";
+                    nameCol.width = 300;
+                    dg.columns = [opCol, nameCol];
+                }
+
+                dg.validateNow();
+            }
+
+            private function selectMo(e:LEvent):void
+            {
+                e.dt.mo_type_name = moTypeName;
+                selectCallback.call(this, e.dt);
+            }
+
+            public function setData(t:String, data:Object, name:String, ids:String):void
+            {
+                moTypeName = t;
+                label = t;
+                searName = name;
+                cityIds = ids;
+
+                ac.removeAll();
+                ac.addAll(data['data']);
+
+                for each (var dd:Object in ac)
+                {
+                    dd.mo_type_name = moTypeName;
+
+                    if (moTypeId == null)
+                        moTypeId = dd['mo_type_id'];
+                }
+
+                totalRows = int(data['num']);
+            }
+
+            private function loadPageData():void
+            {
+                ppg.enabled = false;
+                lm.showLoading();
+
+                var param:Object = {};
+                var list:ArrayCollection = new ArrayCollection;
+                param.mo = list;
+
+                var data:Object = {"mo_type_id": moTypeId, "mo_type_name": moTypeName};
+                data.startRow = (ppg.currentPage - 1) * ppg.pageSize;
+                data.countsRow = data.startRow + ppg.pageSize;
+                data.city_id = cityIds;
+
+                if (searName != null && searName != '请输入网元名称')
+                    data.name = searName;
+
+                list.addItem(data);
+
+                AreaDAO.getInstance().getMoInfo(
+                    param,
+                    function(data:Object):void
+                    {
+                        ac.removeAll();
+                        ac.addAll(data[moTypeName]['data'] as IList);
+
+                        ppg.totalRows = int(data[moTypeName]['num']);
+                        lm.hideLoading();
+
+                        ppg.enabled = true;
+                    },
+                    function():void
+                    {
+                        ppg.enabled = true;
+                    });
+            }
+
+            public function selectALL(flag:Boolean):void
+            {
+                for each (var d:Object in ac)
+                    d.selected = flag.toString();
+
+                ac.refresh();
+                dg.validateNow();
+            }
+
+            public function selectOne(id:Object, flag:Boolean):void
+            {
+                var dd:Object;
+
+                var key:String = "mo_id";
+
+                if (moTypeName == "应急资源")
+                    key = "id";
+
+                for each (var d:Object in ac)
+                    if (d[key] == id)
+                    {
+                        dd = d;
+                        break;
+                    }
+
+                if (dd != null)
+                {
+                    dd.selected = flag.toString();
+                    ac.refresh();
+                    dg.scrollToIndex(ac.getItemIndex(dd));
+                    dg.selectedItem = dd;
+                }
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:VGroup width="100%"
+              height="100%"
+              paddingBottom="{ppg.height}"
+              gap="0">
+        <mx:AdvancedDataGrid id="dg"
+                             draggableColumns="false"
+                             sortableColumns="false"
+                             textAlign="left"
+                             dataProvider="{ac}"
+                             styleName="adg"
+                             width="100%"
+                             height="100%"/>
+    </s:VGroup>
+    <common:PrettyPager id="ppg"
+                        pageChange="{loadPageData}"
+                        currentPage="1"
+                        pageSize="100"
+                        bottom="0"/>
+</s:NavigatorContent>

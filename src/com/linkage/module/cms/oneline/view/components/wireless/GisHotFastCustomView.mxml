@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					title="快速定制"
+					styleName="windowScene"
+					dragable="true"
+					minimizableBottom="5"
+					minimizableLeft="5"
+					minWidth="300"
+					minHeight="30"
+					resizable="true"
+					visible="false"
+					maximizable="false"
+					close="this.visible=false;"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-10
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			import com.linkage.module.cms.oneline.domain.wireless.IUser;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.utils.StringUtil;
+			
+			private static var log:ILogger=Log.getLoggerByClass(GisHotFastCustomView);
+			[Bindable]
+			[Inject("gisHotViewPM")]
+			public var pm:GisHotViewPM;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			[Inject("user")]
+			public var user:IUser;
+			[MessageHandler(selector="SHOWFASTCUSTOMVIEW")]
+			public function showFastCustomHandler(e:GisHotEvent):void
+			{
+				this.restoreButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				scencNameInput.text="";
+				if (!this.visible)
+				{
+					this.visible=true;
+					var s:Rectangle=systemManager.screen;
+					var appWidth:Number;
+					var appHeight:Number;
+					var parentWidth:Number;
+					var parentHeight:Number;
+					appWidth=s.width;
+					appHeight=s.height;
+					parentWidth=this.parent.width;
+					parentHeight=this.parent.height;
+					x=Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+					y=Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+				}
+			}
+			
+			protected function save_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(StringUtil.trim(scencNameInput.text) == ""){
+					Alert.show("请输入场景名称","提示");
+					return;
+				}
+				var evt:GisHotEvent = new GisHotEvent(GisHotEvent.DOSAVEFASTCUSTOMDATA);
+				evt.param = scencNameInput.text;
+				dispatcher(evt);
+			}
+			
+			[MessageHandler(selector="SAVEFASTCUSTOMDATACOMPLETE")]
+			public function saveCompleteHandler(e:GisHotEvent):void
+			{
+				Alert.show(String(pm.dm.saveSceneResult),"提示",Alert.YES | Alert.NO,null,closesaveConfigHandler);
+			}
+			
+			private function closesaveConfigHandler(event:CloseEvent):void
+			{
+				//log.debug("pm.dm.saveSceneResultURl=" + pm.dm.saveSceneResultURl);
+				//dm.url=user.context + data.url + "&isNew=true";
+				var url:String =user.context + String(pm.dm.saveSceneResultURl) + "&isNew=true";
+				log.debug("url=" + url);
+				
+				if (Alert.YES == event.detail)
+				{
+					ExternalInterface.call("function(){window.open('" +  url + "','_self')}");
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<ailk_compts:layout>
+		<s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="5" paddingBottom="5"/>
+	</ailk_compts:layout>
+	<s:HGroup width="100%" verticalAlign="middle">
+		<s:Label text="场景名称："/>
+		<s:TextInput id="scencNameInput" width="100%"/>
+	</s:HGroup>
+	<s:HGroup width="100%" horizontalAlign="center">
+		<s:Button label="保存" buttonMode="true" click="save_clickHandler(event)"/>
+	</s:HGroup>
+</ailk_compts:Window>

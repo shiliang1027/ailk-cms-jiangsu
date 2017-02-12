@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupmonitor.custscene.dao.CustChartDao;
+			import com.linkage.module.cms.groupmonitor.custscene.dao.CustSceneDao;
+			import com.linkage.module.cms.groupmonitor.custscene.domain.CustChartDM;
+			import com.linkage.module.cms.groupmonitor.custscene.domain.CustSceneDM;
+			import com.linkage.module.cms.groupmonitor.custscene.domain.common.User;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.CustPanelInitDataCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadBaseTreeCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadBigCustDataCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadComplatinsOrderInitCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadExportDataCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadFaultOrderInitCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadHasAlarmCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadKpiByServTypeCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadKpiGroupCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadOtherDataByTopuCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadOtherDataCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadOverAreaSpecCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadPageTreeDataCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadPanelDataByCityIdCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadPanelDataByCustIdCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadPrefChartDataCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadProSpecByCustIdCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadSelCustListCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadSelectContionCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadServerTypeCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadSpeLineComplaintsAnalysisCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadSpeLineFaultAnalysisCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadSpecCountIndistrictCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadUserCustByBigCustCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadUserCustCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.LoadUserInSqlBycustIdCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.ModifyCustNameCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.ModifyFontColorCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.QueryCustByConCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.SaveLocationCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.serv.SaveSetCustCmd;
+			import com.linkage.module.cms.groupmonitor.custscene.view.CustSceneViewPM;
+			import com.linkage.module.cms.groupmonitor.custscene.view.components.FunPerfCompPM;
+			import com.linkage.module.cms.groupmonitor.custscene.view.components.RealMonitorPerfCompPM;
+			import com.linkage.module.cms.groupmonitor.custscene.view.components.RunMonitorPerfCompPM;
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 场景 -->
+		<parsley:Object type="{User}"/>
+		<!-- 场景 -->
+		<parsley:Object type="{CustSceneDao}" id="c1ustSceneDao">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_groupscene_groupsceneservice"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		
+		<parsley:Object type="{CustSceneViewPM}" id="custSceneViewPM"/>
+		
+		<parsley:Object type="{RunMonitorPerfCompPM}" id="runMonitorPerfCompPM"/>
+		
+		<parsley:Object type="{RealMonitorPerfCompPM}" id="realMonitorPerfCompPM"/>
+		
+		
+		<parsley:Object type="{FunPerfCompPM}" id="funPerfCompPM"/>
+		
+		<parsley:Object type="{CustSceneDM}" id="custSceneDM"/>
+		
+		<parsley:MapCommand selector="loadBaseTreeData">
+			<parsley:Command type="{LoadBaseTreeCmd}"/>
+		</parsley:MapCommand>
+
+
+		<parsley:MapCommand selector="loadPageTreeData">
+			<parsley:Command type="{LoadPageTreeDataCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadBigCustData">
+			<parsley:Command type="{LoadBigCustDataCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadOtherDataByCustId">
+			<parsley:Command type="{LoadOtherDataCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadOtherDataByCustIdByTopu">
+			<parsley:Command type="{LoadOtherDataByTopuCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="queryHasAlarm">
+			<parsley:Command type="{LoadHasAlarmCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadServerTypeByCustId">
+			<parsley:Command type="{LoadServerTypeCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadKpiGroupByCustId">
+			<parsley:Command type="{LoadKpiGroupCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadPrefChartData">
+			<parsley:Command type="{LoadPrefChartDataCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="custPanelInitData">
+			<parsley:Command type="{CustPanelInitDataCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="loadPanelDataByCustId">
+			<parsley:Command type="{LoadPanelDataByCustIdCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_PANEL_DATA_BY_CITYID">
+			<parsley:Command type="{LoadPanelDataByCityIdCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAS_USER_CUST_DATA">
+			<parsley:Command type="{LoadUserCustCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_USER_CUST_BY_BIGCUST">
+			<parsley:Command type="{LoadUserCustByBigCustCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_KPIS_BY_SERVTYPE">
+			<parsley:Command type="{LoadKpiByServTypeCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_FAULT_ORDER_INIT">
+			<parsley:Command type="{LoadFaultOrderInitCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_COMPLAINTS_ORDER_INIT">
+			<parsley:Command type="{LoadComplatinsOrderInitCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_SPECOUNT_INDISTRICT">
+			<parsley:Command type="{LoadSpecCountIndistrictCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_SELECT_CONDITION">
+			<parsley:Command type="{LoadSelectContionCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="QUERY_CUST_BY_CONDITION">
+			<parsley:Command type="{QueryCustByConCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="SAVE_SET_CUSTS">
+			<parsley:Command type="{SaveSetCustCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_PRO_SPEC_BYCUSTID">
+			<parsley:Command type="{LoadProSpecByCustIdCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="MODIFY_CUST_NAME">
+			<parsley:Command type="{ModifyCustNameCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="SAVE_CUST_LOCATION">
+			<parsley:Command type="{SaveLocationCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_OVERAREA_SPECS">
+			<parsley:Command type="{LoadOverAreaSpecCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOAD_SELECTLIST_BYNAME">
+			<parsley:Command type="{LoadSelCustListCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="MODIFY_COLOR">
+			<parsley:Command type="{ModifyFontColorCmd}"/>
+		</parsley:MapCommand>
+
+		<parsley:MapCommand selector="LOADA_LARM_CUSTS_SQL">
+			<parsley:Command type="{LoadUserInSqlBycustIdCmd}"/>
+		</parsley:MapCommand>
+		
+		<parsley:MapCommand selector="EXPORT_DATA">
+			<parsley:Command type="{LoadExportDataCmd}"/>
+		</parsley:MapCommand>
+		<!--end-->
+		
+		<parsley:Object type="{CustChartDao}" id="custChartDao">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_groupscene_reportdataservice"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		
+		<parsley:Object type="{CustChartDM}" id="custChartDM"/>
+		
+		<parsley:MapCommand selector="LOAD_SPE_LINE_FAULT_ANALYSIS">
+			<parsley:Command type="{LoadSpeLineFaultAnalysisCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="LOAD_SPE_LINE_COMP_ANALYSIS">
+			<parsley:Command type="{LoadSpeLineComplaintsAnalysisCmd}"/>
+		</parsley:MapCommand>
+		
+	</fx:Declarations>
+</fx:Object>

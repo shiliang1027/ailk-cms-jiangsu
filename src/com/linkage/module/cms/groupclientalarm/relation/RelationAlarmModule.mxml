@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:component="com.linkage.module.cms.groupclientalarm.relation.component.*"
+		   width="100%" height="100%" creationComplete="application_creationCompleteHandler(event)"
+		   layout="absolute">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~s~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.alarm.framework.AlarmContainer;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.module.server.source.RelationCollection;
+			import com.linkage.module.cms.groupclientalarm.relation.component.RelationWinView;
+			import com.linkage.module.cms.groupclientalarm.relation.core.RelationManager;
+			import com.linkage.module.cms.groupclientalarm.relation.resource.imagesclass.IconParam;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			/**
+			 * 加载管理器
+			 */
+			private var _loadManager:LoadManager=null;
+			/**
+			 * 数据控制类
+			 */
+			
+			private var _alarmAction:AlarmAction=null;
+			/**
+			 * 关联关系管理类
+			 */
+			private var _relationManager:RelationManager=null;
+			/**
+			 * 告警唯一序列ID
+			 */
+			
+			private var _running:Boolean=true;
+			
+			public var parameters:Object;
+			
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.alarm.relation.core.RelationAlarmModule");
+			//初始化告警信息
+			protected function application_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+			 	//1.初始化logger
+				var target:ILoggingTarget=new MonsterTarget2();
+				target.level=this.parameters.logLevel;
+//				target.level= 1;
+				target.filters=[this.parameters.filters];
+				var relationColumnJson:Array=[this.parameters.relationColumnJson];
+				Log.addTarget(target); 
+//				log.warn(relationColumnJson.toString());
+				
+				/* for each(var o:Object in relationColumnJson)
+				{
+					log.warn(o);
+				} */
+				//2.初始化告警信息
+				if (this.parameters.local == "true")
+				{
+					styleManager.loadStyleDeclarations2("./css/common/show/ui.swf");
+				}
+				else
+				{
+					styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				}
+				
+				System.useCodePage=true;
+				//1.初始化加载管理器
+				_loadManager=new LoadManager(this);
+				
+				//1.初始化关联关系管理类
+				_relationManager=new RelationManager(relationWinView,this.parameters);
+				
+				//2.初始化告警信息
+				if (this.parameters.local == "true")
+				{
+					localTest();
+				}
+				else
+				{
+					serversRun();
+				}
+				
+				//3.定时设置数据
+				setDataByTime();
+				
+				parentApplication.add(this);
+			}
+			
+			
+			// 开始
+			public function start():void
+			{
+				_running=true;
+				if (_alarmAction != null)
+				{
+					_alarmAction.reload(null,false);
+				}
+			}
+			
+			// 结束
+			public function stop():void
+			{
+				_running=false;
+				if (_alarmAction != null)
+				{
+					//清空流水
+					_alarmAction.stopLoad();
+					//清空矩阵
+					_relationManager.clearAllMatrixGrid();
+				}
+			}
+			
+			//服务器上运行
+			private function serversRun():void
+			{
+				_loadManager.showLoading();
+				
+				//1.初始化矩阵窗口
+				_relationManager.initMatrixView(this);
+				
+				//2.设置过滤规则
+				var ruleList:ArrayList=new ArrayList();
+				var ruleObject:Object=new Object();
+				ruleObject[AlarmContainer.PARAMKEY_WINDOWNAME]=RelationContainer.WINDOWNAME_RELATIONCUST;
+				ruleObject[AlarmContainer.PARAMKEY_RULECONTENT]="customerflag=1";
+				
+				log.warn(ruleObject);
+				ruleList.addItem(ruleObject);
+				
+				//3.初始化告警控制类并把数据注入视图
+				_alarmAction=new AlarmAction(this.parameters, RelationCollection);
+				_alarmAction.regListener(ruleList, function():void
+				{
+					log.warn(ruleList); 
+					
+					_relationManager.initAlarmFlow(_alarmAction);
+					_loadManager.hideLoading();
+				});
+			}
+			
+			//定时设置数据
+			private function setDataByTime():void
+			{
+				setInterval(function():void
+				{
+					beforeRelation.text=String(relationWinView.beforeNum);
+					afterRelation.text=String(relationWinView.afterNum);
+				}, 500);
+			}
+			
+			//本地测试
+			private function localTest():void
+			{
+				_loadManager.showLoading();
+				//1.初始化矩阵窗口
+				_relationManager.initMatrixView(this);
+				
+				//2.初始化告警控制类并把数据注入视图
+				_alarmAction=new AlarmAction(this.parameters, RelationCollection);
+				_alarmAction.regListenerRelationTest();
+				_relationManager.initAlarmFlow(_alarmAction);
+				_loadManager.hideLoading();
+				_alarmAction.sendRlAlarmTest();
+			}
+			
+			//关联窗口设置
+			protected function defindClickHandler():void
+			{
+				var baseUrl:String=_relationManager.relationParams.baseUrl;
+				var url:String=baseUrl + "/warn/view/config/warnViewConfAction!initRelationWins.action?tab=relationCust";
+				ExternalInterface.call("function(){window.open('" + url + "','','resizable=yes,toolbar=no')}");
+			}
+			
+			public function get running():Boolean
+			{
+				return _running;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Group id="relationWin" bottom="2" width="100%" height="100%">
+		<s:HGroup width="100%" horizontalAlign="right" paddingRight="10" paddingTop="3"
+				  verticalAlign="middle">
+			<s:Label text="关联前："/>
+			<s:Label id="beforeRelation" text="0"/>
+			<s:Label text="关联后："/>
+			<s:Label id="afterRelation" paddingRight="6" text="0"/>
+			<mx:Image width="16" height="16" buttonMode="true" click="defindClickHandler()"
+					  source="{IconParam.iconDefind}"/>
+		</s:HGroup>
+		<component:RelationWinView id="relationWinView" width="100%" height="100%">
+			
+		</component:RelationWinView>
+	</s:Group>
+</mx:Module>

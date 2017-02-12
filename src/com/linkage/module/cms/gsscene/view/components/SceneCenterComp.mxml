@@ -1,0 +1,1149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window 
+	 xmlns:fx="http://ns.adobe.com/mxml/2009"
+	 xmlns:s="library://ns.adobe.com/flex/spark"
+	 xmlns:mx="library://ns.adobe.com/flex/mx"
+	 xmlns:parsley="http://www.spicefactory.org/parsley"
+	 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+	 xmlns:components="com.linkage.module.cms.gsscene.view.components.*"
+	 xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+	 styleName="windowSceneGisBottom"
+	 maximize="kpiChartWin_maximizeHandler(event)"
+	 restore="kpiChartWin_restoreHandler(event)"
+	 dragable="true"
+	 minimizable="false"
+	 closable="false"
+	 width="100%"
+	 height="100%" xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*">
+	<fx:Declarations>
+		<parsley:Configure/>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.event.PrettyChartEvent;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.components.CompareDateVGroup;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.kpicustom.event.KpiCustomEvent;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.KPISituationDM;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.event.KPISituationEvent;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.event.QuitServiceEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.view.util.DateUtils;
+			
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.IndexChangedEvent;
+			import mx.managers.PopUpManager;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneCenterComp);
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("kPISituationDM")]
+			public var kpiSituationDM:KPISituationDM;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			protected function chartViewStack_changeHandler(event:IndexChangedEvent):void
+			{
+				if (chartViewStack.selectedIndex == 1)
+				{
+					//		msgDispatcher(new KPISituationEvent(KPISituationEvent.LOAD_LINE_DATA));
+					requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.LOAD_LINE_DATA));
+				}
+			}
+			private var kpiEvent:KPISituationEvent;
+			
+			[MessageHandler(selector = "SHOW_KPI_AREA_DATA")]
+			public function showQuitChartByAreaKpi(e:KPISituationEvent = null):void
+			{
+				
+				chartViewStack.selectedIndex = 0;
+				
+				thresholdCB.visible = true;
+				
+				log.info("### 处理指标区域维度图表！");
+				
+				if (e == null && kpiEvent != null)
+					e = kpiEvent;
+				
+				var colorArray:Array = new Array;
+				var rendingColorArray:Array = new Array;
+				var twoKpi:ArrayCollection = e.areaKpiData;
+				
+				var count2:int = twoKpi.getItemAt(0).len;
+				var i:int;
+				
+				for each (var obj:Object in e.areaKpiData)
+				{
+					colorArray.push(obj.color);
+				}
+				
+				for each (var obj1:Object in e.areaKpiData)
+				{
+					rendingColorArray.push(obj1.rendingColor);
+				}
+				
+				for (var n:int = 1; n <= count2; n++)
+				{
+					for each (obj1 in e.areaKpiData)
+					{
+						rendingColorArray.push(obj1["color" + n]);
+					}
+				}
+				log.debug("rendingColor info...");
+				
+				quitChart.visible = true;
+				navtab1.label = "二级指标";
+				
+				var p1:SerialParam = new SerialParam('kpiValue', e.areaKpiData.getItemAt(0)['kpiName']);
+				p1.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+				p1.yAxis = 'left';
+				p1.fillColorArray = colorArray;
+				
+				var serArr:ArrayCollection = new ArrayCollection();
+				serArr.addItem(p1);
+				
+				if (thresholdCB.selected)
+					for (i = 0; i < count2; i++)
+					{
+						var count1:int = i + 1;
+						var aa:String = "thresholdValue" + count1;
+						var p:SerialParam = new SerialParam(aa, '门限');
+						p.chartType = PrettyChartType.CHART_TYPE_LINE;
+						p.yAxis = 'left';
+						p.lineStrokeColor = uint(e.areaKpiData.getItemAt(0)["color" + count1]);
+						p.showDataDot = false;
+						serArr.addItem(p);
+					}
+				
+				log.info("serarra=:");
+				var chartParam:ChartParam = new ChartParam();
+				chartParam.xAxisProperty = "areaName";
+				chartParam.showLegend = false;
+				chartParam.use3DColumn = true;
+				chartParam.useShowDataEffect = false;
+				chartParam.padding = 5;
+				
+				quitChart.chartParam = chartParam;
+				
+				//	quitChart.percentHeight = 100;
+				
+				quitChart.chartParam.itemClickEnable = true;
+				quitChart.addEventListener(PrettyChartEvent._DATA_CLICK, dealClickLowerLevel);
+				quitChart.series = serArr;
+				quitChart.chartData(e.areaKpiData, true);
+				
+				kpiEvent = e;
+				log.info("二级指标处理完成 end");
+			}
+			private function dealClickLowerLevel(e:PrettyChartEvent):void
+			{
+				menuWinLowerLevel.visible = true;
+				menuWinLowerLevel.includeInLayout = true;
+				
+				log.info("---dealClickLowerLevel要开始");
+				log.info(e.data);
+				
+				param = new Object();
+				param = e.data;
+				
+				nextLevelBT.visible = e.data.isNext == "1"; //若有isNext，则判断可以下一级钻取
+				nextLevelBT.includeInLayout = e.data.isNext == "1";
+				
+				//如果是网元，那么出现gis定位按钮
+				gisPositionLab.visible = e.data.isNext != "1";
+				gisPositionLab.includeInLayout = e.data.isNext != "1";
+				
+				menuWinLowerLevel.x = this.mouseX - 40;
+				menuWinLowerLevel.y = this.mouseY - 10;
+			}
+			protected function navtab1_mouseOverHandler(event:MouseEvent):void
+			{
+				//				log.debug("GIS退服统计提示信息...");
+				if (user.isNew == "1")
+				{
+					user.labelTypeId = "409";
+					setTimeout(function():void
+					{
+						var obj:Object = new Object;
+						var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+						obj.labelId = "409";
+						e.obj = obj;
+						log.debug("参数信息...");
+						log.info(e.obj);
+						//			msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+					}, 3000);
+				}
+				
+			}
+			private var flag410:Boolean;
+			protected function navigatorcontent1_mouseOverHandler(event:MouseEvent):void
+			{
+				flag410 = true;
+				setTimeout(function():void
+				{
+					log.info("flag=" + flag410 + "isNew=" + user.isNew);
+					if (flag410 && user.isNew == "1")
+					{
+						user.labelTypeId = "410";
+						var obj:Object = new Object;
+						obj.sceneId = user.sceneId;
+						obj.level = user.level;
+						obj.labelId = 410;
+						log.info("labelId=" + obj.labelId + "selectedIndex=" + chartTabBar.selectedIndex);
+						var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+						e.obj = obj;
+						//			msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+					}
+					flag410 = false;
+				}, 3000);
+			}
+			
+			protected function navigatorcontent1_mouseOutHandler(event:MouseEvent):void
+			{
+				flag410 = false;
+			}
+			[MessageHandler(selector = "SHOW_LINE_DATA")]
+			public function showKpiChart(event:KPISituationEvent = null):void
+			{
+				if (event == null && kpiChartEvent != null)
+				{
+					event = kpiChartEvent;
+				}
+				
+				//获取门限数量
+				var lenth:int = event.kpiDetailChartData.getItemAt(0).len;
+				
+				log.info("show kpi chart data! :: " + user.kpiName + "  --  " + event.kpiDetailChartData.length);
+				
+				kpiLabel.text = user.kpiName;
+				
+				//				if(user.dateFlag == "1")
+				//				{
+				if (user.hisFlag == "1")
+				{
+					var p1:SerialParam = new SerialParam('kpiValue', event.kpiDetailChartData.getItemAt(0)['kpiDate']);
+					p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+					p1.yAxis = "left";
+					
+					//					kpiChart.width = event.kpiDetailChartData.length * 60;
+					//					if (kpiChart.width < kpiChartWin.width)
+					//		kpiChart.width = kpiChartWin.width - 30;
+					//		kpiChart.height = kpiChartWin.height - 50;
+					
+					var charParam:ChartParam = new ChartParam();
+					
+					if (user.dateFlag == "1")
+					{
+						charParam.xAxisProperty = "time";
+					}
+					//charParam.xAxisProperty = "time"; 
+					charParam.use3DColumn = false;
+					charParam.showLegend = false;
+					
+					charParam.labelStep = 60 / Number(event.kpiDetailChartData.getItemAt(0)['timeInterval']) - 1;
+					
+					this.kpiChart.chartParam = charParam;
+					this.kpiChart.series = new ArrayCollection([p1]);
+					user.hisFlag = "0";
+				}
+				else
+				{
+					var p1:SerialParam = new SerialParam('kpiValue', event.kpiDetailChartData.getItemAt(0)['kpiDate']);
+					p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+					p1.yAxis = "left";
+					
+					//					kpiChart.width = event.kpiDetailChartData.length * 30;
+					//					if (kpiChart.width < kpiChartWin.width)
+					//		kpiChart.width = kpiChartWin.width - 30;
+					//		kpiChart.height = kpiChartWin.height - 50;
+					
+					var charParam:ChartParam = new ChartParam();
+					
+					if (user.dateFlag == "1")
+					{
+						charParam.xAxisProperty = "time";
+					}
+					charParam.use3DColumn = false;
+					charParam.showLegend = true;
+					
+					charParam.padding = 5;
+					
+					charParam.labelStep = 60 / Number(event.kpiDetailChartData.getItemAt(0)['timeInterval']) - 1;
+					
+					this.kpiChart.chartParam = charParam;
+					this.kpiChart.series = new ArrayCollection([p1]);
+					
+					//						if(user.level == "1")
+					//						{
+					
+					if (event.kpiDetailChartData.getItemAt(0)['kpiDate1'])
+					{
+						var p2:SerialParam = new SerialParam('kpiValue1', event.kpiDetailChartData.getItemAt(0)['kpiDate1']);
+						p2.chartType = PrettyChartType.CHART_TYPE_LINE;
+						p2.yAxis = "left";
+						kpiChart.series.addItem(p2);
+						log.info("ooooooooooo");
+					}
+					
+					
+					if (event.kpiDetailChartData.getItemAt(0)['kpiDate2'])
+					{
+						var p3:SerialParam = new SerialParam('kpiValue2', event.kpiDetailChartData.getItemAt(0)['kpiDate2']);
+						p3.chartType = PrettyChartType.CHART_TYPE_LINE;
+						p3.yAxis = "left";
+						kpiChart.series.addItem(p3);
+						log.info("[[[[[[[[[[[[[[[[[[[[[[");
+					}
+					
+					if (event.kpiDetailChartData.getItemAt(0)['kpiDate3'])
+					{
+						var p4:SerialParam = new SerialParam('kpiValue3', event.kpiDetailChartData.getItemAt(0)['kpiDate3']);
+						p4.chartType = PrettyChartType.CHART_TYPE_LINE;
+						p4.yAxis = "left";
+						kpiChart.series.addItem(p4);
+					}
+					//						}
+				}
+				//画门限
+				if (thresholdKpi.selected)
+					for (var i:int = 1; i <= lenth; i++)
+					{
+						var count1:int = i + 1;
+						var aa:String = "thresholdValue" + i;
+						var p:SerialParam = new SerialParam(aa, '门限');
+						p.chartType = PrettyChartType.CHART_TYPE_LINE;
+						p.yAxis = 'left';
+						//p.fillColorArray=rendingColorArray;
+						p.lineStrokeColor = uint(event.kpiDetailChartData.getItemAt(0)["color" + i]);
+						p.showDataDot = false;
+						kpiChart.series.addItem(p);
+					}
+				
+				//	kpiChart.percentHeight = 100;
+				
+				kpiChart.chartData(event.kpiDetailChartData, true);
+				//				chartViewStack.selectedIndex = 1;
+				kpiChartEvent = event;
+			}
+			[Bindable]
+			public var intervalS:String;
+			//查询指标是否比较时间。
+			private var compareDateFlag:String = "0"; //入口标识  1：有比较时间  0：没有比较时间
+			private var kpiChartEvent:KPISituationEvent = null;
+			protected function dayLevel_clickHandler():void
+			{
+				hisImg.visible = true;
+				hisImg.includeInLayout = true;
+				
+				addImg.visible = true;
+				addImg.includeInLayout = true;
+				var evt:KPISituationEvent = new KPISituationEvent(KPISituationEvent.LOAD_LINE_DATA1);
+				evt.param.interval = "1";
+				intervalS = "1";
+				msgDispatcher(evt);
+				log.info("根据kpiId获取历史数据图表展示数据DAY：");
+				log.info(evt);
+				//是否比较时间。
+				compareDateFlag = "0";
+			}
+			
+			
+			protected function weekLevel_clickHandler():void
+			{
+				hisImg.visible = false;
+				hisImg.includeInLayout = false;
+				addImg.visible = true;
+				addImg.includeInLayout = true;
+				var evt:KPISituationEvent = new KPISituationEvent(KPISituationEvent.LOAD_LINE_DATA1);
+				evt.param = new Object();
+				evt.param.interval = "2";
+				intervalS = "2";
+				msgDispatcher(evt);
+				log.info("根据kpiId获取历史数据图表展示数据WEEK：");
+				log.info(evt);
+				//是否比较时间。
+				compareDateFlag = "0";
+			}
+			
+			protected function monthLevel_clickHandler():void
+			{
+				hisImg.visible = false;
+				hisImg.includeInLayout = false;
+				addImg.visible = true;
+				addImg.includeInLayout = true;
+				var evt:KPISituationEvent = new KPISituationEvent(KPISituationEvent.LOAD_LINE_DATA1);
+				evt.param = new Object();
+				evt.param.interval = "3";
+				intervalS = "3";
+				msgDispatcher(evt);
+				log.info("根据kpiId获取历史数据图表展示数据MONTH：");
+				log.info(evt);
+				//是否比较时间。
+				compareDateFlag = "0";
+			}
+			private function openWin1():void
+			{
+				log.debug("[配置：指标窗口]: 开始！");
+				PopUpManager.addPopUp(configurationWin1, this);
+				configurationWin1.x = (this.stage.width - configurationWin1.width) / 2 - 150;
+				configurationWin1.y = (this.stage.height - configurationWin1.height) / 2 - 50;
+				configurationWin1.visible = true;
+			}
+			private function openWin():void
+			{
+				log.debug("[配置：指标窗口]: 开始！");
+				PopUpManager.addPopUp(configurationWin, this.parent as DisplayObject);
+				configurationWin.x = (this.stage.width - configurationWin.width) / 2 - 150;
+				configurationWin.y = (this.stage.height - configurationWin.height) / 2 - 50;
+				configurationWin.visible = true;
+			}
+			
+			protected function ok_clickHandler():void
+			{
+				log.info("startTime = " + startTime.text + "endTime=" + endTime.text);
+				var evt:KPISituationEvent = new KPISituationEvent(KPISituationEvent.LOAD_LINE_DATA1);
+				evt.param = new Object();
+				evt.param.interval = "1";
+				user.startTime = startTime.text;
+				user.endTime = endTime.text;
+				user.hisFlag = "1";
+				msgDispatcher(evt);
+				log.info("时间：");
+				log.info(evt);
+				//是否比较时间。
+				compareDateFlag = "0";
+			}
+			private function exportKPI():void
+			{
+				if (kpiSituationDM.kpiCharData.length <= 0)
+				{
+					Alert.show("没有指标数据！");
+					return;
+				}
+				//'account':'ailk','roleId':'1','areaId':'1','context':'/cms/'},
+				var sceneName:String="";
+				var cityName:String = "";
+					
+				log.info("begin to export：--->sceneName:" + sceneName + ",cityName:" + cityName);
+				var url:String = user.context + "/scene/panels/exportSceneKpiTrendAction!exportKpiTrend.action?"
+					+ "sceneId=" + user.sceneId + "&sceneName=" + sceneName + "&cityName=" + cityName + "&cityId=" + user.cityId
+					+ "&kpiId=" + user.kpiId + "&moTypeId=" + user.moTypeId + "&isStaticres=" + user.isStaticres
+					+ "&dateFlag=" + user.dateFlag + "&startTime=" + user.startTime + "&endTime=" + user.endTime
+					+ "&floatLevel=" + user.floatLevel + "&showBadMoPoints=" + user.showBadMoPoints + "&mapType=" + user.mapType
+					+ "&labelTypeId=" + user.labelTypeId + "&isGisFlag=" + user.isGisFlag + "&pointlongitude=" + user.pointlongitude
+					+ "&timeInterval=" + user.timeInterval + "&isNew=" + user.isNew + "&configPerfClass=" + user.configPerfClass
+					+ "&kpiIdList=" + user.kpiIdList + "&floatTime=" + user.floatTime + "&layerId=" + user.layerId
+					+ "&refreshPolygon=" + user.refreshPolygon + "&floatId=" + user.floatId + "&pointlatitude=" + user.pointlatitude
+					+ "&rendeType=" + user.rendeType + "&context=" + user.context + "&initLayerId=" + user.initLayerId
+					+ "&newAdded=" + user.newAdded + "&usinglayer=" + user.usinglayer + "&showMoLayer=" + user.showMoLayer
+					+ "&level=" + user.level + "&initSceneId=" + user.initSceneId + "&compareDateFlag=" + compareDateFlag + "&areaId=" + user.areaId;
+				
+				if (compareDateFlag == "1")
+				{
+					url = url + "&compareDate=" + user.compareDate;
+				}
+				navigateToURL(new URLRequest(url));
+			}
+			[MessageHandler(selector = "SHOW_QUIT_CHART")]
+			public function showQuitChart(e:QuitServiceEvent):void
+			{
+				log.info("处理退服统计图表！" + e.quitData.length);
+				 
+				chartViewStack.selectedIndex = 0;
+				navtab1.label = "退服统计";
+				quitChart.visible = true;
+				//					[{烟感=0, 蓄电池供电=0, 属地=南京, GSM退服基站=0, LTE退服基站=0, 传输中断=0, 水浸=0, 一次下电=0, 市电停电=0, 
+				//						GSM退服小区=0, 直流欠压=0, TD退服基站=0, TD退服小区=0, LTE退服小区=0}]
+				var p1:SerialParam = new SerialParam('GSM基站退服', '2G退服');
+				p1.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+				p1.yAxis = PrettyChartType.YAXIS_LEFT;
+				var p2:SerialParam = new SerialParam('TD基站退服', 'TD退服');
+				p2.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+				p2.yAxis = PrettyChartType.YAXIS_LEFT;
+				var p3:SerialParam = new SerialParam('LTE基站退服', 'eNodeB退服基站数');
+				p3.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+				p3.yAxis = PrettyChartType.YAXIS_LEFT;
+				
+				var chartParam:ChartParam = new ChartParam();
+				chartParam.xAxisProperty = "属地";
+				chartParam.showLegend = false;
+				chartParam.useShowDataEffect = false;
+				if(e.quitData.length>1){
+					chartParam.use3DColumn = false;
+				}
+				
+				chartParam.padding = 5;
+				
+				quitChart.chartParam = chartParam;
+				
+				quitChart.series = new ArrayCollection([p1, p2]);
+				
+				if ('2'==user.logicalType)
+					quitChart.series = new ArrayCollection([p3]);
+				
+				log.info("开始渲染退服统计图表！");
+				quitChart.chartData(e.quitData, true);
+			}
+			
+			protected function ok_clickHandler1():void
+			{
+				log.info("vgroup.numElements:" + vgroup.numElements);
+				//TODO 	
+				var compareDate:String = "";
+				
+				for (var i:int = 0; i < vgroup.numElements; i++)
+				{
+					if (vgroup.getElementAt(i) is CompareDateVGroup)
+					{
+						var cdg:CompareDateVGroup = vgroup.getElementAt(i) as CompareDateVGroup;
+						log.info("cdg.compareDate---" + cdg.compareDate);
+						
+						if (cdg.compareDate != null && cdg.compareDate != "")
+						{
+							compareDate += "," + cdg.compareDate;
+							log.info("llllllllll+compareDate" + compareDate);
+						}
+					}
+				}
+				
+				//log.info(param);
+				if (compareDate.length > 0)
+				{
+					log.info("kkkkkkkkkkk+compareDate.length" + compareDate.length);
+					user.compareDate = compareDate.substr(1);
+					log.info("ggggggggg+compareDate.substr(1)" + compareDate.substr(1));
+				}
+				else
+				{
+					Alert.show("请选择比较日期！！", "提示");
+					return;
+				}
+				
+				log.info(user);
+				var evt:KPISituationEvent = new KPISituationEvent(KPISituationEvent.LOAD_COMPARE_LINE_DATA);
+				evt.param.interval = intervalS;
+				log.info(evt.param);
+				msgDispatcher(evt);
+				//比较时间标识。
+				compareDateFlag = "1";
+			}
+			
+			public var count:int = 0;
+			public function compareDateAdd():void
+			{
+				var compareDG:CompareDateVGroup = new CompareDateVGroup();
+				compareDG.dispatchMsg = this.msgDispatcher;
+				
+				log.info("count:" + count);
+				
+				if (count < 3)
+				{
+					vgroup.addElement(compareDG);
+				}
+				
+				if (count <= 2)
+				{
+					count++;
+				}
+				else
+				{
+					count = 3
+				}
+			}
+			
+			[MessageHandler(selector = "DELETE_COMPARE_DATE")]
+			public function deleteCompareDate(e:SceneEvent):void
+			{
+				count--;
+				
+				if (count == 0)
+				{
+					vgroup.removeAllElements();
+				}
+				
+				log.info("count:" + count + "deleteCompareDate");
+			}
+			
+			private var arrayListD:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var compareDateData:String;
+			[MessageHandler(selector = "COMPARE_DATE")]
+			public function compareDate(e:SceneEvent):void
+			{
+				//判断当前输入时间值是否小于初始设定时间值
+				log.info("粒度为:" + intervalS);
+				
+				//				if(statisticsLevelg == "1")
+				//				{
+				
+				
+				if (intervalS == "1")
+				{
+					var currentDate:Date = new Date();
+					currentDate.setDate(currentDate.getDate() - 1);
+					log.info("currentDate:" + currentDate);
+					var cd:String = DateUtils.parseDate(currentDate, "YYYY-MM-DD");
+					log.info("cd:" + cd);
+					log.info("(e.param['date'] as DateField).text:" + (e.param['date'] as DateField).text);
+					
+					if ((e.param['date'] as DateField).text < cd)
+					{
+						log.info("日粒度--比较时间符合要求:" + compareDate);
+						var uu:String = (e.param['date'] as DateField).text;
+						log.info("uu:" + uu);
+						
+						if (!voliade(arrayListD, uu)) // 判断当前输入时间值是否在已有对象中存在
+						{
+							(e.param['date'] as DateField).errorString = "时间值输入重复";
+							log.info("Day？:" + compareDate);
+						}
+						else
+						{
+							(e.param['date'] as DateField).errorString = null;
+							compareDateData = (e.param['date'] as DateField).text;
+							arrayListD.addItem(uu);
+							log.info("Day结束:" + compareDate);
+						}
+					}
+					else
+					{
+						log.info("日粒度--比较时间与当前时间比较:" + compareDate);
+						(e.param['date'] as DateField).errorString = "比较日期不能早于当前日期";
+					}
+				}
+				else if (intervalS == "2")
+				{
+					var currentDate:Date = new Date();
+					currentDate.setDate(currentDate.getDate() - 7);
+					log.info("currentDate:" + currentDate);
+					var cd:String = DateUtils.parseDate(currentDate, "YYYY-MM-DD");
+					log.info("cd:" + cd);
+					log.info("(e.param['date'] as DateField).text:" + (e.param['date'] as DateField).text);
+					
+					if ((e.param['date'] as DateField).text < cd)
+					{
+						log.info("月粒度--比较时间符合要求:" + compareDate);
+						var uu:String = (e.param['date'] as DateField).text;
+						log.info("uu:" + uu);
+						
+						if (!voliade(arrayListD, uu)) // 判断当前输入时间值是否在已有对象中存在
+						{
+							(e.param['date'] as DateField).errorString = "时间值输入重复";
+							log.info("Day？:" + compareDate);
+						}
+						else
+						{
+							(e.param['date'] as DateField).errorString = null;
+							compareDateData = (e.param['date'] as DateField).text;
+							arrayListD.addItem(uu);
+							log.info("Day结束:" + compareDate);
+						}
+					}
+					else
+					{
+						log.info("日粒度--比较时间与当前时间比较:" + compareDate);
+						(e.param['date'] as DateField).errorString = "比较日期不能早于当前日期";
+					}
+				}
+				else if (intervalS == "3")
+				{
+					var currentDate:Date = new Date();
+					currentDate.setDate(currentDate.getMonth() - 1);
+					log.info("currentDate:" + currentDate);
+					var cd:String = DateUtils.parseDate(currentDate, "YYYY-MM-DD");
+					log.info("cd:" + cd);
+					log.info("(e.param['date'] as DateField).text:" + (e.param['date'] as DateField).text);
+					
+					if ((e.param['date'] as DateField).text < cd)
+					{
+						log.info("月粒度--比较时间符合要求:" + compareDate);
+						var uu:String = (e.param['date'] as DateField).text;
+						log.info("uu:" + uu);
+						
+						if (!voliade(arrayListD, uu)) // 判断当前输入时间值是否在已有对象中存在
+						{
+							(e.param['date'] as DateField).errorString = "时间值输入重复";
+							log.info("Day？:" + compareDate);
+						}
+						else
+						{
+							(e.param['date'] as DateField).errorString = null;
+							compareDateData = (e.param['date'] as DateField).text;
+							arrayListD.addItem(uu);
+							log.info("Day结束:" + compareDate);
+						}
+					}
+					else
+					{
+						log.info("日粒度--比较时间与当前时间比较:" + compareDate);
+						(e.param['date'] as DateField).errorString = "比较日期不能早于当前日期";
+					}
+				}
+				
+			}
+			/**
+			 * 校验当前新增对象在已有集合中是否重复
+			 * returnFlag：true：不重复；false：重复
+			 */
+			private function voliade(destArr:ArrayCollection, currentObj:Object):Boolean
+			{
+				var returnFlag:Boolean = true;
+				
+				for each (var obj:Object in destArr)
+				{
+					if (obj == currentObj)
+					{
+						returnFlag = false;
+						break;
+					}
+				}
+				return returnFlag;
+			}
+			protected function kpiChartWin_restoreHandler(event:WindowEvent):void
+			{
+//				PopUpManager.removePopUp(kpiChartWin);
+//				kpiChartBox.visible = true;
+//				kpiChartBox.includeInLayout = true;
+//				kpiChartBox.addElement(popWin);
+				
+			}
+			protected function kpiChartWin_maximizeHandler(event:WindowEvent):void
+			{
+//				//最大化方法
+//				kpiChartBox.visible = false;
+//				kpiChartBox.includeInLayout = false;
+//				
+//				PopUpManager.addPopUp(kpiChartWin, topGroup);
+//				popWin = kpiChartWin;
+//				kpiChartWin.width = this.parentApplication.width;
+//				kpiChartWin.height = this.parentApplication.height;
+//				PopUpManager.centerPopUp(kpiChartWin);
+//				
+//				//	quitChart.percentWidth = 100;
+//				//	kpiChart.percentWidth = 100;
+			}
+			
+			private function dataTipFormate(hd:HitData):String
+			{
+				var dd:String;
+				//data对应设置的数据集中的一个数据对象
+				var data:Object = hd.item;
+				var ci:String = hd.chartItem.element['yField'];
+				
+				var unit:String = data['unit'];
+				
+				if (unit == null)
+					unit = "";
+				
+				if (user.dateFlag == "1")
+				{
+					if (ci == "kpiValue")
+					{
+						dd = data['kpiName'] + "\n" + data['gatherTime'] + "\n" + data['kpiValue'] + unit;
+					}
+					else if (ci == "kpiValue1")
+					{
+						dd = data['kpiName'] + "\n" + data['gatherTime1'] + "\n" + data['kpiValue1'] + unit;
+					}
+					else if (ci == "kpiValue2")
+					{
+						dd = data['kpiName'] + "\n" + data['gatherTime2'] + "\n" + data['kpiValue2'] + unit;
+					}
+					else if (ci == "kpiValue3")
+					{
+						dd = data['kpiName'] + "\n" + data['gatherTime3'] + "\n" + data['kpiValue3'] + unit;
+					}
+					
+				}
+				else
+				{
+					//展示的字段和形式执行控制，支持html语法。
+					if (ci == "kpiValue")
+					{
+						dd = data['kpiName'] + "\n" + data['gatherTime'] + "\n" + data['kpiValue'] + unit;
+					}
+					else if (ci == "kpiValue1")
+					{
+						dd = data['kpiName'] + "\n" + data['gatherTime1'] + "\n" + data['kpiValue1'] + unit;
+					}
+					else if (ci == "kpiValue2")
+					{
+						dd = data['kpiName'] + "\n" + data['gatherTime2'] + "\n" + data['kpiValue2'] + unit;
+					}
+					else if (ci == "kpiValue3")
+					{
+						dd = data['kpiName'] + "\n" + data['gatherTime3'] + "\n" + data['kpiValue3'] + unit;
+					}
+				}
+				
+				return dd;
+			}
+			protected function lowerLevelDrillingTopo():void
+			{
+				//	log.debug("[下一级钻取：网元]: 开始！");
+				//	
+				//	var evt:KPISituationEvent;
+				//	
+				//	//				if(param.isNext == "1")
+				//	//					evt = new KPISituationEvent(KPISituationEvent.LOAD_KPI_AREA_DATA);
+				//	
+				//	log.info("[下一级钻取：网元]: 开始！test");
+				//	log.info(param);
+				//	
+				////	user.sceneId = param.areaId;
+				//	user.areaId = param.areaId;
+				//	user.level = "2";
+				//	user.currentMapType = "0";
+				//	//				msgDispatcher(evt);
+				//	
+				//	log.info("下一级钻取start");
+				//	var e:SceneEvent = new SceneEvent(SceneEvent.CHANGE_MAPVIEW);
+				//	e.param = new Object();
+				//	e.param.centerlongitude = param.centerlongitude;
+				//	e.param.centerlatitude = param.centerlatitude;
+				//	msgDispatcher(e);
+			}
+			
+			private var param:Object = {};
+			//历史趋势图菜单处理 
+			protected function showHistoryTrend():void
+			{
+				log.debug("[xx：]: 开始！");
+				log.info(param);
+				user.areaId = param.areaId;
+				user.moId = param.areaId;
+				
+				//网元的历史趋势图 跳转到指标定制页面
+				if (param.hasOwnProperty("moTypeId"))
+				{
+					var e:KpiCustomEvent = new KpiCustomEvent(KpiCustomEvent.QUERYKPI);
+					var p:Object = new Object();
+					p.moTypeId = param.moTypeId;
+					p.kpiIDs = [param.kpiId];
+					p.moOrAreaFlag = "0";
+					p.moOrAreaId = param.areaId;
+					
+					e.param = p;
+					
+					log.info("图表 网元-历史趋势 处理：");
+					log.info(e.param);
+					
+					msgDispatcher(e);
+				}
+				else
+				{
+					if (param.isNext == "1")
+					{
+						var evt:KPISituationEvent = new KPISituationEvent(KPISituationEvent.LOAD_HISTORY_LINE_DATA);
+						log.info("[历史趋势图：]:区域 开始！test");
+						user.level = "1";
+						
+						if (user.level == "1" || user.level == "2")
+						{
+							user.cityId = GsSceneConts.Province_KEY;
+						}
+						else
+						{
+							user.cityId = param.cityId;
+						}
+						//			msgDispatcher(evt);
+						requestServerUtil.addRequest(evt);
+						log.debug("历史趋势区域 菜单处理！");
+						log.info("addPopUp:hisPopupWin");
+					}
+					else
+					{
+						var evt1:KPISituationEvent = new KPISituationEvent(KPISituationEvent.LOAD_HISTORY_TOPN_LINE_DATA);
+						log.info("[历史趋势图topn：]:区域 开始！test");
+						user.level = "2";
+						
+						if (user.level == "1" || user.level == "2")
+						{
+							user.cityId = GsSceneConts.Province_KEY;
+						}
+						else
+						{
+							user.cityId = param.cityId;
+						}
+						//			msgDispatcher(evt1);
+						requestServerUtil.addRequest(evt1);
+						log.debug("历史趋势区域tpon 菜单处理！");
+						log.info("addPopUp:hisPopupWin topn");
+					}
+				}
+			}
+			
+			private function gisPositionHandler():void
+			{
+				var evt:SceneEvent = new SceneEvent(SceneEvent.SHOWMO2GIS);
+				evt.param = new Object();
+				evt.param.moId = param.areaId; //TODO
+				evt.param.moTypeId = param.moTypeId;
+				evt.param.alarmLevel = param["alarmLevel"];
+				log.info("抛出事件gis定位SHOWMO2GIS,参数如下[{0}][{1}]", evt.param.moId, evt.param.moTypeId);
+				msgDispatcher(evt);
+			}
+		]]>
+	</fx:Script>
+		<s:VGroup width="100%"
+				  height="100%"
+				  gap="0"
+				  top="-22">
+			<s:TabBar id="chartTabBar"
+					  dataProvider="{chartViewStack}"
+					  buttonMode="true"
+					  styleName="sceneTabBar1"/>
+			<mx:ViewStack width="100%"
+						  height="100%"
+						  styleName="sceneViewStack"
+						  change="chartViewStack_changeHandler(event)"
+						  id="chartViewStack"
+						  creationPolicy="all">
+				<s:NavigatorContent width="100%"
+									id="navtab1"
+									height="100%"
+									creationPolicy="all"
+									label="退服统计"
+									mouseOver="navtab1_mouseOverHandler(event)">
+					<!-- 重点指标详情图表 -->
+					<s:Scroller width="100%"
+								height="100%"
+								styleName="sceneScroller">
+						<s:Group width="100%" height="100%">
+							<ailk_chart:PrettyChart id="quitChart"
+													showYaxisTitle="true"
+													visible="false"
+													top="30"
+													width="100%"
+													height="88%"
+													columnWidthRatio="0.3"
+													xAxisFontSize="12"
+													steadyYAxis="false"
+													pageNum="7"
+													horizontalCenter="0"
+													verticalCenter="0"/>
+						</s:Group>
+					</s:Scroller>
+					<s:HGroup gap="25" left="210">
+						<s:CheckBox label="显示门限"
+									styleName="label"
+									visible="false"
+									click="showQuitChartByAreaKpi()"
+									id="thresholdCB"/>
+					</s:HGroup>
+				</s:NavigatorContent>
+				<s:NavigatorContent width="100%"
+									height="100%"
+									creationPolicy="all"
+									mouseOver="navigatorcontent1_mouseOverHandler(event)"
+									mouseOut="navigatorcontent1_mouseOutHandler(event)"
+									label="指标趋势">
+					<s:Group  width="100%" height="100%">
+						<!-- 指标趋势图表 -->
+						<s:Scroller width="100%"
+									height="100%"
+									bottom="0"
+									styleName="sceneScroller">
+							<s:Group width="100%" height="100%">
+								<ailk_chart:PrettyChart id="kpiChart"
+														top="30"
+														width="100%"
+														height="88%"
+														dataTipFunc="dataTipFormate"
+														steadyYAxis="false"
+														xAxisFontSize="12"
+														pageNum="20"
+														horizontalCenter="0"
+														verticalCenter="0"/>
+							</s:Group>
+						</s:Scroller>
+						<s:HGroup gap="23" left="200">
+							<s:CheckBox label="显示门限"
+										styleName="label"
+										click="showKpiChart()"
+										id="thresholdKpi"/>
+							<s:RadioButton label="日"
+										   groupName="statisticsLevelg"
+										   id="dayLevel"
+										   styleName="label"
+										   click="dayLevel_clickHandler()"
+										   value="1"
+										   selected="true"/>
+							<s:RadioButton label="周"
+										   styleName="label"
+										   groupName="statisticsLevelg"
+										   id="weekLevel"
+										   click="weekLevel_clickHandler()"
+										   value="2"/>
+							<s:RadioButton label="月"
+										   styleName="label"
+										   groupName="statisticsLevelg"
+										   id="monthLevel"
+										   click="monthLevel_clickHandler()"
+										   value="3"/>
+							<mx:VBox>
+								<mx:Image id="addImg"
+										  source="@Embed('../../img/u2.png')"
+										  buttonMode="true"
+										  toolTip="比较时间"
+										  click="openWin1();"/>
+							</mx:VBox>
+							<mx:Image id="hisImg"
+									  source="@Embed('../../img/clock1.png')"
+									  buttonMode="true"
+									  toolTip="历史查询"
+									  click="openWin();"/>
+							<mx:Image source="@Embed('../../img/icon_export.png')"
+									  buttonMode="true"
+									  toolTip="导出"
+									  click="exportKPI()"/>
+							<s:Label id="kpiLabel"
+									 styleName="label"/>
+						</s:HGroup>
+					</s:Group>
+					
+				</s:NavigatorContent>
+				<s:NavigatorContent width="100%" height="100%" 
+									label="工程割接">
+					<!-- 工程割接列表 -->
+					<components:ProjectCutoverGroup id="projectCutoverGroup"
+													minHeight="50"
+													height="100%"
+													width="100%"/>
+				</s:NavigatorContent>
+				<s:NavigatorContent width="100%" height="100%" 
+									label="投诉工单">
+					<components:ComplaintSheetGroup id="complaintSheetGroup"
+													minHeight="50"
+													height="100%"
+													width="100%"/>
+				</s:NavigatorContent>
+				<s:NavigatorContent width="100%" height="100%" 
+									label="故障工单">
+					<viewnew:sheetFlow width="100%"
+									   height="100%">
+					</viewnew:sheetFlow>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+		</s:VGroup>
+	<ailk_compts:Window id="menuWinLowerLevel"
+						width="120"
+						styleName="window"
+						minimizable="false"
+						maximizable="false"
+						dragable="true"
+						closable="false"
+						rollOut="{this.menuWinLowerLevel.visible = false; this.menuWinLowerLevel.includeInLayout = false;}"
+						visible="false"
+						includeInLayout="false">
+		<mx:VBox width="100%"
+				 top="-16"
+				 horizontalAlign="center"
+				 height="100%">
+			<s:Button id="nextLevelBT"
+					  label="下一级钻取"
+					  click="lowerLevelDrillingTopo()"/>
+			<s:Button label="历史趋势图"
+					  click="showHistoryTrend()"/>
+			<s:Button id="gisPositionLab"
+					  label="GIS 定位"
+					  click="gisPositionHandler()"
+					  visible="false"
+					  includeInLayout="false"/>
+		</mx:VBox>
+	</ailk_compts:Window>
+	<!-- 配置窗口-->
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="configurationWin1"
+							styleName="window"
+							minimizable="false"
+							maximizable="false"
+							dragable="true"
+							width="300"
+							minHeight="180"
+							close="{PopUpManager.removePopUp(configurationWin1);}">
+			<s:BorderContainer styleName="borderContainer1"
+							   width="100%"
+							   height="100%">
+				<mx:Form width="100%"
+						 height="100%">
+					<mx:FormItem label="比较日期"
+								 width="100%"
+								 height="100%"
+								 id="compareDateF">
+						<mx:Image id="addSymbol"
+								  source="@Embed('../../img/addDate.png')"
+								  toolTip="添加"
+								  buttonMode="true"
+								  click="compareDateAdd()"/>
+					</mx:FormItem>
+					<mx:FormItem width="100%"
+								 height="100%">
+						<s:VGroup id="vgroup"
+								  width="100%"/>
+					</mx:FormItem>
+					<mx:FormItem width="100%"
+								 height="25">
+						<s:Button label="确定"
+								  click="ok_clickHandler1()"/>
+					</mx:FormItem>
+				</mx:Form>
+				
+			</s:BorderContainer>
+		</ailk_compts:Window>
+	</mx:Box>
+	<!-- 配置窗口-->
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="configurationWin"
+							styleName="window"
+							minimizable="false"
+							maximizable="false"
+							dragable="true"
+							close="{PopUpManager.removePopUp(configurationWin);}">
+			<s:BorderContainer styleName="borderContainer1"
+							   width="100%"
+							   height="100%">
+				<s:layout>
+					<s:VerticalLayout/>
+				</s:layout>
+				<mx:Form>
+					<mx:FormItem label="开始时间"
+								 id="startTime1">
+						<mx:DateField id="startTime"
+									  width="200"
+									  formatString="YYYY-MM-DD"/>
+					</mx:FormItem>
+					<mx:FormItem label="结束时间"
+								 id="endTime1">
+						<mx:DateField id="endTime"
+									  width="200"
+									  formatString="YYYY-MM-DD"/>
+					</mx:FormItem>
+					<mx:FormItem direction="vertical">
+						<s:Button label="确定"
+								  click="ok_clickHandler()"/>
+					</mx:FormItem>
+				</mx:Form>
+			</s:BorderContainer>
+		</ailk_compts:Window>
+	</mx:Box>
+	</ailk_compts:Window>

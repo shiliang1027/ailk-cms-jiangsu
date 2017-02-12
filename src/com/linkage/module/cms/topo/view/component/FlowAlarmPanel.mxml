@@ -1,0 +1,1147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:flow="com.linkage.module.cms.alarm.flow.*"
+				   width="100%"
+				   height="100%"
+				   cornerRadius="6"
+				   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*">
+	<s:layout>
+		<s:VerticalLayout verticalAlign="middle"
+						  horizontalAlign="center"/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.alarm.framework.common.event.MenuEvent;
+			import com.linkage.module.cms.topo.assets.CmsTopoIcons;
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.cms.topo.util.CmsTopoUtil;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.assets.TopoIcons;
+			import com.linkage.module.topo.framework.controller.event.CanvasEvent;
+			import com.linkage.module.topo.framework.controller.event.TopoAlarmEvent;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.core.Feature;
+			import com.linkage.module.topo.framework.core.model.element.line.ILink;
+			import com.linkage.module.topo.framework.core.model.element.plane.IHLinkLayer;
+			import com.linkage.module.topo.framework.core.model.element.point.INode;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.util.MessageUtil;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.module.topo.framework.view.component.panel.ElementListPanel;
+			import com.linkage.system.structure.map.IMap;
+			import com.linkage.system.structure.map.ISet;
+			import com.linkage.system.structure.map.Map;
+			import com.linkage.system.structure.map.Set;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.XMLListCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+
+			// log
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.view.component.FlowAlarmPanel");
+			// 画布
+			[Bindable]
+			private var _topoCanvas:TopoCanvas = null;
+			// 数据源
+			[Bindable]
+			private var _dataSource:IDataSource = null;
+			// 远程请求url的上下文
+			private var _urlContext:String = null;
+			// 展示查询列表的面板
+			private var _elementListPanel:ElementListPanel = null;
+			// loading
+			private var _loading:ILoadingInfo = null;
+			// CMS数据源
+			[Bindable]
+			private var _cmsDataSource:ICmsDataSource = null;
+			// 资源统计面板
+			[Bindable]
+			private var _resStatPanel:ResourceStatisticPanel = null;
+
+			//--------------------------------
+			// 告警列: 网元id
+			private var ALARM_COL_ALARMNEID:String = "alarmneid";
+			// 告警列: 集客id
+			private var ALARM_COL_GROUPCUSTOMERID:String = "groupcustomerid";
+			// 告警列: 地市
+			private var ALARM_COL_ALARMREGION:String = "alarmregion";
+			// 告警列: 区县
+			private var ALARM_COL_ALARMCOUNTY:String = "alarmcounty";
+			// 告警列: 集客地市
+			private var ALARM_COL_CUSTCITY:String = "custcity";
+			// 告警列: 集客区县
+			private var ALARM_COL_CUSTCOUNTY:String = "custcounty";
+			// 告警列: 是否集客告警的标识
+			private var ALARM_COL_CUSTOMERFLAG:String = "customerflag";
+			// 告警列: 业务级别
+			private var ALARM_COL_BUSINESSLEVEL:String = "businesslevel";
+			// 告警列: 专线id
+			private var ALARM_COL_CUSBUSS_ID:String = "cusbuss_id";
+			// 告警列: 电路名称
+			private var ALARM_COL_CIRC_NAME:String = "circ_name";
+			// 告警列: 网元类型id
+			private var ALARM_COL_ALARMNETYPE:String = "alarmnetype";
+			// 告警列: 专业id
+			private var ALARM_COL_SPECIALTY:String = "specialty";
+			// 告警列: 热点id
+			private var ALARM_COL_HOTSPOTID:String = "hotspotid";
+			// 告警对象中需要获取数据列(菜单使用)
+			private var _alarmObj_defaultDisplay:String = [ALARM_COL_ALARMNEID, ALARM_COL_ALARMREGION, ALARM_COL_GROUPCUSTOMERID].join(",");
+
+			// --------------------------------
+			// 菜单事件: 拓扑定位
+			private static const AlarmMenuEvent_TOPOLOCATE:String = "AlarmMenuEvent_TOPOLOCATE";
+			// 菜单事件: 关联到话务网
+			private static const AlarmMenuEvent_TOPOLOCATE_SWITCH:String = "AlarmMenuEvent_TOPOLOCATE_SWITCH";
+
+			//-------------- 数据准备 ---------------
+			// 普通流水是否显示
+			[Bindable]
+			private var _flowAlarmVisible:Boolean = false;
+			// 集客流水是否显示
+			[Bindable]
+			private var _custAlarmVisible:Boolean = false;
+			// 查看当前层告警图标是否显示
+			[Bindable]
+			private var _viewCurLayerIconVisible:Boolean = false;
+			// 搜索告警图标是否显示
+			[Bindable]
+			private var _searchAlarmIconVisible:Boolean = false;
+			// 告警查询按钮的提示信息
+			[Bindable]
+			private var _searchAlarmIconTooltip:String = null;
+
+			// -------------- 一些判断标志 ------------------
+			// 判断当前是否正在使用集客流水
+			private var _isCustFlowEnable:Boolean = false;
+			// 普通流水是否已经初始化
+			private var _flowAlarmInited:Boolean = false;
+			// 普通流水是否已经启动
+			private var _flowAlarmStarted:Boolean = false;
+			// 集客流水是否已经初始化
+			private var _custAlarmInited:Boolean = false;
+			// 集客流水是否已经启动
+			private var _custAlarmStarted:Boolean = false;
+
+			//-------------- 数据准备 ---------------
+			// 属性id -> 名称的映射
+			private var _cityId2NameMap:IMap = new Map();
+			private var _cityName2IdMap:IMap = new Map();
+			// 判断 topoName 是否为集客的正则表达式
+			private var jtkhRegExp:RegExp = new RegExp("jtkh");
+
+			// 告警的参数
+			[Bindable]
+			private var _alarmParams:Object = null;
+
+			//-------------- 装载规则 ---------------
+			// 上次装载告警的规则
+			private var _lastReloadRule:String = null;
+			// 是否允许重新加载告警
+			private var _reloadEnable:Boolean = true;
+			// 当前选中的单个网元的id
+			private var _selectedMoId:String = null;
+			
+			[Bindable]
+			private var _ruleTopo:String = "";
+			
+			public function set ruleTopo(value:String):void
+			{
+				_ruleTopo = value;
+			}
+			/**
+			 * 显示
+			 */
+			public function show():void
+			{
+				this.visible = true;
+				this.includeInLayout = true;
+				if (_reloadEnable)
+				{
+					viewCanvasAlarm();
+				}
+			}
+
+			/**
+			 * 隐藏
+			 */
+			public function hide():void
+			{
+				this.visible = false;
+				this.includeInLayout = false;
+			}
+
+			public function set topoCanvas(value:TopoCanvas):void
+			{
+				_topoCanvas = value;
+				_loading = LoadingManager.getInstance().loadingInfo;
+			}
+
+			/**
+			 * 注入数据源
+			 */
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+
+			/**
+			 * 注入CMS数据源
+			 */
+			public function set dataSourceCms(value:ICmsDataSource):void
+			{
+				_cmsDataSource = value;
+			}
+
+			/**
+			 * 注入URL上下文
+			 */
+			public function set urlContext(value:String):void
+			{
+				_urlContext = value;
+			}
+
+			/**
+			 * 展示查询列表的面板
+			 */
+			public function set elementListPanel(value:ElementListPanel):void
+			{
+				_elementListPanel = value;
+			}
+
+			/**
+			 * 默认是否使用集客流水
+			 */
+			public function set defaultCustFlow(value:Boolean):void
+			{
+				_isCustFlowEnable = value;
+			}
+
+			/**
+			 * 设置参数
+			 */
+			public function set params(value:String):void
+			{
+				log.debug("给告警流水设置的参数: {0}", value);
+				log.debug("告警对象中使用列: {0}", _alarmObj_defaultDisplay);
+//				flowAlarm.params = {mapInfo: value};
+				_alarmParams = {mapInfo: value, defaultDisplay: _alarmObj_defaultDisplay};
+			}
+
+			/**
+			 * 资源统计面板
+			 */
+			public function set resourceStatisticPanel(panel:ResourceStatisticPanel):void
+			{
+				_resStatPanel = panel;
+			}
+
+			/**
+			 * 启动加载数据逻辑
+			 */
+			public function start():void
+			{
+				log.debug("启动告警流水...");
+				try
+				{
+					startAlarm();
+
+					// 【初始化转换映射Map】
+					initTransformMap();
+
+					// 【拓扑图切换后】
+					_topoCanvas.addEventListener(CanvasEvent.LAYER_CHANGED, function(event:CanvasEvent):void
+						{
+							// 层次切换,1.启用reload, 2.清空之前的加载规则, 3.停止流水
+							_reloadEnable = true;
+							_lastReloadRule = null;
+							log.debug("切换层次,准备停止告警流水...");
+							stopFlowAlarm();
+							hideViewCurLayerIcon();
+							hideSearchAlarmIcon();
+							// 派发隐藏面板事件
+							dispatchHidePanel();
+						});
+
+					// 【拓扑右键查看告警】
+					_topoCanvas.addEventListener(TopoEvent.VIEW_ALARM, function(event:TopoEvent):void
+						{
+							// 清空上次的规则,始终保证每次点击都会请求查询
+							_lastReloadRule = null;
+							log.debug("查看告警："+event.getProperty("type"));
+							switch (event.getProperty("type"))
+							{
+								case "mo":
+									viewMoAlarm(event.feature);
+									break;
+								case "cust":
+									viewCustAlarm(event.getProperty("id"));
+									break;
+								case "product":
+									viewProductAlarm(event.getProperty("id"));
+									break;
+								case "circuit":
+									viewCircAlarm(event.getProperty("id"));
+									break;
+								case "segment":
+									viewSegmentAlarm(event.getProperty("id"),event.getProperty("name"));
+									break;
+							}
+						});
+					// 【资源统计面板点击事件】
+					if (_resStatPanel != null)
+					{
+						log.debug("存在资源面板,增加点击监听事件 {0}", _resStatPanel)
+						_resStatPanel.addDataGridEventListener(ListEvent.ITEM_CLICK, function(event:ListEvent):void
+							{
+								var data:Object = event.itemRenderer.data;
+								var moTypeId:String = data["@id"];
+								var al_mo_ids:String = data["@al_mo_ids"];
+								if (!StringUtils.isEmpty(al_mo_ids))
+								{
+//									viewMoStatAlarm(al_mo_ids.split(","), isHotspot(moTypeId));
+								}
+								else
+								{
+									MessageUtil.showMessage("网元类型[" + event.itemRenderer.data["@name"] + "]无告警网元");
+								}
+							});
+					}
+
+					// 【收到重新装载告警的通知】
+					_topoCanvas.addEventListener(TopoEvent.LOAD_FLOW_ALARM, function(event:TopoEvent):void
+						{
+							viewCanvasAlarm();
+						});
+				}
+				catch (error:Error)
+				{
+					log.error("启动告警流水时异常 {0}  {1}", error.message, error.getStackTrace());
+				}
+
+			}
+
+			/**
+			 * 启动流水
+			 */
+			private function startAlarm():void
+			{
+				if (_isCustFlowEnable)
+				{
+					initCustAlarm();
+				}
+				else
+				{
+					initFlowAlarm();
+				}
+			}
+
+			/**
+			 * 初始化需要转换的映射Map
+			 */
+			private function initTransformMap():void
+			{
+				_cmsDataSource.queryAllCitys(function(data:XML):void
+					{
+						var citys:XMLList = data.child("city");
+						for each (var city:XML in citys)
+						{
+							_cityId2NameMap.put(String(city.@k), String(city.@v));
+							_cityName2IdMap.put(String(city.@v), String(city.@k));
+						}
+					}, function():void
+					{
+						log.debug("_cityId2NameMap = {0}", _cityId2NameMap);
+						log.debug("_cityName2IdMap = {0}", _cityName2IdMap);
+					});
+			}
+
+			// 捕获流水上面的拓扑定位菜单
+			private function hanlder_topoLocate(event:MenuEvent):void
+			{
+				var alarm:Object = event.data;
+				// 网元id
+				var moId:String = alarm[ALARM_COL_ALARMNEID];
+				// 集客id
+				var custId:String = alarm[ALARM_COL_GROUPCUSTOMERID];
+
+				log.debug("【定位拓扑】 moId:{0} custId:{1}", moId, custId);
+				if (!StringUtils.isEmpty(custId))
+				{
+					// 定位集客
+					log.info("定位集客");
+					CmsTopoUtil.searchCustId(_topoCanvas, _dataSource, _elementListPanel, _loading, custId);
+				}
+				else
+				{
+					// 定位MO
+					log.info("定位MO");
+					if (_topoCanvas.someNode(function(id:String, node:INode):Boolean
+						{
+							if (node.getExtendProperty(CmsTopoConstants.XML_KEY_MO_ID) == moId)
+							{
+								_topoCanvas.locateElement(node.id, node.name, _topoCanvas.topoName);
+								return true;
+							}
+							return false;
+						}) == false)
+					{
+						// 如果当前层中找不到,通过mo_id查询后再定位
+						CmsTopoUtil.searchMoId(_topoCanvas, _dataSource, _elementListPanel, _loading, _topoCanvas.topoName, moId);
+					}
+				}
+			}
+
+			// 捕获流水上面的 关联到话务网菜单
+			private function handler_topoLocate_Switch(event:MenuEvent):void
+			{
+				var alarm:Object = event.data;
+				// 属地名称
+				var cityName:String = alarm[ALARM_COL_ALARMREGION];
+				// 属地id
+				var cityId:String = getCityIdByName(cityName);
+				// 话务网下本地网云图的id
+				var id:String = "1/switch/" + cityId;
+
+				_topoCanvas.loadTopo(id);
+			}
+
+			/**
+			 * 判断当前画布是否是集团客户
+			 */
+			private function isCanvasJtkh():Boolean
+			{
+				return jtkhRegExp.test(_topoCanvas.topoName);
+			}
+
+			// 重新设置显示过滤条件,查看画布整层的告警
+			private function viewCanvasAlarm():void
+			{
+				if (visible == false)
+				{
+					return;
+				}
+				log.debug("查看画布的告警...");
+
+				var topoId:String = _topoCanvas.topoId;
+				log.info("告警 topoId="+topoId);
+
+				if (isCanvasJtkh())
+				{
+					log.info("告警 集客  topoId="+topoId);
+					// 集客
+					switch (topoId)
+					{
+						case "1/jtkh":
+							viewAllCustomersAlarm();
+							break;
+						default:
+							viewCustomersAlarm();
+							break;
+					}
+				}
+				else
+				{
+					// 非集客
+					// 1.若为 1/0 查看全部告警
+					// 2.若为 各专业网段,查看专业告警  // 1:交换  2:数据 3:传输 4:动环 5:2G无线 6:TD无线
+					// 3.其他的话,查看设备的告警
+					log.info("告警 非集客  topoId="+topoId);
+					switch (topoId)
+					{
+						case "1/0":
+							viewTotalAlarm();
+							break;
+						case "1/switch":
+							viewSpecAlarm([1, 5, 6]);
+							break;
+						case "1/signal":
+							viewSpecAlarm([1, 5, 6]);
+							break;
+						case "1/data":
+							viewSpecAlarm([2]);
+							break;
+						case "1/data/ipcz":
+//							viewSpecAlarm([2]);
+							viewMoTypeAlarm(["AR", "BR", "CR", "CE"]);
+							break;
+						case "1/data/cmnet":
+//							viewSpecAlarm([2]);
+							viewMoTypeAlarm(["BC", "PA", "PB", "PC", "MA", "MC", "BRAS", "SR"]);
+							break;
+						case "1/data/wlan":
+//							viewSpecAlarm([2]);
+							viewMoTypeAlarm(["AP", "胖AC", "瘦AC", "一级热点", "二级热点"]);
+							break;
+						case "1/data/gprs":
+//							viewSpecAlarm([2]);
+							viewMoTypeAlarm(["GGSN", "SGSN", "DNS", "FW", "CG", "SWRT"]);
+							break;
+						case "1/platform":
+							viewMoTypeAlarm(["MMSC", "彩信网关", "WAP网关", "主机", "GGSN", "SMSC", "短信网关"]);
+							break;
+						case "1/platform/mms":
+							// 彩信中心MMSC(66),彩信网关MMSG(180),WAP网关(83),GGSN(9),主机(36),路由器,四层交换机,防火墙
+							viewMoTypeAlarm(["MMSC", "彩信网关", "WAP网关", "主机", "GGSN"]);
+							break;
+						case "1/platform/sms":
+							// 短信网关ISMG(190),短信中心SMSC(17)
+							viewMoTypeAlarm(["SMSC", "主机", "短信网关"]);
+							break;
+						case "1/transport":
+							viewSpecAlarm([3]);
+							break;
+						case "1/cross/switchipcztransport":
+							viewSpecAlarm([1, 3, 5, 6]);
+							break;
+						case "1/cross/switchtransport":
+							viewMoTypeAlarm(["BSC", "RNC"]);
+							break;
+						default:
+							viewAllMoAlarm();
+							break;
+					}
+				}
+				hideViewCurLayerIcon();
+				hideSearchAlarmIcon();
+			}
+
+			// ----------------------------------- //
+			//              查看画布告警
+			// ----------------------------------- //
+			// 查看全部集客告警
+			private function viewAllCustomersAlarm():void
+			{
+				log.info("巧克力 查看全部集客告警");
+				reloadAlarm(ALARM_COL_CUSTOMERFLAG + "=1");
+			}
+
+			// 集客状态下,查看告警
+			private function viewCustomersAlarm():void
+			{
+				log.info("告警 进入 viewCustomersAlarm");
+				var topoId:String = _topoCanvas.topoId;
+				var cityId:String = _topoCanvas.getProperty(CmsTopoConstants.XML_KEY_CITY_ID);
+				var subCityId:String = _topoCanvas.getProperty(CmsTopoConstants.XML_KEY_SUB_CITY_ID);
+				var servLevel:String = _topoCanvas.getProperty(CmsTopoConstants.XML_KEY_SERV_LEVEL);
+				var custId:String = _topoCanvas.getProperty(CmsTopoConstants.XML_KEY_CUST_ID);
+				var productNo:String = _topoCanvas.getProperty(CmsTopoConstants.XML_KEY_PRODUCT_NO);
+				var circCode:String = _topoCanvas.getProperty(CmsTopoConstants.XML_KEY_CIRC_CODE);
+				var topoType:String = _topoCanvas.getProperty(CmsTopoConstants.XML_KEY_TOPO_TYPE);
+				
+				var filterStr:String = null;
+				if (StringUtils.isEmpty(cityId) && StringUtils.isEmpty(servLevel) && StringUtils.isEmpty(subCityId) && StringUtils.isEmpty(custId) && StringUtils.isEmpty(productNo))
+				{
+					// 全部集客
+					filterStr = ALARM_COL_CUSTOMERFLAG + "=1";
+				}
+				else
+				{
+					var filterArray:Array = [];
+					// 1/jtkh下面的具体网段
+					if (!StringUtils.isEmpty(cityId))
+					{
+						filterArray.push(ALARM_COL_CUSTCITY + "=\"" + getCityNameById(cityId) + "\"");
+					}
+					if (!StringUtils.isEmpty(servLevel))
+					{
+						filterArray.push(ALARM_COL_BUSINESSLEVEL + "=\"" + servLevel + "\"");
+					}
+					if (!StringUtils.isEmpty(subCityId))
+					{
+						filterArray.push(ALARM_COL_CUSTCOUNTY + "=\"" + getCityNameById(subCityId) + "\"");
+					}
+					if (!StringUtils.isEmpty(custId))
+					{
+						filterArray.push(ALARM_COL_GROUPCUSTOMERID + "=\"" + custId + "\"");
+					}
+					if (!StringUtils.isEmpty(circCode))
+					{
+						filterArray.push(ALARM_COL_CIRC_NAME + "=\"" + circCode + "\"");
+					}
+					if (!StringUtils.isEmpty(productNo))
+					{
+						var str:String = ALARM_COL_CUSBUSS_ID + "=\"" + productNo + "\"";
+						// ==== 专线层,还要加载 电路名称去获取告警 =====
+						var circuitCodes:Array = [];
+						var circuitCode:String = null;
+						_topoCanvas.eachLink(function(id:String, link:ILink):void
+						{
+							circuitCode = link.getExtendProperty("circuit_code");
+							if (!StringUtils.isEmpty(circuitCode))
+							{
+								circuitCodes.push(circuitCode);
+							}
+						});
+						str += "|" + ALARM_COL_CIRC_NAME + "=\"" + circuitCodes.join("\"|" + ALARM_COL_CIRC_NAME + "=\"") + "\"";
+						filterArray.push("(" + str + ")");
+						
+					}
+					if(!StringUtils.isEmpty(topoType) && topoType =="view")
+					{
+						log.info("告警 进入 viewCustomersAlarm view");
+						var moIdSet:ISet = new Set();
+						_topoCanvas.eachNode(eachNode);
+						_topoCanvas.eachHLinkLayer(function(id:String, hlinkLayer:IHLinkLayer):void
+						{
+							hlinkLayer.topoLayer.eachNode(eachNode);
+						});
+						
+						if (moIdSet.size > 0)
+						{
+							var array:Array = [];
+							array.push(ALARM_COL_ALARMNEID + "=\"" + moIdSet.toArray().join("\"|" + ALARM_COL_ALARMNEID + "=\"") + "\"");
+							filterArray.push("(" + array.join("|") + ")");
+						}
+						
+						function eachNode(id:String, node:INode):void
+						{
+							var moId:String = node.getExtendProperty(CmsTopoConstants.XML_KEY_MO_ID);
+							if (!StringUtils.isEmpty(moId))
+							{
+								moIdSet.add(moId);
+							}
+						}
+					}
+					filterStr = filterArray.join("&");
+				}
+				
+				reloadAlarm(filterStr);
+			}
+
+			// 查看全部的告警
+			private function viewTotalAlarm():void
+			{
+				viewSpecAlarm([1, 2, 3, 5, 6]);
+			}
+
+			// 查看网元类型的告警(参数为 BSC,RNC等英文描述)  alarmnetype
+			private function viewMoTypeAlarm(moTypes:Array):void
+			{
+				if (moTypes.length == 1)
+				{
+					reloadAlarm(ALARM_COL_ALARMNETYPE + "=\"" + moTypes[0] + "\"");
+				}
+				else
+				{
+					reloadAlarm("(" + ALARM_COL_ALARMNETYPE + "=\"" + moTypes.join("\"|" + ALARM_COL_ALARMNETYPE + "=\"") + "\")");
+				}
+			}
+
+			// 查看专业拓扑
+			private function viewSpecAlarm(specIds:Array):void
+			{
+				if (specIds.length == 1)
+				{
+					reloadAlarm(ALARM_COL_SPECIALTY + "=" + specIds[0]);
+				}
+				else
+				{
+					var filter:Array = [];
+					specIds.forEach(function(specId:String, index:int, array:Array):void
+						{
+							filter.push(ALARM_COL_SPECIALTY + "=" + specId);
+						});
+					reloadAlarm("(" + filter.join("|") + ")");
+				}
+			}
+
+			// 一级热点(80) 二级热点(201) 要修正为 hotspotid=""
+			// 查看当前层全部网元的告警
+			private function viewAllMoAlarm():void
+			{
+				var moIdSet:ISet = new Set();
+				var hotspotIdSet:ISet = new Set();
+				_topoCanvas.eachNode(eachNode);
+				_topoCanvas.eachHLinkLayer(function(id:String, hlinkLayer:IHLinkLayer):void
+					{
+						hlinkLayer.topoLayer.eachNode(eachNode);
+					});
+
+				var filterStr:String = null;
+				if (moIdSet.size == 0 && hotspotIdSet.size == 0)
+				{
+					// 没有网元,提供清空告警缓存,不用加载新告警的逻辑
+					log.debug("当前层没有网元,停止告警流水");
+					_reloadEnable = true;
+					_lastReloadRule = null;
+//					stopFlowAlarm();
+					filterStr = ALARM_COL_ALARMNEID + "=NULL";
+				}
+				else
+				{
+					// 存在网元
+					var array:Array = [];
+					if (moIdSet.size > 0)
+					{
+						array.push(ALARM_COL_ALARMNEID + "=\"" + moIdSet.toArray().join("\"|" + ALARM_COL_ALARMNEID + "=\"") + "\"");
+					}
+					if (hotspotIdSet.size > 0)
+					{
+						array.push(ALARM_COL_HOTSPOTID + "=\"" + hotspotIdSet.toArray().join("\"|" + ALARM_COL_HOTSPOTID + "=\"") + "\"");
+					}
+					filterStr = "(" + array.join("|") + ")";
+
+				}
+				reloadAlarm(filterStr);
+
+				function eachNode(id:String, node:INode):void
+				{
+					var moId:String = node.getExtendProperty(CmsTopoConstants.XML_KEY_MO_ID);
+					var moTypeId:String = node.getExtendProperty(CmsTopoConstants.XML_KEY_MO_TYPE_ID);
+					if (!StringUtils.isEmpty(moId))
+					{
+						if (isHotspot(moTypeId))
+						{
+							hotspotIdSet.add(moId);
+						}
+						else
+						{
+							moIdSet.add(moId);
+						}
+					}
+				}
+			}
+
+			// ----------------------------------- //
+			//            查看网元统计的告警
+			// ----------------------------------- //
+			// 查看网元统计的告警
+			private function viewMoStatAlarm(moIds:Array, isHotspotFlag:Boolean):void
+			{
+				log.debug("查看网元统计的告警... 是否热点:{0}", isHotspotFlag);
+				if (moIds != null && moIds.length > 0)
+				{
+					_reloadEnable = false;
+					if (this.visible == false)
+					{
+						dispatchShowPanel();
+					}
+					if (isHotspotFlag)
+					{
+						reloadAlarm("(" + ALARM_COL_HOTSPOTID + "=\"" + moIds.join("\"|" + ALARM_COL_HOTSPOTID + "=\"") + "\")");
+					}
+					else
+					{
+						reloadAlarm("(" + ALARM_COL_ALARMNEID + "=\"" + moIds.join("\"|" + ALARM_COL_ALARMNEID + "=\"") + "\")");
+					}
+					showViewCurLayerIcon();
+					hideSearchAlarmIcon();
+				}
+
+			}
+
+			// ----------------------------------- //
+			//            查看单个MO的告警
+			// ----------------------------------- //
+			// 查看某个mo的告警
+			private function viewMoAlarm(feature:Feature):void
+			{
+				if (feature != null)
+				{
+					log.debug("查看网元的告警...");
+					var moId:String = feature.element.getProperty(CmsTopoConstants.XML_KEY_MO_ID);
+					var moTypeId:String = feature.element.getProperty(CmsTopoConstants.XML_KEY_MO_TYPE_ID);
+					//变量
+					var custId:String = feature.element.getProperty(CmsTopoConstants.XML_KEY_CUST_ID);
+					//电路
+					var circCode:String = feature.element.getProperty(CmsTopoConstants.XML_KEY_CIRC_CODE);
+					//产品编号
+					var prodNo:String = feature.element.getProperty(CmsTopoConstants.XML_KEY_PRODUCT_NO);
+					
+					if (!StringUtils.isEmpty(moId))
+					{
+						_reloadEnable = false;
+						if (this.visible == false)
+						{
+							dispatchShowPanel();
+						}
+						if (isHotspot(moTypeId)) 
+						{
+							reloadAlarm(ALARM_COL_HOTSPOTID + "=\"" + moId + "\"");
+						}
+						else
+						{
+							var filterStr:String = ALARM_COL_ALARMNEID + "=\"" + moId + "\"";
+							
+							if (!StringUtils.isEmpty(custId))
+							{
+								filterStr+="&"+ALARM_COL_GROUPCUSTOMERID+"=\"" + custId + "\"";
+							}
+							if (!StringUtils.isEmpty(circCode))
+							{
+								filterStr+="&"+ALARM_COL_CIRC_NAME+"=\"" + circCode + "\"";
+							}
+							if (!StringUtils.isEmpty(prodNo))
+							{
+								filterStr+="&"+ALARM_COL_CUSBUSS_ID+"=\"" + prodNo + "\"";
+							}
+							log.debug("查看网元的告警..."+filterStr);
+							reloadAlarm(filterStr);
+
+						}
+						showViewCurLayerIcon();
+						showSearchAlarmIcon(moId, feature.element.name);
+					}
+				}
+			}
+
+			// ----------------------------------- //
+			//            拓扑右键查看告警
+			// ----------------------------------- //
+			// 查看某个集客的告警
+			private function viewCustAlarm(custId:String):void
+			{
+				_reloadEnable = false;
+				if (this.visible == false)
+				{
+					dispatchShowPanel();
+				}
+				reloadAlarm(ALARM_COL_GROUPCUSTOMERID + "=\"" + custId + "\"");
+				showViewCurLayerIcon();
+				hideSearchAlarmIcon();
+			}
+
+			// 查看某个专线的告警
+			private function viewProductAlarm(productNo:String):void
+			{
+				_reloadEnable = false;
+				if (this.visible == false)
+				{
+					dispatchShowPanel();
+				}
+				reloadAlarm(ALARM_COL_CUSBUSS_ID + "=\"" + productNo + "\"");
+				showViewCurLayerIcon();
+				hideSearchAlarmIcon();
+			}
+			// 查看云图的告警
+			private function viewSegmentAlarm(pid:String,name:String):void
+			{
+				log.debug("查看告警：pid="+pid + ",name"+name);
+				var data:String = DataUtil.buildMapXML(Constants.XML_KEY_PID, pid);
+				var xmlStr:String = DataUtil.buildXML(Constants.TP_MC_ALARM_NEINFO, data);
+				_dataSource.notify(_topoCanvas.topoName, xmlStr, function(result:String):void
+				{
+					var map:IMap = DataUtil.getActionResultMap(new XML(result));
+					if (map.get(Constants.XML_KEY_SUCCESS) == "1")
+					{
+						var data:XML = new XML(map.get(Constants.XML_KEY_ELEMENTXML));
+						var dataList:XMLListCollection = new XMLListCollection();
+						dataList.source = data.child("mo");
+//						Alert.show("dataList.length:"+dataList.length);
+						_reloadEnable = false;
+//						Alert.show("this.visible:"+this.visible);
+						if (this.visible != true)
+						{
+//							Alert.show("dispatchShowPanel");
+							dispatchShowPanel();
+						}
+						if(dataList.length>0){
+							var fiter:String="";
+							var demp:String;
+							for each (var item:XML in dataList) 
+							{
+								demp =  ALARM_COL_ALARMNEID + "=\"" + item.@id + "\"";
+								if(fiter==""){
+									fiter = fiter + demp;
+								}else{
+									fiter = fiter + "|" + demp;
+								}
+							}
+//							Alert.show("fiter:"+fiter);
+							reloadAlarm(fiter);
+							showViewCurLayerIcon();
+							hideSearchAlarmIcon();
+							
+						}
+						
+					}
+					else
+					{
+						log.error("获取云图下设备数据失败: {0}", map.get(Constants.XML_KEY_MSG));
+					}
+				}, function():void
+				{
+				}, function():void
+				{
+					log.error("获取云图下设备数据失败!(通信异常)");
+				});
+			}
+			
+			
+			
+			// 查看传输电路的告警
+			private function viewCircAlarm(circName:String):void
+			{
+				_reloadEnable = false;
+				if (this.visible == false)
+				{
+					dispatchShowPanel();
+				}
+				reloadAlarm(ALARM_COL_CIRC_NAME + "=\"" + circName + "\"");
+				showViewCurLayerIcon();
+				hideSearchAlarmIcon();
+			}
+
+			// ----------------------------------- //
+			//              其他方法
+			// ----------------------------------- //
+			// 判断是否是热点
+			private function isHotspot(moTypeId:String):Boolean
+			{
+				return moTypeId == "80" || moTypeId == "201";
+			}
+
+			// 根据属地id获取对应名称
+			private function getCityNameById(id:String):String
+			{
+				return _cityId2NameMap.get(id);
+			}
+
+			// 根据属地名称获取属地id
+			private function getCityIdByName(name:String):String
+			{
+				return _cityName2IdMap.get(name);
+			}
+
+			// 派发显示面板的事件
+			private function dispatchShowPanel():void
+			{
+				if (this.visible == false)
+				{
+					log.debug("【告警流水】 派发显示面板事件...");
+					dispatchEvent(new TopoAlarmEvent(TopoAlarmEvent.SHOW_FLOW_ALARM));
+				}
+			}
+
+			// 派发关闭面板的事件
+			private function dispatchHidePanel():void
+			{
+				if (this.visible == true)
+				{
+					log.debug("【告警流水】 派发隐藏面板事件...");
+					dispatchEvent(new TopoAlarmEvent(TopoAlarmEvent.HIDE_FLOW_ALARM));
+				}
+			}
+
+			// ---------------------  显示当前层告警按钮 ---------------------------
+			// 显示查看当前层告警的按钮
+			private function showViewCurLayerIcon():void
+			{
+				_viewCurLayerIconVisible = true;
+			}
+
+			// 隐藏查看当前层告警的按钮
+			private function hideViewCurLayerIcon():void
+			{
+				_viewCurLayerIconVisible = false;
+			}
+
+			//  查看当前层告警的按钮 被点击
+			private function viewCurLayerIcon_clickHandler(event:MouseEvent):void
+			{
+				viewCanvasAlarm();
+				_reloadEnable = true;
+			}
+
+			// --------------------- 告警查询按钮 ------------------
+			// 显示单个设备告警查询的按钮
+			private function showSearchAlarmIcon(moId:String, name:String):void
+			{
+				_searchAlarmIconVisible = true;
+				_selectedMoId = moId;
+				_searchAlarmIconTooltip = "查询网元[" + name + "]的告警";
+			}
+
+			// 隐藏单个设备告警查询的按钮
+			private function hideSearchAlarmIcon():void
+			{
+				_searchAlarmIconVisible = false;
+			}
+
+			// 单个设备告警查询的按钮 被点击
+			private function searchAlarmIcon_clickHandler(event:MouseEvent):void
+			{
+				var openUrl:String = _urlContext + "/cms/warn/report/query/ShowAlarmList.jsp?alarmStatus=1&neId=" + _selectedMoId;
+				if (isCanvasJtkh())
+				{
+					openUrl += "&customerFlag=1";
+				}
+				ExternalInterface.call("openUrl(\"" + openUrl + "\")");
+			}
+
+			// --------------------- 告警流水装载、卸载 ------------------
+
+			// 初始化普通流水
+			private function initFlowAlarm():void
+			{
+				if (_flowAlarmInited)
+				{
+					return;
+				}
+				flowAlarm.initInfo(null, 0);
+				_flowAlarmInited = true;
+				_flowAlarmStarted = true;
+				if (!flowAlarm.hasEventListener(AlarmMenuEvent_TOPOLOCATE))
+				{
+					log.debug("【普通流水】注册拓扑定位事件...");
+					flowAlarm.addAlarmListener(AlarmMenuEvent_TOPOLOCATE, hanlder_topoLocate);
+				}
+				if (!flowAlarm.hasEventListener(AlarmMenuEvent_TOPOLOCATE_SWITCH))
+				{
+					log.debug("【普通流水】注册关联到话务网告警事件...");
+					flowAlarm.addAlarmListener(AlarmMenuEvent_TOPOLOCATE_SWITCH, handler_topoLocate_Switch);
+				}
+				log.debug("【普通流水】 init OK.");
+			}
+
+			// 初始化集客流水
+			private function initCustAlarm():void
+			{
+				if (_custAlarmInited)
+				{
+					return;
+				}
+				custAlarm.initInfo(null, 0);
+				_custAlarmInited = true;
+				_custAlarmStarted = true;
+				if (!flowAlarm.hasEventListener(AlarmMenuEvent_TOPOLOCATE))
+				{
+					log.debug("【集客流水】注册拓扑定位事件...");
+					custAlarm.addAlarmListener(AlarmMenuEvent_TOPOLOCATE, hanlder_topoLocate);
+				}
+				log.debug("【集客流水】 init OK.");
+			}
+
+			// 重新装载告警
+			private function reloadAlarm(filterStr:String):void
+			{
+				// 1.排除异常告警; 
+//				filterStr += "&ifabnormal!=1";
+				if (_lastReloadRule == filterStr)
+				{
+					log.debug("已经在监控当前层告警,无需重新装载: {0}", filterStr);
+					return;
+				}
+				_lastReloadRule = filterStr;
+				try
+				{
+					log.debug("重新装载告警: {0}", filterStr);
+					if (isCanvasJtkh())
+					{
+						log.debug("显示集客的告警流水...");
+						if (!_isCustFlowEnable)
+						{
+							_isCustFlowEnable = true;
+							initCustAlarm();
+						}
+						_custAlarmVisible = true;
+						_flowAlarmVisible = false;
+						custAlarm.reload(filterStr);
+						_custAlarmStarted = true;
+					}
+					else
+					{
+						log.debug("显示普通的告警流水...");
+						if (_isCustFlowEnable)
+						{
+							_isCustFlowEnable = false;
+							initFlowAlarm();
+						}
+						_flowAlarmVisible = true;
+						_custAlarmVisible = false;
+						if(StringUtils.isEmpty(_ruleTopo) || _topoCanvas.topoName=="default-topo-jiake"){
+							_ruleTopo="JIAKE";
+						}
+						log.debug("显示普通的告警流水...{0}",_ruleTopo);
+						flowAlarm.reload(filterStr,null,_ruleTopo);
+						_flowAlarmStarted = true;
+					}
+				}
+				catch (error:Error)
+				{
+					log.error("重新装载告警异常[reloadAlarm] {0} {1}", error.message, error.getStackTrace());
+				}
+			}
+
+			// 停止告警流水
+			private function stopFlowAlarm():void
+			{
+				if (_isCustFlowEnable)
+				{
+					if (_custAlarmStarted)
+					{
+						custAlarm.stopLoad(true);
+						_custAlarmStarted = false;
+						log.debug("停止集客告警流水!");
+					}
+				}
+				else
+				{
+					if (_flowAlarmStarted)
+					{
+						flowAlarm.stopLoad(true);
+						_flowAlarmStarted = false;
+						log.debug("停止普通告警流水!");
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<pubflow:alarm id="flowAlarm"
+				   width="100%"
+				   height="100%"
+				   moduleKey="topoflowalarm"
+				   params="{_alarmParams}"
+				   visible="{_flowAlarmVisible}"
+				   includeInLayout="{_flowAlarmVisible}">
+		<pubflow:toolButtons>
+			<mx:Image visible="{_viewCurLayerIconVisible}"
+					  includeInLayout="{_viewCurLayerIconVisible}"
+					  source="{CmsTopoIcons.viewAllIcon}"
+					  buttonMode="true"
+					  click="viewCurLayerIcon_clickHandler(event)"
+					  toolTip="显示全部告警"/>
+			<mx:Image visible="{_searchAlarmIconVisible}"
+					  includeInLayout="{_searchAlarmIconVisible}"
+					  source="{TopoIcons.searchIcon}"
+					  buttonMode="true"
+					  click="searchAlarmIcon_clickHandler(event)"
+					  toolTip="{_searchAlarmIconTooltip}"/>
+		</pubflow:toolButtons>
+	</pubflow:alarm>
+	<pubflow:custalarm id="custAlarm"
+					   width="100%"
+					   height="100%"
+					   moduleKey="grouptopoflowalarm"
+					   params="{_alarmParams}"
+					   visible="{_custAlarmVisible}"
+					   includeInLayout="{_custAlarmVisible}">
+		<pubflow:toolButtons>
+			<mx:Image visible="{_viewCurLayerIconVisible}"
+					  includeInLayout="{_viewCurLayerIconVisible}"
+					  source="{CmsTopoIcons.viewAllIcon}"
+					  buttonMode="true"
+					  click="viewCurLayerIcon_clickHandler(event)"
+					  toolTip="显示全部告警"/>
+			<mx:Image visible="{_searchAlarmIconVisible}"
+					  includeInLayout="{_searchAlarmIconVisible}"
+					  source="{TopoIcons.searchIcon}"
+					  buttonMode="true"
+					  click="searchAlarmIcon_clickHandler(event)"
+					  toolTip="{_searchAlarmIconTooltip}"/>
+		</pubflow:toolButtons>
+	</pubflow:custalarm>
+</s:BorderContainer>

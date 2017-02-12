@@ -1,0 +1,168 @@
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" 
+		 height="100%"
+		 label="工单信息" 
+		 creationComplete="SheetInfoComp_creationCompleteHandler(event)" 
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*" 
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		 xmlns:components="com.linkage.module.cms.groupclientNew.components.*">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="dataQuery", type="com.linkage.module.cms.groupclientNew.event.SheetInfoEvent")]
+		[Event(name="sheetDetailShow", type="com.linkage.module.cms.groupclientNew.event.SheetInfoEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclientNew.event.SheetInfoEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientNew.components.SheetInfoComp");
+			
+
+			protected function SheetInfoComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(SheetInfoEvent.SHOWSHEETINFO,onDataChange);
+			}
+			
+			private function onDataChange(event:SheetInfoEvent):void{
+				var result:Object = event.param;
+				log.info("SheetInfoComp");
+//				var columns:Array = buildColumns(result);
+//				sheetInfoDG.columns = columns;
+//				log.info("result.datas  result.totalCount:"+result.totalCount);
+				log.info(result.datas);
+				sheetInfoDG.dataProvider = result.datas;
+				DataPager.totalRowCount = result.totalCount;
+				
+			}
+			
+			private function buildColumns(result:Object):Array{
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+//					log.info("[buildColumns]name:"+name+",column:"+result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					dataGridColumn.width=100;
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					columns.push(dataGridColumn);
+					i++;
+				}
+				return columns;
+			}
+			
+			protected function sheetInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				log.info("sheetInfoDG_itemClickHandler");
+				var data:Object=sheetInfoDG.dataProvider[event.rowIndex];
+				var flowid:String = data["flowid"];
+				log.info("flowid:"+flowid);
+				if(flowid == null || flowid == "")
+				{
+					log.info("kongkongkong");
+				}else
+				{
+					log.info("kongkongkong");
+					var evt:SheetInfoEvent = new SheetInfoEvent(SheetInfoEvent.SHEETDETAILSHOW);
+					evt.param = new Object();
+					evt.param.flowid = flowid;
+					this.dispatchEvent(evt);
+				}
+			}
+			
+			protected function DataPager_pageChangeHandler(event:PagerEvent):void
+			{
+				var param:Object = new Object();
+				param.pageSize = DataPager.pageSize;
+				param.currentPage = DataPager.currentPage;
+				log.info("DataPager_pageChangeHandler");
+				log.info(param);
+				
+				var evt:SheetInfoEvent = new SheetInfoEvent(SheetInfoEvent.DATAQUERY);
+				evt.param = param;
+				this.dispatchEvent(evt);
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup width="100%" height="100%">
+		<mx:AdvancedDataGrid id="sheetInfoDG"
+							 width="100%"
+							 height="100%"
+							 horizontalScrollPolicy="auto"
+							 verticalScrollPolicy="off"
+							 rowCount="15"
+							 rowHeight="{(sheetInfoDG.height-sheetInfoDG.headerHeight)/sheetInfoDG.rowCount}"
+							 itemClick="sheetInfoDG_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="工单编号" width="180"
+										   dataField="orderid" 
+										   textAlign="center"/>
+				<!--<mx:AdvancedDataGridColumn headerText="订单类型"
+										   dataField="ordertype"
+										   textAlign="center"/>-->
+				<mx:AdvancedDataGridColumn headerText="发起时间" width="180"
+										   dataField="starttime"
+										   textAlign="center"/>
+				<!--<mx:AdvancedDataGridColumn headerText="超时时长"
+										   dataField="overtime"
+										   textAlign="center"/>-->
+				<mx:AdvancedDataGridColumn headerText="集团客户编号" width="180"
+										   dataField="custno"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn headerText="集团客户名称" width="180"
+										   dataField="custname"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn headerText="客户服务等级"
+										   dataField="servlvl"
+										   textAlign="center"/>
+				<!--<mx:AdvancedDataGridColumn headerText="电路编号"
+										   dataField="sheetNo"
+										   textAlign="center"/>-->
+				<mx:AdvancedDataGridColumn headerText="产品实例表示"
+										   dataField="prod_no"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn headerText="专业类型"
+										   dataField="servtype"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn headerText="业务保障等级"
+										   dataField="safelvl"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn headerText="派单地市"
+										   dataField="cityname"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn headerText="派单区县"
+										   dataField="areaname"
+										   textAlign="center"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:HGroup width="100%"
+				  horizontalAlign="right">
+			<pager:Pager id="DataPager"
+						 pageSize="15"
+						 currentPage="1"
+						 pageChange="DataPager_pageChangeHandler(event)"/>
+		</s:HGroup>	
+	</s:VGroup>
+</mx:VBox>

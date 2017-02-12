@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:supportClasses="com.esri.ags.skins.supportClasses.*"
+			   xmlns:panel="com.linkage.system.component.panel.*" 
+			   width="200" height="120" dragable="false" maximizable="false" minimizable="true" minimize="searchForm_minimizeHandler(event)"
+			   restore="searchForm_restoreHandler(event)" creationComplete="window1_creationCompleteHandler(event)"
+			   title="快速检索" closable="false">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var forward:Function = null;
+			
+			protected function closeMe():void
+			{
+				this.visible = false;
+			}
+			
+			//初始化
+			public function init(func:Function):void
+			{
+				var list:ArrayCollection = new ArrayCollection();
+				list.addItem("BSC");
+				list.addItem("RNC");
+				list.addItem("BTS");
+				list.addItem("NodeB");
+				list.addItem("区域");
+				this.netClass.dataProvider = list;
+				this.netClass.selectedIndex = 0;
+				
+				forward = func;
+			}
+			
+			//提交
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var type:String = this.netClass.selectedItem;
+				var name:String = this.netName.text;
+				
+				if (name == "")
+				{
+					Alert.show("请输入网元名称！");
+					return;
+				}
+				
+				forward.call(null,type,name);
+			}
+
+			protected function searchForm_minimizeHandler(event:WindowEvent):void
+			{
+				this.searchFormClose.play();
+				setTimeout(hideGroupContent,300);
+			}
+
+			protected function searchForm_restoreHandler(event:WindowEvent):void
+			{
+				this.searchFormOpen.play();
+				setTimeout(showGroupContent,300);
+			}
+
+			private function hideGroupContent():void
+			{
+				this.groupContent.visible = false;
+			}
+			
+			private function showGroupContent():void
+			{
+				this.groupContent.visible = true;
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Resize id="searchFormOpen"
+				  target="{this}"
+				  heightFrom="30"
+				  heightTo="120"
+				  duration="300">
+		</s:Resize>
+		<s:Resize id="searchFormClose"
+				  target="{this}"
+				  heightFrom="120"
+				  heightTo="30"
+				  duration="300">
+		</s:Resize>
+	</fx:Declarations>
+	<s:VGroup width="180" id="groupContent">
+		<s:HGroup width="100%" id="selectGrop" verticalAlign="middle">
+			<mx:Text text="检索类型"/>
+			<s:ComboBox id="netClass" width="60" color="0x000000">
+			</s:ComboBox>
+		</s:HGroup>
+		<s:HGroup width="100%">
+			<mx:Text text="检索内容"/>
+			<s:TextInput id="netName" width="100" imeMode="{IMEConversionMode.CHINESE}">
+			</s:TextInput>
+			
+		</s:HGroup>
+		<s:HGroup width="100%" horizontalAlign="right">
+			<s:Button label="确定" click="button1_clickHandler(event)">
+			</s:Button>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

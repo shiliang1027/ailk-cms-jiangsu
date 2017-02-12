@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					title="挂牌列表"
+					styleName="window"
+					close="window1_closeHandler(event)"
+					maximize="window1_maximizeHandler(event)"
+					restore="window1_restoreHandler(event)"
+					minimizable="false"
+					dragable="true"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 挂牌列表，从摘牌列表中弹出
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-11-27
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+
+			[Inject("hangPlateListPM")]
+			[Bindable]
+			public var pm:HangPlateListPM;
+
+			[Inject("hangMedalDetail")]
+			public var hangMedalDetail:HangMedalDetail;
+
+			public var param:Object = new Object; //当前查询条件
+
+			private var log:ILogger = Log.getLoggerByClass(HangPlateList);
+
+
+			public function init():void
+			{
+				pm.initHangPlateList(param);
+			}
+
+			protected function moDetail_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object = pm.dm.hangPlateList[event.rowIndex]; //挂牌网元详情
+
+				hangMedalDetail.width = 700;
+				hangMedalDetail.height = 400;
+				PopUpManager.addPopUp(hangMedalDetail, this.parentApplication as DisplayObject);
+				hangMedalDetail.loadData(data);
+
+			}
+
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+
+				pm.export(param);
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				this.closeButton.visible = false;
+
+			}
+
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				this.width = 700;
+				this.height = 400;
+				this.x = (this.parentApplication.width - this.width) / 2
+				this.y = (this.parentApplication.height - this.height) / 2 - 50;
+				this.closeButton.visible = true;
+			}
+		]]>
+	</fx:Script>
+	<s:Group id="mopanel"
+			 width="100%"
+			 height="100%"
+			 textAlign="center">
+		<mx:AdvancedDataGrid width="100%"
+							 height="100%"
+							 textAlign="center"
+							 itemClick="moDetail_itemClickHandler(event)"
+							 dataProvider="{pm.dm.hangPlateList}">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="cityName"
+										   textAlign="center"
+										   headerText="地市"/>
+				<mx:AdvancedDataGridColumn dataField="moName"
+										   textAlign="center"
+										   headerText="网元名称"/>
+				<mx:AdvancedDataGridColumn dataField="moTypeName"
+										   textAlign="center"
+										   headerText="网元类型"/>
+				<mx:AdvancedDataGridColumn dataField="happenTime"
+										   textAlign="center"
+										   headerText="挂牌时间"/>
+				<mx:AdvancedDataGridColumn dataField="num"
+										   textAlign="center"
+										   headerText="累计挂牌次数"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:Group>
+
+	<mx:Image source="@Embed('../../../img/icon_export.png')"
+			  top="-23"
+			  right="77"
+			  width="30"
+			  height="20"
+			  click="export_clickHandler(event)"/>
+</ailk_compts:Window>

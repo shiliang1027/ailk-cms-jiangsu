@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="100%" height="100%"
+			   xmlns:resourcestat="com.linkage.module.cms.general.monitor.datashow.resourcestat.*"
+			   xmlns:alarmstat="com.linkage.module.cms.general.monitor.datashow.alarmstat.*"
+			   xmlns:workstate="com.linkage.module.cms.general.monitor.datashow.workstate.*"
+			   xmlns:worksheet="com.linkage.module.cms.general.monitor.datashow.worksheet.*" 
+			   xmlns:outservice="com.linkage.module.cms.general.monitor.datashow.outservice.*" 
+			   xmlns:badcell="com.linkage.module.cms.general.monitor.datashow.badcell.*" 
+			   xmlns:kpishow="com.linkage.module.cms.general.monitor.datashow.kpishow.*" 
+			   xmlns:complaint="com.linkage.module.cms.general.monitor.datashow.complaint.*" 
+			   xmlns:topn="com.linkage.module.cms.general.monitor.datashow.topn.*" 
+			   xmlns:perfshow="com.linkage.module.cms.general.monitor.datashow.perfshow.*" 
+			   xmlns:chartview="com.linkage.module.cms.general.monitor.datashow.chartview.*" 
+			   xmlns:bussniss="com.linkage.module.cms.general.monitor.datashow.bussniss.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			//数据接口
+			[Bindable]
+			private var _remoteData:RemoteDataManager = null;
+			
+			//属地名称
+			private var _cityName:String = null;
+			
+			//属地编号
+			private var _cityId:String = null;
+			
+			//专业列表
+			private var specList:ArrayList = new ArrayList();
+			
+			//参数
+			private var _param:Object;
+			
+			//内部容器映射
+			private var cvsMap:Dictionary = new Dictionary();
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow");
+			
+			//主视图
+			private var _general:Object = null;
+			
+			public function get general():Object
+			{
+				return _general;
+			}
+
+			public function set general(value:Object):void
+			{
+				_general = value;
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get cityName():String
+			{
+				return _cityName;
+			}
+
+			public function set cityName(value:String):void
+			{
+				_cityName = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+			
+			//初始化
+			public function init():void
+			{
+				//如果是重大节假日监控，则显示趋势监控
+				if (param.viewConfigTypeId == "2")
+				{
+					this.dataShowTab.visible = true;
+					this.dataShowTab.includeInLayout = true;
+					this.viewStack1.visible = true;
+					this.viewStack1.includeInLayout = true;
+					this.dataStatNav.addElement(this.dataAccordion);
+					
+					this.chartViewNav.remoteData = _remoteData;
+					this.chartViewNav.cityId = _cityId;
+					this.chartViewNav.initData();
+				}
+				
+				//初始化名称
+				resCvs.label = _cityName + resCvs.label;
+				alarmCvs.label = _cityName + alarmCvs.label;
+				ofsCvs.label = cityName + ofsCvs.label;
+				kpiCvs.label = _cityName + kpiCvs.label;
+				perfCvs.label = _cityName + perfCvs.label;
+				perfTopNCvs.label = _cityName + perfTopNCvs.label;
+				projectCvs.label = _cityName + projectCvs.label;
+				sheetCvs.label = _cityName + sheetCvs.label;
+				compCvs.label = _cityName + compCvs.label;
+				perfDownCvs.label = _cityName + perfDownCvs.label;
+				bussnissCvs.label = _cityName + bussnissCvs.label;
+				
+				//初始化容器映射
+				for each(var cvs:Canvas in this.dataAccordion.getChildren())
+				{
+					cvsMap[cvs.id] = cvs;
+				}
+				
+				//根据配置确定显示的内容
+				log.info("param.config==" + param.config);
+				if (param.config != null)
+				{
+					var configXml:XML = (param.config as XML);
+					
+					var dataShowConfigs:XMLList = configXml.child("data_show");
+					if (dataShowConfigs != null && dataShowConfigs.length() > 0)
+					{
+						var tableConfigs:XMLList = dataShowConfigs.child("tables")[0].child("table");
+						for each (var tableConfig:XML in tableConfigs)
+						{
+							var tableId:String = tableConfig.@id;
+							if (cvsMap[tableId] != null && tableConfig.@display == "none")
+							{
+								log.info("隐藏表格：" + tableConfig.@name);
+								var tmp:Canvas = cvsMap[tableId] as Canvas;
+								this.dataAccordion.removeChild(tmp);
+							}
+						}
+					}
+					
+					//读取显示的专业
+					var filterConfigs:XMLList = configXml.child("filter");
+					if (filterConfigs != null && filterConfigs.length() > 0)
+					{
+						var specs:XMLList = filterConfigs.child("spec");
+						for each (var spec:XML in specs)
+						{
+							var id:String = spec.@id;
+							specList.addItem(id);
+						}
+					}
+				}
+				
+				//默认初始化资源统计
+				this.resourceCanvas.remoteData = _remoteData;
+				this.resourceCanvas.cityId = _cityId;
+				this.resourceCanvas.specList = specList;
+				this.resourceCanvas.general = _general;
+				this.resourceCanvas.pCanvas = this.resCvs;
+				this.resourceCanvas.showTitle.text = resCvs.label;
+				this.resourceCanvas.initData();
+			}
+
+			protected function resourceCanvas_initializeHandler(event:FlexEvent):void
+			{
+				
+			}
+
+			protected function alarmStatCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//告警统计
+				this.alarmStatCanvas.remoteData = _remoteData;
+				this.alarmStatCanvas.cityId = _cityId;
+				this.alarmStatCanvas.specList = specList;
+				this.alarmStatCanvas.general = _general;
+				this.alarmStatCanvas.pCanvas = this.alarmCvs;
+				this.alarmStatCanvas.showTitle.text =  alarmCvs.label;
+				this.alarmStatCanvas.initData();
+			}
+
+			protected function outServiceCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//退服统计
+				this.outServiceCanvas.remoteData = _remoteData;
+				this.outServiceCanvas.cityId = _cityId;
+				this.outServiceCanvas.specList = specList;
+				this.outServiceCanvas.general = _general;
+				this.outServiceCanvas.pCanvas = this.ofsCvs;
+				this.outServiceCanvas.showTitle.text = ofsCvs.label;
+				this.outServiceCanvas.initData();
+			}
+
+			protected function kpiShowCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//KPI统计
+				this.kpiShowCanvas.remoteData = _remoteData;
+				this.kpiShowCanvas.cityId = _cityId;
+				this.kpiShowCanvas.specList = specList;
+				this.kpiShowCanvas.general = _general;
+				this.kpiShowCanvas.pCanvas = this.kpiCvs;
+				this.kpiShowCanvas.showTitle.text = kpiCvs.label;
+				this.kpiShowCanvas.initData();
+			}
+
+			protected function perfShowCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//性能图表
+				this.perfShowCanvas.remoteData = _remoteData;
+				this.perfShowCanvas.cityId = _cityId;
+				this.perfShowCanvas.specList = specList;
+				this.perfShowCanvas.general = _general;
+				this.perfShowCanvas.pCanvas = this.perfCvs;
+				this.perfShowCanvas.showTitle.text = perfCvs.label;
+				this.perfShowCanvas.initData();
+			}
+
+			protected function topnPerfCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//性能TOPN
+				this.topnPerfCanvas.remoteData = _remoteData;
+				this.topnPerfCanvas.cityId = _cityId;
+				this.topnPerfCanvas.specList = specList;
+				this.topnPerfCanvas.general = _general;
+				this.topnPerfCanvas.pCanvas = this.perfTopNCvs;
+				this.topnPerfCanvas.showTitle.text = perfTopNCvs.label;
+				this.topnPerfCanvas.initData();
+			}
+
+			protected function workStatCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//工程统计
+				this.workStatCanvas.remoteData = _remoteData;
+				this.workStatCanvas.cityId = _cityId;
+				this.workStatCanvas.specList = specList;
+				this.workStatCanvas.general = _general;
+				this.workStatCanvas.pCanvas = this.projectCvs;
+				this.workStatCanvas.showTitle.text = projectCvs.label;
+				this.workStatCanvas.initData();
+			}
+
+			protected function workSheetCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//工单统计
+				this.workSheetCanvas.remoteData = _remoteData;
+				this.workSheetCanvas.cityId = _cityId;
+				this.workSheetCanvas.specList = specList;
+				this.workSheetCanvas.general = _general;
+				this.workSheetCanvas.pCanvas = this.sheetCvs;
+				this.workSheetCanvas.showTitle.text = sheetCvs.label;
+				this.workSheetCanvas.initData();
+			}
+
+			protected function complaintCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//集中投诉预警
+				this.complaintCanvas.remoteData = _remoteData;
+				this.complaintCanvas.cityId = _cityId;
+				this.complaintCanvas.specList = specList;
+				this.complaintCanvas.general = _general;
+				this.complaintCanvas.pCanvas = this.compCvs;
+				this.complaintCanvas.showTitle.text = compCvs.label;
+				this.complaintCanvas.cityName = _cityName;
+				this.complaintCanvas.initData();
+			}
+
+			protected function badCellCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//劣化小区统计
+				this.badCellCanvas.remoteData = _remoteData;
+				this.badCellCanvas.cityId = _cityId;
+				this.badCellCanvas.specList = specList;
+				this.badCellCanvas.general = _general;
+				this.badCellCanvas.pCanvas = this.perfDownCvs;
+				this.badCellCanvas.showTitle.text = perfDownCvs.label;
+				this.badCellCanvas.initData();
+			}
+			
+			protected function bussnissCanvas_initializeHandler(event:FlexEvent):void
+			{
+				//业务质量监控统计
+				this.bussnissCanvas.remoteData = _remoteData;
+				this.bussnissCanvas.cityId = _cityId;
+				this.bussnissCanvas.specList = specList;
+				this.bussnissCanvas.general = _general;
+				this.bussnissCanvas.pCanvas = this.bussnissCvs;
+				this.bussnissCanvas.showTitle.text = bussnissCvs.label;
+				this.bussnissCanvas.initData();
+			}
+			
+			private var curIndex:Number = -1;
+			
+			protected function dataAccordion_changeHandler(event:IndexChangedEvent):void
+			{
+				var cav:Canvas = null;
+				var dg:DataGroup = null;
+				if (event.oldIndex >= 0)
+				{
+					if (this.dataAccordion.numChildren > event.newIndex && this.dataAccordion.getChildAt(event.oldIndex) != null)
+					{
+						cav = (this.dataAccordion.getChildAt(event.oldIndex) as Canvas);
+						if (cav != null && cav.numChildren > 0 && cav.getChildAt(0) != null)
+						{
+							dg = (cav.getChildAt(0) as DataGroup);
+							dg.hideView();
+						}
+					}
+				}
+				if (event.newIndex >= 0)
+				{
+					if (this.dataAccordion.numChildren > event.newIndex && this.dataAccordion.getChildAt(event.newIndex) != null)
+					{
+						cav = (this.dataAccordion.getChildAt(event.newIndex) as Canvas);
+						if (cav != null && cav.numChildren > 0 && cav.getChildAt(0) != null)
+						{
+							dg = (cav.getChildAt(0) as DataGroup);
+							dg.showView();
+						}
+					}
+					
+					curIndex = event.newIndex;
+				}
+			}
+			
+			//显示数据表格
+			public function showView():void
+			{
+				if (curIndex >= 0)
+				{
+					if (this.dataAccordion.numChildren > curIndex && this.dataAccordion.getChildAt(curIndex) != null)
+					{
+						var cav:Canvas = (this.dataAccordion.getChildAt(curIndex) as Canvas);
+						if (cav != null && cav.numChildren > 0 && cav.getChildAt(0) != null)
+						{
+							var dg:DataGroup = (cav.getChildAt(0) as DataGroup);
+							dg.showView();
+						}
+					}
+				}
+			}
+			
+			//隐藏数据表格
+			public function hideView():void
+			{
+				if (curIndex >= 0)
+				{
+					if (this.dataAccordion.numChildren > curIndex && this.dataAccordion.getChildAt(curIndex) != null)
+					{
+						var cav:Canvas = (this.dataAccordion.getChildAt(curIndex) as Canvas);
+						if (cav != null && cav.numChildren > 0 && cav.getChildAt(0) != null)
+						{
+							var dg:DataGroup = (cav.getChildAt(0) as DataGroup);
+							dg.hideView();
+						}
+					}
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->	
+	</fx:Declarations>
+	<mx:Accordion id="dataAccordion" width="100%" height="100%" change="dataAccordion_changeHandler(event)">
+		<mx:Canvas id="resCvs" label="资源统计" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<resourcestat:resourceStat id="resourceCanvas" width="100%" height="100%" initialize="resourceCanvas_initializeHandler(event)">
+			</resourcestat:resourceStat>
+		</mx:Canvas>
+		<mx:Canvas id="alarmCvs" label="告警统计" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<alarmstat:alarmStat id="alarmStatCanvas" width="100%" height="100%" initialize="alarmStatCanvas_initializeHandler(event)">
+			</alarmstat:alarmStat>
+		</mx:Canvas>
+		<mx:Canvas id="ofsCvs" label="退服统计" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<outservice:outService id="outServiceCanvas" width="100%" height="100%" initialize="outServiceCanvas_initializeHandler(event)">
+			</outservice:outService>
+		</mx:Canvas>
+		<mx:Canvas id="kpiCvs" label="KPI指标" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<kpishow:kpiShow width="100%" id="kpiShowCanvas" height="100%" initialize="kpiShowCanvas_initializeHandler(event)">
+			</kpishow:kpiShow>
+		</mx:Canvas>
+		<mx:Canvas id="perfCvs" label="性能图表" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<perfshow:perfShow id="perfShowCanvas" width="100%" height="100%" initialize="perfShowCanvas_initializeHandler(event)">
+			</perfshow:perfShow>
+		</mx:Canvas>
+		<mx:Canvas id="perfTopNCvs" label="性能TOPN" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<topn:topnPerf id="topnPerfCanvas" width="100%" height="100%" initialize="topnPerfCanvas_initializeHandler(event)">
+			</topn:topnPerf>
+		</mx:Canvas>
+		<mx:Canvas id="projectCvs" label="工程统计" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<workstate:workState id="workStatCanvas" width="100%" height="100%" initialize="workStatCanvas_initializeHandler(event)">
+			</workstate:workState>
+		</mx:Canvas>
+		<mx:Canvas id="sheetCvs" label="工单统计" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<worksheet:workSheetStat id="workSheetCanvas" width="100%" height="100%" initialize="workSheetCanvas_initializeHandler(event)">
+			</worksheet:workSheetStat>
+		</mx:Canvas>
+		<mx:Canvas id="compCvs" label="集中投诉预警" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<complaint:complaintStat id="complaintCanvas" width="100%" height="100%" initialize="complaintCanvas_initializeHandler(event)">
+			</complaint:complaintStat>
+		</mx:Canvas>
+		<mx:Canvas id="perfDownCvs" label="劣化小区" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<badcell:badCellStat id="badCellCanvas" width="100%" height="100%" initialize="badCellCanvas_initializeHandler(event)">
+			</badcell:badCellStat>
+		</mx:Canvas>
+		<mx:Canvas id="bussnissCvs" label="业务质量监控" width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<bussniss:BussnissInfo id="bussnissCanvas" width="100%" height="100%" initialize="bussnissCanvas_initializeHandler(event)">
+			</bussniss:BussnissInfo>
+		</mx:Canvas>
+	</mx:Accordion>
+	<mx:ViewStack id="viewStack1"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2" visible="false" includeInLayout="false" color="0x000000">
+		<s:NavigatorContent label="趋势监控">
+			<chartview:ChartView id="chartViewNav" width="100%" height="100%">
+			</chartview:ChartView>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="统计监控" id="dataStatNav">
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar id="dataShowTab" dataProvider="{viewStack1}"
+			  styleName="commonTabBar" visible="false" includeInLayout="false"> 
+	</s:TabBar>
+</s:Group>

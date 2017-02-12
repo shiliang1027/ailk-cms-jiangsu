@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					minimizable="false"
+					dragable="true"
+					title="{detailTitle}"
+					styleName="windowScene"
+					maximizable="false"
+					titleIcon="@Embed(source='../../img/title_ico03.png')"
+					close="window1_closeHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-7-9
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+
+			import mx.managers.PopUpManager;
+
+			[Inject("quitServicePM")]
+			[Bindable]
+			public var pm:QuitServicePM;
+
+			public var isShow:Boolean = false;
+
+			private var _detailTitle:String;
+
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				isShow = false
+				pm.quitServiceDM.qssDetail.removeAll();
+				pm.quitServiceDM.qssDetail.refresh();
+
+			}
+
+			[Bindable]
+			public function get detailTitle():String
+			{
+				return _detailTitle;
+			}
+
+			public function set detailTitle(value:String):void
+			{
+				_detailTitle = value;
+			}
+		]]>
+	</fx:Script>
+
+	<mx:AdvancedDataGrid id="qssDetail"
+						 width="100%"
+						 height="100%"
+						 styleName="sceneDG"
+						 dataProvider="{pm.quitServiceDM.qssDetail}"
+						 verticalAlign="middle"
+						 verticalScrollPolicy="auto">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="moName"
+									   headerText="网元名称"
+									   width="200"/>
+			<mx:AdvancedDataGridColumn dataField="moTypeName"
+									   headerText="网元类型"
+									   width="100"/>
+			<mx:AdvancedDataGridColumn dataField="quitCause"
+									   headerText="退服原因"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</ailk_compts:Window>

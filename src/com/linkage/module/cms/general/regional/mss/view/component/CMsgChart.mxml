@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.module.cms.general.regional.mss.Container;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Image;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.Label;
+			import spark.components.VGroup;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.mss.view.component.CMsgChart");
+			/**
+			 * 图片数组
+			 */
+			private var imageArray:Array=new Array();
+
+			//初始化图标
+			public function initChart(data:Object):void
+			{
+				//1.样式
+				clear()
+				for each (var obj:Object in data)
+				{
+					//1.描述
+					var chartDesc:String=obj["statDataOutline"] + ",以下为趋势图:";
+					var label:Label=new Label();
+					label.text=chartDesc;
+
+					//2.画图
+					var arraylist:ArrayCollection=obj["statData"];
+					var fusionChart:FusionChartsLK=new FusionChartsLK();
+					fusionChart.FCChartType="Spline";
+					fusionChart.FCData=new ArrayCollection();
+					fusionChart.FCParams=new ArrayCollection();
+					if (arraylist != null && arraylist.length > 0)
+					{
+						var captionStr:String=null;
+						var chartArray:ArrayCollection=new ArrayCollection();
+						for each (var chart:Object in arraylist)
+						{
+							captionStr=chart["show_name"];
+							chartArray.addItem({label: chart["gather_time"], value: chart["perf_value"]});
+						}
+						var paramsArray:ArrayCollection=new ArrayCollection();
+						paramsArray.addItem({caption: captionStr});
+						paramsArray.addItem({slantLabels: '1'});
+						paramsArray.addItem({numberSuffix: obj['unit']});
+						paramsArray.addItem({labelDisplay: 'Rotate'});
+						paramsArray.addItem({lineColor: '0x00FF00'});
+						paramsArray.addItem({drawAnchors: '0'});
+						paramsArray.addItem({showValues: '0'});
+						paramsArray.addItem({chartLeftMargin: '3'});
+						paramsArray.addItem({chartRightMargin: '15'});
+						paramsArray.addItem({chartTopMargin: '2'});
+						paramsArray.addItem({chartBottomMargin: '2'});
+
+						fusionChart.FCParams=paramsArray;
+						fusionChart.width=400;
+						fusionChart.height=300;
+						fusionChart.FCData=chartArray;
+					}
+
+					//3.添加数据
+					var vGroup:VGroup=new VGroup();
+					vGroup.horizontalAlign="left";
+					vGroup.paddingTop=10;
+					vGroup.paddingLeft=30;
+					vGroup.paddingBottom=10;
+					vGroup.percentWidth=100;
+					vGroup.percentHeight=100;
+					vGroup.gap=6;
+					vGroup.addElement(label);
+					vGroup.addElement(fusionChart);
+					container.addElement(vGroup);
+				}
+			}
+
+			//添加图标
+			public function addChart(data:Object):void
+			{
+				//2.描述
+				var chartDesc:String=data["statDataOutline"] + ",以下为趋势图:";
+				var label:Label=new Label();
+				label.text=chartDesc;
+
+				//3.画图
+				var arraylist:ArrayCollection=data["statData"];
+				var fusionChart:FusionChartsLK=new FusionChartsLK();
+				fusionChart.FCChartType="Spline";
+				fusionChart.FCData=new ArrayCollection();
+				fusionChart.FCParams=new ArrayCollection();
+				if (arraylist != null && arraylist.length > 0)
+				{
+					var captionStr:String=null;
+					var chartArray:ArrayCollection=new ArrayCollection();
+					for each (var chart:Object in arraylist)
+					{
+						captionStr=chart["show_name"];
+						chartArray.addItem({label: chart["gather_time"], value: chart["perf_value"]});
+					}
+					var paramsArray:ArrayCollection=new ArrayCollection();
+					paramsArray.addItem({caption: captionStr});
+					paramsArray.addItem({slantLabels: '1'});
+					paramsArray.addItem({numberSuffix: data['unit']});
+					paramsArray.addItem({labelDisplay: 'Rotate'});
+					paramsArray.addItem({lineColor: '0x00FF00'});
+					paramsArray.addItem({drawAnchors: '0'});
+					paramsArray.addItem({showValues: '0'});
+					paramsArray.addItem({chartLeftMargin: '3'});
+					paramsArray.addItem({chartRightMargin: '15'});
+					paramsArray.addItem({chartTopMargin: '2'});
+					paramsArray.addItem({chartBottomMargin: '2'});
+
+					fusionChart.FCParams=paramsArray;
+					fusionChart.width=400;
+					fusionChart.height=300;
+					fusionChart.FCData=chartArray;
+				}
+
+				//3.添加数据
+				var vGroup:VGroup=new VGroup();
+				vGroup.horizontalAlign="left";
+				vGroup.paddingTop=10;
+				vGroup.paddingLeft=30;
+				vGroup.paddingBottom=10;
+				vGroup.percentWidth=100;
+				vGroup.percentHeight=100;
+				vGroup.gap=6;
+				vGroup.addElement(label);
+				vGroup.addElement(fusionChart);
+				container.addElement(vGroup);
+			}
+
+			//添加图片数组
+			public function addImageBatchInfo(imgArray:Object, baseUrl:String):void
+			{
+				for each (var fileName:String in imgArray)
+				{
+					addImageInfo(baseUrl + Container.PARAMKEY_FILEPATH + fileName, true);
+				}
+			}
+
+			//添加网络图片数组
+			public function addNetImageBatchInfo(imgArray:Object):void
+			{
+				for each (var imgUrl:String in imgArray)
+				{
+					addImageInfo(imgUrl, false);
+				}
+			}
+
+			//添加图片数组
+			public function addImageInfo(url:String, isLocal:Boolean):void
+			{
+				log.info("添加图片数组===>" + url);
+				if (url == null || url == "null" || url == "")
+				{
+					return;
+				}
+				var vGroup:VGroup=new VGroup();
+				vGroup.horizontalAlign="left";
+				vGroup.paddingTop=10;
+				vGroup.paddingLeft=30;
+				vGroup.paddingBottom=10;
+				vGroup.percentWidth=100;
+				vGroup.percentHeight=100;
+				vGroup.gap=6;
+
+				var image:Image=new Image();
+				image.source=url;
+				image.autoLoad=true;
+				vGroup.addElement(image);
+				if (isLocal)
+				{
+					imageArray.push(vGroup);
+				}
+				container.addElement(vGroup);
+			}
+
+			//删除本地照片
+			public function deleteLocalImage():void
+			{
+				for each (var image:VGroup in imageArray)
+				{
+					container.removeElement(image);
+				}
+				imageArray.length=0;
+			}
+
+			//清空
+			public function clear():void
+			{
+				imageArray.length=0;
+				container.removeAllElements();
+			}
+		]]>
+	</fx:Script>
+	<mx:VBox width="100%"
+			 height="100%"
+			 borderStyle="solid"
+			 borderColor="0xffffff">
+		<s:Scroller width="100%"
+					height="100%"
+					verticalScrollPolicy="auto"
+					horizontalScrollPolicy="auto">
+			<s:VGroup id="container"
+					  width="100%"
+					  height="100%">
+
+
+			</s:VGroup>
+		</s:Scroller>
+	</mx:VBox>
+</s:Group>

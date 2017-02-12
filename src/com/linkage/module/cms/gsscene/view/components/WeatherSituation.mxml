@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					title="我的城市天气"
+					minimizable="false"
+					close="closeWindow(1)"
+					maximize="window2_resize(true)"
+					restore="window2_resize(false)"
+					styleName="windowScene"
+					titleIcon="@Embed(source='../../img/title_ico03.png')"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-7-31
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.weathersituation.WeatherSituationPM;
+			import com.linkage.module.cms.gsscene.view.components.weathersituation.event.WeatherEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Group;
+			import spark.events.IndexChangeEvent;
+
+			[Inject("weatherSituationPM")]
+			[Bindable]
+			public var weatherSituationPM:WeatherSituationPM;
+
+			private var log:ILogger = Log.getLoggerByClass(WeatherSituation);
+			public var location:String;
+			public var index:String;
+			private var maxFlag:Boolean = false;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(event:SceneEvent = null):void
+			{
+				weatherSituationPM.getSceneWeatherInfo();
+			}
+
+			protected function wealtherDetail_ClickHandler(event:ListEvent):void
+			{
+				log.info("tianqi gaikuang :" + event.columnIndex);
+
+				if(event.columnIndex == 3)
+				{
+					var cityId:String = this.weatherDataGrid.selectedItem['cityId'];
+
+					log.debug("-------------->>>cityId=" + cityId);
+
+					weatherSituationPM.getSceneWeatherDetail(cityId);
+
+					PopUpManager.addPopUp(weatherDetailDow, this.parent as DisplayObject);
+					weatherDetailDow.x = (this.stage.width - weatherDetailDow.width) / 2 - 150;
+					weatherDetailDow.y = (this.stage.height - weatherDetailDow.height) / 2 - 50;
+					weatherDetailDow.visible = true;
+				}
+
+			}
+
+			[MessageHandler(selector="SHOW_WEATHER_DETAIL")]
+			public function showKpiChart(event:WeatherEvent):void
+			{
+				weatherDetailTabBar_changeHandler();
+			}
+
+			protected function weatherDetailDow_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(weatherDetailDow);
+				Window(event.target).visible = false;
+			}
+
+			protected function weatherDetailTabBar_changeHandler(event:IndexChangeEvent = null):void
+			{
+				if(event == null || event.newIndex == 0)
+				{
+					//温度
+					var p1:SerialParam = new SerialParam('temperature', '气温');
+					p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+					p1.yAxis = "left";
+					var charParam1:ChartParam = new ChartParam();
+					charParam1.xAxisProperty = "time";
+					charParam1.leftYaxisSuffix = "℃";
+					charParam1.xaxisSuffix = "(h)";
+					charParam1.use3DColumn = false;
+					charParam1.useDarkColor = true;
+					charParam1.showLegend = false;
+					charParam1.showVerticalGridLines = false;
+					charParam1.showHorizontalGridLines = false;
+					temperatureChart.chartParam = charParam1;
+					temperatureChart.series = new ArrayCollection([p1]);
+					temperatureChart.percentHeight = 100;
+					temperatureChart.percentWidth = 100;
+					temperatureChart.chartData(weatherSituationPM.weatherDM.weatherDetail, true);
+				}
+				if(event.newIndex == 1)
+				{
+					//相对湿度
+					var p2:SerialParam = new SerialParam('humidity', '相对湿度');
+					p2.chartType = PrettyChartType.CHART_TYPE_LINE;
+					p2.yAxis = "left";
+					var charParam2:ChartParam = new ChartParam();
+					charParam2.xAxisProperty = "time";
+					charParam2.leftYaxisSuffix = "%";
+					charParam2.xaxisSuffix = "(h)";
+					charParam2.use3DColumn = false;
+					charParam2.useDarkColor = true;
+					charParam2.showLegend = false;
+					charParam2.showVerticalGridLines = false;
+					charParam2.showHorizontalGridLines = false;
+					humidityChart.chartParam = charParam2;
+					humidityChart.series = new ArrayCollection([p2]);
+					humidityChart.percentHeight = 100;
+					humidityChart.percentWidth = 100;
+					humidityChart.chartData(weatherSituationPM.weatherDM.weatherDetail, true);
+				}
+				if(event.newIndex == 2)
+				{
+					//降水量
+					var p3:SerialParam = new SerialParam('precipitation', '降水量');
+					p3.chartType = PrettyChartType.CHART_TYPE_LINE;
+					p3.yAxis = "left";
+					var charParam3:ChartParam = new ChartParam();
+					charParam3.xAxisProperty = "time";
+					charParam3.leftYaxisSuffix = "ml";
+					charParam3.xaxisSuffix = "(h)";
+					charParam3.use3DColumn = false;
+					charParam3.useDarkColor = true;
+					charParam3.showLegend = false;
+					charParam3.showVerticalGridLines = false;
+					charParam3.showHorizontalGridLines = false;
+					this.waterChart.chartParam = charParam3;
+					this.waterChart.series = new ArrayCollection([p3]);
+					waterChart.percentHeight = 100;
+					waterChart.percentWidth = 100;
+					waterChart.chartData(weatherSituationPM.weatherDM.weatherDetail, true);
+				}
+				if(event.newIndex == 3)
+				{
+					//风力
+					var p4:SerialParam = new SerialParam('windpower', '风力');
+					p4.chartType = PrettyChartType.CHART_TYPE_LINE;
+					p4.yAxis = "left";
+					var charParam4:ChartParam = new ChartParam();
+					charParam4.xAxisProperty = "time";
+					charParam4.leftYaxisSuffix = "级";
+					charParam4.xaxisSuffix = "(h)";
+					charParam4.use3DColumn = false;
+					charParam4.useDarkColor = true;
+					charParam4.showLegend = false;
+					charParam4.showVerticalGridLines = false;
+					charParam4.showHorizontalGridLines = false;
+					this.windChart.chartParam = charParam4;
+					this.windChart.series = new ArrayCollection([p4]);
+					windChart.percentHeight = 100;
+					windChart.percentWidth = 100;
+					windChart.chartData(weatherSituationPM.weatherDM.weatherDetail, true);
+
+				}
+				else if(event.newIndex == 4)
+				{
+					//显示天气云图
+					gifPicAdd(weatherSituationPM.weatherDM.cloudPicUrl);
+//					cloudPic.source = weatherSituationPM.weatherDM.cloudPicUrl;
+				}
+
+			}
+
+			protected function gifPicAdd(url:String):void
+			{
+				log.info("[天气详情]显示天气云图：{0}", url);
+//				var gifplayer:GIFPlayer = new GIFPlayer();
+//				var request:URLRequest = new URLRequest(url);
+//				gifplayer.load(request);
+//				cloudPic.addChild(gifplayer);
+				cloudPic.source = url;
+			}
+
+
+			public function closeWindow(type:int = 0):void
+			{
+				PopUpManager.removePopUp(weatherDetailDow);
+
+				if(type == 1)
+				{
+					this.visible = false;
+					this.includeInLayout = false;
+
+				}
+				else
+					(this.parent as Group).removeElement(this);
+
+				if(type == 1)
+				{
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+				e.panelName = this.name;
+					e.param.index = this.index;
+					e.param.pid = this.parent['id'];
+				msgDispatcher(e);
+				}
+			}
+
+			protected function window2_resize(flag:Boolean):void
+			{
+				log.info("天气概况 最大化、恢复窗口：" + flag + "_" + maxFlag);
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+				e.panelName = this.name;
+				e.panelIndex = this.index;
+				e.panellocation = this.location;
+				e.panelMaxFlag = this.maxFlag;
+				msgDispatcher(e);
+				log.info("天气概况最大化、恢复窗口：派发事件！");
+
+				this.maxFlag = flag;
+
+				this.closeButton.visible = !flag;
+				this.closeButton.includeInLayout = !flag;
+			}
+
+			public function closeWindowDetail():void
+			{
+				PopUpManager.removePopUp(weatherDetailDow);
+			}
+
+			protected function maximizeHandler():void
+			{
+				this.weatherDetailDow.width = this.parentApplication.width;
+				this.weatherDetailDow.height = this.parentApplication.height;
+			}
+		]]>
+	</fx:Script>
+
+	<!-- 天气概况-->
+	<s:BorderContainer styleName="borderContainer1"
+					   width="100%"
+					   height="100%">
+		<s:layout>
+			<s:VerticalLayout paddingLeft="8"
+							  paddingBottom="8"
+							  paddingRight="8"
+							  paddingTop="3"/>
+		</s:layout>
+		<mx:DataGrid id="weatherDataGrid"
+					 width="100%"
+					 height="100%"
+					 rowHeight="40"
+					 styleName="advancedDG1"
+					 verticalAlign="middle"
+					 dataProvider="{weatherSituationPM.weatherDM.weatherInfo}"
+					 itemClick="wealtherDetail_ClickHandler(event)"
+					 showHeaders="false">
+			<mx:columns>
+				<mx:DataGridColumn dataField="cityName"/>
+				<mx:DataGridColumn dataField="imgUrl">
+					<mx:itemRenderer>
+						<fx:Component>
+							<mx:Image source="{data.imgUrl}"
+									  width="35"
+									  height="35"/>
+						</fx:Component>
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn dataField="temp"/>
+				<mx:DataGridColumn dataField="detail"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</s:BorderContainer>
+
+	<!-- 天气详情-->
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="weatherDetailDow"
+							close="closeWindowDetail()"
+							title="天气详情"
+							dragable="true"
+							styleName="window1"
+							maximize="maximizeHandler()"
+							titleIcon="@Embed(source='../../img/title_ico01.png')"
+							width="470"
+							height="300"
+							visible="false">
+			<s:VGroup width="100%"
+					  gap="1"
+					  height="100%">
+				<s:TabBar id="weatherDetailTabBar"
+						  styleName="commonTabBar"
+						  change="weatherDetailTabBar_changeHandler(event)"
+						  dataProvider="{weatherDetailViewStack}"/>
+				<mx:ViewStack id="weatherDetailViewStack"
+							  creationPolicy="all"
+							  height="100%"
+							  width="100%"
+							  backgroundAlpha="0">
+					<s:NavigatorContent id="temperatureNavi"
+										label="气温"
+										height="100%"
+										width="100%"
+										minHeight="200"
+										creationPolicy="all">
+						<ailk_chart:PrettyChart id="temperatureChart"
+												height="200"
+												width="300"/>
+					</s:NavigatorContent>
+					<s:NavigatorContent id="humidityNavi"
+										label="相对湿度"
+										height="100%"
+										width="100%"
+										minHeight="200"
+										creationPolicy="all">
+						<ailk_chart:PrettyChart id="humidityChart"
+												height="200"
+												width="300"/>
+					</s:NavigatorContent>
+					<s:NavigatorContent id="waterNavi"
+										label="降水量"
+										height="100%"
+										width="100%"
+										minHeight="200"
+										creationPolicy="all">
+						<ailk_chart:PrettyChart id="waterChart"
+												height="200"
+												width="300"/>
+					</s:NavigatorContent>
+					<s:NavigatorContent id="windNavi"
+										label="风力风向"
+										height="100%"
+										width="100%"
+										minHeight="200"
+										creationPolicy="all">
+						<ailk_chart:PrettyChart id="windChart"
+												height="200"
+												width="300"/>
+					</s:NavigatorContent>
+					<s:NavigatorContent id="cloudMap"
+										label="天气云图"
+										height="100%"
+										width="100%"
+										minHeight="200"
+										creationPolicy="all">
+						<mx:Image id="cloudPic"
+								  height="100%"
+								  scaleContent="true"
+								  width="100%"/>
+					</s:NavigatorContent>
+				</mx:ViewStack>
+			</s:VGroup>
+		</ailk_compts:Window>
+	</mx:Box>
+</ailk_compts:Window>

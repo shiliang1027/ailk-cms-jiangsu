@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  height="100%"
+		  xmlns:date="com.linkage.module.cms.general.regional.important.venue.common.date.*">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.regional.important.venue.controller.VenueAction;
+			import com.linkage.system.component.panel.Window;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter=new DateFormatter();
+			dateFormatter.formatString="YYYY-MM-DD JJ:NN:SS";
+			/**
+			 * 加载管理
+			 */
+			private var _loadManager:LoadManager=null;
+			/**
+			 * 是否加载完成
+			 */
+			private var _isLoadOk:int=0;
+			/**
+			 * 场馆监控action
+			 */
+			private var _venueAction:VenueAction=null;
+
+			public function initListGroup(loadManager:LoadManager):void
+			{
+				_loadManager=loadManager;
+				initVenueInfo(false);
+			}
+
+			//初始化场景信息
+			public function initVenueInfo(isShow:Boolean=true):void
+			{
+				_isLoadOk=0;
+				if (isShow)
+				{
+					_loadManager.showLoading();
+				}
+				var paramMap:Object=new Object();
+				paramMap["monitor_id"]=venueAction.venueFo.monitorId;
+				paramMap["start_time"]=startTimeField.text;
+				paramMap["end_time"]=endTimeField.text;
+				//获取赛事信息
+				venueAction.getVenMaAla(paramMap, function(result:Object):void
+					{
+						dataList.removeAllElements();
+						initVenMaAlaInfo(result, isShow);
+						getVenPerfList(paramMap, isShow)
+					});
+			}
+
+			//加载完成
+			private function loadComplate():void
+			{
+				_isLoadOk++;
+				if (_isLoadOk == 2)
+				{
+					_loadManager.hideLoading();
+				}
+			}
+
+			//获取场馆性能信息
+			private function getVenPerfList(paramMap:Object, isShow:Boolean):void
+			{
+				venueAction.getVenPerfList(paramMap, function(result:Object):void
+					{
+						initVenPerfList(result, isShow);
+					});
+			}
+
+			//初始化赛事信息
+			public function initVenMaAlaInfo(data:Object, isShow:Boolean):void
+			{
+				if (isShow)
+				{
+					loadComplate();
+				}
+				var listData:VenMaAlarm=new VenMaAlarm();
+				listData.addEventListener(WindowEvent.MAXIMIZE, windowMaxixize);
+				listData.addEventListener(WindowEvent.RESTORE, windowRestore);
+				listData.initData(data);
+				dataList.addElement(listData);
+			}
+
+			//初始化场馆性能信息
+			public function initVenPerfList(data:Object, isShow:Boolean):void
+			{
+				if (isShow)
+				{
+					loadComplate();
+				}
+				var listData:ListDataWindow=null;
+				for each (var obj:Object in data)
+				{
+					listData=new ListDataWindow();
+					listData.addEventListener(WindowEvent.MAXIMIZE, windowMaxixize);
+					listData.addEventListener(WindowEvent.RESTORE, windowRestore);
+					listData.initData(obj);
+					dataList.addElement(listData);
+				}
+			}
+
+			//窗口最大
+			private function windowMaxixize(event:WindowEvent):void
+			{
+				var curWin:Window=event.currentTarget as Window;
+				var window:Window=null;
+				var len:int=dataList.numElements;
+				for (var index:int; index < len; index++)
+				{
+					window=dataList.getChildAt(index) as Window;
+					if (window != curWin)
+					{
+						window.visible=false;
+						window.includeInLayout=false;
+					}
+				}
+			}
+
+			//窗口还原
+			private function windowRestore(event:WindowEvent):void
+			{
+				var window:Window=null;
+				var len:int=dataList.numElements;
+				for (var index:int; index < len; index++)
+				{
+					window=dataList.getChildAt(index) as Window;
+					if (window != null)
+					{
+						window.visible=true;
+						window.includeInLayout=true;
+					}
+				}
+			}
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			//点击查询
+			protected function button_clickHandler(event:MouseEvent):void
+			{
+				initVenueInfo();
+			}
+
+			//创建时间
+			protected function createTime(event:FlexEvent, remote:int):void
+			{
+				var date:Date=new Date();
+				date=new Date(date.getTime() + remote * 1000);
+				event.currentTarget.text=dateFormatter.format(date);
+			}
+
+			public function set venueAction(venueAction:VenueAction):void
+			{
+				_venueAction=venueAction;
+			}
+
+			public function get venueAction():VenueAction
+			{
+				return _venueAction;
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%"
+			  height="20">
+		<date:UXDateField id="startTimeField"
+						  color="0x000000"
+						  creationComplete="createTime(event,-86400)"
+						  labelFunction="formatDate"
+						  yearNavigationEnabled="true"
+						  width="150"/>
+		<date:UXDateField id="endTimeField"
+						  color="0x000000"
+						  creationComplete="createTime(event,0)"
+						  labelFunction="formatDate"
+						  yearNavigationEnabled="true"
+						  width="150"/>
+		<s:Button label="查询"
+				  click="button_clickHandler(event)"/>
+	</s:HGroup>
+	<s:Scroller width="100%"
+				height="100%"
+				horizontalScrollPolicy="auto">
+		<s:HGroup id="dataList"
+				  width="100%"
+				  height="100%"
+				  gap="2">
+
+		</s:HGroup>
+	</s:Scroller>
+</s:VGroup>

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					dragable="false"
+					title="渲染涂层颜色配置"
+					styleName="windowScene"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					minimizable="false"
+					close="window1_closeHandler(event)">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.roamtopic.event.RoamTopicEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			
+			[Inject("roamTopicPM")]
+			[Bindable]
+			public var pm:RoamTopicPM;
+			
+			private var log:ILogger=Log.getLoggerByClass(configComp);
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_CLOSE"));
+			}
+
+			public function initTopNConfig():void
+			{
+				var param:Object = new Object();
+				
+				pm.loadConfigParam();
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(text1.text == "" || text1.text == null){
+					Alert.show("不能为空！");
+					return;
+				}
+				if(text2.text == "" || text2.text == null){
+					Alert.show("不能为空！");
+					return;
+				}
+				if(text3.text == "" || text3.text == null){
+					Alert.show("不能为空！");
+					return;
+				}
+				
+				var n1:Number=Number(text1.text);
+				var n2:Number=Number(text2.text);
+				var n3:Number=Number(text3.text);
+				var n4:Number=Number(text4.text);
+				if(n2 > n1 )
+				{
+					Alert.show("橙色渲染层设置数字不能大于红色渲染层设置数字");
+					return;
+				}
+				
+				if(n3 > n2 )
+				{
+					Alert.show("黄色渲染层设置数字不能大于橙色渲染层设置数字");
+					return;
+				}
+				var param:Object = new Object();
+				param.text1 = text1.text;
+				param.text2 = text2.text;
+				param.text3 = text3.text;
+				param.text4 = text3.text;
+				
+				pm.saveConfigParam(param);
+
+			}
+			
+			[MessageHandler(selector="REFRESH_ROMTOPIC_CONFIG")]
+			public function configParam(event:RoamTopicEvent):void
+			{
+				log.info(pm.dm.text1+"--------"+pm.dm.text2+"------"+pm.dm.text3+"---------"+pm.dm.text4);
+				log.info("REFRESH_ROMTOPIC_CONFIG");
+				text1.text = pm.dm.text1;
+				text2.text = pm.dm.text2;
+				text3.text = pm.dm.text3;
+				text4.text = pm.dm.text4;
+			}
+			
+			[MessageHandler(selector="REFRESH_ROMTOPIC_CONFIG_SAVE")]
+			public function configSaveParam(event:RoamTopicEvent):void
+			{
+				
+				log.info("REFRESH_ROMTOPIC_CONFIG_SAVE"+pm.dm.isSuc);
+				if(pm.dm.isSuc == "success"){
+					Alert.show("保存成功");
+					
+					dispatchMsg(new RoamTopicEvent("LOAD_DATA"));
+					dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+					dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_CLOSE"));
+					
+				}else{
+					Alert.show("保存失败");
+				}
+			}
+
+			
+		]]>
+	</fx:Script>
+
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="3" horizontalAlign="center">
+		<s:Label text=""/>
+			<s:HGroup horizontalAlign="center">
+				<mx:Image source="@Embed('../img/u230_normal.png')"/><s:Button label="≥"/><mx:TextInput  width="100" id="text1" restrict="{'[0-9]'}"/>
+			</s:HGroup>
+			<s:HGroup horizontalAlign="center">
+				<mx:Image source="@Embed('../img/u233_normal.png')"/><s:Button label="≥"/><mx:TextInput  width="100" id="text2" restrict="{'[0-9]'}"/>
+			</s:HGroup>
+			<s:HGroup horizontalAlign="center">
+				<mx:Image source="@Embed('../img/u236_normal.png')"/><s:Button label="≥"/><mx:TextInput  width="100" id="text3" restrict="{'[0-9]'}"/>
+			</s:HGroup>
+			<s:HGroup horizontalAlign="center">
+				<mx:Image source="@Embed('../img/u239_normal.png')"/><s:Button label="＜"/><mx:Text  width="100" id="text4"/>
+			</s:HGroup>
+			<s:HGroup horizontalAlign="center">
+				<s:Button label="保存"
+						  buttonMode="true"
+						  click="button1_clickHandler(event)"/>
+			</s:HGroup>
+			
+	</s:VGroup>
+</ailk_compts:Window>

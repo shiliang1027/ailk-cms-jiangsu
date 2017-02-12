@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx" creationComplete="itemrenderer1_creationCompleteHandler(event)"
+				width="100%"
+				autoDrawBackground="false"
+				xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+			import com.linkage.module.cms.quitstatnew.view.QuitDataViewPM;
+			import com.linkage.module.cms.quitstatnew.view.components.QuitDataItemNumComp;
+
+			import mx.events.FlexEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(QuitDataItemRender);
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			[Inject("quitDataViewPM")]
+			[Bindable]
+			public var pm:QuitDataViewPM;
+
+			protected function quitStatItemNumClickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var quitDataItem:QuitDataItemNumComp = QuitDataItemNumComp(event.currentTarget);
+				var evt:QuitStatEvent = new QuitStatEvent(QuitStatEvent.LOADQUIT_DETAILDATA);
+				evt.param = new Object;
+				evt.param.col = quitDataItem.col;
+				evt.param.cityId = quitDataItem.cityId;
+				evt.param.cityName = quitDataItem.city;
+				log.debug(evt.param);
+				pm.dm.cityId = quitDataItem.cityId;
+				pm.dm.col = quitDataItem.col;
+				if (String(evt.param.col).indexOf("_tfv") == -1)
+				{
+					evt.param.startTime = pm.dm.startTime;
+					evt.param.endTime = pm.dm.endTime;
+					dispatchMsg(evt);
+				}
+			}
+
+			protected function quitStatItemTitle_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var evt:QuitStatEvent = new QuitStatEvent(QuitStatEvent.MAPCOLOR_DYEING);
+				evt.param = data;
+				dispatchMsg(evt);
+			}
+
+
+			private function buildItems():void
+			{
+				items.removeAllElements();
+				var quitDataItemNumComp:QuitDataItemNumComp;
+				for (var i:uint = 0; i < pm.dm.kpisData.titles.length; i++)
+				{
+					quitDataItemNumComp = new QuitDataItemNumComp();
+					quitDataItemNumComp.bgColor = uint("0x" + data["kpiColor" + pm.dm.kpisData.columns[i]]);
+					quitDataItemNumComp.label = data["city" + pm.dm.kpisData.columns[i]];
+					quitDataItemNumComp.col = data.columnEn;
+					quitDataItemNumComp.city = pm.dm.kpisData.titles[i];
+					quitDataItemNumComp.addEventListener(MouseEvent.CLICK, quitStatItemNumClickHandler);
+					items.addElement(quitDataItemNumComp);
+				}
+			}
+
+			override public function set data(value:Object):void
+			{
+				super.data = value;
+				try
+				{
+					buildItems();
+				}
+				catch (e:Error)
+				{
+				}
+				;
+			}
+			
+			protected function itemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				kpiName.setStyle("color","0xffffff");
+			}
+			
+		]]>
+	</fx:Script>
+
+	<s:SkinnableContainer width="100%"
+						  styleName="quitStatItemBg">
+		<s:layout>
+			<s:HorizontalLayout verticalAlign="middle"
+								gap="0"/>
+		</s:layout>
+		<s:SkinnableContainer width="150"
+							  styleName="quitStatItemLableBg"
+							  buttonMode="true"
+							  click="quitStatItemTitle_clickHandler(event)">
+			<s:layout>
+				<s:HorizontalLayout horizontalAlign="center"
+									verticalAlign="middle"
+									gap="0"
+									paddingLeft="5"
+									paddingRight="10"/>
+			</s:layout>
+			<s:Label id="kpiName" text="{data.kpiName}"
+					 focusEnabled="false"
+					 width="100%"
+					 textAlign="right"/>
+		</s:SkinnableContainer>
+
+		<s:SkinnableContainer width="100%"
+							  styleName="quitStatItemNumBg"
+							  id="items"
+							  height="28">
+			<s:layout>
+				<s:HorizontalLayout verticalAlign="middle"
+									gap="2"
+									paddingLeft="5"
+									paddingRight="5"/>
+			</s:layout>
+		</s:SkinnableContainer>
+	</s:SkinnableContainer>
+
+</s:ItemRenderer>

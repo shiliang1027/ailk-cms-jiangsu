@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   xmlns:kqikpipi="com.linkage.module.cms.scenedaily.view.components.kqikpipi.*">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+
+
+			[Inject("user")]
+			public var user:IUser;
+
+			public var parameters:Object;
+
+			private var log:ILogger = Log.getLoggerByClass(KqiKpiPiModule);
+
+			[Init]
+			public function moduleInit():void
+			{
+				if (log.infoEnabled)
+					log.info("--开始初始化用户信息！");
+
+				this.parameters = this.parentApplication.parameters;
+
+				user.context = this.parameters['context'];
+				user.account = this.parameters['account'];
+				user.areaId = this.parameters['areaId'];
+
+				user.kpiId = this.parameters['kpiId'];
+				user.moTypeId = this.parameters['moTypeId'];
+				user.interval = this.parameters['interval'];
+				user.resId = this.parameters['resId'];
+				user.resType = this.parameters['resType'];
+				user.gatherTime = this.parameters['gatherTime'];
+				user.isHealthOrThreshold = this.parameters['isHealthOrThreshold'];
+				user.cityId = this.parameters['cityId'];
+
+
+				if (log.infoEnabled)
+				{
+					log.debug(user);
+					log.info("--初始化用户信息完成！");
+				}
+
+				log.info("--开始加载指标关联关系！");
+				kki.kpiId = user.kpiId;
+				kki.loadData();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{KqiKpiPiModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<kqikpipi:KQIKPIPI id="kki"
+					   width="100%"
+					   height="100%"/>
+</mx:Module>

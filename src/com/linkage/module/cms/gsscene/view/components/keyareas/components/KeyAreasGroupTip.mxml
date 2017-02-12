@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   buttonMode="true"
+				   borderWeight="5"
+				   width="130"
+				   height="100">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			private var _param:Object;
+
+			[Bindable]
+			public var source:String; //图片
+			
+			[Bindable]
+			public var text:String; //label内容
+			
+			[Bindable]
+			public var personNums:String; //人数
+			
+			[Bindable]
+			public var alarmNums:String; //告警数
+			
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+				this.id = _param.areaId;
+				
+				if (_param.CITY_ID){
+					this.name = _param.CITY_ID;
+				}else{
+					this.name = _param.city_id;					
+				}
+				this.toolTip = _param.areaName;
+				this.text = _param.areaName;
+				this.personNums = _param.personNums;
+				this.alarmNums = _param.alarmNums;
+				
+				this.setStyle("backgroundPlpha", "1");
+				if (_param.hasOwnProperty("color") && _param["color"])
+				{
+					this.setStyle("borderColor", _param["color"]);
+					this.setStyle("backgroundColor", _param["color"]);
+				}
+				else
+				{
+					this.setStyle("borderColor", 0X00FF00);
+					this.setStyle("backgroundColor", 0X00FF00);
+				}
+				
+			}
+		]]>
+	</fx:Script>
+	<s:Group width="100%"
+			 height="100%">
+		<mx:Image id="image"
+				  source="{source}"
+				  width="120"
+				  height="100%"
+				  horizontalAlign="center"
+				  verticalAlign="middle"
+				  scaleContent="true"
+				  toolTip="{text}"/>
+		<s:BorderContainer id="bc"
+						   borderColor="0Xffffff"
+						   borderStyle="solid"
+						   backgroundAlpha="0.6"
+						   backgroundColor="0Xffffff"
+						   width="120"
+						   maxHeight="40"
+						   minHeight="20"
+						   top="0">
+			<s:Label text="{text}"
+					 color="0X000000"
+					 width="100%"
+					 textAlign="center"/>
+		</s:BorderContainer>
+		<s:BorderContainer id="alarm"
+						   borderColor="0X000000"
+						   borderStyle="solid"
+						   backgroundAlpha="0.6"
+						   backgroundColor="0X000000"
+						   width="120"
+						   maxHeight="40"
+						   minHeight="20"
+						   bottom="0">
+			<s:HGroup width="100%" height="100%" verticalAlign="middle" horizontalAlign="left" visible="false">
+				<s:Label text="用户数:"
+						 color="0XFFFFFF"
+						 fontSize="8"
+						 textAlign="center"/>
+				<s:Label text="{personNums}"
+						 color="0XFFFFFF"
+						 fontSize="8"
+						 textAlign="center"/>
+				<s:Label text="告警数:"
+						 color="0XFFFFFF"
+						 fontSize="8"
+						 textAlign="center"/>
+				<s:Label text="{alarmNums}"
+						 color="0XFFFFFF"
+						 fontSize="8"
+						 textAlign="center"/>
+			</s:HGroup>
+		</s:BorderContainer>
+	</s:Group>
+</s:BorderContainer>

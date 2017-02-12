@@ -1,0 +1,868 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		 xmlns:local="com.linkage.module.cms.groupclient.components.*" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 creationComplete="group2_creationCompleteHandler(event)"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<fx:Script> 
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.baseline.static.renderer.CheckBoxSelectedRenderer;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.data.AlarmDialSheetNoticeDataManager;
+			import com.linkage.module.cms.groupclient.data.AlarmDialSheetNoticeDataManagerBS;
+			import com.linkage.module.cms.groupclient.data.AlarmVerificationDataManager;
+			import com.linkage.module.cms.groupclient.data.AlarmVerificationDataManagerBS;
+			import com.linkage.module.cms.groupclient.data.DemoDatas;
+			import com.linkage.module.cms.groupclient.event.AlarmSheetNoticeEvent;
+			import com.linkage.module.cms.groupclient.event.AlarmVerificationEvent;
+			import com.linkage.module.cms.groupclient.event.RealMonitorCustListGroupEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.AlarmVerificationView");
+			public var parameters:Object;	
+			
+			[Bindable]
+			public var dataArray:ArrayCollection = new ArrayCollection();
+			
+			[Bindable]
+			public var alarmdataArray:ArrayCollection = new ArrayCollection();
+			
+			public static var endpoint:String = "";
+			public static var _context:String = "";
+			
+			public var lm:LoadManager = null;
+			private var alarmVerificationData:AlarmVerificationDataManager;
+			
+//			private var alarmVerificationData:AlarmDialSheetNoticeDataManager;
+			
+			private var alarmDialSheetNoticeData:AlarmDialSheetNoticeDataManager;
+			[Bindable]
+			public var menu:ContextMenu;
+			
+			private var rightClickTarget:DisplayObject;//右键点击的对象
+			private var selectTarget:DisplayObject;//右键点击的对象
+			
+			[Embed(source="./assets/up_gray.png")]
+			[Bindable]
+			private static var _up_gray:Class;
+			
+			[Embed(source="./assets/up_blue.png")]
+			[Bindable]
+			private static var _up_blue:Class;
+			
+			[Embed(source="./assets/down_gray.png")]
+			[Bindable]
+			private static var _down_gray:Class;		
+			
+			[Embed(source="./assets/down_blue.png")]
+			[Bindable]
+			private static var _down_blue:Class;
+			
+			[Embed(source="./assets/delete.png")]
+			[Bindable]
+			private static var _delete:Class;
+			
+			[Embed(source="./assets/refresh.png")]
+			[Bindable]
+			private static var _refresh:Class;
+			[Embed(source="./assets/u6772.gif")]
+			[Bindable]
+			private static var _handle:Class;
+			[Embed(source="./assets/icon_export.png")]
+			[Bindable]
+			private static var _export:Class;
+			
+			[Embed(source="./assets/maximizeButton.png")]
+			[Bindable]
+			private static var _maximizeButton:Class;
+			[Embed(source="./assets/minimizeButton.png")]
+			[Bindable]
+			private static var _minimizeButton:Class;
+			[Embed(source="./assets/restorButton.png")]
+			[Bindable]
+			private static var _restorButton:Class;
+			
+			/* protected function module_creationCompleteHandler():void
+			{
+				parameters = parentApplication.parameters;
+				
+				lm = new LoadManager(this);
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient.*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+				//				log.info("parameters");
+				//				log.info(parameters);
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				
+				var param:Object = new Object();
+				param.mk = "queryalarm";
+				param.ln = this.parameters.login_name as String;
+				param.currentPage = 1;
+				param.pageSize = 20;
+				//初始化manager
+				initServerClass();
+				loadAlarmData(param);
+				loadDisplayColumns(param);
+				resultPanel.setContext(this.parameters["context"]);
+				this.addEventListener(AlarmSheetNoticeEvent.QUERYPAGECUST,queryPageCust);
+				
+				log.info("初始化完成！");
+				
+			} */
+			
+			protected function queryPageCust(event:AlarmSheetNoticeEvent):void
+			{
+				// TODO Auto-generated method stub
+				var param:Object = new Object();
+				param.sheetno =  String(event.param.sheetno);
+				param.isRela = "-1";
+				param.sheettime =  String(event.param.sheettime);
+				param.currentPage = String(event.param.currentPage);
+				param.pageSize = String(event.param.pageSize);
+				param.mk = "queryalarm";
+				param.ln = this.parameters.login_name as String;
+				loadWarnDatas(param);
+			}
+			
+			private function loadDisplayColumns(param:Object):void
+			{
+				log.info("loadDisplayColumns");
+				//				log.info(param.sheetno+"-----"+param.sheettime);
+				alarmDialSheetNoticeData.getDisplayColumns(param,
+					function(result:ArrayCollection):void
+					{
+						if(result){
+							log.info('loadDisplayColumns 加载列成功:');
+							log.info(result);
+							//							resultPanel.queryColumn = DemoDatas.columnsDatas;
+							resultPanel1.queryColumn = result;
+							//							resultPanel.initialize();
+							resultPanel1.initColumn(resultPanel1.queryColumn);
+						}
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('loadDisplayColumns 加载列失败！');
+						log.error(event.fault);
+						lm.hideLoading();
+					});
+			}
+			
+			
+			private function loadAlarmData(param:Object):void
+			{
+				log.info("alarmValidationList");
+				log.info(param);
+				alarmVerificationData.alarmValidationList(param,
+					function(result:Object):void
+					{
+						if(result.datas.length != 0)
+						{
+							alarmDialGrid.dataProvider = ArrayCollection(result.datas);
+							alarmdataArray.removeAll();
+							alarmdataArray.addAll(result.datas as IList);
+							alarmDialGridPager.totalRowCount = result.totalRowCount;
+						}else
+						{
+							log.info("查询结果为空！");
+						}
+						
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('alarmValidationList 加载告警数据失败！');
+						log.error(event.fault);
+						lm.hideLoading();
+					});
+			}
+			
+			private function initServerClass():void
+			{
+				if(null==alarmVerificationData)
+				{
+					alarmVerificationData = new AlarmVerificationDataManagerBS(this.parameters['context']);
+					
+				}
+				
+				if(null==alarmDialSheetNoticeData)
+				{
+					alarmDialSheetNoticeData = new AlarmDialSheetNoticeDataManagerBS(this.parameters['context']);
+				}
+					
+			}
+			protected function alarmDialGridPager_pageChangeHandler(event:PagerEvent):void
+			{
+				var param:Object = new Object();
+				log.info("alarmDialGridPager_pageChangeHandler datas");
+				param.currentPage = alarmDialGridPager.currentPage;
+				param.pageSize = alarmDialGridPager.pageSize;
+				param.mk = "queryalarm";
+				param.type = 0;
+				param.ln = this.parameters.login_name as String;
+				lm.showLoading();
+				loadAlarmData(param);
+			}
+			
+			protected function alarmDialGrid_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(AlarmVerificationEvent.CHECKBOX_ALL_SELECTED, allSelectedCheckBox);
+				this.addEventListener(MouseEvent.MOUSE_OVER,mouseOverHandler);
+				menu = new ContextMenu();
+				var cm:ContextMenuItem = new ContextMenuItem("同步告警清除时间");
+				cm.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,cmTODoneHandler);
+				//清除告警OMG同步
+//				var cm2:ContextMenuItem = new ContextMenuItem("清除告警OMC同步");
+//				cm2.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,cmTODoneHandler);
+				
+				menu.hideBuiltInItems();
+				menu.customItems = [cm];
+//				menu.customItems = [cm,cm2];
+			}
+			
+			private function mouseOverHandler(event:MouseEvent) : void
+			{
+				rightClickTarget = InteractiveObject(event.target);
+				return;
+			}
+			
+			private function cmTODoneHandler(event:ContextMenuEvent):void
+			{
+				var menuName:String = event.currentTarget.caption;
+				 switch(menuName)
+				{
+					case "同步告警清除时间":
+					
+						log.info("同步告警清除时间...");
+						dataArray.removeAll();
+						for each(var obj:Object in ArrayCollection(alarmDialGrid.dataProvider))
+						{
+							if(obj['selected'] == true)
+							{
+								if( obj['description'] == "告警已清除")
+								{
+									Alert.show("所选的告警中存在已验证过，请重新筛选！");
+									return ;
+								}else
+								{
+									dataArray.addItem(obj);
+								}
+								
+							}
+						}
+						selectTarget = rightClickTarget;
+						
+						var objRow:Object = selectTarget as IListItemRenderer;
+						//				log.info(objRow);
+						var param:Object = new Object();
+						param.account = this.parameters.login_name as String;
+						param.mk = "queryalarm";
+						param.ln = this.parameters.login_name as String;
+						param.type = 0;
+//						param.currentPage = 1;
+//						param.pageSize = 20;
+						param.currentPage = alarmDialGridPager.currentPage;
+						param.pageSize = alarmDialGridPager.pageSize;
+						
+						//				Alert.show(obj['description']+"--- "+obj['timeStamp']);
+						log.info(objRow['data']);
+						log.info("objRow['data']['description']:"+objRow['data']['description']);
+						if(dataArray.length == 0)
+						{
+							if(objRow['data']['description'] != "告警已清除")
+							{
+								dataArray.addItem(objRow['data']);
+								
+							}else
+							{
+								Alert.show("本告警已验证！");
+								return ;
+							}
+						}
+						
+						param.list = dataArray;				
+						log.info(param);
+						alarmVerificationData.validateAlarm(param,
+							function(result:Object):void
+							{
+								log.info("result.str:"+result.str);
+								log.info(result);
+								
+								if(result.str == "成功"){
+									log.info('validateAlarm  加载数据成功:');
+									Alert.show(result.num+"条数据全部验证成功！");
+									loadAlarmData(param);
+								}else if(result.str == "部分成功"){
+									Alert.show(dataArray.length+"条工单数据中有"+result.num+"条验证成功！");
+									log.info(result.list);
+									loadAlarmData(param);
+								}else{
+									Alert.show(dataArray.length+"条数据全部验证失败！");
+								}
+								
+								lm.hideLoading();
+							},
+							function(event:FaultEvent):void
+							{
+								log.info('validateAlarm 加载告警验证数据失败！');
+								lm.hideLoading();
+							}); 
+						break;
+					
+					/* case "清除告警OMC同步":
+					
+						var sum:Number = 0;
+						log.info("清除告警OMC同步...");
+						for each(var obj2:Object in ArrayCollection(alarmDialGrid.dataProvider))
+						{
+							if(obj2['selected'] == true)
+							{
+								sum++;
+								//调用js方法clearAlarmOmcInfo(emsid,orgserial,vendorserialno)
+								var eomsCode:String = obj2['eomsCode'];
+								var emsid:String = obj2['emsid'];
+								var orgserial:String = obj2['orgserial'];
+								var vendorserialno:String = obj2['vendorserialno'];
+								log.info("emsid="+emsid+",orgserial="+orgserial+",vendorserialno="+vendorserialno);
+//								if(emsid==null||emsid==''||orgserial==null||orgserial==''||vendorserialno==null||vendorserialno==''){
+//									Alert.show(eomsCode+"不符合清除告警OMC同步条件！");
+//									return ;
+//								}
+								ExternalInterface.call("clearAlarmOmcInfo",emsid,orgserial,vendorserialno);
+							}
+						}
+//						
+						var objRow2:Object = rightClickTarget  as IListItemRenderer;
+						log.info("objRow2============");
+						log.info(objRow2['data']);
+						if(sum == 0)
+						{
+							var eomsCode2:String = objRow2['data']['eomsCode'];
+							var emsid2:String = objRow2['data']['emsid'];
+							var orgserial2:String = objRow2['data']['orgserial'];
+							var vendorserialno2:String = objRow2['data']['vendorserialno'];
+						log.info("emsid="+emsid2+",orgserial="+orgserial2+",vendorserialno="+vendorserialno2);
+//						if(emsid2==null||emsid2==''||orgserial2==null||orgserial2==''||vendorserialno2==null||vendorserialno2==''){
+//							Alert.show(eomsCode2+"不符合清除告警OMC同步条件！");
+//							return ;
+//						}
+							ExternalInterface.call("clearAlarmOmcInfo",emsid2,orgserial2,vendorserialno2);
+						} 
+						break; */
+				}
+				//===========================
+//				log.info("同步告警清除时间");
+//				dataArray.removeAll();
+//				for each(var obj:Object in ArrayCollection(alarmDialGrid.dataProvider))
+//				{
+//					if(obj['selected'] == true)
+//					{
+//						if( obj['description'] == "告警已清除")
+//						{
+//							Alert.show("所选的告警中存在已验证过，请重新筛选！");
+//							return ;
+//						}else
+//						{
+//							dataArray.addItem(obj);
+//						}
+//						
+//					}
+//				}
+//				selectTarget = rightClickTarget;
+//				
+//				var objRow:Object = selectTarget as IListItemRenderer;
+////				log.info(objRow);
+//				var param:Object = new Object();
+//				param.account = this.parameters.login_name as String;
+//				param.mk = "queryalarm";
+//				param.ln = this.parameters.login_name as String;
+//				param.type = 0;
+//				param.currentPage = 1;
+//				param.pageSize = 20;
+//				
+////				Alert.show(obj['description']+"--- "+obj['timeStamp']);
+//				log.info(objRow['data']);
+//				log.info("objRow['data']['description']:"+objRow['data']['description']);
+//				if(dataArray.length == 0)
+//				{
+//					if(objRow['data']['description'] != "告警已清除")
+//					{
+//						dataArray.addItem(objRow['data']);
+//						
+//					}else
+//					{
+//						Alert.show("本告警已验证！");
+//						return ;
+//					}
+//				}
+//				
+//				param.list = dataArray;				
+//				log.info(param);
+//				 alarmVerificationData.validateAlarm(param,
+//					function(result:Object):void
+//					{
+//						log.info("result.str:"+result.str);
+//						log.info(result);
+//						
+//						if(result.str == "成功"){
+//							log.info('validateAlarm  加载数据成功:');
+//							Alert.show(result.num+"条数据全部验证成功！");
+//							loadAlarmData(param);
+//						}else if(result.str == "部分成功"){
+//							Alert.show(dataArray.length+"条工单数据中有"+result.num+"条验证成功！");
+//							log.info(result.list);
+//							loadAlarmData(param);
+//						}else{
+//							Alert.show(dataArray.length+"条数据全部验证失败！");
+//						}
+//						
+//						lm.hideLoading();
+//					},
+//					function(event:FaultEvent):void
+//					{
+//						log.info('validateAlarm 加载告警验证数据失败！');
+//						lm.hideLoading();
+//					}); 
+				
+			}
+			
+			private function allSelectedCheckBox(event:AlarmVerificationEvent):void
+			{
+				log.info("全选：{0}", event);
+				for each (var item:Object in alarmDialGrid.dataProvider)
+				{
+					if (event.param == "1")
+					{
+						item.selected = true;
+					}
+					else
+					{
+						item.selected = false;
+					}
+				}
+				ArrayCollection(alarmDialGrid.dataProvider).refresh();
+			}
+			
+			private function resizeTopWindow():void
+			{
+				if(img.name == "down")
+				{
+					hideCustList();
+				}
+				else if(img.name == "up")
+				{
+					showCustList();
+				}
+			}
+			
+			
+			private function hideCustList(dura:Number=400):void
+			{
+				resultPanel1.visible = true;
+				resultPanel1.includeInLayout = true; 
+				
+				resize.removeEventListener(EffectEvent.EFFECT_END,resize_effectEndHandler);
+				resize.duration = dura;
+				resize.heightTo = 5;
+				resize.play();
+				
+				img.source = _up_gray;
+				img.name = "up";
+			}
+			
+			private function showCustList(dura:Number=400):void
+			{
+				resultPanel1.visible = false;
+				resultPanel1.includeInLayout = false; 
+				resultPanel1.height = 240; 
+				custVgroup.percentWidth = 100;
+				
+				resize.addEventListener(EffectEvent.EFFECT_END,resize_effectEndHandler);
+				resize.duration = dura;
+				resize.heightTo = 250;
+				resize.play();
+				
+				img.source = _down_gray;
+				img.name = "down";
+			}
+			
+			private function resize_effectEndHandler(event:EffectEvent):void
+			{
+				resultPanel1.includeInLayout = true;
+				resultPanel1.visible = true; 
+				custVgroup.percentWidth = 100;
+			}
+			
+			private function changeImg(type:Object):void
+			{
+				img.source = getImg(type);
+			}		
+			
+			private function getImg(type:Object):Object
+			{
+				if(img.name == "down")
+				{
+					if(type == 1)
+						return _down_blue;
+					else
+						return _down_gray;
+				}
+				else if(img.name == "up")
+				{
+					if(type == 1)
+						return _up_blue;
+					else
+						return _up_gray;
+				}
+				
+				return _down_gray;
+			}
+			
+			protected function alarmDialGrid_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object = alarmDialGrid.dataProvider[event.rowIndex];
+				var columDataField:String=String((alarmDialGrid.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+				//				datas = alarmDialGrid.dataProvider[event.rowIndex];
+				log.info("alarmDialGrid_itemClickHandler  columDataField="+columDataField);
+				log.info(data);
+				
+				var param:Object = new Object();
+				if(columDataField != "checkBoxDG")
+				{
+					/* param.sheetno = data["sheet_no"];
+					param.uniq_id = data["uniq_id"];
+					param.isRela = "-1";
+					param.sheettime = data["sheet_time"]; */
+					param.sheetno = data["eomsCode"];
+					param.uniq_id = data["uniq_id"];
+					param.isRela = "-1";
+//					param.sheettime = String(data["gatherTime"]).slice(0,3)+String(data["gatherTime"]).slice(5,6)+String(data["gatherTime"]).slice(7,8);
+					param.sheettime = String(data["gatherTime"]).substr(0,4) + String(data["gatherTime"]).substr(5,2) + String(data["gatherTime"]).substr(8,2);
+					param.currentPage = "1";
+					param.pageSize = "20";
+					param.mk = "queryalarm";
+					param.ln = this.parameters.login_name as String;
+					//					log.info(param.sheetno+"-----"+param.sheettime);
+					loadWarnDatas(param);
+					if(img.name == "up")
+					{
+						resizeTopWindow();
+					}
+				}
+				
+			}
+			
+			private function loadWarnDatas(obj:Object):void
+			{
+				//				lm.showLoading();
+				log.info("loadWarnDatas"+obj["sheettime"]);
+				alarmDialSheetNoticeData.getWarnDatas(obj,
+					function(result:Object):void
+					{
+						if(result.datas.length != 0){
+							log.info('loadWarnDatas 加载数据成功:');
+							log.info(result.datas);
+							log.info(result.totalRowCount);
+							resultPanel1.dataProvider = result.datas;
+							resultPanel1.totalRowCount = result.totalRowCount;
+							resultPanel1.subSheetInfo = obj;
+						}else{
+							Alert.show("查询结果为空！");
+						}
+						
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						
+						//						resultPanel.dataProvider = DemoDatas.warnDatas.datas;
+						//						resultPanel.totalRowCount = DemoDatas.warnDatas.totalRowCount;
+						log.info('loadWarnDatas 加载告警数据失败！');
+						lm.hideLoading();
+					});
+			}
+			 
+			protected function group2_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				parameters = parentApplication.parameters;
+				
+				lm = new LoadManager(this);
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient.*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~1111');
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				
+				var param:Object = new Object();
+				param.mk = "queryalarm";
+				param.ln = this.parameters.login_name as String;
+				param.type = 0;
+				param.currentPage = 1;
+				param.pageSize = 20;
+				//初始化manager
+				initServerClass();
+				loadAlarmData(param);
+				loadDisplayColumns(param);
+				resultPanel1.setContext(this.parameters["context"]);
+				this.addEventListener(AlarmSheetNoticeEvent.QUERYPAGECUST,queryPageCust);
+				this.addEventListener(AlarmVerificationEvent.TOALARMVERIFICATIONVIEWRESTORSCREEN,maximizeScreen_clickHandler);
+				
+				log.info("初始化完成111！");
+			}
+			
+			protected function refresh1_clickHandler():void
+			{
+				// TODO Auto-generated method stub
+				log.info("refresh_clickHandler");
+				var param:Object = new Object();
+				
+				param.currentPage = alarmDialGridPager.currentPage;
+				param.pageSize = alarmDialGridPager.pageSize;
+				param.mk = "queryalarm";
+				param.ln = this.parameters.login_name as String;
+				param.type = 0;
+//				param.currentPage = 1;
+//				param.pageSize = 20;
+				loadAlarmData(param);
+			}
+			
+			protected function maximizeScreen_clickHandler():void
+			{
+				minimizeScreen.visible = false;
+				minimizeScreen.includeInLayout = false;
+				maximizeScreen.visible = false;
+				maximizeScreen.includeInLayout = false;
+				restorScreen.visible = true;
+				restorScreen.includeInLayout = true;
+				
+				var e:AlarmVerificationEvent = new AlarmVerificationEvent(AlarmVerificationEvent.ALARMVERIFICATIONVIEWMAXIMIZESCREEN,true,true);
+				dispatchEvent(e);
+			}
+			
+			protected function minimizeScreen_clickHandler():void
+			{
+				minimizeScreen.visible = false;
+				minimizeScreen.includeInLayout = false;
+				restorScreen.visible = false;
+				restorScreen.includeInLayout = false;
+				maximizeScreen.visible = false;
+				maximizeScreen.includeInLayout = false;
+				
+				var e:AlarmVerificationEvent = new AlarmVerificationEvent(AlarmVerificationEvent.ALARMVERIFICATIONVIEWMINIMIZESCREEN,true,true);
+				dispatchEvent(e);
+				
+				
+			}
+			
+			protected function restorScreen_clickHandler():void
+			{
+				minimizeScreen.visible = true;
+				minimizeScreen.includeInLayout = true;
+				maximizeScreen.visible = true;
+				maximizeScreen.includeInLayout = true;
+				restorScreen.visible = false;
+				restorScreen.includeInLayout = false;
+				
+				var e:AlarmVerificationEvent = new AlarmVerificationEvent(AlarmVerificationEvent.ALARMVERIFICATIONVIEWRESTORSCREEN,true,true);
+				dispatchEvent(e);
+			}
+			
+			protected function handle_clickHandler():void
+			{
+				log.info("handle_clickHandler");
+				
+				var param:Object = new Object();
+				param.account = this.parameters.login_name as String;
+				param.mk = "queryalarm";
+				param.ln = this.parameters.login_name as String;
+				param.type = 0;
+				param.currentPage = alarmDialGridPager.currentPage;
+				param.pageSize = alarmDialGridPager.pageSize;
+//				param.currentPage = 1;
+//				param.pageSize = 20;
+				param.isHandle = true;
+				
+				param.list = alarmdataArray;
+				
+				log.info(param);
+				alarmVerificationData.validateAlarm(param,
+					function(result:Object):void
+					{
+						log.info("result.str:"+result.str);
+						log.info(result);
+						
+						if(result.str == "成功"){
+							log.info('validateAlarm  加载数据成功:');
+							Alert.show(result.num+"条数据全部手工验证成功！");
+							loadAlarmData(param);
+						}else if(result.str == "部分成功"){
+							Alert.show(alarmdataArray.length+"条工单数据中有"+result.num+"条验证成功！");
+							log.info(result.list);
+							loadAlarmData(param);
+						}else{
+							Alert.show(alarmdataArray.length+"条数据全部验证失败！");
+						}
+						
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('validateAlarm 加载告警验证数据失败！');
+						lm.hideLoading();
+					}); 
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Resize heightTo="0" id="resize" target="{custVgroup}"/>
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" verticalAlign="middle">
+		<s:HGroup width="100%" horizontalAlign="right">
+			<s:Label text="告警恢复验证"/>
+			<s:HGroup width="100%" height="100%" horizontalAlign="right" >
+				
+				<!--<mx:Image id="exprot" 
+				source="{_export}"
+				click="exprot1_clickHandler(event)"
+				buttonMode="true"
+				toolTip="导出"
+				width="20"
+				height="20"/>-->
+				<mx:Image id="handle" 
+						  source="{_handle}"
+						  click="handle_clickHandler()"
+						  buttonMode="true"
+						  toolTip="手动告警同步验证"/>
+				<mx:Image id="refresh" 
+						  source="{_refresh}"
+						  click="refresh1_clickHandler()"
+						  buttonMode="true"
+						  toolTip="刷新"
+						  width="16"
+						  height="16"/>
+				<mx:Image id="minimizeScreen" 
+						  source="{_minimizeButton}"
+						  click="minimizeScreen_clickHandler()"
+						  buttonMode="true"
+						  toolTip="最小化"/>
+				<mx:Image id="maximizeScreen" 
+						  source="{_maximizeButton}"
+						  click="maximizeScreen_clickHandler()"
+						  buttonMode="true"
+						  toolTip="最大化"/>
+				<mx:Image id="restorScreen" 
+						  source="{_restorButton}"
+						  click="restorScreen_clickHandler()"
+						  buttonMode="true"
+						  toolTip="还原"
+						  visible="false"
+						  includeInLayout="false"/>
+			</s:HGroup>
+		</s:HGroup>
+		<s:Scroller width="100%" height="100%" id="mainScroller" verticalScrollPolicy="auto">
+			<s:VGroup width="100%" height="100%">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 borderStyle="solid"
+									 borderColor="black"
+									 horizontalScrollPolicy="auto"
+									 verticalScrollPolicy="auto"
+									 verticalAlign="middle"
+									 borderVisible="true"
+									 id="alarmDialGrid"
+									 contextMenu="{menu}"
+									 itemClick="alarmDialGrid_itemClickHandler(event)"
+									 creationComplete="alarmDialGrid_creationCompleteHandler(event)">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="" 
+												   textAlign="center"
+												   dataField="checkBoxDG"
+												   width="50"
+												   itemRenderer="com.linkage.module.cms.groupclient.renderer.CheckBoxSelectedRenderer"
+												   headerRenderer="com.linkage.module.cms.groupclient.renderer.CheckBoxSelectHeaderRenderer"/>
+						<mx:AdvancedDataGridColumn headerText="地市" 
+												   dataField="city_name"/>
+						<mx:AdvancedDataGridColumn headerText="专业" 
+												   dataField="spec_name"/>
+						<mx:AdvancedDataGridColumn headerText="eoms工单号"
+												   dataField="eomsCode"
+												   width="200"/>
+						<mx:AdvancedDataGridColumn headerText="入库时间" 
+												   dataField="gatherTime"
+												   width="200"/>
+						<mx:AdvancedDataGridColumn headerText="申请人名称" 
+												   dataField="applyUserName"/>
+						<mx:AdvancedDataGridColumn headerText="申请人所属代维组织名称" 
+												   dataField="orgnization"/>
+						<mx:AdvancedDataGridColumn headerText="申请人电话号码" 
+												   dataField="applyMobile"/>
+						<mx:AdvancedDataGridColumn headerText="告警验证时间" 
+												   dataField="timeStamp"
+												   width="200"/>
+						<mx:AdvancedDataGridColumn headerText="告警验证结果" 
+												   dataField="description"/>
+						<mx:AdvancedDataGridColumn headerText="告警验证人" 
+												   dataField="auditorName"/>
+						<mx:AdvancedDataGridColumn headerText="告警验证人电话" 
+												   dataField="auditorMobile"/>
+						<mx:AdvancedDataGridColumn headerText="告警验证申请时间" 
+												   dataField="applyTime"
+												   width="200"/>
+						
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<s:HGroup width="100%" horizontalAlign="right">
+					<pager:Pager id="alarmDialGridPager"
+								 pageSize="20"
+								 pageChange="alarmDialGridPager_pageChangeHandler(event)">
+					</pager:Pager>
+				</s:HGroup>
+			</s:VGroup>
+		</s:Scroller>
+		<s:VGroup id="custVgroup" width="100%" height="15" horizontalAlign="center">
+			<mx:Image id="img" source="{_up_gray}" 
+					  name="up" 
+					  click="resizeTopWindow()"
+					  mouseOver="changeImg(1)"
+					  mouseOut="changeImg(2)"
+					  buttonMode="true"/>
+			<local:AlarmSearchResultPanelNew id="resultPanel1"
+											 width="100%"
+											 height="100%"
+											 visible="false"
+											 includeInLayout="false"
+											 userName="{parentApplication.parameters.login_name}"/>
+		</s:VGroup>
+	</s:VGroup>
+</s:Group>

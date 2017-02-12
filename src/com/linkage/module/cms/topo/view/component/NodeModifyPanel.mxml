@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+			  minHeight="24"
+			  width="300"
+			  minWidth="300"
+			  title="{_title}"
+			  dragable="true"
+			  maximizable="false">
+	<panel:layout>
+		<s:VerticalLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.assets.TopoIcons;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.core.model.element.point.INode;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.util.ImageBuffer;
+			import com.linkage.module.topo.framework.util.MessageUtil;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.ICanvasExtendPanel;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.module.topo.framework.view.component.panel.spareparts.IconChooser;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.structure.map.IMap;
+			import com.linkage.system.structure.map.Map;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.XMLListCollection;
+			import mx.containers.FormItem;
+			private var log:ILogger = Log.getLogger("com.linkage.module.topo.framework.view.component.panel.NodeModifyPanel");
+			// 图标缓存类
+			private var _imageBuffer:ImageBuffer = ImageBuffer.getInstance();
+			// loading
+			private var _loading:ILoadingInfo = null;
+
+			// 是否已经创建完成
+			private var _creationComplete:Boolean = false;
+			[Bindable]
+			private var _title:String = null;
+			// 数据源
+			private var _dataSource:IDataSource = null;
+			// CMS数据源
+			private var _cmsDataSource:ICmsDataSource = null;
+			// 远程图标上下文
+			[Bindable]
+			private var _iconContext:String = null;
+			// 网元类型映射 mo_type_id -> mo_type_name
+			private var _moTypeMap:IMap = null;
+			// 正在编辑的节点对象(为空代表新增)
+			private var _modifyNode:INode = null;
+
+			// 图标选择面板
+			private var _iconChooser:IconChooser = null;
+			// 节点的新图标
+			private var _newNodeIcon:String = null;
+			// 鼠标的坐标
+			private var _mousePoint:Point = null;
+
+			// ----------- 当前显示值 --------------
+			[Bindable]
+			private var _currentMoTypeName:String = null;
+			[Bindable]
+			private var _currentIconBitmap:Bitmap = null;
+
+			// 关闭面板
+			private function closePanel():void
+			{
+				hide();
+			}
+
+			/**
+			 * 注入数据源
+			 */
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+
+			/**
+			 * 注入CMS数据源
+			 */
+			public function set dataSourceCms(value:ICmsDataSource):void
+			{
+				_cmsDataSource = value;
+			}
+
+			/**
+			 * 注入图标上下文
+			 */
+			public function set iconContext(value:String):void
+			{
+				_iconContext = value;
+			}
+
+			/**
+			 * 注入画布
+			 */
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				super.topoCanvas = value;
+				_loading = LoadingManager.getInstance().loadingInfo;
+
+				_topoCanvas.addEventListener(TopoEvent.MODIFY_NODE, function(event:TopoEvent):void
+					{
+						showPanel(event.mousePoint, event.feature.element as INode);
+					});
+			}
+
+			// 展示元素的信息
+			private function showPanel(mousePoint:Point, node:INode = null):void
+			{
+				show();
+				if (_creationComplete == false)
+				{
+					_creationComplete = true;
+					log.debug("首次节点面板,开始初始化...");
+
+					_cmsDataSource.queryAllMoTypes(function(data:XML):void
+						{
+							var moTypes:XMLList = data.child("mo_type");
+							_moTypeMap = new Map();
+							for each (var moType:XML in moTypes)
+							{
+								_moTypeMap.put(String(moType.@k), String(moType.@v));
+							}
+							log.debug("网元类型映射: {0}", _moTypeMap);
+						});
+
+					_iconChooser = new IconChooser();
+					_iconChooser.iconContext = _iconContext;
+					// 查询图标数据
+					_dataSource.queryTopoIcons(function(data:XML):void
+						{
+							var iconList:XMLList = data.child("icon");
+							_iconChooser.iconList = new XMLListCollection(iconList);
+						});
+					// 图标面板选中具体图标
+					_iconChooser.initPanel(function(selectedIcon:Object):void
+						{
+							_currentIconBitmap = new Bitmap(selectedIcon.bitmapData);
+							_newNodeIcon = selectedIcon.icon;
+							_iconChooser.hide();
+							currentState = "modifyIcon";
+						});
+				}
+
+				var moId:String = node.getProperty(CmsTopoConstants.XML_KEY_MO_ID);
+				var moTypeId:String = node.getProperty(CmsTopoConstants.XML_KEY_MO_TYPE_ID);
+				if (StringUtils.isEmpty(moId))
+				{
+					MessageUtil.showMessage("此节点不可编辑(非设备).");
+					return;
+				}
+
+				_modifyNode = node;
+				if (_modifyNode)
+				{
+					_title = "编辑节点";
+
+					_imageBuffer.loadBitmapData(_iconContext + "/" + _modifyNode.icon, function(bitmapData:BitmapData, width:Number, height:Number):void
+						{
+							_currentIconBitmap = new Bitmap(bitmapData);
+						})
+
+					_currentMoTypeName = null;
+					initMoTypeName(moTypeId);
+				}
+
+				_newNodeIcon = null;
+				this.currentState = "notModifyIcon";
+			}
+
+			// 根据网元类型id获取类型名称
+			private function initMoTypeName(id:String):void
+			{
+				if (_moTypeMap == null)
+				{
+					setTimeout(function():void
+						{
+							initMoTypeName(id);
+						}, 500);
+				}
+				else
+				{
+					_currentMoTypeName = _moTypeMap.get(id);
+					log.debug("网元类型: {0} {1}", id, _currentMoTypeName);
+				}
+			}
+
+			// 显示更多的图标
+			private function showMoreIcon_clickHandler(event:MouseEvent):void
+			{
+				_iconChooser.show(_topoCanvas, true);
+			}
+
+			// 保存按钮点击
+			private function save_clickHandler():void
+			{
+				// 判断图标有没有变化
+				if (_newNodeIcon == null)
+				{
+					// 没有更改,直接退出
+					closePanel();
+					return;
+				}
+
+				MessageUtil.confirm("图标的更改将影响同类型的全部节点\n确认是否继续?", function():void
+					{
+						var moId:String = _modifyNode.getProperty(CmsTopoConstants.XML_KEY_MO_ID);
+						var moTypeId:String = _modifyNode.getProperty(CmsTopoConstants.XML_KEY_MO_TYPE_ID);
+
+						var data:String = DataUtil.buildMapXML(Constants.XML_KEY_TYPE, moTypeId);
+						data += DataUtil.buildMapXML(Constants.XML_KEY_ICONNAME, _newNodeIcon);
+						data = DataUtil.buildXML(Constants.TP_MC_MODIFY_NODEICON_TYPE, data);
+						log.debug("修改设备图标: {0}", data);
+						_loading.loadingStart();
+						_dataSource.notify(_topoCanvas.topoName, data, function(result:String):void
+							{
+								_loading.loadingEnd();
+								var map:IMap = DataUtil.getActionResultMap(new XML(result));
+								if (map.get(Constants.XML_KEY_SUCCESS) == "1")
+								{
+									refreshMoTypeIcon(moTypeId, _newNodeIcon);
+									closePanel();
+								}
+								else
+								{
+									MessageUtil.showMessage("编辑节点失败!\n\n(" + map.get(Constants.XML_KEY_MSG) + ")");
+								}
+
+							}, function():void
+							{
+								_loading.loadingEnd();
+							}, function():void
+							{
+								MessageUtil.showMessage("编辑节点失败!(通信异常)");
+							});
+					});
+
+			}
+
+			// 刷新网元类型的图标
+			private function refreshMoTypeIcon(moTypeId:String, iconName:String):void
+			{
+				_topoCanvas.eachNode(function(id:String, node:INode):void
+					{
+						if (node.getProperty(CmsTopoConstants.XML_KEY_MO_TYPE_ID) == moTypeId)
+						{
+							node.icon = iconName;
+							node.feature.refresh();
+						}
+					});
+			}
+		]]>
+	</fx:Script>
+	<mx:Form width="100%">
+		<mx:FormItem label="类型">
+			<s:Label text="{_currentMoTypeName}"
+					 width="150"/>
+		</mx:FormItem>
+		<mx:FormItem label="图标"
+					 height="32">
+			<s:HGroup gap="20">
+				<mx:Image source="{_currentIconBitmap}"
+						  width="32"
+						  height="32"/>
+				<mx:Image source="{TopoIcons.searchIcon}"
+						  toolTip="查找图标"
+						  buttonMode="true"
+						  click="showMoreIcon_clickHandler(event)"/>
+			</s:HGroup>
+		</mx:FormItem>
+		<mx:FormItem>
+			<s:Label text="图标的更改将影响同类型的全部节点"
+					 width="150"
+					 color.modifyIcon="0xff0000"/>
+		</mx:FormItem>
+
+		<s:HGroup width="100%"
+				  horizontalAlign="center"
+				  gap="20">
+			<s:Button label="确 定"
+					  click="save_clickHandler()"/>
+			<s:Button label="关 闭"
+					  click="closePanel();"/>
+		</s:HGroup>
+	</mx:Form>
+	<panel:states>
+		<s:State name="notModifyIcon"/>
+		<s:State name="modifyIcon"/>
+	</panel:states>
+</panel:AbstractCEPWindow>

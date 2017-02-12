@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  dragable="true"
+			  closable="true"
+			  resizable="true"
+			  maximizable="false"
+			  close="window1_closeHandler(event)"
+			  width="600" 
+			  height="400" 
+			  xmlns:pager="com.linkage.module.cms.components.pager.*">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			
+			private var initFlag:Boolean = false;
+			
+			[Bindable]
+			private var dp:ArrayCollection = new ArrayCollection();
+			
+			public var _queryCallBack:Function = null;
+			
+			private var _param:Object = null;
+
+			public function setTotalCount(total:Number):void
+			{
+				pager.totalRowCount = total;
+				
+				pager.currentPage = 1;
+				
+				var maxPage:uint = 0;
+				if(pager.totalRowCount%pager.pageSize == 0)
+					maxPage = pager.totalRowCount/pager.pageSize;
+				else
+					maxPage = pager.totalRowCount/pager.pageSize + 1;
+				
+				pager.maxPage = maxPage;
+			}
+			
+			public function popupWindow(p:DisplayObject):void
+			{
+				if(initFlag)
+					return;
+				
+				dp.removeAll();
+				dp.refresh();
+				this.title = "    列表";
+				
+				PopUpManager.addPopUp(this, p);
+				PopUpManager.centerPopUp(this);
+				initFlag = true;
+			}
+			
+			public function hidePopupWindow():void
+			{
+				if(initFlag)
+				{
+					PopUpManager.removePopUp(this);
+					initFlag = false;
+				}
+			}
+			
+			public function showMoList(data:Object, param:Object):void
+			{
+				_param = param;
+				this.title = " " + _param['moTypeName'] + " 列表 ";
+				
+				dp.removeAll();
+				for each(var obj:Object in data)
+				{
+					dp.addItem(obj);
+				}
+				dp.refresh();
+			}
+			
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				initFlag = false;
+			}
+
+			private function queryPage():void
+			{
+				this._param['pageSize'] = this.pager.pageSize;
+				this._param['currPage'] = this.pager.currentPage;
+				_queryCallBack.call(null, _param);
+			}
+		]]>
+	</fx:Script>
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" horizontalAlign="right">
+		<mx:AdvancedDataGrid id="moListDg" dataProvider="{dp}" width="100%" height="100%"/>
+		
+		<pager:Pager id="pager" 
+					 pageSize="200" 
+					 pageChange="queryPage()" />
+	</s:VGroup>
+</panel:Window>

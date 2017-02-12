@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					title="历史查询结果"
+					dragable="true"
+					styleName="windowScene"
+					minimizable="false"
+					close="this.visible = false;this.includeInLayout = false;"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-8-29
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.ResizeEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(QuitHistoryResultComp);
+
+			[Inject("quitHistoryResultCompPM")]
+			[Bindable]
+			public var pm:QuitHistoryResultCompPM;
+			
+			
+			[MessageHandler(selector="QUITSTAT_LOADDATA_HISTORY")]
+			public function quitStatLoadDataHistoryResultWindowShow(e:QuitStatEvent):void
+			{
+				this.visible=this.includeInLayout=true;
+				this.x = (this.parent.width-this.width)/2;
+				this.y = (this.parent.height-this.height)/2;
+			}
+			
+			
+//			[MessageHandler(selector="QUIT_HISTORY_RESULT_SHOW")]
+//			public function show(e:QuitStatEvent):void
+//			{
+//				this.visible = true;
+//				this.includeInLayout = true;
+//				this.x=(this.parent.x + this.parent.width - this.width) / 2;
+//				this.y=(this.parent.y + this.parent.height - this.height) / 4;
+//			}
+			
+			protected function quitGrid_resizeHandler(event:ResizeEvent):void
+			{
+				// TODO Auto-generated method stub
+//				var width:Number = quitGrid.width;
+//				var eWidth:Number = width/quitGrid.columns.length;
+//				if(eWidth<80){
+//					eWidth = 80;
+//				}
+//				for each(var col:AdvancedDataGridColumn in quitGrid.columns){
+//					col.width = eWidth;
+//				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  top="5"
+			  right="10"
+			  left="10"
+			  bottom="5">
+		<mx:AdvancedDataGrid id="quitGrid" dataProvider="{pm.dm.historyList}"
+							 width="100%"
+							 height="100%"
+							 rowCount="15"
+							 horizontalScrollPolicy="auto"
+							 headerWordWrap="true"
+							 verticalScrollPolicy="auto"
+							 sortExpertMode="true"
+							 sortableColumns="false"
+							 doubleClickEnabled="true"
+							 headerHeight="40"
+							 lockedColumnCount="1" resize="quitGrid_resizeHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="地市"
+										   dataField="city"
+										   width="75"/>
+				
+				<mx:AdvancedDataGridColumn headerText="GSM宏站退服数"
+										   dataField="gsm_hz_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM宏站退服率(%)"
+										   dataField="gsm_hz_tfv"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM微蜂窝退服数"
+										   dataField="gsm_fw_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM微蜂窝退服率(%)"
+										   dataField="gsm_fw_tfv"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM小区退服数"
+										   dataField="gsm_xq_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM小区退服率(%)"
+										   dataField="gsm_xq_tfv"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM VIP基站退服数"
+										   dataField="gsm_vip_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM载频退服数"
+										   dataField="gsm_zb_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM基站人工闭塞数"
+										   dataField="gsm_jzrgbs_s"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="GSM小区人工闭塞数"
+										   dataField="gsm_xqrgbs_s"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				
+				<mx:AdvancedDataGridColumn headerText="TD宏站退服数"
+										   dataField="td_hz_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD宏站退服率(%)"
+										   dataField="td_hz_tfv"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD微蜂窝退服数"
+										   dataField="td_fw_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD微蜂窝退服率(%)"
+										   dataField="td_fw_tfv"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD小区退服数"
+										   dataField="td_xq_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD小区退服率(%)"
+										   dataField="td_xq_tfv"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD VIP基站退服数"
+										   dataField="td_vip_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD载频退服数"
+										   dataField="td_zb_tfs"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD基站人工闭塞数"
+										   dataField="td_jzrgbs_s"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="TD小区人工闭塞数"
+										   dataField="td_xqrgbs_s"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				
+				<mx:AdvancedDataGridColumn headerText="停电"
+										   dataField="power_failure"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="电池组总电压过低"
+										   dataField="voltage_low"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="一次下电"
+										   dataField="once_down_power"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="水浸"
+										   dataField="water_soak"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="烟雾"
+										   dataField="smog"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="温度过高"
+										   dataField="temperature_high"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+				<mx:AdvancedDataGridColumn headerText="温度超高"
+										   dataField="temperature_extra_high"
+										   itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.ThresHoldDyeRenderer"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+</ailk_compts:Window>

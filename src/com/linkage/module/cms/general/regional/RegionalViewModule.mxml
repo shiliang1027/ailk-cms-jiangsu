@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   layout="absolute" width="100%" height="100%"
+		   xmlns:navbar="com.linkage.module.cms.components.navbar.*" 
+		   xmlns:main="com.linkage.module.cms.general.regional.main.*"
+		   xmlns:picmonitor="com.linkage.module.cms.general.regional.picmonitor.*"
+		   xmlns:regional="com.linkage.module.cms.general.regional.*" 
+		   xmlns:important="com.linkage.module.cms.general.regional.important.*" 
+		   xmlns:mss="com.linkage.module.cms.general.regional.mss.*" 
+		   xmlns:roam="com.linkage.module.cms.general.regional.view.roam.*" 
+		   xmlns:panel="com.linkage.system.component.panel.*"
+		   xmlns:venue="com.linkage.module.cms.general.regional.important.venue.*" 
+		   xmlns:scene="com.linkage.module.cms.general.regional.important.scene.*"
+		   creationComplete="module_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.LineInfo;
+			import com.linkage.module.cms.general.monitor.datamanager.LineInfoImp;
+			import com.linkage.module.cms.general.regional.data.GisServ;
+			import com.linkage.module.cms.general.regional.data.GisServImp;
+			import com.linkage.module.cms.general.regional.data.SpotPicServ;
+			import com.linkage.module.cms.general.regional.data.SpotPicServImp;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.listClasses.ListBase;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			
+			import spark.events.IndexChangeEvent;
+			
+			//日志
+			public var log:ILogger = null;
+			
+			//参数
+			private var param:Object = null;
+			
+			//数据接口
+			[Bindable]
+			private var gisServ:GisServ = null;
+			
+			//数据接口
+			[Bindable]
+			private var spotPicServ:SpotPicServ = null;
+			
+			//调试标志
+			[Bindable]
+			private var isDebug:Boolean = false;
+			
+			//当前显示的场景编号
+			
+			[Bindable]
+			private var monitorId:String = null;
+			
+			//管线数据查询接口
+			[Bindable]
+			private var lineInfo:LineInfo = null;
+			
+			//图片监控是否初始化
+			
+			private var senceInit:Boolean = false;
+			
+			//信息发布初始化标记
+			
+			private var msgPublishFlag:Boolean = false;
+			
+			//漫游视图初始化标记
+			
+			private var roamFlag:Boolean = false;
+			
+			//场馆监控是否初始化
+			
+			private var venueInit:Boolean = false;
+			
+			private var monitorTitile:String;
+			
+			//测试数据
+			private var testData:ArrayCollection = new ArrayCollection([
+				{"monitor_id":"1","monitor_name":"重大场景1","relevant_view":"1,2,3"}
+			]);
+			
+			[Bindable]
+			public var parameters:Object;
+			public var loadManager:LoadManager;
+			
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+				loadManager = parentApplication.loadManager;
+				loadManager.hideLoading();
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//styleManager.loadStyleDeclarations2("css/common/show/ui.swf");
+				
+				//monitorId = "23fc37c0-7158-463b-bbd3-d077476aa95e";
+				//初始化日志
+				var target:ILoggingTarget = new DeMonsterTarget();
+				target.level = LogEventLevel.INFO;
+				target.filters=["com.linkage.module.cms.general.regional.*"];
+				Log.addTarget(target);
+				log = Log.getLogger("com.linkage.module.cms.general.regional.RegionalView");
+				
+				monitorId = this.parameters["monitorId"]
+				
+				//初始化
+				
+				param = this.parameters;
+				gisServ = new GisServImp(this.parameters.context);
+				spotPicServ = new SpotPicServImp(this.parameters.context);
+				lineInfo = new LineInfoImp();
+				lineInfo.setEndPoint(this.parameters.context);
+				isDebug = false;
+				
+				this.mainView.isDebug = isDebug;
+				this.senceView.isDebug = isDebug;
+				
+				//初始化场景信息
+				
+				var obj:Object = new Object();
+				obj.accounts = this.parameters.account;
+				gisServ.getScene(obj,loadData,null,loadDataErr);
+			}
+			
+			public function loadData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询场景信息成功！");
+					
+					initMapView(obj);
+					obj = null;
+				}
+				else
+				{
+					log.info("查询场景信息为空！");
+					if (isDebug)
+					{
+						initMapView(testData);
+					}
+				}
+			}
+			
+			public function loadDataErr(obj:Object):void
+			{
+				log.info("查询场景信息失败！");
+				if (isDebug)
+				{
+					
+					initMapView(testData);
+				}
+			}
+			
+			private function initMapView(obj:Object):void
+			{
+				//初始化场景选择内容
+				this.chooser.initChooser(obj,this);
+				var arr:ArrayCollection = new ArrayCollection();
+				for each (var o:Object in obj)
+				{
+					arr.addItem(o);
+				}
+				this.monitorList.dataList.dataProvider = arr;
+				this.monitorList.dataList.addEventListener(IndexChangeEvent.CHANGE,showMonitor);
+				this.chooser.cs.addEventListener(MouseEvent.CLICK,showMonitorList);
+				
+				//找到指定的场景信息，并显示
+				
+				for each (var info:Object in obj)
+				{
+					if (String(info.monitor_id) == monitorId)
+					{
+						selectMonitor(info);
+					}
+				}
+				
+				obj = null;
+			}
+			
+			private function showMonitorList(e:MouseEvent):void
+			{
+				var tx:Number = e.stageX;
+				if(tx + this.monitorList.width > mainWin.width)
+					tx = mainWin.width - monitorList.width;
+				this.monitorList.x = tx;
+				this.monitorList.visible = true;
+				
+			} 
+			
+			//选中场景
+			private function showMonitor(event:IndexChangeEvent):void
+			{
+				var obj:Object = this.monitorList.dataList.dataProvider.getItemAt(event.newIndex);
+				
+				log.info("=============场景转换=================" + obj.monitor_type);
+				
+				if (obj != null)
+				{
+					this.mainView.nowMapView.majorFailure.visible = false;
+					this.mainView.nowMapView.params["monitorType"] = obj.monitor_type;
+					selectMonitor(obj);
+				}
+				
+				this.monitorList.visible = false;
+			}
+			
+			//处理场景
+			public function selectMonitor(obj:Object):void
+			{
+				var id:String = obj.monitor_id;
+				log.info(" selectMonitor(), id:" + id);
+				
+				var showView:String = obj.relevant_view;
+				log.info(" selectMonitor(), showView:" + showView);
+				
+				var name:String = obj.monitor_name;
+				monitorTitile = name;
+				log.info(" selectMonitor(), monitorTitile:" + monitorTitile);
+				
+				var weather:String = obj.icon;
+				log.info(" selectMonitor(), weather:" + weather);
+				
+				var weatherDesc:String = obj.weather;
+				log.info(" selectMonitor(), weatherDesc:" + weatherDesc);
+				
+				var alarmRule:String = obj.filter_rule;
+				log.info(" selectMonitor(), alarmRule:" + alarmRule);
+				
+				var defaultPerfId:String = obj.perf_type_id;
+				log.info(" selectMonitor(), defaultPerfId:" + defaultPerfId);
+				
+				//初始化视图选择
+				initViewList(showView);
+				
+				this.mainView.hideView();
+				this.senceView.hideView();
+				
+				//将参数放入param
+				param.monitorId = id;
+				param.monitorName = name;
+				param.alarmRule = alarmRule;
+				param.defaultPerfId = defaultPerfId;
+				
+				//默认显示GIS视图
+				monitorId = id;
+				this.mainView.visible = true;
+				this.mainView.includeInLayout = true;
+				this.mainView.monitorId = id;
+				this.mainView.perfId = defaultPerfId;
+				this.mainView.params = param;
+				this.mainView.regionalView = this;
+				this.mainView.multi.ruleStr = alarmRule;
+				this.mainView.init();
+				this.mainView.showView(true);
+				
+				//图片监控
+				this.senceView.visible = false;
+				this.senceView.includeInLayout = false;
+				this.senceView.monitorId = id;
+				this.senceView.params = param;
+				this.senceView.regionalView = this;
+				this.senceView.hideView();
+				senceInit = false;
+				
+				//场馆监控
+				this.venueMonitor.visible = false;
+				this.venueMonitor.includeInLayout = false;
+				venueInit = false;
+				
+				//场馆监控详情
+				this.sceneMonitor.visible = false;
+				this.sceneMonitor.includeInLayout = false;
+				this.sceneMonitor.initView(param);
+				
+				//信息发布
+				this.msgPublish.initView(param);
+				this.msgPublish.visible = false;
+				this.msgPublish.includeInLayout = false;
+				
+				//初始化页面显示
+				
+				this.mainWin.title = name;
+				if(weather)
+					this.monitorWeather.source = this.parameters.context + weather.substr(1);
+				
+				weatherDescLabel.text = weatherDesc;
+			}
+			
+			private function switchView(type:int):void
+			{
+				if (type == 1)
+				{
+					this.mainWin.title = monitorTitile;
+					this.mainView.visible = true;
+					this.mainView.includeInLayout = true;
+					this.mainView.showView();
+					
+					this.senceView.visible = false;
+					this.senceView.includeInLayout = false;
+					this.senceView.hideView();
+					
+					this.venueMonitor.visible = false;
+					this.venueMonitor.includeInLayout = false;
+					
+					this.sceneMonitor.visible = false;
+					this.sceneMonitor.includeInLayout = false;
+					
+					this.msgPublish.visible = false;
+					this.msgPublish.includeInLayout = false;
+					
+					this.roamMain.visible = false;
+					this.roamMain.includeInLayout = false;
+				}
+				else if (type == 2)
+				{
+					this.mainWin.title = monitorTitile;
+					this.mainView.visible = false;
+					this.mainView.includeInLayout = false;
+					this.mainView.hideView();
+					
+					this.senceView.visible = false;
+					this.senceView.includeInLayout = false;
+					this.senceView.hideView();
+					
+					this.venueMonitor.visible = false;
+					this.venueMonitor.includeInLayout = false;
+					
+					this.sceneMonitor.visible = false;
+					this.sceneMonitor.includeInLayout = false;
+					
+					this.msgPublish.visible = false;
+					this.msgPublish.includeInLayout = false;
+					
+					this.roamMain.visible = true;
+					this.roamMain.includeInLayout = true;
+					
+					if(!roamFlag)
+					{
+						roamFlag = true;
+						this.roamMain.initRoam();
+					}
+				}
+				else if (type == 3)
+				{
+					this.mainWin.title = monitorTitile;
+					this.mainView.visible = false;
+					this.mainView.includeInLayout = false;
+					this.mainView.hideView();
+					
+					this.senceView.visible = true;
+					this.senceView.includeInLayout = true;
+					if (!senceInit)
+					{
+						senceInit = true;
+						this.senceView.init();
+						this.senceView.showView();
+					}
+					
+					this.venueMonitor.visible = false;
+					this.venueMonitor.includeInLayout = false;
+					
+					this.sceneMonitor.visible = false;
+					this.sceneMonitor.includeInLayout = false;
+					
+					this.msgPublish.visible = false;
+					this.msgPublish.includeInLayout = false;
+					
+					this.roamMain.visible = false;
+					this.roamMain.includeInLayout = false;
+				}
+				else if (type == 4)
+				{
+					this.mainWin.title = monitorTitile;
+					this.mainView.visible = false;
+					this.mainView.includeInLayout = false;
+					this.mainView.hideView();
+					
+					this.senceView.visible = false;
+					this.senceView.includeInLayout = false;
+					this.senceView.hideView();
+					
+					this.venueMonitor.visible = true;
+					this.venueMonitor.includeInLayout = true;
+					
+					if (!venueInit)
+					{
+						venueInit = true;
+						this.venueMonitor.initView(param,this);
+					}
+					
+					this.sceneMonitor.visible = false;
+					this.sceneMonitor.includeInLayout = false;
+					
+					this.msgPublish.visible = false;
+					this.msgPublish.includeInLayout = false;
+					
+					this.roamMain.visible = false;
+					this.roamMain.includeInLayout = false;
+				}
+				else if (type == 5)
+				{
+					this.mainWin.title = "重大活动信息发布";
+					this.mainView.visible = false;
+					this.mainView.includeInLayout = false;
+					this.mainView.hideView();
+					
+					this.senceView.visible = false;
+					this.senceView.includeInLayout = false;
+					this.senceView.hideView();
+					
+					this.venueMonitor.visible = false;
+					this.venueMonitor.includeInLayout = false;
+					
+					this.sceneMonitor.visible = false;
+					this.sceneMonitor.includeInLayout = false;
+					
+					this.msgPublish.visible = true;
+					this.msgPublish.includeInLayout = true;
+					
+					if(!msgPublishFlag)
+					{
+						msgPublishFlag = true;
+						this.msgPublish.initView(param);
+					}
+					
+					this.roamMain.visible = false;
+					this.roamMain.includeInLayout = false;
+				}else if(type == 6)
+				{
+					this.mainWin.title = monitorTitile;
+					this.mainView.visible = false;
+					this.mainView.includeInLayout = false;
+					this.mainView.hideView();
+					
+					this.senceView.visible = false;
+					this.senceView.includeInLayout = false;
+					this.senceView.hideView();
+					
+					this.venueMonitor.visible = false;
+					this.venueMonitor.includeInLayout = false;
+					
+					this.sceneMonitor.visible = true;
+					this.sceneMonitor.includeInLayout = true;
+					
+					this.msgPublish.visible = false;
+					this.msgPublish.includeInLayout = false;
+					
+					this.roamMain.visible = false;
+					this.roamMain.includeInLayout = false;
+				}
+			}
+			
+			private function initViewList(showView:String):void
+			{
+				var tmpStr:String = "," + showView + ",";
+				if (tmpStr.indexOf(",1,") == -1)
+				{
+					this.view1.visible = false;
+					this.view1.includeInLayout = false;
+					this.mainView.showMulti = false;
+				}
+				if (tmpStr.indexOf(",2,") == -1)
+				{
+					this.view2.visible = false;
+					this.view2.includeInLayout = false;
+				}
+				if (tmpStr.indexOf(",3,") == -1)
+				{
+					this.view3.visible = false;
+					this.view3.includeInLayout = false;
+				}
+				if (tmpStr.indexOf(",4,") == -1)
+				{
+					this.view4.visible = false;
+					this.view4.includeInLayout = false;
+				}
+				if (tmpStr.indexOf(",5,") == -1)
+				{
+					this.view5.visible = false;
+					this.view5.includeInLayout = false;
+				}
+				if (tmpStr.indexOf(",6,") == -1)
+				{
+					this.view6.visible = false;
+					this.view6.includeInLayout = false;
+					this.mainView.showMulti = true;
+				}
+			}
+			
+			//跳转到场馆监控
+			
+			public function showVenue(venueId:String, historyTime:Object=null):void
+			{
+				//切换到场馆监控
+				
+				switchView(6);
+				log.info("显示场馆，ID为 " + venueId);
+				sceneMonitor.showSceneMonitor(venueId, String(historyTime));
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Fade id="fadeEffect" alphaFrom="0" alphaTo="1" duration="3000"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Scroller width="100%" height="100%" 
+				verticalScrollPolicy="off"
+				horizontalScrollPolicy="off">
+		<s:Group width="100%" height="100%">
+			<s:VGroup width="100%" height="100%" horizontalAlign="center" left="11" top="5" right="11" bottom="28">
+				<panel:Window id="mainWin" width="98%" height="100%" minimizable="false" maximizable="false" closable="false">
+					<main:MainView id="mainView" width="100%" height="100%" visible="false" includeInLayout="false" gisServ="{gisServ}" lineInfo="{lineInfo}" params="{this.parameters}"/>
+					
+					<picmonitor:SenceView id="senceView" width="100%" height="100%" visible="false" includeInLayout="false" gisServ="{gisServ}" spotPicServ="{spotPicServ}"/>
+					
+					<venue:VenueMonitor id="venueMonitor" width="100%" height="100%" visible="false" includeInLayout="false"/>
+					
+					<scene:SceneMonitor id="sceneMonitor" width="100%" height="100%" visible="false" includeInLayout="false"/>
+					
+					<mss:MsgPublish id="msgPublish" width="100%" height="100%" visible="false" includeInLayout="false"/>
+					
+					<roam:RoamMain id="roamMain" params="{this.parameters}" width="100%" height="100%" visible="false" includeInLayout="false"/>
+				</panel:Window>
+			</s:VGroup>
+			
+			<regional:MonitorChooser id="chooser" height="20"  left="11" bottom="2" right="11"/>
+			
+			<s:HGroup right="128" y="{mainWin.y + 8}" width="50%" height="20" horizontalAlign="right" verticalAlign="middle">
+				<mx:Image source="" id="monitorWeather"/>
+				<s:Label  id="weatherDescLabel" text="数据加载中..." paddingTop="2"/>
+			</s:HGroup>
+			
+			<navbar:NavBar id="viewBar" title="视图切换" location="left" top="30" x="{this.width-21}">
+				<s:VGroup id="viewList" height="100%" gap="15" verticalAlign="middle">
+					<s:Label id="view1" width="100%" textAlign="left" text="主视图" buttonMode="true" click="switchView(1);"/>
+					<s:Label id="view6" width="100%" textAlign="left" text="GIS视图" buttonMode="true" click="switchView(1);"/>
+					<s:Label id="view2" width="100%" textAlign="left" text="漫游视图" buttonMode="true" click="switchView(2);"/>
+					<s:Label id="view3" width="100%" textAlign="left" text="现场图片视图" buttonMode="true" click="switchView(3);"/>
+					<s:Label id="view4" width="100%" textAlign="left" text="场馆监控视图" buttonMode="true" click="switchView(4);"/>
+					<s:Label id="view5" width="100%" textAlign="left" text="信息发布" buttonMode="true" click="switchView(5);"/>
+				</s:VGroup>
+			</navbar:NavBar>
+			
+			<regional:MonitorList id="monitorList" visible="false" bottom="28" x="{this.width-200}"/>
+			
+		</s:Group>
+	</s:Scroller>
+</mx:Module>

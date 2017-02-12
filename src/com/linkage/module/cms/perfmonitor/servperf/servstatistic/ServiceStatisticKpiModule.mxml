@@ -1,0 +1,700 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:panel="com.linkage.system.component.panel.*"
+		   creationComplete="application1_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.servperf.data.ServPerfMonitorDataMgr;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+
+			import flash.utils.setTimeout;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+
+			import spark.components.RadioButton;
+			import spark.components.VScrollBar;
+
+			//我的方案
+			private var viewConfCache:ArrayCollection = new ArrayCollection();
+
+			[Bindable]
+			private var treeData:XML;
+
+			//当前选中的方案名称
+			private var nowConfName:String = '';
+
+			[Embed(source="../../img/delete.gif")]
+			[Bindable]
+			private static var _deleteImg:Class;
+
+			//指标缓存  保存选中的指标和颗粒度。
+			private var perfCache:ArrayCollection = new ArrayCollection();
+
+			private var perfChartCache:Object = {};
+
+			private var cityDetailWin:CityDetailPerfChartWindow = null;
+
+			private var allPerfList:ArrayCollection = new ArrayCollection();
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.servperf.servstatistc.ServiceStatisticKpi");
+
+			public var parameters:Object;
+
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.perfmonitor.*", "com.linkage.module.cms.alarm*"];
+				Log.addTarget(target);
+
+				log.info("日志初始化完成！");
+
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+
+				//给数据类注入context
+				log.info(this.parameters);
+				ServPerfMonitorDataMgr.setContext(this.parameters['context'], this.parameters['acc_oid'], this.parameters['cityId']);
+
+				//加载当前用户方案
+				loadViewConf();
+			}
+
+			private function loadViewConf(refreshFlag:Boolean = false):void
+			{
+				ServPerfMonitorDataMgr.getServMonitorView(parameters['acc_oid'], function(result:Object):void
+					{
+						viewConfCache.removeAll();
+						viewConfCache.addAll(result as IList);
+
+						//初始化我的方案面板
+						initViewConfPanel();
+
+						//加载指标树数据
+						if (!refreshFlag) //另存新方案后刷新我的方案面板  而不需要加载指标树。
+							loadKpiTree();
+					}, function(e:FaultEvent):void
+					{
+						Alert.show('加载我的方案失败！');
+					});
+			}
+
+			//初始化我的方案面板
+			private function initViewConfPanel():void
+			{
+				myViewConfVgroup.removeAllElements();
+				log.info("初始化我的方案面板！");
+				var index:int = 0;
+				for each (var conf:Object in viewConfCache)
+				{
+					var hg:HGroup = new HGroup();
+					hg.gap = 0;
+					var rb:RadioButton = new RadioButton();
+					rb.id = conf['view_id'];
+					rb.label = conf['view_name'];
+					rb.width = 150;
+
+					//没有选择我的方案 则选中第一个
+					if (nowConfName == '')
+					{
+						if (index++ < 1)
+							rb.selected = true;
+					}
+					else //已经选择我的方案 则选中之
+					{
+						if (nowConfName == conf['view_name'])
+							rb.selected = true;
+					}
+
+					log.info('我的方案： 名称：{0}', conf['view_name']);
+
+					hg.addElement(rb);
+
+					var img:Image = new Image();
+					img.source = _deleteImg;
+					img.id = conf['view_id'];
+					img.name = conf['view_name'];
+					img.buttonMode = true;
+					img.toolTip = '删除 ' + conf['view_name'];
+					img.addEventListener(MouseEvent.CLICK, deleteViewConf);
+
+					hg.addElement(img);
+
+					myViewConfVgroup.addElement(hg);
+				}
+			}
+
+			private function deleteViewConf(e:MouseEvent):void
+			{
+				var param:Object = {};
+				param['accOid'] = this.parameters['acc_oid'];
+				param['viewId'] = e.target.id;
+
+				ServPerfMonitorDataMgr.deleteServMonitorView(param, function(result:Object):void
+					{
+						if (Number(result) > 0)
+						{
+							Alert.show('删除方案成功！');
+
+							//如果删除的是当前的方案 则置空当前的方案名称
+							if (nowConfName == e.target.name)
+								nowConfName = "";
+
+							loadViewConf(nowConfName != "");
+						}
+						else
+							Alert.show('删除方案失败！');
+					}, function(e:FaultEvent):void
+					{
+						Alert.show('删除方案失败！');
+					});
+			}
+
+			private function loadKpiTree():void
+			{
+				ServPerfMonitorDataMgr.getServTypePerfInfo(function(result:Object):void
+					{
+						//指标树
+						treeData = XML(result['treeXml']);
+						kpiTree.openItems = treeData.children();
+
+						//指标列表
+						allPerfList.addAll(result['perfInfo'] as IList)
+
+						//默认展示第一个方案
+						nowConfName = viewConfCache.getItemAt(0)['view_name'];
+
+						//根据第一个我的方案选中树节点
+						dealSelected(viewConfCache.getItemAt(0)['perfList']);
+
+						//根据  第一个我的方案展示图表
+						chartShowGroup.removeAllElements();
+						showCharts(viewConfCache.getItemAt(0)['perfList']);
+					}, function(e:FaultEvent):void
+					{
+						Alert.show('加载指标树失败！');
+					});
+			}
+
+			private function showCharts(perfList:Object, index:int = 0):void
+			{
+				if (index < (perfList as IList).length)
+				{
+					loadPerfCahrt((perfList as IList).getItemAt(index), index, perfList as IList);
+				}
+			}
+
+			private function loadPerfCahrt(perf:Object, index:int, perfList:IList = null):void
+			{
+				var chartWin:PerfChartWindow = new PerfChartWindow();
+
+				log.info('加载小指标图表窗口，perfName:' + perf['perf_name'] + ' perfId:' + perf['perf_id']);
+
+				chartWin.width = chartShowGroup.width / 2 - 5;
+				chartWin.height = 250;
+				chartWin.perfId = perf['perf_id'];
+				chartWin.perfName = perf['perf_name'];
+				chartWin.selectedInterval = perf['interval'];
+				chartWin.unit = perf['unit'];
+				chartWin.allPerfList = allPerfList;
+				chartWin.context = parameters['context'];
+				chartWin.userCityId = parameters['cityId'];
+				chartWin.topContainer = mainGroup;
+				chartWin.app = this;
+
+				chartWin.intervalChangedCallback = intervalChangedCallback;
+				chartWin.removeCallback = removeCallback;
+
+				index++;
+				if (perfList != null)
+				{
+					//此窗口数据加载完成后  加载后面的指标窗口
+					chartWin.dataLoadedCallback = function():void
+					{
+						log.info('触发下一个指标加载~~ index:' + index)
+						showCharts(perfList, index);
+					};
+				}
+
+				chartShowGroup.addElementAt(chartWin, chartShowGroup.numElements);
+
+				//缓存指标和图表的对应关系
+				perfChartCache[perf['perf_id']] = chartWin;
+			}
+
+			private function locateScrollBar(times:int, scrollBar:VScrollBar):void
+			{
+				if (times > 14)
+					return;
+
+				scrollBar.viewport.verticalScrollPosition += 20;
+
+				setTimeout(locateScrollBar, 5, ++times, scrollBar);
+			}
+
+			private function removeCallback(perfId:Object):void
+			{
+				log.info('移除窗口回调！perfId：' + perfId);
+				//移除该窗口
+				chartShowGroup.removeElement(perfChartCache[perfId]);
+				chartShowGroup.validateNow();
+
+				//删除缓存中对应的指标
+				deleteCachePerf(perfId);
+
+				//指标树 该指标去除选择状态
+				dealSelected();
+			}
+
+			//颗粒度变更，  更新指标缓存中的颗粒度    
+			private function intervalChangedCallback(perfId:Object, interval:Object):void
+			{
+				log.info('颗粒度变更回调！perfId：' + perfId + ' interval:' + interval);
+				for each (var perf:Object in perfCache)
+				{
+					if (perf['perf_id'] == perfId)
+					{
+						perf['interval'] = interval;
+						break;
+					}
+				}
+			}
+
+			private function dealSelected(perfList:Object = null):void
+			{
+				if (viewConfCache.length > 0)
+				{
+					forEachTree(treeData, function(node:XML):void
+						{
+							var flag:Boolean;
+
+							if (perfList == null)
+								flag = containsInViewConf(node.@perf_id, perfCache);
+							else
+								flag = containsInViewConf(node.@perf_id, perfList);
+
+							if (flag)
+							{
+								node.@selected = 1;
+							}
+							else
+							{
+								node.@selected = 0;
+							}
+						});
+
+				}
+
+				kpiTree.validateNow();
+
+				if (perfList != null)
+				{
+					perfCache.removeAll();
+					for each (var kpi:Object in perfList)
+					{
+						perfCache.addItem({'perf_id':kpi.perf_id, 'interval':kpi.interval});
+					}
+				}
+			}
+
+			private function containsInViewConf(perf_id:Object, perfList:Object):Boolean
+			{
+				for each (var kpi:Object in perfList)
+				{
+					if (kpi['perf_id'] == perf_id)
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			//树点击处理    
+			protected function treeItemClicked():void
+			{
+				var selectedNode:XML = kpiTree.selectedItem as XML;
+
+				log.info('树点击事件，label：' + selectedNode.@label);
+
+				if (selectedNode.hasComplexContent())
+					return;
+
+				//重置选中状态
+				if (Boolean(Number(selectedNode.@selected)))
+				{
+					selectedNode.@selected = Boolean(Number(selectedNode.@selected)) ? 0 : 1;
+				}
+				else
+				{
+					selectedNode.@selected = 1;
+				}
+
+				if (Boolean(Number(selectedNode.@selected)))
+				{
+					log.info('树点击事件，选中处理：' + selectedNode.@label);
+
+					var interval:Array = String(selectedNode.@interval).split(',');
+
+					//加载该指标的图表
+					loadPerfCahrt({'perf_id':String(selectedNode.@perf_id), 'interval':interval[0], 'perf_name':String(selectedNode.@label), 'unit':String(selectedNode.@unit)}, 0, null);
+
+					if (chartShowGroup.numChildren % 2 != 0)
+					{
+						chartShowScroller.verticalScrollBar.viewport.verticalScrollPosition = Number.MAX_VALUE;
+						locateScrollBar(1, chartShowScroller.verticalScrollBar);
+					}
+
+					//缓存选中直指标
+					perfCache.addItem({'perf_id':String(selectedNode.@perf_id), 'interval':interval[0]});
+				}
+				else
+				{
+					log.info('树点击事件，去选中处理：' + selectedNode.@label);
+
+					//删除指标对应的图表窗口
+					chartShowGroup.removeElement(perfChartCache[String(selectedNode.@perf_id)]);
+					chartShowGroup.validateNow();
+
+					deleteCachePerf(String(selectedNode.@perf_id));
+
+				}
+
+				kpiTree.validateNow();
+			}
+
+			private function deleteCachePerf(perfId:Object):void
+			{
+				//删除缓存中该指标。
+				for each (var kpi:Object in perfCache)
+				{
+					if (kpi['perf_id'] == perfId)
+					{
+						perfCache.removeItemAt(perfCache.getItemIndex(kpi));
+						break;
+					}
+				}
+			}
+
+			private function forEachTree(node:XML, callback:Function = null):void
+			{
+				for each (var child:XML in node.children())
+				{
+					if (callback is Function)
+					{
+						callback.call(null, child);
+					}
+
+					if (child.hasComplexContent())
+					{
+						forEachTree(child, callback);
+					}
+				}
+			}
+
+			//方案另存为
+			protected function saveViewConf():void
+			{
+				closeSaveAsWindow();
+
+				var viewConfName:String = newViewConfName.text;
+				if (viewConfName == null || viewConfName == "")
+				{
+					return;
+				}
+
+				//判断名称是否存在
+				if (exitName(viewConfName))
+				{
+					Alert.show('该名称已经存在，请输入其他名称');
+					return;
+				}
+
+				var perfIds:String = "";
+				for each (var perf:Object in perfCache)
+				{
+					if (perfIds == "")
+						perfIds += perf['perf_id'] + ',' + perf['interval'];
+					else
+						perfIds += ';' + perf['perf_id'] + ',' + perf['interval'];
+				}
+
+				var param:Object = {};
+				param['accOId'] = this.parameters['acc_oid'];
+				param['viewName'] = viewConfName;
+				param['isShare'] = '0';
+				param['perfIds'] = perfIds;
+				ServPerfMonitorDataMgr.saveServMonitorView(param, function(result:Object):void
+					{
+						Alert.show('方案保存成功！');
+
+						nowConfName = viewConfName; //保存新方案后，当前选择方案名称置成新方案名称。
+
+						//保存新方案后 重新加载我的方案面板
+						loadViewConf(true);
+					}, function(e:FaultEvent):void
+					{
+						Alert.show('方案保存失败！');
+					});
+			}
+
+			private function exitName(name:Object):Boolean
+			{
+				for each (var conf:Object in viewConfCache)
+				{
+					if (conf['view_name'] == name)
+						return true;
+				}
+				return false;
+			}
+
+			//切换我的方案
+			protected function changeViewConf():void
+			{
+				closeMyViewConf();
+
+				//获取当前选择的方案名称
+				var viewName:Object = getSelectedViewConf();
+
+				if (nowConfName == viewName || viewName == null)
+					return;
+
+				nowConfName = viewName.toString();
+
+				//根据方案名称获取指标信息
+				var perfList:Object = getPerfsByViewName(nowConfName);
+
+				//根据指标信息 勾选指标树
+				dealSelected(perfList);
+
+				//重新加载指标图表。
+				chartShowGroup.removeAllElements();
+				showCharts(perfList);
+			}
+
+			private function getPerfsByViewName(viewName:Object):Object
+			{
+				for each (var obj:Object in viewConfCache)
+				{
+					if (obj['view_name'] == viewName)
+						return obj['perfList'];
+				}
+				return null;
+			}
+
+			//获取我的方案中选中状态的方案名称
+			private function getSelectedViewConf():Object
+			{
+				var num:int = myViewConfVgroup.numChildren;
+				for (var i = 0; i < num; i++)
+				{
+					var hg:HGroup = myViewConfVgroup.getChildAt(i) as HGroup;
+					if ((hg.getChildAt(0) as RadioButton).selected)
+					{
+						return (hg.getChildAt(0) as RadioButton).label;
+					}
+				}
+
+				return null;
+			}
+
+			public function setCityDetailWindow(win:CityDetailPerfChartWindow):void
+			{
+				cityDetailWin = win;
+			}
+
+			public function showHisPerfChartWindow(cityId:Object):void
+			{
+				cityDetailWin.showHisPerfChartWindow(cityId);
+			}
+
+			protected function showViewConf():void
+			{
+				myViewConfWindow.visible = true;
+			}
+
+			protected function closeMyViewConf():void
+			{
+				myViewConfWindow.visible = false;
+			}
+
+			protected function showSaveAsWindow():void
+			{
+				saveAsWindow.visible = true;
+			}
+
+			protected function closeSaveAsWindow():void
+			{
+				saveAsWindow.visible = false;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup width="100%"
+			  height="100%"
+			  id="mainGroup"
+			  gap="2">
+		<!-- 左侧指标树-->
+		<s:BorderContainer width="263"
+						   height="100%"
+						   borderStyle="solid"
+						   cornerRadius="5">
+			<s:VGroup width="100%"
+					  height="100%"
+					  gap="0">
+				<s:HGroup width="100%"
+						  height="33"
+						  gap="20"
+						  horizontalAlign="center"
+						  verticalAlign="middle">
+					<s:Button label="我的方案"
+							  click="showViewConf()"/>
+					<s:Button label="另存新方案"
+							  click="showSaveAsWindow()"/>
+				</s:HGroup>
+				<mx:Tree id="kpiTree"
+						 dataProvider="{treeData}"
+						 width="100%"
+						 height="100%"
+						 borderAlpha="0"
+						 verticalAlign="middle"
+						 contentBackgroundAlpha="0"
+						 showRoot="false"
+						 showScrollTips="true"
+						 wordWrap="false"
+						 variableRowHeight="true"
+						 labelField="@label"
+						 editorHeightOffset="0"
+						 fontWeight="normal"
+						 fontSize="12"
+						 indentation="12"
+						 paddingLeft="10"
+						 horizontalScrollPolicy="auto"
+						 folderClosedIcon="{null}"
+						 itemClick="treeItemClicked()"
+						 folderOpenIcon="{null}"
+						 defaultLeafIcon="{null}"
+						 disclosureClosedIcon="@Embed('../../img/+.png')"
+						 disclosureOpenIcon="@Embed('../../img/-.png')"
+						 itemRenderer="com.linkage.module.cms.perfmonitor.common.CheckBoxTreeRenderer"/>
+			</s:VGroup>
+		</s:BorderContainer>
+
+		<!-- 右侧图表展示区-->
+		<s:BorderContainer width="100%"
+						   height="100%"
+						   borderStyle="solid"
+						   cornerRadius="5">
+			<s:Scroller id="chartShowScroller"
+						verticalScrollPolicy="on"
+						width="100%"
+						height="100%">
+				<s:TileGroup id="chartShowGroup"
+							 width="100%"
+							 height="100%"
+							 orientation="rows"/>
+			</s:Scroller>
+		</s:BorderContainer>
+	</s:HGroup>
+
+	<!-- 我的方案-->
+	<panel:Window id="myViewConfWindow"
+				  width="350"
+				  height="200"
+				  x="150"
+				  y="100"
+				  title="我的方案"
+				  maximizable="false"
+				  minimizable="false"
+				  visible="false"
+				  dragable="true"
+				  close="closeMyViewConf()">
+		<s:VGroup width="100%"
+				  height="100%">
+			<s:Scroller width="100%"
+						height="100%"
+						verticalScrollPolicy="auto">
+				<s:VGroup id="myViewConfVgroup"
+						  width="100%"
+						  horizontalAlign="left"
+						  verticalAlign="middle"
+						  top="15"
+						  paddingLeft="60"/>
+			</s:Scroller>
+			<s:HGroup width="100%"
+					  height="40"
+					  verticalAlign="middle"
+					  horizontalAlign="center"
+					  gap="30">
+				<s:Button label="确定"
+						  click="changeViewConf()"/>
+				<s:Button label="取消"
+						  click="closeMyViewConf()"/>
+			</s:HGroup>
+		</s:VGroup>
+	</panel:Window>
+
+	<!-- 另存新方案-->
+	<panel:Window id="saveAsWindow"
+				  width="350"
+				  height="200"
+				  x="300"
+				  y="200"
+				  title="另存新方案"
+				  maximizable="false"
+				  minimizable="false"
+				  visible="false"
+				  dragable="true"
+				  close="closeSaveAsWindow()">
+		<s:VGroup width="100%"
+				  height="100%">
+			<s:HGroup width="100%"
+					  height="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Label text="新方案名称："/>
+				<s:TextInput id="newViewConfName"
+							 width="178"/>
+			</s:HGroup>
+			<s:HGroup width="100%"
+					  height="40"
+					  verticalAlign="middle"
+					  horizontalAlign="center"
+					  gap="30">
+				<s:Button label="确定"
+						  click="saveViewConf()"/>
+				<s:Button label="取消"
+						  click="closeSaveAsWindow()"/>
+			</s:HGroup>
+		</s:VGroup>
+	</panel:Window>
+</mx:Module>

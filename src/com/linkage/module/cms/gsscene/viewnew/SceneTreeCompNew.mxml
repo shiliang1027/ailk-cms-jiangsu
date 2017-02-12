@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:NavBar xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					width="100%" height="100%" location="right" styleName="sceneNavBar" title="场景树图">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+//			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.util.MapDictionary;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+//			import com.linkage.module.cms.gsscene.view.components.scenetree.SceneTreeCompPM;
+			import com.linkage.module.cms.gsscene.view.components.scenetree.event.SceneTreeEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneTreeCompNew);
+			
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			private var initFlag:Boolean = false;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			//初始化区域导航tree数据
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				if (initFlag)
+					return;
+				
+				log.info("into SceneTreeComp");
+				requestServerUtil.addRequest(new SceneTreeEvent(SceneTreeEvent.SCENE_AREA_XML));
+				initFlag = true;
+			}
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			
+			protected function navbar1_mouseOverHandler(event:MouseEvent):void
+			{
+				log.debug("GIS场景树图提示信息...");
+				//				if (user.isNew == "1")
+				//				{
+				//					user.labelTypeId = "401";
+				//					setTimeout(function():void
+				//						{
+				//							var obj:Object = new Object;
+				//							var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+				//							obj.labelId = "401";
+				//							e.obj = obj;
+				//							log.debug("参数信息...");
+				//							log.info(e.obj);
+				////							msgDispatcher(e);
+				//							requestServerUtil.addRequest(e);
+				//						}, 3000);
+				//				}
+			}
+			
+			public function getSceneInfo(event:ListEvent):void
+			{
+				var obj:XML = Tree(event.currentTarget).selectedItem as XML;
+				var params:Object = scenePM.dealParams(obj);
+				log.info(params);
+				log.info("getSceneInfo--------1");
+				var evt:SceneEvent = new SceneEvent("DEAL_SCENE_CHANGE");
+				evt.param = params;
+				dispatcher(evt);
+			}
+//			public function dealParams(xml:XML):Object
+//			{
+//				var params:Object = {};
+//				params.id = String(xml.attribute("id"));
+//				params.name = String(xml.attribute("name"));
+//				params.level = String(xml.attribute("level"));
+//				params.cityId = String(xml.attribute("cityId"));
+//				params.centerlongitude = String(xml.attribute("centerlongitude"));
+//				params.centerlatitude = String(xml.attribute("centerlatitude"));
+//				return params;
+//			}
+			
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:Tree id="sceneTree"  styleName="sceneTree" width="160" height="200" borderAlpha="0" contentBackgroundAlpha="0"
+			 dataProvider="{scenePM.stdm.treeData}" itemClick="{getSceneInfo(event)}"
+			 labelField="@name" openItems="{scenePM.stdm.treeData}">
+	</mx:Tree>
+</ailk_compts:NavBar>

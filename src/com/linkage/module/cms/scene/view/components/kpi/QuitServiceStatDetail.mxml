@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+			  close="quitServiceDetail_closeHandler(event)"
+			  minimizableBottom="10"
+			  minimizable="false"
+			  dragable="true"
+			  styleName="windowScene"
+			  titleIcon="@Embed(source='../../../img/title_ico03.png')"
+			  title="退服统计详情"
+			  width="470"
+			  height="260"
+			  maximize="quitServiceDetail_maximizeHandler(event)"
+			  resizable="true"
+			  minimizableLeft="10">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			private var _cm:ContextMenu;
+			
+			public function set cm(cm:ContextMenu):void
+			{
+				_cm = cm;
+			}
+			
+			protected function quitServiceDetail_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			private var _callback_quitServiceDetail_Max:Function = null;
+			public function set callback_quitServiceDetail_Max(callback_quitServiceDetail_Max:Function):void
+			{
+				_callback_quitServiceDetail_Max = callback_quitServiceDetail_Max;
+			}
+			protected function quitServiceDetail_maximizeHandler(event:WindowEvent):void
+			{
+				if(_callback_quitServiceDetail_Max != null)
+				{
+					_callback_quitServiceDetail_Max.call(this,event);
+				}
+			}
+			
+			private var _callback_quitServiceDetailDataGrid:Function = null;
+			public function set callback_quitServiceDetailDataGrid(callback_quitServiceDetailDataGrid:Function):void
+			{
+				_callback_quitServiceDetailDataGrid = callback_quitServiceDetailDataGrid;
+			}
+			protected function quitServiceDetailDataGrid_itemRollOverHandler(event:ListEvent):void
+			{
+				if(_callback_quitServiceDetailDataGrid != null)
+				{
+					_callback_quitServiceDetailDataGrid.call(this,event);
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="quitServiceDetailDataGrid"
+						 styleName="sceneDG"
+						 verticalAlign="middle"
+						 width="100%"
+						 height="100%"
+						 horizontalScrollPolicy="auto"
+						 textAlign="center"
+						 contextMenu="{_cm}"
+						 itemRollOver="quitServiceDetailDataGrid_itemRollOverHandler(event)">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="moName"
+									   headerText="网元名称"
+									   width="200"/>
+			<mx:AdvancedDataGridColumn dataField="moTypeName"
+									   headerText="网元类型"
+									   width="100"/>
+			<mx:AdvancedDataGridColumn dataField="quitCause"
+									   headerText="退服原因"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</ailk_compts:Window>

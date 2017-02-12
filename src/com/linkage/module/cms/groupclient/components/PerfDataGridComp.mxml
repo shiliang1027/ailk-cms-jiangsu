@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  maxHeight="400" close="this.visible=this.includeInLayout=false;"
+			  minWidth="500" minimizable="false" maximizable="false"
+			  minHeight="200" minimizableLeft="10" minimizableBottom="10"
+			  dragable="true" creationComplete="perDataGridComp_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:VerticalLayout/>
+	</panel:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			
+			import spark.components.Label;
+			import spark.components.Scroller;
+			import spark.components.VGroup;
+			private var _dataProvider:ArrayCollection;
+			private function perDataGridComp_creationCompleteHandler(event:FlexEvent):void{
+				
+			}
+			
+			public function get dataProvider():ArrayCollection{
+				return this._dataProvider;
+			}
+			
+			public function set dataProvider(value:ArrayCollection):void{
+				this._dataProvider = value;
+				try{
+					group.removeAllElements();
+					if(dataProvider && dataProvider.length>0){
+						var columns:Array = new Array;
+						var column:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						column.dataField = "name";
+						column.headerText = "指标名称";
+						columns.push(column);
+						
+						column = new AdvancedDataGridColumn();
+						column.dataField = "num";
+						column.headerText = "指标值";
+						columns.push(column);
+						
+						column = new AdvancedDataGridColumn();
+						column.dataField = "time";
+						column.headerText = "时间";
+						columns.push(column);
+						
+						var dataGrid:AdvancedDataGrid;
+						var lable:Label;
+						
+						for each(var dataObj:Object in dataProvider){
+							lable = new Label();
+							lable.text = dataObj.title;
+							group.addElement(lable);
+							dataGrid = new AdvancedDataGrid();
+							dataGrid.percentWidth=100;
+							dataGrid.percentHeight=100;
+							dataGrid.columns = columns;
+							dataGrid.dataProvider=dataObj.dataList;
+							group.addElement(dataGrid);
+						}
+					}
+				}catch(e:Error){}
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:Scroller width="100%" height="100%">
+		<s:VGroup width="100%" height="100%" id="group">
+			
+		</s:VGroup>
+	</s:Scroller>
+	
+</panel:Window>

@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%"
+		   xmlns:gis="com.linkage.gis.*"
+		   xmlns:panel="com.linkage.system.component.panel.*"
+		   creationComplete="mapChooseModule_creationComplete(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.metry.GisRegion;
+			import com.linkage.gis.core.styles.GisFillPredefinedStyle;
+			import com.linkage.gis.core.styles.GisLinePredefinedStyle;
+			import com.linkage.gis.core.styles.GisLineStyle;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.core.styles.GisTextStyle;
+			import com.linkage.gis.event.GisDrawEvent;
+			import com.linkage.gis.event.GisFeatureEvent;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.general.regional.config.mapchoose.control.MapChooseControl;
+			import com.linkage.module.cms.general.regional.config.mapchoose.renderer.MapChooseTreeRenderer;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			import com.linkage.system.utils.StringUtils;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.utils.UIDUtil;
+			
+			[Bindable]
+			private var treeData:XML;
+			
+			private var lastXmlIndex:Object;
+			
+			
+			private var control:MapChooseControl;
+			
+			private var treeDataCacheObj:Object = new Object();
+			private var deleteCacheObj:Object = new Object();
+			private var pointsCacheObj:Object = new Object();
+			private var moIdCache:Object = new Object();
+			
+			[Embed(source='assets/jizhan_2G.png')]
+			private var jizhan_2G:Class;
+			[Embed(source='assets/jizhan_3G.png')]
+			private var jizhan_3G:Class;
+			[Embed(source='assets/wlan.png')]
+			private var wlan:Class;
+			[Embed(source='assets/jizhan.png')]
+			private var jizhan:Class;
+			[Embed(source='assets/site.png')]
+			private var site:Class;
+			
+			private var picFeatureArray:Array = new Array();
+			private var labelFeatureArray:Array = new Array();
+			
+			private var areaFeatureCacheObj:Object = new Object;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.config.mapchoose.MapChoose");
+			
+			private var editFlag:Boolean = false;
+			
+			private var b1:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0x000000,0.6,2);
+			private var s1:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x0000FF,0.1,b1);
+			
+			public var parameters:Object;		
+			protected function mapChooseModule_creationComplete(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+				//初始化日志
+				var target:ILoggingTarget = new DeMonsterTarget();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.general.regional.config.mapchoose*", "com.linkage.module.cms.alarm*"];
+				Log.addTarget(target);
+				log.info("地图框选视图， 日志初始化完成。");
+				
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				log.info("地图框选视图， 样式加载完成。");
+				
+			}
+			
+			private function showEditData(monitorId:Object):void
+			{
+				log.info("编辑模式，  上次用户选择的数据 恢复...  monitorId:" + monitorId);
+				var index:String = new Date().getTime() + "_" + Math.random();
+				log.info("产生缓存tree数据的index：" + index);
+				
+				control.queryHasMapMo(monitorId, index);
+				
+				setTimeout(function():void
+				{
+					control.getAreaBorder({'monitor_id':monitorId}, index);
+				}, 2000);
+			}
+			
+			
+			protected function mapWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				control = new MapChooseControl(this);
+				
+				var monitorId:Object = this.parameters['monitorId'];
+				
+				log.info(" ---->  monitorId：" + monitorId);
+				
+				if(monitorId != null && monitorId != 'null' && monitorId != "")
+				{
+					log.info(" >>>>>>>>>>>>> 编辑模式 <<<<<<<<<<<<<<");
+					editFlag = true;
+					showEditData(monitorId);
+				}
+			}
+			
+			
+			protected function mapWork_draw_endHandler(event:GisDrawEvent):void
+			{
+				log.info(" 框选完成，查询框选范围内的网元信息。。。");
+				
+				//框选完成， 返回多边形顶点集合
+				
+				var param:Array = new Array();
+				var parts:Array = (event.gisFeature.gisMetry as GisRegion).parts;
+				
+				for each(var point:GisPoint in parts)
+				{
+					var pointObj:Object = new Object();
+					pointObj.x = point.x;
+					pointObj.y = point.y;
+					
+					log.info(">>>>>>>>>> 点信息， x:" + point.x + " y:" + point.y);
+					
+					param.push(pointObj);
+				}
+				
+				var index:String = new Date().getTime() + "_" + Math.random();
+				
+				//缓存框选区域的顶点信息
+				pointsCacheObj[index] = parts;
+				
+				log.info("产生缓存tree数据的index：" + index);
+				//根据顶点的经纬度 查询其间的网元
+				
+				//确定数据接口 格式  返回的信息
+				
+				control.queryMapContainsMo(param, index);
+				
+				//点击框选区域    显示其间的网元信息
+				
+//				event.gisFeature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,onGisFeatureClick);
+				event.gisFeature.onClick = onGisFeatureClick;
+				event.gisFeature.attributes = index;
+				event.gisFeature.buttonMode = true;	
+				mapWork.map.addGisFeatureMenu(event.gisFeature, "删除该区域", popupDealer);
+				
+				selectedWindow.visible = true;
+			}
+			
+			private function popupDealer(feature:GisFeature):void
+			{
+				treeDataCacheObj[feature.attributes] = null;
+				
+				if(lastXmlIndex == feature.attributes)
+				{
+					lastXmlIndex = null
+					treeData = new XML();
+				}
+				
+				pointsCacheObj[feature.attributes] = null;
+				
+				mapWork.map.removeGisFeature(feature);
+			}
+			
+			//撒点框选范围内的网元 信息到gis  并添加到已框选列表
+			
+			public function dealSelectedMos(resultData:Object, index:Object):void
+			{
+				log.info("处理查询的网元数据。。。  resultData:" + resultData);
+				
+				if(resultData == null || resultData == "")
+				{
+					log.info("查询框选网元数据为 空！");
+					return;
+				}
+				
+				log.info(" 缓存查询的数据： index：" + index);
+				treeDataCacheObj[index] = XML(resultData);
+				
+				//将本次框选的网元 添加到已框选树  、、确认接口是全量 还是增量数据。TODO
+				treeData = XML(resultData);
+				lastXmlIndex = index;
+				
+				selectedWindow.visible = true;
+				
+				forEachTree(treeData,
+					function(node:XML):void
+					{
+						log.info("处理网元：x:" + node.@x + " y:" + node.@y + " label:" + node.@label + " isSave:" + node.@isSave);
+						if(picFeatureArray.length>0 && picFeatureArray[node.@id] !=null)
+						{
+							log.info("该网元已经被框选过， 跳过不处理。。。");
+						}
+						else
+						{
+							if(node.@isSave == "1")
+							{
+								
+								var point:GisPoint = new GisPoint(Number(node.@x), Number(node.@y));
+								
+								var icon:Class = getIcon(node.@type);
+								
+								var picFeature:GisFeature = new GisFeature(point,new GisMarkerPictureStyle(icon));
+								var labelFeature:GisFeature = new GisFeature(point,new GisTextStyle(String(node.@label),0x000000,false,0,false,0xffffff,0,"middle",0,-30));
+//								picFeature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,onClick);
+								picFeature.onClick = onClick;
+								
+								picFeatureArray[node.@id]=picFeature;
+								labelFeatureArray[node.@id]=labelFeature;
+								
+								mapWork.map.addGisFeature(picFeature);
+								mapWork.map.addGisFeature(labelFeature);
+								
+								if(!areaFeatureCacheObj[index])
+								{
+									areaFeatureCacheObj[index] = new ArrayCollection();
+								}
+								
+								areaFeatureCacheObj[index].addItem(picFeature);
+								areaFeatureCacheObj[index].addItem(labelFeature);
+								
+								log.info("处理网元，添加feature到地图成功:" + node.@label);
+							}
+						}
+					});
+				
+				if(editFlag)
+				{
+					//					mapWork.map.viewRefresh();
+				}
+			}
+			
+			private function getIcon(type:String):Class
+			{
+				if(type == "jz_16")
+				{
+					return jizhan_2G;
+				}
+				else if(type == "jz_28")
+				{
+					return jizhan_3G;
+				}
+				else if(type.indexOf("host_") >= 0)
+				{
+					return wlan;
+				}
+				else if(type == "site_")
+				{
+					return site
+				}
+				return jizhan_2G;
+			}
+			
+			public function dealAreas(data:Object, index:Object):void
+			{
+				for each(var points:Object in data)
+				{
+					var tempIndex:Object = UIDUtil.createUID();
+					
+					var parts:Array = [];
+					for each(var p:Object in points)
+					{
+						parts.push(new GisPoint(Number(p['longitude']), Number(p['latitude'])));
+					}
+					
+					
+					//缓存框选区域的顶点信息
+					pointsCacheObj[tempIndex] = parts;
+					
+					//多边形样式
+					
+					var hexFeature:GisFeature = new GisFeature(new GisRegion(parts),s1);
+					hexFeature.autoMoveToTop = false;
+//					hexFeature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,onGisFeatureClick);
+					hexFeature.onClick = onGisFeatureClick;
+					hexFeature.attributes = String(tempIndex);
+					mapWork.map.addGisFeatureAt(hexFeature, 0);
+					//					mapWork.map.addGisFeatureMenu(hexFeature, "删除该区域", popupDealer);
+				}
+			}
+			
+			//展现 已框选网元 信息
+			private function onGisFeatureClick(gisFeature:GisFeature,event:MouseEvent):void
+			{
+				log.info(" 事件feature的attributes：" + gisFeature.attributes + " lastXmlIndex:" + lastXmlIndex);
+				treeDataCacheObj[lastXmlIndex] = treeData;
+				
+				if(treeDataCacheObj[gisFeature.attributes])
+					treeData = treeDataCacheObj[gisFeature.attributes];
+				else
+					treeData = new XML();
+				
+				lastXmlIndex = gisFeature.attributes;
+				
+				selectedWindow.visible = true;
+			}
+			
+			
+			//树点击处理    
+			protected function myTree_itemClickHandler(event:ListEvent):void
+			{
+				var selectedNode:XML = Tree(event.target).selectedItem as XML;
+				
+				if(Boolean(Number(selectedNode.@selected)))
+				{
+					selectedNode.@selected = Boolean(Number(selectedNode.@selected))? 0 : 1;
+				}
+				else
+				{
+					selectedNode.@selected=1;
+				}
+				
+				if(selectedNode.@isSave == "1")
+				{
+					mapWork.map.visiableGisFeature(picFeatureArray[selectedNode.@id],Boolean(Number(selectedNode.@selected)));
+					mapWork.map.visiableGisFeature(labelFeatureArray[selectedNode.@id],Boolean(Number(selectedNode.@selected)));
+				}
+				
+				//父子级联选择处理
+				forEachTree(selectedNode,
+					function(node:XML):void
+					{
+						node.@selected = selectedNode.@selected;
+						
+						if(node.@isSave == "1")
+						{
+							mapWork.map.visiableGisFeature(picFeatureArray[node.@id],Boolean(Number(node.@selected)));
+							mapWork.map.visiableGisFeature(labelFeatureArray[node.@id],Boolean(Number(node.@selected)));
+						}
+					});
+				
+				myTree.validateNow();
+			}
+			
+			
+			private function onClick(gisFeature:GisFeature,event:MouseEvent):void
+			{
+				selectedWindow.visible = true;
+			}
+			
+			private function forEachTree(node:XML, callback:Function=null):void
+			{
+				for each(var child:XML in node.children())
+				{
+					if(callback is Function)
+					{
+						callback.call(null,child);
+					}
+					
+					if(child.hasComplexContent())
+					{
+						forEachTree(child,callback);
+					}
+				}
+			}
+			
+			
+			protected function selectedWindow_closeHandler(event:WindowEvent):void
+			{
+				event.target.visible=false;
+			}
+			
+			
+			protected function saveBtn_clickHandler(event:MouseEvent):void
+			{
+				//把树的数据 放入缓存 
+				if(lastXmlIndex)
+					treeDataCacheObj[lastXmlIndex] = treeData;
+				
+				//完成选择  保存当前框选的网元信息
+				var selectedStr:String="";
+				
+				for each(var treeXml:XML in treeDataCacheObj)
+				{
+					if(treeXml == null)
+						continue;
+					
+					forEachTree(treeXml,
+						function(node:XML):void
+						{
+							if(moIdCache.hasOwnProperty(node.@id))
+							{
+								log.info("重复网元， 不拼接。");
+							}
+							else
+							{
+								if(Boolean(Number(node.@selected)) &&　node.@isSave == "1")//选中且是需要保存的类型
+								{
+									selectedStr += node.@type + "_" + 
+									node.@id + "_" + 
+									node.@label + "_" + 
+									node.@city_id + "_" + 
+									node.@x + "_" + 
+									node.@y + "@";
+									moIdCache[node.@id] = null;
+								}
+							}
+						});
+				}
+				
+				if(!StringUtils.isEmpty(selectedStr))
+				{
+					selectedStr = selectedStr.substr(0, selectedStr.lastIndexOf("@"));
+				}
+				
+				var pointsStr:String = "";
+				for each(var parts:Array in pointsCacheObj)
+				{
+					if(null == parts)
+						continue;
+					
+					var index:uint = 1;
+					
+					for each(var p:Object in parts)
+					{
+						pointsStr += index++ + "_" + p.x + "_" + p.y + "#";
+					}
+					
+					if(!StringUtils.isEmpty(pointsStr))
+					{
+						pointsStr = pointsStr.substr(0, pointsStr.lastIndexOf("#"));
+						pointsStr += "@";
+					}
+				}
+				
+				if(!StringUtils.isEmpty(pointsStr))
+				{
+					pointsStr = pointsStr.substr(0, pointsStr.lastIndexOf("@"));
+				}
+				
+				//				Alert.show("{'res':'" + selectedStr + "','areas':'" + pointsStr + "'}");
+				log.info("保存的框选信息：" +　"{'res':'" + selectedStr + "','areas':'" + pointsStr + "'}");
+				
+				//返回父页面 框选的网元信息
+				setTimeout(function():void
+				{
+					ExternalInterface.call("returnData", 
+						"{'res':'" + selectedStr + "','areas':'" + pointsStr + "'}");
+				}, 500);
+				
+			}
+			
+			protected function continueBtn_clickHandler(event:MouseEvent):void
+			{
+				selectedWindow.visible=false;
+			}
+			
+			protected function mapWork_draw_backHandler(event:GisDrawEvent):void
+			{
+				log.info("后退操作：" + event.gisFeature.attributes);
+				//缓存删除的区域中的网元信息
+				
+				deleteCacheObj[event.gisFeature.attributes] = treeDataCacheObj[event.gisFeature.attributes];
+				treeDataCacheObj[event.gisFeature.attributes] = null;
+				
+				if(event.gisFeature.attributes == lastXmlIndex)
+				{
+					lastXmlIndex = null;
+					treeData = new XML();
+				}
+				
+				log.info("后退操作，隐藏feature：" +　areaFeatureCacheObj[event.gisFeature.attributes].length);
+				hideShowFeatures(areaFeatureCacheObj[event.gisFeature.attributes], false);
+				
+				//删除缓存的当前feature的顶点信息。
+				
+				pointsCacheObj[event.gisFeature.attributes] = null;
+			}
+			
+			
+			protected function mapWork_draw_forwardHandler(event:GisDrawEvent):void
+			{
+				log.info("前进操作：" + event.gisFeature.attributes);
+				//恢复 网元信息
+				treeDataCacheObj[event.gisFeature.attributes] = deleteCacheObj[event.gisFeature.attributes];
+				treeData = treeDataCacheObj[event.gisFeature.attributes];
+				lastXmlIndex = event.gisFeature.attributes;
+				
+				log.info("前进操作，显示feature：" +　areaFeatureCacheObj[event.gisFeature.attributes].length);
+				hideShowFeatures(areaFeatureCacheObj[event.gisFeature.attributes], true);
+				
+				//恢复 顶点信息
+				pointsCacheObj[event.gisFeature.attributes] = (event.gisFeature.gisMetry as GisRegion).parts;
+			}
+			
+			private function hideShowFeatures(data:Object, showFlag:Boolean):void
+			{
+				for each(var f:GisFeature in data)
+				{
+					if(showFlag)
+						mapWork.map.addGisFeature(f);	
+					else
+						mapWork.map.removeGisFeature(f);	
+				}
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<gis:MapWork id="mapWork"
+				 width="100%"
+				 height="100%"
+				 showDrawToolBar="true"
+				 showOverView="false"
+				 showToolBar="false"
+				 draw_end="mapWork_draw_endHandler(event)" 
+				 draw_back="mapWork_draw_backHandler(event)"
+				 draw_forward="mapWork_draw_forwardHandler(event)"
+				 mapCreationComplete="mapWork_mapCreationCompleteHandler(event)"
+				 >
+	</gis:MapWork>
+	
+	<panel:Window title="框选基站名称" 
+				  id="selectedWindow" 
+				  visible="false" 
+				  width="260" 
+				  height="400"
+				  top="40" 
+				  right="50" 
+				  dragable="true" 
+				  maximizable="false" 
+				  close="selectedWindow_closeHandler(event)">
+		<s:VGroup width="100%" height="100%" 
+				  horizontalAlign="center">
+			<mx:Tree id="myTree"
+					 dataProvider="{treeData}"
+					 width="100%"
+					 height="100%"
+					 borderAlpha="0"
+					 verticalAlign="middle"
+					 contentBackgroundAlpha="0"
+					 showRoot="false"
+					 showScrollTips="true"
+					 wordWrap="false"
+					 variableRowHeight="true"
+					 labelField="@label"
+					 editorHeightOffset="0"
+					 fontWeight="normal"
+					 fontSize="12"
+					 indentation="12"
+					 paddingLeft="10" 
+					 horizontalScrollPolicy="auto"
+					 folderClosedIcon="{null}" 
+					 itemClick="myTree_itemClickHandler(event)"
+					 folderOpenIcon="{null}"
+					 defaultLeafIcon="{null}"
+					 disclosureClosedIcon="@Embed('assets/+.png')"
+					 disclosureOpenIcon="@Embed('assets/-.png')" 
+					 itemRenderer="com.linkage.module.cms.general.regional.config.mapchoose.renderer.MapChooseTreeRenderer"/>
+			<s:HGroup width="100%" horizontalAlign="center" height="20">
+				<s:Button label="继续选择" id="continueBtn" click="continueBtn_clickHandler(event)" buttonMode="true"/>
+				<s:Button label="完成选择" id="saveBtn" click="saveBtn_clickHandler(event)" buttonMode="true"/>
+			</s:HGroup>
+		</s:VGroup>
+	</panel:Window>
+</mx:Module>

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					styleName="sceneBorderContainer" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:layout>
+		<s:HorizontalLayout paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5"/>
+	</s:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<parsley:Configure/>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.mapview.MapViewDM;
+			import com.linkage.module.cms.gsscene.view.components.mapview.MapViewPM;
+			
+			private var log:ILogger = Log.getLoggerByClass(MapGisCollectNew);
+			
+			[Bindable]
+			private var isLTEflag:Boolean = false;
+			
+			[Bindable]
+			private var gmsQuits:String = "";
+			[Bindable]
+			private var tdQuits:String = "";
+			[Bindable]
+			private var lteQuits:String = "";
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+//			[Bindable]
+//			[Inject("mapViewPM")]
+//			public var mapViewPM:MapViewPM;
+//			
+//			[Inject("mapViewDM")]
+//			public var mapViewDM:MapViewDM;
+			
+//			[MessageHandler(selector="GIS_CHANGE")]//切换到图层时需要加载
+//			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+//			public function loadData(event:SceneEvent = null):void
+//			{
+//				if(this.visible){
+//					loadA();
+//				}
+//			}
+//			private function loadA():void
+//			{
+//				log.info("gis视图 加载退服数据！");
+//				requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_GIS_QUIT_NUM));
+//			}
+			
+			[MessageHandler(selector="SHOW_GIS_QUIT_NUM")]
+			public function dyeMapHandler(e:SceneEvent = null):void
+			{
+				log.info("获取成功");
+				if ("2" == user.logicalType)
+				{//LTE
+					isLTEflag = true;
+				}
+				seeMapCollectTips();
+			}
+			public function seeMapCollectTips():void
+			{
+				log.info("[GIS地图]传过来的数据集为map");
+				var gisMap:Object = scenePM.mapViewDM.gisQuitCollect;
+				log.info(gisMap);
+				var data:Object = gisMap;
+				gmsQuits = data.gsmQuitNum + "/" + data.gsmTotalNum;
+				tdQuits = data.tdQuitNum + "/" + data.tdTotalNum;
+				lteQuits = data.lteQuitNum + "/" + data.lteTotalNum;
+				if (isLTEflag)
+				{//LTE
+					this.height=25;
+				}else
+				{//非LTE
+					this.height=65;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup>
+		<s:HGroup visible="{!isLTEflag}" includeInLayout="{!isLTEflag}">
+			<s:Label text="GSM退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{gmsQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+		<s:HGroup visible="{!isLTEflag}" includeInLayout="{!isLTEflag}">
+			<s:Label text="TD退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{tdQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+		<s:HGroup>
+			<s:Label text="LTE退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{lteQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+	</s:VGroup>
+</s:BorderContainer>

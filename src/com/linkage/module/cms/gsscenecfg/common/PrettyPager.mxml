@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          width="100%"
+          horizontalAlign="right"
+          verticalAlign="middle"
+          paddingRight="5"
+          paddingBottom="5"
+          paddingTop="5"
+          paddingLeft="5"
+          gap="5">
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+
+            private var _currentPage:int = 0;
+            private var _totalPage:int = 0;
+            private var _totalRows:int = 0;
+            private var _pageSize:int = 0;
+
+            public var pageChange:Function;
+
+            [Bindable]
+            public function get pageSize():int
+            {
+                return _pageSize;
+            }
+
+            public function set pageSize(value:int):void
+            {
+                _pageSize = value;
+            }
+
+            public function get totalRows():int
+            {
+                return _totalRows;
+            }
+
+            public function set totalRows(value:int):void
+            {
+                _totalRows = value;
+
+                totalPage = int(Math.ceil(_totalRows / pageSize));
+            }
+
+            [Bindable]
+            public function get totalPage():int
+            {
+                return _totalPage;
+            }
+
+            public function set totalPage(value:int):void
+            {
+                _totalPage = value;
+            }
+
+            [Bindable]
+            public function get currentPage():int
+            {
+                return _currentPage;
+            }
+
+            public function set currentPage(value:int):void
+            {
+                _currentPage = value;
+            }
+
+            protected function changPage(page:int):void
+            {
+                currentPage = page;
+                pageChange.call();
+            }
+
+            protected function pageInput_keyUpHandler(event:KeyboardEvent):void
+            {
+                if (pageInput.text != null && pageInput.text != "")
+                    if (nvd.validate().type == "valid")
+                        if (event.keyCode == 13)
+                        {
+                            pageSize = int(pageSizeInput.text);
+                            currentPage = int(pageInput.text);
+                            pageInput.text = "";
+                            pageChange.call();
+                        }
+            }
+
+            protected function jumpPageBtn_clickHandler(event:MouseEvent):void
+            {
+                if (pageInput.text != null && pageInput.text != "")
+                    if (nvd.validate().type == "valid")
+                    {
+                        pageSize = int(pageSizeInput.text);
+                        currentPage = int(pageInput.text);
+                        pageInput.text = "";
+                        pageChange.call();
+                    }
+            }
+
+            protected function page_keyUpHandler(event:KeyboardEvent):void
+            {
+                if (nvd2.validate().type == "valid")
+                    if (event.keyCode == 13)
+                    {
+                        pageSize = int(pageSizeInput.text);
+                        pageChange.call();
+                    }
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+        <mx:NumberValidator id="nvd"
+                            domain="int"
+                            source="{pageInput}"
+                            property="text"
+                            maxValue="{totalPage}"
+                            required="false"
+                            minValue="1"
+                            integerError="{'请输入1~' + totalPage + '之间的整数'}"
+                            exceedsMaxError="{'请输入1~' + totalPage + '之间的整数'}"
+                            lowerThanMinError="{'请输入1~' + totalPage + '之间的整数'}"/>
+        <mx:NumberValidator id="nvd2"
+                            domain="int"
+                            source="{pageSizeInput}"
+                            property="text"
+                            maxValue="9999"
+                            required="false"
+                            minValue="1"
+                            integerError="请输入10~9999之间的整数"
+                            exceedsMaxError="请输入10~9999之间的整数"
+                            lowerThanMinError="请输入10~9999之间的整数"/>
+    </fx:Declarations>
+
+    <mx:Button id="firstPageBtn"
+               width="20"
+               toolTip="首页"
+               visible="{currentPage > 1}"
+               click="changPage(1)"
+               icon="@Embed('../img/page_first.png')"/>
+    <mx:Button id="prePageBtn"
+               width="20"
+               toolTip="上一页"
+               visible="{currentPage > 1}"
+               click="changPage(currentPage - 1)"
+               icon="@Embed('../img/page_previous.png')"/>
+
+    <s:HGroup gap="2"
+              toolTip="{'第'+ currentPage +'页， 共'+ totalPage +'页'}"
+              verticalAlign="middle">
+        <s:Label id="currentPageLabel"
+                 width="45"
+                 textAlign="center"
+                 text="{currentPage}"/>
+        <s:Label text="/"/>
+        <s:Label id="totalPageLabel"
+                 width="45"
+                 textAlign="center"
+                 text="{totalPage}"/>
+    </s:HGroup>
+
+    <mx:Button id="nextPageBtn"
+               width="20"
+               toolTip="下一页"
+               click="changPage(currentPage + 1)"
+               visible="{!(currentPage >= totalPage)}"
+               icon="@Embed('../img/page_next.png')"/>
+    <mx:Button id="lastPageBtn"
+               width="20"
+               toolTip="末页"
+               click="changPage(totalPage)"
+               visible="{!(currentPage >= totalPage)}"
+               icon="@Embed('../img/page_last.png')"/>
+
+    <s:TextInput id="pageInput"
+                 keyUp="pageInput_keyUpHandler(event)"
+                 textAlign="center"
+                 width="30"/>
+    <mx:Button id="jumpPageBtn"
+               width="20"
+               toolTip="{'跳转到' + pageInput.text}"
+               click="jumpPageBtn_clickHandler(event)"
+               icon="@Embed('../img/page_jump.png')"/>
+
+    <s:HGroup gap="0"
+              paddingLeft="10"
+              verticalAlign="middle">
+        <s:Label text="每页  "/>
+        <s:TextInput id="pageSizeInput"
+                     width="40"
+                     text="{pageSize}"
+                     keyUp="page_keyUpHandler(event)"
+                     textAlign="center"/>
+        <s:Label text=" 条"/>
+    </s:HGroup>
+</s:HGroup>

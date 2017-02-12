@@ -1,0 +1,725 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:gis="com.linkage.gis.*"
+		 xmlns:windows="com.linkage.module.cms.perfmonitor.subject.mapview.windows.*"
+		 xmlns:cms="http://www.ailk.com/2011/cms"
+		 xmlns:dynamicdropdown="com.linkage.module.cms.components.dynamicdropdown.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.core.styles.GisMarkerPredefinedStyle;
+			import com.linkage.gis.core.styles.GisMarkerStyle;
+			import com.linkage.gis.event.GisExtentEvent;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.components.dynamicdropdown.events.DynamicDropDownEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.subject.common.ImageFactory;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectHotSpotService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+
+			import mx.collections.ArrayCollection;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			private var _commonService:SubjectInterfaceCommService;
+
+			private var _hotspotService:SubjectHotSpotService;
+
+			private var testData:ArrayCollection = new ArrayCollection([
+				{"mo_id": "1", "mo_name": "test", "longitude": "118.83998", "latitude": "31.952909", "mo_type_id": "101"},
+				{"mo_id": "2", "mo_name": "test", "longitude": "118.83998", "latitude": "31.954909", "mo_type_id": "102"},
+				{"mo_id": "3", "mo_name": "test", "longitude": "118.83998", "latitude": "31.956909", "mo_type_id": "16"},
+				{"mo_id": "4", "mo_name": "test", "longitude": "118.892198", "latitude": "31.323503", "mo_type_id": "101"},
+				{"mo_id": "5", "mo_name": "test", "longitude": "118.892198", "latitude": "31.327503", "mo_type_id": "102"},
+				{"mo_id": "6", "mo_name": "test", "longitude": "118.892198", "latitude": "31.325503", "mo_type_id": "16"}
+				]);
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.mapview.HotspotMap");
+
+			[Embed(source="../img/cell.png")]
+			private static var cellPic:Class;
+
+			private var cellMap:Dictionary = new Dictionary();
+
+			//右键菜单链接
+			private static var cellDetailURL:String = "cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=";
+			private static var perfDetailURL:String = "cms/performance/report/permsg!initForm.action";
+			private static var alarmDetailURL:String = "cms/warn/report/query/ShowAlarmList.jsp";
+			private var _context:String = "cms/";
+
+			//等待提示
+			private var loadInfo:LoadManager = new LoadManager(this, "blue");
+			;
+
+			//图片
+			private var imgFactory:ImageFactory = new ImageFactory();
+
+			private var _isDebug:Boolean = false;
+
+			//记录当前地图状态
+			private var mapScale:Number = 0;
+			private var mapXmax:Number = 0;
+			private var mapXmin:Number = 0;
+			private var mapYmax:Number = 0;
+			private var mapYmin:Number = 0;
+
+			//当前的热点类型
+			private var hotspotId:String = "";
+
+			//图层链接
+			private var layerURL:String = "";
+
+			//选定热点范围中的网元列表
+			public var hotspotMoList:ArrayCollection = new ArrayCollection();
+
+			private var btsQuitNum:int = 0;
+			private var cellQuitNum:int = 0;
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get context():String
+			{
+				return _context;
+			}
+
+			public function set context(value:String):void
+			{
+				_context = value;
+			}
+
+			public function get hotspotService():SubjectHotSpotService
+			{
+				return _hotspotService;
+			}
+
+			public function set hotspotService(value:SubjectHotSpotService):void
+			{
+				_hotspotService = value;
+				this.perfInfo.hotspotService = _hotspotService;
+			}
+
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			protected function mapWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				dynamicDropDown.visible = dynamicDropDown.includeInLayout = false;
+
+				if(this.hotspotId == "1")
+				{
+					layerURL = "http://10.40.4.111:8399/arcgis/rest/services/lianchuang/SCHOOL_LC/MapServer";
+				}
+				else if(this.hotspotId == "2")
+				{
+					layerURL = "http://10.40.4.111:8399/arcgis/rest/services/lianchuang/GOVERNMENT_LC/MapServer";
+				}
+				else if(this.hotspotId == "3")
+				{
+					layerURL = "http://10.40.4.111:8399/arcgis/rest/services/lianchuang/RAILWAY_LC/MapServer";
+				}
+				else if(this.hotspotId == "4")
+				{
+					layerURL = "http://10.40.4.111:8399/arcgis/rest/services/lianchuang/STATION_LC/MapServer";
+				}
+				else if(this.hotspotId == "5")
+				{
+					layerURL = "http://10.40.4.111:8399/arcgis/rest/services/lianchuang/AIRPORT_LC/MapServer";
+				}
+				else
+				{
+					layerURL = "http://10.40.4.111:8399/arcgis/rest/services/lianchuang/SCHOOL_LC/MapServer";
+				}
+				this.mapWork.map.showWMSLayer(layerURL);
+
+				this.mapWork.map.removeAllGisFeature();
+				cellMap = new Dictionary();
+
+				var paramMap:Object = new Object();
+				paramMap.hotspot_id = this.hotspotId;
+
+				_hotspotService.hotspotCellGisInfo(paramMap, loadGisDataSucc, null, loadGisDataErr);
+			}
+
+			public function initData(hotspotTypeId:String):void
+			{
+				this.hotspotId = hotspotTypeId;
+				this.perfInfo.hotspotId = hotspotTypeId;
+				var paramMap:Object = new Object();
+				paramMap.hotspot_id = this.hotspotId;
+
+				//加载概况信息
+				_hotspotService.hotspotGeneralStat(paramMap, loadGeneralSucc, null, loadGeneralErr);
+				perfInfo.initData();
+			}
+
+			//重新加载地图
+			public function reloadData(moList:ArrayCollection, areaId:String = ""):void
+			{
+				hotspotMoList = moList;
+
+				//找到第一个网元，定位过去
+				if(hotspotMoList.length > 0)
+				{
+					var feature:GisFeature = (cellMap[hotspotMoList.getItemAt(0)] as GisFeature);
+					if(feature != null)
+					{
+						//定位过去
+						this.mapWork.map.zoomToScale(16000, new GisPoint(Number(feature.attributes.longitude), Number(feature.attributes.latitude)));
+					}
+				}
+
+				//重新加载概况信息
+				var paramMap:Object = new Object();
+				if(areaId != "")
+				{
+					paramMap.area_id = areaId;
+				}
+				else
+				{
+					paramMap.hotspot_id = this.hotspotId;
+				}
+
+				_hotspotService.hotspotGeneralStat(paramMap, reloadGeneralSucc, null, reloadGeneralErr);
+			}
+
+			public function mapDirection(longitude:String, latitude:String, scale:String):void
+			{
+				this.mapWork.map.zoomToScale(64000, new GisPoint(Number(longitude), Number(latitude)));
+			}
+
+			private function loadGisDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载GIS数据成功！");
+					initMapView(obj);
+				}
+				else
+				{
+					log.info("加载GIS数据为空！");
+					if(_isDebug)
+					{
+						initMapView(testData);
+					}
+					loadInfo.hideLoading();
+				}
+			}
+
+			private function loadGisDataErr(obj:Object):void
+			{
+				log.info("加载GIS数据失败！" + obj);
+				if(_isDebug)
+				{
+					initMapView(testData);
+				}
+				loadInfo.hideLoading();
+			}
+
+			private function initMapView(obj:Object):void
+			{
+				var count:int = 0;
+				var btsCount:int = 0;
+				var cellCount:int = 0;
+				searchResult = obj as ArrayCollection;
+				for each(var mo:Object in obj)
+				{
+					var type:String = "";
+					var type1:String = "";
+
+					if(mo.mo_type_id == "16")
+					{
+						type = "bts";
+						type1 = "2g";
+
+						btsCount++;
+						if(mo.quitFlag == '1')
+							btsQuitNum++;
+					}
+					else if(mo.mo_type_id == "28")
+					{
+						type = "bts";
+						type1 = "3g";
+
+						btsCount++;
+						if(mo.quitFlag == '1')
+							btsQuitNum++;
+					}
+					else if(mo.mo_type_id == "101")
+					{
+						type = "cell";
+						type1 = "2g";
+
+						cellCount++;
+						if(mo.quitFlag == '1')
+							cellQuitNum++;
+					}
+					else if(mo.mo_type_id == "102")
+					{
+						type = "cell";
+						type1 = "3g";
+
+						cellCount++;
+						if(mo.quitFlag == '1')
+							cellQuitNum++;
+					}
+
+
+					if(mo.quitFlag == '1')
+					{
+						var f:GisFeature = new GisFeature(new GisPoint(Number(mo.longitude), Number(mo.latitude)), new GisMarkerPredefinedStyle(GisMarkerStyle.STYLE_CIRCLE, 9, 0xFF0000));
+						f.attributes = mo;
+						this.mapWork.map.addGisFeature(f);
+					}
+
+
+					var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imgFactory.getImage(type, mo.alarmseverity, type1, ""));
+					var feature:GisFeature = new GisFeature(new GisPoint(Number(mo.longitude), Number(mo.latitude)), pic);
+					mo.isShow = "false";
+					feature.attributes = mo;
+					feature.toolTip = mo.mo_name;
+					cellMap[mo.mo_id] = feature;
+
+					count++;
+				}
+
+				this.generalInfo.appenData(btsQuitNum, cellQuitNum);
+//				log.info("添加基站退服数据，btsQuitNum：" + btsQuitNum);
+//                this.generalInfo.appenData(btsQuitNum, null);
+
+				this.generalInfo.visible = true;
+				this.generalInfo.includeInLayout = true;
+
+				loadInfo.hideLoading();
+			}
+
+			private function loadGeneralSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载热点概况信息成功！");
+					//生成概况信息
+					this.generalInfo.visible = true;
+					this.generalInfo.includeInLayout = true;
+					this.generalInfo.initData(obj);
+				}
+				else
+				{
+					log.info("加载热点概况信息为空！");
+					if(_isDebug)
+					{
+						this.generalInfo.initData(null);
+					}
+				}
+			}
+
+			private function loadGeneralErr(obj:Object):void
+			{
+				log.info("加载热点概况信息失败！" + obj);
+				if(_isDebug)
+				{
+					this.generalInfo.initData(null);
+				}
+			}
+
+			private function reloadGeneralSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载热点概况信息成功！");
+
+					//计算范围内的退服AP
+					if(hotspotMoList != null && hotspotMoList.length > 0)
+					{
+						var btsNum:int = 0;
+						var cellNum:int = 0;
+						for each(var moId:String in hotspotMoList)
+						{
+							var feature:GisFeature = (cellMap[hotspotMoList.getItemAt(0)] as GisFeature);
+							feature.attributes
+							if(feature != null)
+							{
+								if(feature.attributes.mo_type_id == "16")
+								{
+									if(feature.attributes.quitFlag == '1')
+										btsNum++;
+								}
+								else if(feature.attributes.mo_type_id == "28")
+								{
+									if(feature.attributes.quitFlag == '1')
+										btsNum++;
+								}
+								else if(feature.attributes.mo_type_id == "101")
+								{
+									if(feature.attributes.quitFlag == '1')
+										cellNum++;
+								}
+								else if(feature.attributes.mo_type_id == "102")
+								{
+									if(feature.attributes.quitFlag == '1')
+										cellNum++;
+								}
+							}
+						}
+
+						this.generalInfo.appenData(btsNum, cellNum);
+					}
+					else
+					{
+						this.generalInfo.appenData(btsQuitNum, cellQuitNum);
+					}
+
+					//生成概况信息
+					this.generalInfo.visible = true;
+					this.generalInfo.includeInLayout = true;
+					this.generalInfo.reloadData(obj);
+				}
+				else
+				{
+					log.info("加载热点概况信息为空！");
+					if(_isDebug)
+					{
+						this.generalInfo.reloadData(null);
+					}
+				}
+			}
+
+			private function reloadGeneralErr(obj:Object):void
+			{
+				log.info("加载热点概况信息失败！" + obj);
+				if(_isDebug)
+				{
+					this.generalInfo.reloadData(null);
+				}
+			}
+
+			//右键菜单处理函数
+			private function popupDealer(feature:GisFeature):void
+			{
+				//根据网元id加载相关页面
+				var cellId:Object = feature.attributes['mo_id'];
+				var mo_type:Object = feature.attributes['mo_type_id'];
+				var url:String = "";
+
+				//菜单名称
+				switch(feature.attributes.selectMenuName)
+				{
+					case "资源信息":
+						url = (cellDetailURL + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+
+					case "告警信息":
+						url = (alarmDetailURL + "?alarmStatus=1&neId=" + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+
+					case "性能信息":
+						url = (perfDetailURL + "?moId=" + cellId + "&moTypeId=" + mo_type).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+				}
+			}
+
+			//定位到网元
+			public function locationMo(moId:String):void
+			{
+				if(cellMap[moId] != null)
+				{
+					var f:GisFeature = cellMap[moId] as GisFeature;
+					var p:GisPoint = f.gisMetry as GisPoint;
+					this.mapWork.map.zoomToScale(32000, p);
+				}
+			}
+
+			private function reloadMap(gis:GisExtentEvent):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+
+				this.mapScale = this.mapWork.map.scale;
+				this.mapXmax = gis.extent.xmax;
+				this.mapXmin = gis.extent.xmin;
+				this.mapYmax = gis.extent.ymax;
+				this.mapYmin = gis.extent.ymin;
+
+				if(this.mapScale < 100000)
+				{
+					//显示范围内的网元
+					showMo();
+
+					this.mapWork.map.hideWMSLayer(layerURL);
+				}
+				else
+				{
+					//隐藏所有网元
+					hiddenMo();
+
+					this.mapWork.map.showWMSLayer(layerURL);
+				}
+
+				loadInfo.hideLoading();
+			}
+
+			private function hiddenMo():void
+			{
+				var feature:GisFeature = null;
+				var cell:Object = null;
+				for each(var obj:Object in cellMap)
+				{
+					feature = (obj as GisFeature);
+					if(feature != null && feature.attributes != null && feature.attributes.isShow == "true")
+					{
+						this.mapWork.map.removeGisFeature(feature);
+						feature.attributes.isShow = "false";
+					}
+				}
+			}
+
+			private function showMo():void
+			{
+				var feature:GisFeature = null;
+				var cell:Object = null;
+				for each(var obj:Object in cellMap)
+				{
+					feature = (obj as GisFeature);
+					if(feature != null && feature.attributes != null)
+					{
+						if(checkFeaturePosition(feature))
+						{
+							if(feature.attributes.isShow == "false")
+							{
+								//如果选择了指定热点，则显示，否则不显示
+								if(hotspotMoList.length == 0 || hasHotspotMo(feature.attributes.mo_id))
+								{
+									this.mapWork.map.addGisFeature(feature);
+									this.mapWork.map.addGisFeatureMenu(feature, "资源信息", popupDealer);
+									this.mapWork.map.addGisFeatureMenu(feature, "告警信息", popupDealer);
+									this.mapWork.map.addGisFeatureMenu(feature, "性能信息", popupDealer);
+
+									feature.attributes.isShow = "true";
+
+									//如果图层没有选择，默认隐藏
+									if(!this.hotspotFilter.filterObject(feature.attributes))
+									{
+										this.mapWork.map.visiableGisFeature(feature, false);
+									}
+								}
+							}
+						}
+						else
+						{
+							if(feature.attributes.isShow == "true")
+							{
+								this.mapWork.map.removeGisFeature(feature);
+
+								feature.attributes.isShow = "false";
+							}
+						}
+					}
+				}
+			}
+
+			private function hasHotspotMo(moId:String):Boolean
+			{
+				for each(var mo:String in hotspotMoList)
+				{
+					if(mo == moId)
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			//检查对象经纬度
+			private function checkFeaturePosition(feature:GisFeature):Boolean
+			{
+				var p:GisPoint = feature.gisMetry as GisPoint;
+				var x:Number = p.x;
+				var y:Number = p.y;
+
+				if(x < this.mapXmax && x > this.mapXmin && y < this.mapYmax && y > this.mapYmin)
+				{
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+
+			protected function mapWork_toolbar_legendHandler(event:MapEvent):void
+			{
+
+			}
+
+			private function refreshView(type:Object, subType:Object):void
+			{
+				if(type == 'general')
+				{
+					this.generalInfo.visible = subType;
+				}
+				else if(type == 'perf')
+				{
+					this.perfInfo.visible = subType;
+				}
+				else
+				{
+					var feature:GisFeature = null;
+					for each(var obj:Object in cellMap)
+					{
+						feature = (obj as GisFeature);
+						if(feature != null && feature.attributes != null)
+						{
+							if(feature.attributes.isShow == "true")
+							{
+								if(this.hotspotFilter.filterObject(feature.attributes))
+								{
+									this.mapWork.map.visiableGisFeature(feature, true);
+								}
+								else
+								{
+									this.mapWork.map.visiableGisFeature(feature, false);
+								}
+							}
+						}
+					}
+				}
+			}
+
+
+			protected function mapWork_toolbar_picLayerHandler(event:MapEvent):void
+			{
+				hotspotFilter.visible = !hotspotFilter.visible;
+			}
+
+
+			private var searchResult:ArrayCollection;
+			private var filterFunction:Function;
+
+			protected function dynamicdropdown_keyWordQueryHandler(event:DynamicDropDownEvent):void
+			{
+				// TODO Auto-generated method stub
+				var keyword:String = DynamicDropDown(event.target).keyWord;
+
+				searchResult.filterFunction = getFilterfunciton(keyword);
+				searchResult.refresh();
+				searchSiteHandler(searchResult);
+			}
+
+			private function searchSiteHandler(result:Object):void
+			{
+				var evt:DynamicDropDownEvent = new DynamicDropDownEvent(DynamicDropDownEvent.DATALISTCHANGE);
+				dynamicDropDown.listData = ArrayCollection(result);
+				dynamicDropDown.dispatchEvent(evt);
+			}
+
+			protected function dynamicdropdown_dataSelectedHandler(event:DynamicDropDownEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object = dynamicDropDown.selectedItem;
+				this.mapWork.map.zoomToScale(2000, new GisPoint(Number(data.longitude), Number(data.latitude)));
+			}
+
+
+			protected function dynamicDropDown_queryHandler(event:DynamicDropDownEvent):void
+			{
+				var keyword:String = DynamicDropDown(event.target).keyWord;
+				searchResult.filterFunction = getFilterfunciton(keyword);
+				searchResult.refresh();
+				searchSiteHandler(searchResult);
+			}
+
+			private function getFilterfunciton(keyword:String):Function
+			{
+				var filterfunc:Function = function(item:Object):Boolean{
+						if(String(item.mo_name).indexOf(keyword) != -1){
+							return true;
+						}
+						return false;
+					};
+				return filterfunc;
+			}
+
+
+			protected function mapWork_toolbar_gotoHandler(event:MapEvent):void
+			{
+				// TODO Auto-generated method stub
+				dynamicDropDown.dispatchEvent(new DynamicDropDownEvent(DynamicDropDownEvent.INIT));
+				dynamicDropDown.visible = dynamicDropDown.includeInLayout = dynamicDropDown.visible ? false : true;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:BorderContainer id="nowGroup"
+					   width="100%"
+					   height="100%"
+					   styleName="commonBorderContainer">
+		<gis:MapWork id="mapWork"
+					 width="100%"
+					 height="100%"
+					 showOverView="false"
+					 extent_change="reloadMap(event)"
+					 mapCreationComplete="mapWork_mapCreationCompleteHandler(event)"
+					 toolbar_legend="mapWork_toolbar_legendHandler(event)"
+					 toolbar_picLayer="mapWork_toolbar_picLayerHandler(event)"
+					 toolbar_goto="mapWork_toolbar_gotoHandler(event)">
+		</gis:MapWork>
+
+		<dynamicdropdown:DynamicDropDown visible="false"
+										 includeInLayout="false"
+										 top="55"
+										 left="55"
+										 id="dynamicDropDown"
+										 labelField="mo_name"
+										 width="200"
+										 dropDownHeight="200"
+										 keyWordQuery="dynamicdropdown_keyWordQueryHandler(event)"
+										 dataSelected="dynamicdropdown_dataSelectedHandler(event)"
+										 query="dynamicDropDown_queryHandler(event)"/>
+	</s:BorderContainer>
+
+	<windows:HotspotGeneralInfo id="generalInfo"
+								right="5"
+								top="0"/>
+
+	<windows:HotSpotPerfInfo id="perfInfo"
+							 right="327"
+							 top="0"
+							 visible="false"/>
+
+	<windows:HotspotFilterDiv id="hotspotFilter"
+							  visible="false"
+							  callBack="refreshView"
+							  x="55"
+							  y="45"/>
+
+</s:Group>

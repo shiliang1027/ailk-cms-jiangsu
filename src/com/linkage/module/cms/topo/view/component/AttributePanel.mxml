@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+						 title="属性"
+						 width="400"
+						 minWidth="180"
+						 minHeight="24"
+						 dragable="true"
+						 close="closePanel()"
+						 resizable="true"
+						 maximizable="false"
+						 creationComplete="window_creationCompleteHandler()">
+	<panel:layout>
+		<s:HorizontalLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.cms.topo.event.TopoEventTypes;
+			import com.linkage.module.topo.framework.controller.event.CanvasEvent;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.core.model.element.IElement;
+			import com.linkage.module.topo.framework.core.model.element.line.ILink;
+			import com.linkage.module.topo.framework.core.model.element.point.INode;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.XMLListCollection;
+
+			// log
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.view.component.AttributePanel");
+			// CMS数据源
+			private var _cmsDataSource:ICmsDataSource = null;
+			// loading
+			private var _loading:ILoadingInfo = null;
+
+			// 数据列表
+			[Bindable]
+			private var _dataList:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			private var _linkDataList:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			private var _moADataList:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			private var _moZDataList:XMLListCollection = new XMLListCollection();
+
+			// 当前选中的网元
+			private var _currentElement:IElement = null;
+
+			// 链路属性面板选择的index
+			[Bindable]
+			private var _linkAttrTabSelectedIndex:int = 0;
+
+			// -------------- 是否初始化完成的标志位 ---------------
+			private var _linkInit:Boolean = false;
+			private var _moAInit:Boolean = false;
+			private var _moZInit:Boolean = false;
+
+
+			private function window_creationCompleteHandler():void
+			{
+				_loading = LoadingManager.getInstance().loadingInfo;
+			}
+
+			/**
+			 * 显示
+			 */
+			private function showPanel():void
+			{
+				show();
+				//  注册事件
+				_topoCanvas.addEventListener(CanvasEvent.SET_TO_SELECTED, handler_setToSelected);
+			}
+
+			/**
+			 * 隐藏
+			 */
+			private function closePanel():void
+			{
+				hide();
+				// 销毁事件
+				_topoCanvas.removeEventListener(CanvasEvent.SET_TO_SELECTED, handler_setToSelected);
+			}
+
+			/**
+			 * 注入CMS数据源
+			 */
+			public function set dataSourceCms(value:ICmsDataSource):void
+			{
+				_cmsDataSource = value;
+			}
+
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				super.topoCanvas = value;
+
+				_topoCanvas.addEventListener(TopoEvent.ATTRIBUTE_TOGGLE, function(event:TopoEvent):void
+					{
+						if (showStatus)
+						{
+							closePanel();
+						}
+						else
+						{
+							showPanel();
+						}
+					});
+
+				_topoCanvas.addEventListener(TopoEventTypes.SHOW_ATTRIBUTE, function(event:TopoEvent):void
+					{
+						// 如果面板隐藏了,需要显示出来
+						if (!showStatus)
+						{
+							showPanel();
+						}
+						// 查询属性
+						showAttribute(event.feature.element);
+					});
+			}
+
+			/**
+			 * 捕获网元选中事件
+			 */
+			private function handler_setToSelected(event:CanvasEvent):void
+			{
+				showAttribute(event.feature.element);
+			}
+
+			/**
+			 * 显示网元属性
+			 */
+			private function showAttribute(element:IElement):void
+			{
+				if (_currentElement == element && element is INode)
+				{
+					// 是同一网元,无需再查询
+					return;
+				}
+				_currentElement = element;
+				if (element is INode)
+				{
+					showNodeAttribute(element as INode);
+				}
+				else if (element is ILink)
+				{
+					showLinkAttribute(element as ILink);
+				}
+				else
+				{
+					// 无动作
+				}
+			}
+
+			// 显示节点的属性
+			private function showNodeAttribute(node:INode):void
+			{
+				this.currentState = "NodeAttr";
+				_dataList.removeAll();
+				queryMoAttr(node, _dataList);
+			}
+
+			// 显示链路的属性
+			private function showLinkAttribute(link:ILink):void
+			{
+				this.currentState = "LinkAttr";
+				_linkInit = false;
+				_moAInit = false;
+				_moZInit = false;
+				_linkAttrTabSelectedIndex = 0;
+				linkNavigatorcontent_showHandler();
+			}
+
+			// 链路属性面板显示时派发事件
+			private function linkNavigatorcontent_showHandler():void
+			{
+				if (_linkInit == false)
+				{
+					_linkDataList.removeAll();
+					var link:ILink = _currentElement as ILink;
+					queryLinkAttr(link, _linkDataList);
+
+					_linkInit = true;
+				}
+			}
+
+			// A端网元属性面板显示时派发事件
+			private function moANavigatorcontent_showHandler():void
+			{
+				if (_moAInit == false)
+				{
+					_moADataList.removeAll();
+					var link:ILink = _currentElement as ILink;
+					queryMoAttr(link.fromElement as INode, _moADataList);
+					_moAInit = true;
+				}
+			}
+
+			// Z端网元属性面板显示时派发事件
+			private function moZNavigatorcontent_showHandler():void
+			{
+				if (_moZInit == false)
+				{
+					_moZDataList.removeAll();
+					var link:ILink = _currentElement as ILink;
+					queryMoAttr(link.toElement as INode, _moZDataList);
+					_moZInit = true;
+				}
+			}
+
+			// 查询Mo的属性
+			private function queryMoAttr(node:INode, list:XMLListCollection):void
+			{
+				if (node == null)
+				{
+					return;
+				}
+				var moId:String = node.getProperty(CmsTopoConstants.XML_KEY_MO_ID);
+				if (StringUtils.isEmpty(moId))
+				{
+					return;
+				}
+
+//				_loading.showLoading();
+				_cmsDataSource.queryMoAttr(moId, function(data:XML):void
+					{
+						list.source = data.child("attr");
+						list.refresh();
+					}, function():void
+					{
+//						_loading.hideLoading();
+					});
+			}
+
+			// 查询链路的属性
+			private function queryLinkAttr(link:ILink, list:XMLListCollection):void
+			{
+				if (link == null)
+				{
+					return;
+				}
+				var moId2:String = link.fromElement.getProperty(CmsTopoConstants.XML_KEY_MO_ID);
+				var moId1:String = link.toElement.getProperty(CmsTopoConstants.XML_KEY_MO_ID);
+				var moName2:String = link.fromElement.name;
+				var moName1:String = link.toElement.name;
+				var moTypeId2:String = link.fromElement.getProperty(CmsTopoConstants.XML_KEY_MO_TYPE_ID);
+				var moTypeId1:String = link.toElement.getProperty(CmsTopoConstants.XML_KEY_MO_TYPE_ID);
+
+				// 默认都放入两端网元名称
+				list.addItem(new XML("<attr name='本端设备名称' value='" + moName2 + "'/>"));
+				list.addItem(new XML("<attr name='对端设备名称' value='" + moName1 + "'/>"));
+
+				if (StringUtils.isEmpty(moId1) || StringUtils.isEmpty(moId2))
+				{
+					// 不是两个设备之间的链路,之间返回
+					return;
+				}
+
+				// 判断是数据网的设备还是传输网的设备
+
+				// 如果链路存在 circuit_id 的属性,则查询电路信息
+				var cuid:String = link.getProperty("circuit_id");
+				if (!StringUtils.isEmpty(cuid))
+				{
+					_cmsDataSource.queryCircuitAttr(cuid, function(data:XML):void
+						{
+							list.addAll(new XMLListCollection(data.child("attr")));
+							list.refresh();
+						}, function():void
+						{
+							appendLinkExtendAttr(link, list);
+						});
+				}
+				else
+				{
+					_cmsDataSource.queryLinkAttr(moId1, moId2, moTypeId1, moTypeId2, function(data:XML):void
+						{
+							list.addAll(new XMLListCollection(data.child("attr")));
+							handLinkProperty(link, list);
+							list.refresh();
+						});
+				}
+			}
+
+			//处理链路属性
+			private function handLinkProperty(link:ILink, list:XMLListCollection):void
+			{
+				// 数据网特殊处理
+				var source:String = link.getProperty("source");
+				var count:String = link.getProperty("link.count");
+				if(source == "datanet")
+				{
+					for each(var xml:XML in list)
+					{
+						if(xml.@name == "本端端口名称" && count != "1")
+						{
+							xml.@value = toStr(link.getExtendProperty("mo_port_name2_#i"));
+						}
+						if(xml.@name == "对端端口名称" && count != "1")
+						{
+							xml.@value = toStr(link.getExtendProperty("mo_port_name1_#i"));
+						}
+						if(xml.@name == "电路代号")
+						{
+							list.removeItemAt(list.getItemIndex(xml));
+						}
+					}
+				}
+			}
+			
+			//转换为字符串
+			private function toStr(str:String):String
+			{
+				if(str == null || str == "null" || str == "NULL")
+				{
+					return "";
+				}
+				return str;
+			}
+			
+			// 给链路增加扩展属性
+			private function appendLinkExtendAttr(link:ILink, list:XMLListCollection):void
+			{
+				var moName1:String = link.fromElement.name;
+				var moName2:String = link.toElement.name;
+
+				var mo_a:String = link.getExtendProperty("mo_a");
+				if (!StringUtils.isEmpty(mo_a))
+				{
+					if (mo_a == moName1)
+					{
+						list.addItem(new XML("<attr name='本端端口名称' value='" + link.getExtendProperty("mo_port_a") + "'/>"));
+						list.addItem(new XML("<attr name='对端端口名称' value='" + link.getExtendProperty("mo_port_z") + "'/>"));
+					}
+					else
+					{
+						list.addItem(new XML("<attr name='本端端口名称' value='" + link.getExtendProperty("mo_port_z") + "'/>"));
+						list.addItem(new XML("<attr name='对端端口名称' value='" + link.getExtendProperty("mo_port_a") + "'/>"));
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid width="100%"
+						 height="100%"
+						 dataProvider="{_dataList}"
+						 includeIn="NodeAttr"
+						 rowCount="10">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn headerText="属性名称"
+									   dataField="@name"/>
+			<mx:AdvancedDataGridColumn headerText="属性值"
+									   dataField="@value"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	<s:Group width="100%"
+			 height="100%"
+			 includeIn="LinkAttr">
+
+		<s:TabBar id="linkAttrTab"
+				  styleName="commonTabBar"
+				  selectedIndex="{_linkAttrTabSelectedIndex}"
+				  dataProvider="{linkStack}"/>
+
+		<mx:ViewStack id="linkStack"
+					  width="100%"
+					  height="100%"
+					  top="22">
+			<s:NavigatorContent label="链路"
+								show="linkNavigatorcontent_showHandler()">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 dataProvider="{_linkDataList}"
+									 rowCount="10">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="属性名称"
+												   dataField="@name"/>
+						<mx:AdvancedDataGridColumn headerText="属性值"
+												   dataField="@value"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+			<s:NavigatorContent label="本端网元"
+								show="moANavigatorcontent_showHandler()">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 dataProvider="{_moADataList}"
+									 rowCount="10">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="属性名称"
+												   dataField="@name"/>
+						<mx:AdvancedDataGridColumn headerText="属性值"
+												   dataField="@value"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+			<s:NavigatorContent label="对端网元"
+								show="moZNavigatorcontent_showHandler()">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 dataProvider="{_moZDataList}"
+									 rowCount="10">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn headerText="属性名称"
+												   dataField="@name"/>
+						<mx:AdvancedDataGridColumn headerText="属性值"
+												   dataField="@value"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:Group>
+
+	<panel:states>
+		<s:State name="NodeAttr"/>
+		<s:State name="LinkAttr"/>
+	</panel:states>
+</panel:AbstractCEPWindow>

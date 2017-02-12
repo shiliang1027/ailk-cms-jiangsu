@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 label="LTE"
+		 width="100%"
+		 height="100%">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitornew.dao.RealAlarmMonitorDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			
+			public var schemeId:String;
+			public var ColumnsKpiList:ArrayCollection = new ArrayCollection();
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.realAlarm.RightLTEMonitor");
+			
+			private var lm:LoadManager = new LoadManager(this, "blue");
+			
+			public function dealData(data:Object):void
+			{
+				log.info(data.dataList);
+				var columns:Array=buildColumns(ColumnsKpiList);
+				dataDG.columns = columns;
+				dataDG.dataProvider = data.dataList;
+			}
+			
+			private function buildColumns(result:ArrayCollection):Array
+			{
+				log.info("buildColumns");
+				log.info(result);
+				var columns:Array=new Array();
+				for each (var obj:String in result)
+				{
+					var name:String = obj['kpi_name'];
+					var dataField:String = obj['kpi_id'];
+					log.info("[buildColumns]name:" + name + ",column:" + dataField);
+					if(obj['isShow'] == "1")
+					{
+						var dataGridColumn:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+						dataGridColumn.width=100;
+						dataGridColumn.headerText=name;
+						dataGridColumn.dataField=dataField;
+						columns.push(dataGridColumn);
+					}
+					
+				}
+				return columns;
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="dataDG"
+						 width="100%"
+						 horizontalScrollPolicy="auto">
+	</mx:AdvancedDataGrid>
+</mx:VBox>

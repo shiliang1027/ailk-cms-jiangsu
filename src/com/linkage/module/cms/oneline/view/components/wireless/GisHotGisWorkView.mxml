@@ -1,0 +1,954 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis"
+		 xmlns:wireless="com.linkage.module.cms.oneline.view.components.wireless.*"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 width="100%" height="100%">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-11
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.dynamicdropdown.event.DynamicDropDownEvent;
+			import com.ailk.common.ui.gis.core.GisContextMenuItem;
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.GisLayer;
+			import com.ailk.common.ui.gis.core.metry.GisCircle;
+			import com.ailk.common.ui.gis.core.metry.GisPoint;
+			import com.ailk.common.ui.gis.core.metry.GisRegion;
+			import com.ailk.common.ui.gis.core.styles.GisFillPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLinePredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLineStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerStyle;
+			import com.ailk.common.ui.gis.core.styles.GisTextStyle;
+			import com.ailk.common.ui.gis.event.GisDrawEvent;
+			import com.ailk.common.ui.gis.event.GisExtentEvent;
+			import com.ailk.common.ui.gis.event.MapEvent;
+			import com.linkage.module.cms.oneline.domain.wireless.IUser;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			import com.linkage.module.cms.scene.kpicustom.event.KpiCustomEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.Sort;
+			import mx.controls.Alert;
+			import mx.events.CollectionEvent;
+			import mx.events.CollectionEventKind;
+			import mx.formatters.DateFormatter;
+			private var log:ILogger=Log.getLoggerByClass(GisHotGisWorkView);
+
+			private var s:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0xff0000, 0.5);
+			[Bindable]
+			[Inject("gisHotViewPM")]
+			public var pm:GisHotViewPM;
+			[Inject("user")]
+			public var user:IUser;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+
+
+			private var contentMenus:Array;
+			private static var cellDetailURL:String="cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=";
+			//private static var perfDetailURL:String="cms/scene/report/pmlast/pmlastAction.action?neid=";
+			private static var perfDetailURL:String="/scene/report/pmlast/pmlastAction.action?neid=";
+			//			private static var perfDetailURL:String = "cms/performance/report/permsg!initForm.action";
+			private static var alarmDetailURL:String="cms/warn/report/query/ShowAlarmList.jsp";
+			private static var logicTopoURL:String="cms/webtopo/topo/topolocate.action";
+			private var cicleArray:Array=[];
+
+			private static var df:DateFormatter=new DateFormatter();
+			df.formatString="YYYY-MM-DD JJ";
+			private var currentFeature:GisFeature;
+
+			private var timer:Timer=new Timer(3 * 60 * 1000);
+			private var viewType:Boolean=false; //false代表一级热点视图，true代表二级小区视图
+			private var viewParam:Object;
+
+			[Bindable]
+			private var searchList:ArrayCollection=new ArrayCollection();
+			private var currentGisInfoParam:Object;
+
+			protected function gisWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				timer.addEventListener(TimerEvent.TIMER, onTimerHandler);
+				pm.dm.hotspots.addEventListener(CollectionEvent.COLLECTION_CHANGE, onCollectionChange);
+				searchList.addEventListener(CollectionEvent.COLLECTION_CHANGE, onSearchListChange);
+//				pm.dm.gisInfos.addEventListener(CollectionEvent.COLLECTION_CHANGE,onGisInfosCollectionChange);
+			}
+
+			private function onTimerHandler(event:TimerEvent):void
+			{
+
+				timerStop();
+				dispatcher(new GisHotEvent(GisHotEvent.REFRESHHOTSPOTCELLDATA));
+				dispatcher(new GisHotEvent(GisHotEvent.REFRESHSPECIALPHONEDATA));
+			}
+
+			private function timerStop():void
+			{
+				timer.stop();
+				timer.reset();
+			}
+
+			private function timerStart():void
+			{
+				timer.start();
+			}
+
+			private function onCollectionChange(event:CollectionEvent):void
+			{
+				switch (event.kind)
+				{
+					case CollectionEventKind.ADD:
+						log.warn("[onCollectionChange]ADD");
+						break;
+					case CollectionEventKind.RESET:
+						log.warn("[onCollectionChange]RESET");
+						break;
+					case CollectionEventKind.UPDATE:
+						log.warn("[onCollectionChange]UPDATE");
+						break;
+					case CollectionEventKind.REFRESH:
+						log.warn("[onCollectionChange]REFRESH");
+						onCollectionRefreshHandler(event);
+						break;
+					case CollectionEventKind.REPLACE:
+						log.warn("[onCollectionChange]REPLACE");
+						break;
+					
+					case CollectionEventKind.MOVE:
+						log.warn("[onCollectionChange]MOVE");
+						break;
+				}
+			}
+
+			private function onCollectionRefreshHandler(event:CollectionEvent):void
+			{
+				searchList.removeAll();
+				timerStop();
+//				if (!viewType)
+//				{
+					clearAll();
+//				}
+				if (!viewType)
+				{
+					for each (var item:*in pm.dm.hotspots)
+					{
+						log.debug("[onCollectionRefreshHandler]{0},{1},{2}", item.typeName, item.datas,item.selected);
+//						log.info("onCollectionRefreshHandler--item");
+//						log.info(item);
+//						for each (var data:*in item.datas)
+//						{
+//							var selected:Boolean = getSelected(item.typeName,data.kpiId);
+//							if(!selected){
+//								continue;
+//							}
+//							for each (var info:*in data.infos)
+//							{
+//								info.kpiId=data.kpiId;
+//								buildFeature(info);
+//								searchList.addItem(info);
+//								log.debug("[info]{0},longitude:{1},latitude:{2},{3}", info.mo_name, info.longitude, info.latitude, data.kpiId);
+//							}
+//						}
+						
+						log.info("item.datas");
+						log.info(item.datas);
+						for(var key:String in item.datas){
+							
+							log.debug("key:{0},value:{1}",key,item.datas[key]);
+//							log.info(key);
+							var mo:*;
+							var kpiIds:Array=new Array();
+							var kpiNames:Array=new Array();
+							var kpiValues:Array=new Array();
+							var kpiUnits:Array=new Array();
+							var kpiThresholds:Array = new Array();
+							var kpiWarns:Array = new Array();
+							for each(var kpiData:* in item.datas[key]){
+//								log.debug("kpiData");
+//								log.debug(kpiData);
+								log.info("searchList.addItem-----------kpiData");
+								log.info(kpiData);
+								var searchInfo:* = kpiData;
+								searchInfo.kpiId = kpiData.kpi_id;
+								searchList.addItem(searchInfo);
+									
+								kpiIds.push(kpiData.kpi_id);
+								kpiNames.push(kpiData.kpiName);
+								kpiValues.push(kpiData.value);
+								kpiUnits.push(kpiData.unit);
+								kpiThresholds.push(kpiData.threshold);
+								kpiWarns.push(Number(kpiData.warn_level));
+								kpiWarns.sort(Array.NUMERIC);
+s								if(!mo || mo.mo_id != kpiData.mo_id){
+									mo = kpiData;
+//									delete mo.kpi_id;
+									delete mo.kpiName;
+//									delete mo.value;
+									delete mo.unit;
+//									delete mo.threshold;
+									delete mo.warn_level;
+								}
+							}
+							mo.kpiIds=kpiIds;
+							mo.kpiNames=kpiNames;
+							mo.kpiValues=kpiValues;
+							mo.kpiUnits=kpiUnits;
+							mo.kpiThresholds=kpiThresholds;
+							mo.kpiWarns=kpiWarns;
+//							
+							//log.info("test")
+							//log.debug(mo);
+							buildFeature(mo);
+						}
+					}
+				}
+				timerStart();
+			}
+			
+			private function getSelected(typeName:String,kpiId:String):Boolean{
+				for each(var item:* in pm.dm.picLayerList){
+					if(item.typeName == typeName){
+						for each(var data:* in item.datas){
+							if(data.id == kpiId){
+								return data.selected;
+							}
+						}
+					}
+				}
+				return false;
+			}
+
+
+			private function onSearchListChange(event:CollectionEvent):void
+			{
+				switch (event.kind)
+				{
+					case CollectionEventKind.RESET:
+						log.warn("[onCollectionChange]RESET");
+						var keyword:String=queryDD.keyWord;
+						searchList.filterFunction=filterfunciton(keyword);
+						searchList.refresh();
+						break;
+				}
+			}
+			private function clearAll():void
+			{
+				hotGisLayer.clear();
+				cellGisLayer.clear();
+				cellBackGisLayer.clear();
+				btsTSGisLayer.clear();
+				nodebTSGisLayer.clear();
+			}
+
+			private var warnLevel:Number=5;
+			private var panPoint:GisPoint;
+			private var warnNum:Number=0;
+			
+			[MessageHandler(selector="LOADNORMALCELLGISINFODATACOMPLETE")]
+			public function loadNormalCellGisInfoDataCompleteHandler(e:GisHotEvent):void
+			{
+				log.info("开始定位小区信息：");
+				log.info(pm.dm.gisInfos);
+				clearAll();
+				if(pm.dm.gisInfos.length == 0)
+				{
+					Alert.show("小区定位失败！");
+				}else
+				{
+					try{
+						//右键菜单
+						contentMenus=new Array();
+						contentMenus.push(new GisContextMenuItem("资源信息", popupDealer));
+						contentMenus.push(new GisContextMenuItem("性能信息", popupDealer));
+						contentMenus.push(new GisContextMenuItem("性能趋势", popupDealer));
+						contentMenus.push(new GisContextMenuItem("关联拓扑", popupDealer));
+						for each (var item:*in pm.dm.gisInfos) 
+						{
+							panPoint = new GisPoint(Number(item.longitude), Number(item.latitude));
+							var feature:GisFeature = new GisFeature(panPoint, new GisMarkerPictureStyle(pm.dm.levelIconMap[String(item.mo_type_id)]["0"]));
+							var toolTip:String = item.mo_name;
+							if(item.hasSpecInfo==1){
+								if(item.has110==1){
+									toolTip+="\n特殊号码：110\n拨打时间及次数："+item["110"];
+								}
+								if(item.has119==1){
+									toolTip+="\n特殊号码：119\n拨打时间及次数："+item["119"];
+								}
+								if(item.has120==1){
+									toolTip+="\n特殊号码：120\n拨打时间及次数："+item["120"];
+								}
+							}
+							feature.toolTip=toolTip;
+							var attributes:Object=new Object();
+							attributes.item=item;
+							feature.attributes=attributes;
+//							feature.onMouseOver=featureMouseOverHandler;
+							feature.contentMenus = contentMenus;//右键菜单
+							cellGisLayer.addGisFeature(feature);
+							gisWork.map.viewRefresh();
+							gisWork.map.level=8;
+							if (panPoint)
+							{
+								gisWork.map.panTo(panPoint);
+								panPoint=null;
+							}
+						}
+					}catch(e:Error){
+						log.error(e);
+					}
+					
+				}
+			}
+			[MessageHandler(selector="LOADGISINFODATACOMPLETE")]
+			public function loadGisInfoDataCompleteHandler(e:GisHotEvent):void
+			{
+				warnNum=0;
+				cellGisLayer.clear();
+				cellBackGisLayer.clear();
+				try{
+					if(currentGisInfoParam.mo_id){
+						setHotVisiable(String(currentGisInfoParam.mo_id),false);
+					}
+				}catch(e:Error){log.error(e)}
+				
+				log.info("test llllllllllllllllll");
+				log.info(pm.dm);
+				log.info("pm.dm.gisInfos"+pm.dm.gisInfos.length);
+				if(pm.dm.gisInfos.length == 0 && pm.dm.biaoji == 1)
+				{
+					Alert.show("小区热点已恢复");
+				}else
+				{
+					try{
+						for each (var item:*in pm.dm.gisInfos) 
+						{
+							//						log.info(item.bs.mo_name+"---"+item.bs.gather_time);
+							var time:String = item.bs.gather_time;
+							var moname:String = item.bs.mo_name;
+							//						log.warn(item.list);
+							var i:uint=0;
+							var j:int=0;
+							var list:Array = new Array();
+							for(var key:String in item.list){
+								//							log.info("key");
+								//							log.info(key.length);
+								
+								if(key.length <= 0)
+								{
+									if(j == 0)
+									{
+										Alert.show("热点已恢复，请手动刷新");
+									}
+								}
+								j ++;
+								var mo:*;
+								var kpiIds:Array=new Array();
+								var kpiNames:Array=new Array();
+								var kpiValues:Array=new Array();
+								var kpiUnits:Array=new Array();
+								var kpiThresholds:Array = new Array();
+								var kpiWarns:Array = new Array();
+								
+								for each(var kpiData:* in item.list[key])
+								{
+									//								log.info("kpiData");
+									//								log.info(kpiData);
+									if(kpiData.mo_name == moname)
+									{
+										kpiData.time = time;
+									}
+									kpiIds.push(kpiData.kpi_id);
+									kpiNames.push(kpiData.kpiName);
+									kpiValues.push(kpiData.value);
+									kpiUnits.push(kpiData.unit);
+									kpiThresholds.push(kpiData.threshold);
+									kpiWarns.push(Number(kpiData.warn_level));
+									kpiWarns.sort(Array.NUMERIC);
+									if(!mo || mo.mo_id != kpiData.mo_id){
+										mo = kpiData;
+										//									mo.latitude = kpiData.latitude;
+										//									mo.longitude = kpiData.longitude;
+										//									delete mo.kpi_id;
+										delete mo.kpiName;
+										//									delete mo.value;
+										delete mo.unit;
+										//									delete mo.threshold;
+										delete mo.warn_level;
+									}
+								}
+								mo.kpiIds=kpiIds;
+								mo.kpiNames=kpiNames;
+								mo.kpiValues=kpiValues;
+								mo.kpiUnits=kpiUnits;
+								mo.kpiThresholds=kpiThresholds;
+								mo.kpiWarns=kpiWarns;
+								list.push(mo);
+							}
+							
+							list.sortOn("warn_level", Array.NUMERIC);
+							for each (var cell:*in list)
+							{
+								buildFeature(cell, 1, list.length, i);
+								i++;
+							}
+						}
+						
+						if(!panPoint){
+							var first:* = list[0];
+							panPoint = new GisPoint(Number(first.longitude), Number(first.latitude));
+						}
+						if(warnNum<=0){
+							Alert.show(""+currentGisInfoParam.mo_name+"已恢复","提示");
+							delete currentGisInfoParam.mo_id;
+						}
+					}catch(e:Error){
+						log.error(e);
+					}
+					gisWork.map.viewRefresh();
+					gisWork.map.level=8;
+					if (panPoint)
+					{
+						gisWork.map.panTo(panPoint);
+						panPoint=null;
+					}
+					timerStart();
+				}
+			}
+			
+			private function setHotVisiable(mo_id:String,visible:Boolean=true):void{
+				if(mo_id){
+					for each(var feature:GisFeature in hotGisLayer.gisFeatures){
+						if(feature && feature.attributes && feature.attributes.item.mo_id == mo_id){
+							feature.visible = visible;
+							hotGisLayer.updateFeature(feature);
+						}
+					}
+//					var feature:GisFeature = hotGisLayer.getGisFeatureByID(mo_id);
+//					if(feature){
+//						feature.visible = visible;
+//						hotGisLayer.updateFeature(feature);
+//					}
+				}
+			}
+
+			[MessageHandler(selector="LOADGISINFODATAERROR")]
+			public function loadGisInfoDataErrorHandler(e:GisHotEvent):void
+			{
+//				timerStart();
+			}
+
+			//定时器刷新
+			[MessageHandler(selector="LOADGISINFODATA")]
+			public function loadGisInfoDataHandler(e:GisHotEvent):void
+			{
+//				viewType=true;
+				timerStop();
+				if(currentGisInfoParam && currentGisInfoParam.mo_id){
+					setHotVisiable(String(currentGisInfoParam.mo_id),true);
+				}
+				currentGisInfoParam = e.param;
+			}
+
+			//定时器刷新
+			[MessageHandler(selector="DOLOADHOTSPOTCELLDATA")]
+			public function doLoadHotSpotCellDataHandler(e:GisHotEvent):void
+			{
+				pm.dm.queryGisInfoFlag=true;//设置查询实时热点标志为true,2013-9-3,汪炜;
+//				viewType=false;
+				timerStop();
+				if (!viewType)
+				{
+					clearAll();
+				}
+//				gisWork.map.viewEntireMap();
+				if (e.param.cityIds)
+				{
+					gisWork.map.mapChange(String(e.param.cityIds).split(",")[0]);
+				}
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.HIDEMOINFOVIEW);
+				dispatcher(evt);
+			}
+
+			private function buildFeature(item:*, type:Number=0, length:Number=1, index:Number=0):void
+			{
+				//log.info("处理网元！！");
+				log.debug("[buildFeature]{0},{1},{2},{3},{4},{5}", item.mo_id, item.mo_name, item.mo_type_id, item.kpiNames, pm.dm.cellRadius, item.city_id);
+				log.info("item.remark="+item.remark);
+				log.info(item);
+				
+				var feature:GisFeature;
+				
+				if(item.kpiWarns.length<=0)
+				{
+					item.warn_level="0";
+				}
+				else
+				{
+					item.warn_level = Array(item.kpiWarns)[0];
+					warnNum++;
+				}
+				
+				if (type == 1)
+				{
+					if(item.warn_level == 1)
+					{
+						panPoint = new GisPoint(Number(item.longitude), Number(item.latitude));
+					}
+						
+						
+					if(pm.dm.levelColorFilterMap[String(item.warn_level)])
+					{
+						feature=new GisFeature(new GisCircle(new GisPoint(Number(item.longitude), Number(item.latitude)), pm.dm.cellRadius), s);
+						//					feature.filters=[pm.dm.levelColorFilterMap[String(item.warn_level)]];
+						cellBackGisLayer.addGisFeature(feature);
+					}
+
+					//log.info("item.remark = "+item.remark);
+					if(item.remark)
+					{
+						//标注
+						feature=new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisMarkerPictureStyle(pm.dm.flag_green, 0, 0, 8, 25));
+						feature.toolTip="已标注";
+						hotGisLayer.addGisFeature(feature);
+					}
+				}
+				var attributes:Object;
+				var toolTip:String = item.mo_name;
+				if(item.hasSpecInfo==1){
+					if(item.has110==1){
+						toolTip+="\n特殊号码：110\n拨打时间及次数："+item["110"];
+					}
+					if(item.has119==1){
+						toolTip+="\n特殊号码：119\n拨打时间及次数："+item["119"];
+					}
+					if(item.has120==1){
+						toolTip+="\n特殊号码：120\n拨打时间及次数："+item["120"];
+					}
+				}
+
+//				log.info("test  --------===========");
+//				log.info(item);
+				if(item.kpiNames.length > 0&&String(item.warn_level)=="1"&&pm.dm.queryGisInfoFlag){//只有动态热点的热点小区才能看
+					var i:uint=0;
+					for each(var kpiName:String in item.kpiNames){
+						toolTip += "\n"+kpiName+":"+item.kpiValues[i]+item.kpiUnits[i]+"，阈值:"+item.kpiThresholds[i]+"分母:"+item.denominator+"分子:"+item.numerator;
+						i++;
+					}
+				}
+				
+				//右键菜单
+				contentMenus=new Array();
+				contentMenus.push(new GisContextMenuItem("资源信息", popupDealer));
+				contentMenus.push(new GisContextMenuItem("性能信息", popupDealer));
+				contentMenus.push(new GisContextMenuItem("性能趋势", popupDealer));
+				contentMenus.push(new GisContextMenuItem("关联拓扑", popupDealer));
+				if (type == 0)
+				{
+					/* log.info("type = 0 yyyyyyyyyyy" + item.warn_level);
+					log.info("type = 0 yyyyyyyyyyy" + item.mo_name);
+					log.info("type = 0 yyyyyyyyyyy" + item.longitude);
+					log.info("type = 0 yyyyyyyyyyy" + item.latitude); */
+					contentMenus.push(new GisContextMenuItem("标注", popupDealer));
+					feature=new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisMarkerPictureStyle(pm.dm.levelIconMap["0"][String(item.warn_level)]));
+//					feature.id=String(item.mo_id);
+					feature.onClick=featureClickHandler;
+					feature.contentMenus=contentMenus; 
+					feature.buttonMode=true;
+					feature.toolTip=toolTip;
+					attributes=new Object();
+					attributes.item=item;
+					feature.attributes=attributes;
+					
+					log.info("增加特殊号码标识type=0"+item.specialPhone_name);
+					if(String(item.specialPhone_name)!=""&&String(item.specialPhone_name)!=";"){
+						var specialPhoneName:String = String(item.specialPhone_name);
+						var specialPhoneArr:Array = specialPhoneName.split(";");
+						for each (var str:String in specialPhoneArr) 
+						{
+							if(str=="110"){
+								var phonetext110:GisFeature = new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisTextStyle("110", 0x000000, false, 0, true, 0xF6FF00, 0, "middle", 0, 25, null, null));
+								hotGisLayer.addGisFeature(phonetext110);
+							}else if(str=="119"){
+								var phonetext119:GisFeature = new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisTextStyle("119", 0x000000, false, 0, true, 0xF6FF00, 0, "middle", 25, 0, null, null));
+								hotGisLayer.addGisFeature(phonetext119);
+							}else if(str=="120"){
+								var phonetext120:GisFeature = new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisTextStyle("120", 0x000000, false, 0, true, 0xF6FF00, 0, "middle", 0, -40, null, null));
+								hotGisLayer.addGisFeature(phonetext120);
+							}
+						}
+					}
+					
+					hotGisLayer.addGisFeature(feature);
+				}
+				else
+				{
+					if (!cicleArray || cicleArray.length <= 1)
+					{
+						cicleArray=cicleArray.concat(calCiclePoints(30, 4)).concat(calCiclePoints(60, 8));
+//						log.warn(cicleArray);
+					}
+					
+					if(String(item.warn_level)!="1")
+					{
+						feature = new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisMarkerPictureStyle(pm.dm.levelIconMap[String(item.mo_type_id)][String(item.warn_level)], 0, 0, cicleArray[index][0], cicleArray[index][1]));
+
+					}else{
+//						log.info("test>>>>>>>>>>>>>有标注");
+						contentMenus.push(new GisContextMenuItem("标注", popupDealer));
+						feature = new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisMarkerPictureStyle(pm.dm.levelIconMap[String(item.mo_type_id)][String(item.warn_level)]));
+						
+						log.info("增加特殊号码标识type=1"+item.specialPhone_name);
+						if(String(item.specialPhone_name)!=""&&String(item.specialPhone_name)!=";"){
+							var specialPhoneName:String = String(item.specialPhone_name);
+							var specialPhoneArr:Array = specialPhoneName.split(";");
+							for each (var str:String in specialPhoneArr) 
+							{
+								if(str=="110"){
+									var phonetext110:GisFeature = new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisTextStyle("110", 0x000000, false, 0, true, 0xF6FF00, 0, "middle", 0, 25, null, null));
+									cellGisLayer.addGisFeature(phonetext110);
+								}else if(str=="119"){
+									var phonetext119:GisFeature = new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisTextStyle("119", 0x000000, false, 0, true, 0xF6FF00, 0, "middle", 25, 0, null, null));
+									cellGisLayer.addGisFeature(phonetext119);
+								}else if(str=="120"){
+									var phonetext120:GisFeature = new GisFeature(new GisPoint(Number(item.longitude), Number(item.latitude)), new GisTextStyle("120", 0x000000, false, 0, true, 0xF6FF00, 0, "middle", 0, -40, null, null));
+									cellGisLayer.addGisFeature(phonetext120);
+								}
+							}
+						}
+					}
+
+					feature.onMouseOver=featureMouseOverHandler;
+					feature.onMouseOut=featureMouseOutHandler;
+					feature.contentMenus=contentMenus; 
+					
+					
+//					if(String(item.warn_level)=="1"&&pm.dm.queryGisInfoFlag)//只有实时动态热点小区可以看toolTip
+//					if(pm.dm.queryGisInfoFlag)//只有实时动态小区可以看toolTip
+						feature.toolTip=toolTip;//所以的实时动态小区和历史小区可以看toolTip
+					
+					attributes=new Object();
+					attributes.item=item;
+					feature.attributes=attributes;
+					cellGisLayer.addGisFeature(feature);
+				}
+			}
+
+			
+			
+			private function calCiclePoints(radius:Number, num:Number):Array
+			{
+				var i:Number=0;
+				var sin:Number;
+				var cos:Number;
+				var x:Number;
+				var y:Number;
+				var points:Array=new Array();
+				while (i < num)
+				{
+					sin=Math.sin(Math.PI * 2 * i / num);
+					cos=Math.cos(Math.PI * 2 * i / num);
+					x=0 + radius * cos;
+					y=0 + radius * sin;
+					log.warn("sin:{0},cos:{1},x:{2},y:{3}", sin, cos, x, y);
+					points[i]=[x, y];
+					i++;
+				}
+				return points;
+			}
+
+			private function featureClickHandler(feature:GisFeature, e:Event):void
+			{
+				var param:Object=new Object();
+				param.kpiId=Array(feature.attributes.item.kpiIds).join(",");
+				param.mo_id=feature.attributes.item.mo_id;
+				param.city_id=feature.attributes.item.city_id;
+				param.mo_name=feature.attributes.item.mo_name;
+				loadGisInfo(param);
+			}
+			
+			private function featureMouseOverHandler(feature:GisFeature, e:Event):void
+			{
+//				if(currentFeature && currentFeature == feature){
+////					showMoInfoView();
+//					setTimeout(showMoInfoView,500);
+//					return;
+//				}
+				currentFeature=feature;
+//				if(!timer.running){
+//					timer.start();
+//				}
+//				var evt:GisHotEvent = new GisHotEvent(GisHotEvent.SHOWMOINFOVIEW);
+//				var param:Object = new Object();
+//				var point:Point = gisWork.map.mapToStage(currentFeature.gisMetry as GisPoint);
+//				param.point = point;
+//				param.moTypeId = currentFeature.attributes.item.mo_type_id;
+//				param.mo_id = currentFeature.attributes.item.mo_id;
+//				param.mo_name = currentFeature.attributes.item.mo_name;
+//				evt.param = param;
+//				dispatcher(evt);
+
+			}
+
+			private function featureMouseOutHandler(feature:GisFeature, e:Event):void
+			{
+//				if(timer.running){
+//					timer.stop();
+//				}
+//				dispatcher(new GisHotEvent(GisHotEvent.HIDEMOINFOVIEW));
+			}
+			
+//			private function showBackFeatureClickHandler(feature:GisFeature, e:Event):void{
+//				var mo_id:String = String(feature.attributes.item.mo_id);
+//				var backFeature:GisFeature = backGisLayer.getGisFeatureByID(mo_id);
+//				if(backFeature){
+//					backFeature.visible=!backFeature.visible;
+//					backGisLayer.updateFeature(backFeature);
+//				}
+//			}
+
+			private var currentRemarkItem:*;
+
+			private function popupDealer(feature:GisFeature):void
+			{
+				var url:String="";
+				var context:String=user.context;
+				var moId:String=feature.attributes.item.mo_id;
+				log.info("feature.attributes.item");
+				log.info(feature.attributes.item);
+				//菜单名称
+				switch (feature.attributes.selectMenuName)
+				{
+					case "资源信息":
+						navigateToURL(new URLRequest(context + cellDetailURL + moId));
+						break;
+
+					case "告警信息":
+						navigateToURL(new URLRequest(context + alarmDetailURL + "?alarmStatus=1&neId=" + moId));
+						break;
+					case "性能信息":
+						navigateToURL(new URLRequest(context + perfDetailURL + moId));
+						//navigateToURL(new URLRequest(perfDetailURL + moId));
+						break;
+					case "性能趋势":
+						showKpiChartView(feature.attributes.item);
+						break;
+					case "关联拓扑":
+						navigateToURL(new URLRequest(context + logicTopoURL + "?specId=1&moId=" + moId));
+						break;
+					case "标注":
+//						var moName:String=currentFeature.attributes.item.mo_name;
+//						var moTypeId:String=currentFeature.attributes.item.mo_type_id;
+						var remark:String=currentFeature.attributes.item.remark;
+						var kpiId:String=currentFeature.attributes.item.kpi_id;
+						//var time:String=currentFeature.attributes.item.time;
+						var time:String=currentFeature.attributes.item.gather_time;
+						var gather_time:String=currentFeature.attributes.item.gather_time;
+						log.info("kpiId="+kpiId);
+						currentRemarkItem=currentFeature.attributes.item;
+						var gisHotEvent:GisHotEvent=new GisHotEvent(GisHotEvent.SHOWREMARKVIEW);
+						var param:Object=new Object();
+						param.mo_id=moId;
+						param.kpiId=kpiId;
+						param.remark=remark;
+						param.time=time;
+						param.gather_time=gather_time;
+						param.user=user.account;
+						gisHotEvent.param=param;
+						dispatcher(gisHotEvent);
+						break;
+				}
+			}
+
+			private function showKpiChartView(mo:*):void
+			{
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.SHOWKPICHARTVIEW);
+				evt.param=mo;
+				dispatcher(evt);
+			}
+
+			protected function gisWork_draw_endHandler(event:GisDrawEvent):void
+			{
+				// TODO Auto-generated method stub
+
+				var points:Array=new Array();
+				var regionPoints:Array=new Array();
+				var parts:Array=(event.gisFeature.gisMetry as GisRegion).parts;
+				for each (var point:GisPoint in parts)
+				{
+					var pointObj:Object=new Object();
+					pointObj.x=point.x;
+					pointObj.y=point.y;
+					points.push(pointObj);
+					regionPoints.push(point.x + "," + point.y);
+				}
+				pm.dm.regionPints=regionPoints.join("|");
+				drawGisLayer.removeGisFeature(event.gisFeature);
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.DOLOADHOTSPOTCELLDATA);
+				var param:Object=new Object();
+				param.points=points;
+				evt.param=param;
+				dispatcher(evt);
+			}
+
+			[MessageHandler(selector="SAVEREMARKDATACOMPLETE")]
+			public function saveRemarkCompleteHandler(e:GisHotEvent):void
+			{
+				var feature:GisFeature=new GisFeature(new GisPoint(Number(currentRemarkItem.longitude), Number(currentRemarkItem.latitude)), new GisMarkerPictureStyle(pm.dm.flag_green, 0, 0, 8, 25));
+				feature.toolTip="已标注";
+				hotGisLayer.addGisFeature(feature);
+				currentFeature.attributes.item.remark=e.param;
+			}
+
+			protected function gisWork_toolbar_gotoHandler(event:MapEvent):void
+			{
+				// TODO Auto-generated method stub
+				queryDD.visible=!queryDD.visible;
+			}
+
+			protected function queryDD_keyWordQueryHandler(event:DynamicDropDownEvent):void
+			{
+				// TODO Auto-generated method stub
+				var keyword:String=queryDD.keyWord;
+				searchList.filterFunction=filterfunciton(keyword);
+				searchList.refresh();
+				var evt:DynamicDropDownEvent=new DynamicDropDownEvent(DynamicDropDownEvent.DATALISTCHANGE);
+//				queryDD.listData = searchList;
+				queryDD.dispatchEvent(evt);
+			}
+
+			private function filterfunciton(keyword:String):Function
+			{
+				var filterfunc:Function=function(item:Object):Boolean
+					{
+						if (String(item.mo_name).indexOf(keyword) != -1)
+						{
+							return true;
+						}
+						return false;
+					};
+				return filterfunc;
+			}
+
+			private function loadGisInfo(param:Object):void{
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADGISINFODATA);
+				evt.param=param;
+				dispatcher(evt);
+			}
+			protected function queryDD_dataSelectedHandler(event:DynamicDropDownEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object=queryDD.selectedItem;
+				var param:Object=new Object();
+				param.kpiId=data.kpiId;
+				param.mo_id=data.mo_id;
+				param.mo_name=data.mo_name;
+				param.city_id=data.city_id;
+				log.info("选择小区信息------------" +data.kpiId + ":"+data.mo_id+ ":"+data.mo_name+ ":"+data.city_id);
+				loadGisInfo(param);
+			}
+
+
+			[MessageHandler(selector="GISLOCATION")]
+			public function gisLocationHandler(e:GisHotEvent):void
+			{
+				panPoint = new GisPoint(Number(e.param.longitude), Number(e.param.latitudes));
+				var param:Object=new Object();
+				param.kpiId=e.param.kpiId;
+				param.mo_id=e.param.mo_id;
+				param.city_id=e.param.city_id;
+				param.mo_name=e.param.mo_name;
+				loadGisInfo(param);
+			}
+
+			protected function gisWork_extent_changeHandler(event:GisExtentEvent):void
+			{
+				// TODO Auto-generated method stub
+				var n:Number=(gisWork.map.level + 1) / 8 < 1 ? (gisWork.map.level + 1) / 8 : 1;
+				var gisStyle:GisMarkerPictureStyle;
+				for each (var gisFeature:GisFeature in cellGisLayer.gisFeatures)
+				{
+					gisStyle=GisMarkerPictureStyle(gisFeature.gisStyle);
+					if (gisStyle.source != pm.dm.flag_green && gisStyle.source != pm.dm.levelIconMap["0"][String(gisFeature.attributes.item.warn_level)])
+					{
+						log.debug("{0},{1},{2}", gisStyle.source, pm.dm.levelIconMap["0"][String(gisFeature.attributes.item.warn_level)], gisStyle.source == pm.dm.levelIconMap["0"][String(gisFeature.attributes.item.warn_level)]);
+						gisStyle.width=n * 36;
+						gisStyle.height=n * 36;
+						cellGisLayer.updateFeature(gisFeature);
+					}
+				}
+			}
+
+			protected function gisWork_toolbar_picLayerHandler(event:MapEvent):void
+			{
+				dispatcher(new GisHotEvent(GisHotEvent.SHOWPICLAYERVIEW));
+			}
+			
+			[MessageHandler(selector="PICLAYERCHANGE")]
+			public function picLayerChangeHandler(e:GisHotEvent):void
+			{
+				log.warn("[picLayerChangeHandler]");
+				pm.dm.hotspots.refresh();
+				
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<ailk_gis:MapWork id="gisWork" width="100%" height="100%"
+					  draw_end="gisWork_draw_endHandler(event)"
+					  extent_change="gisWork_extent_changeHandler(event)"
+					  mapCreationComplete="gisWork_mapCreationCompleteHandler(event)" 
+					  showDrawToolBar="false" toolbar_goto="gisWork_toolbar_gotoHandler(event)"
+					  toolbar_picLayer="gisWork_toolbar_picLayerHandler(event)">
+
+		<ailk_gis:layers>
+			<ailk_gis:GisLayer id="drawGisLayer"/>
+			<ailk_gis:GisLayer id="nodebTSGisLayer"/>
+			<ailk_gis:GisLayer id="btsTSGisLayer"/>
+			<ailk_gis:GisLayer id="cellBackGisLayer"/>
+			<ailk_gis:GisLayer id="cellGisLayer"/>
+			<ailk_gis:GisLayer id="hotGisLayer"/>
+		</ailk_gis:layers>
+
+		<ailk_gis:toolBar>
+			<ailk_gis:ToolBar left="50" top="20" gotoBtnEnabled="true" legendEnabled="false"
+							  picLayerEnabled="true"/>
+		</ailk_gis:toolBar>
+		<!--<ailk_gis:drawToolBar>
+			<ailk_gis:DrawToolBar bottom="-2" backEnabled="false" forwardEnabled="false"
+								  gisLayer="{drawGisLayer}" horizontalCenter="0" zoomEnabled="false"/>
+		</ailk_gis:drawToolBar>-->
+	</ailk_gis:MapWork>
+
+	<ailk_compts:DynamicDropDown id="queryDD" visible="false" left="360" top="20" width="200"
+								 dataSelected="queryDD_dataSelectedHandler(event)"
+								 dropDownHeight="200"
+								 keyWordQuery="queryDD_keyWordQueryHandler(event)"
+								 labelField="mo_name" listData="{searchList}"
+								 query="queryDD_keyWordQueryHandler(event)"/>
+	
+	<wireless:GisHotPicLayerView left="50" top="50"/>
+	
+</s:Group>

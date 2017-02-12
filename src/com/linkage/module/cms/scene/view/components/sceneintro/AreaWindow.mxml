@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					close="areaWindow_closeHandler(event)"
+					minimizableBottom="10"
+					minimizable="false"
+					dragable="true"
+					styleName="windowScene"
+					titleIcon="@Embed(source='../../../img/title_ico03.png')"
+					title="区域级劣化详情"
+					width="470"
+					height="260"
+					maximize="area_maximizeHandler()"
+					restore="areaWindow_restoreHandler(event)"
+					resizable="true"
+					minimizableLeft="10" visible="false"
+					minWidth="200" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scene.view.components.KpiAreaBadDetail;
+			import com.linkage.module.cms.scene.view.components.SceneIntroPM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.managers.PopUpManager;
+			
+			private var log:ILogger = Log.getLoggerByClass(AreaWindow);
+			
+			[Inject("sceneIntroPM")]
+			[Bindable]
+			public var sceneIntroPM:SceneIntroPM;
+			private var areaWindowWidth:Number;
+			private var areaWindowHeight:Number;
+			protected function areaWindow_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				this.visible = false;
+				
+			}
+			protected function area_maximizeHandler():void
+			{
+				areaWindowWidth = this.width;
+				areaWindowHeight = this.height;
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				closeButton.visible = false;
+				closeButton.includeInLayout = false;
+			}
+			
+			protected function areaWindow_restoreHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.width = areaWindowWidth;
+				this.height = areaWindowHeight;
+				this.closeButton.visible = true;
+				this.closeButton.includeInLayout = true;
+			}
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				log.debug("场景介绍：区域级劣化网元导出begin...");
+				var areaDataStr:String = "";
+				var data:ArrayCollection = sceneIntroPM.sceneIntroDM.areaBadList as ArrayCollection;
+				var headArr:Array = new Array;
+				
+				if (data == null || data.length < 1)
+				{
+					Alert.show("没有数据");
+					return;
+				}
+				
+				headArr.push({"id": "kpiName", "name": "指标名称"});
+				
+				for each (var col:AdvancedDataGridColumn in(areaBadGroup.getElementAt(0) as KpiAreaBadDetail).areaDataGrid.columns)
+				{
+					if (col.dataField != "" && col.headerText != "")
+						headArr.push({"id": col.dataField, "name": col.headerText});
+				}
+				
+				ExcelUtil.exportSimpleExcel("区域网元详情列表", headArr, data);
+				log.info("区域网元详情导出结束");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<s:Scroller width="100%"
+				height="100%"
+				horizontalScrollPolicy="auto"
+				verticalScrollPolicy="auto"
+				styleName="sceneScroller">
+		<s:VGroup id="areaBadGroup"
+				  width="100%"
+				  height="100%"
+				  gap="5">
+		</s:VGroup>
+	</s:Scroller>
+	<mx:Image source="@Embed('../../../img/icon_export.png')"
+			  width="30"
+			  height="20"
+			  right="40"
+			  toolTip="导出"
+			  top="-23"
+			  buttonMode="true"
+			  click="image1_clickHandler(event)"/>
+</ailk_compts:Window>

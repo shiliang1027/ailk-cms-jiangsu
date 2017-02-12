@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  width="100%"
+					  backgroundColor="{data.bgcolor}"
+					  backgroundAlpha="{data.bgcolor?1:0}"
+					  currentState="{data.state}"
+					  skinClass="com.linkage.module.cms.transferdevicepanel.skins.SlotSkin"
+					  xmlns:parsley="http://www.spicefactory.org/parsley"
+					  creationComplete="slotComp_creationCompleteHandler(event)"
+					  xmlns:view="com.linkage.module.cms.transferdevicepanel.view.*"
+					  buttonMode.enabled_vertical="true"
+					  buttonMode.enabled_horizontal="true"
+					  buttonMode.disabled_horizontal="false"
+					  buttonMode.disabled_vertical="false"
+					  click.enabled_horizontal="slotcomp_clickHandler(event)"
+					  click.enabled_vertical="slotcomp_clickHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-10-16
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<s:states>
+		<s:State name="enabled_horizontal"/>
+		<s:State name="enabled_vertical"/>
+		<s:State name="disabled_horizontal"/>
+		<s:State name="disabled_vertical"/>
+	</s:states>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<mx:Glow id="glow"
+				 target="{this}"
+				 duration="500"
+				 alphaFrom="0"
+				 alphaTo="1.0"
+				 blurXFrom="35.0"
+				 blurXTo="0.0"
+				 blurYFrom="35.0"
+				 blurYTo="0.0"
+				 repeatCount="10"/>
+
+		<s:Rotate id="rotateEffect"
+				  target="{title}"
+				  angleBy="90"
+				  duration="0"
+				  autoCenterTransform="true"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.utils.StringUtil;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.linkage.module.cms.transferdevicepanel.domain.TransferDevicePanelDM;
+			import com.linkage.module.cms.transferdevicepanel.event.TransferDevicePanelEvent;
+			
+			import mx.events.FlexEvent;
+			import mx.utils.StringUtil;
+			[Bindable]
+			public var data:*;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			[Inject("transferDevicePanelDM")]
+			[Bindable]
+			public var dm:TransferDevicePanelDM;
+			private var log:ILogger=Log.getLoggerByClass(SlotComp);
+
+			protected function slotComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (data.alarm_level > 0)
+				{
+//					tipComp.visible=true;
+					glow.end();
+					glow.color=data.bgcolor;
+					glow.play();
+				}
+			}
+
+			private function slotcomp_clickHandler(event:MouseEvent):void
+			{
+				var e:TransferDevicePanelEvent=new TransferDevicePanelEvent(TransferDevicePanelEvent.LOAD_PTPDATA);
+				dm.queryParam.slotid=data.slot_id;
+				dispatchMsg(e);
+				var ee:TransferDevicePanelEvent=new TransferDevicePanelEvent(TransferDevicePanelEvent.LOAD_PROPDATA);
+				dm.queryParam.slotid=data.slot_id;
+				dispatchMsg(ee);
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup verticalAlign="middle"
+			  horizontalAlign="center"
+			  width="100%"
+			  height="100%">
+		<s:Label id="title"
+				 text="{data.slot_name}"
+				 creationCompleteEffect.disabled_vertical="{rotateEffect}"
+				 creationCompleteEffect.enabled_vertical="{rotateEffect}"/>
+	</s:HGroup>
+	<s:HGroup id="tipComp"
+			  verticalAlign="middle"
+			  horizontalAlign="center"
+			  width="100%"
+			  top="-30"
+			  visible="false">
+		<view:TipComp tip="{data.alarm_num}"
+					  bgColor="{data.bgcolor}"/>
+	</s:HGroup>
+</s:SkinnableContainer>

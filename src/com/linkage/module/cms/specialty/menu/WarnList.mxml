@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" 
+		 height="100%">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.rpc.remoting.BlazeDSUtil;
+			import com.linkage.system.utils.ExcelUtil;
+			
+			import flash.net.navigateToURL;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			
+			// 日志
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.specialty.menu");
+			// 调用java对象
+			private static var destination:String  = "flexdestination_cms_warn_report_query_WarnQueryServImp";
+			private static var src:String  = "com.linkage.module.cms.warn.report.query.serv.WarnQueryServImp";
+			private static var endpoint:String = "/cms/messagebroker/amf";
+			// 导出excel图片
+			[Embed(source="../alarmSearch/img/icon_export.png")]
+			[Bindable]
+			public static var iconExport:Class;
+			// 工具栏配置图片
+			[Embed(source="../alarmSearch/img/icon_defind.png")]
+			[Bindable]
+			public static var iconConfig:Class;
+			// 表格数据数组对象
+			private var arr:Array = new Array();
+			// 导出excel对象数组
+			private var expArr:Array = new Array();
+			
+			
+			// 加载展示列
+			public function loadDisplayColumn(login_name:String):void
+			{
+				// 根据当前登录用户名、功能点名称获取展示列
+				var remoteService:RemoteObject = BlazeDSUtil.newService(
+					destination, 
+					src, 
+					endpoint,
+					function(result:Object):void
+					{
+						logger.info(">>> 加载告警列表配置列数据成功。");
+						logger.info(">>> 初始化查询结果列表 开始 ......");
+						initColumn(result as ArrayCollection);
+						logger.info(">>> 初始化查询结果列表 结束 ......");
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error(">>> 加载告警列表配置列数据失败！{0}", event.fault.faultString);
+					});
+				
+				remoteService.getDisplayColumns('queryalarm', login_name as String);
+			}
+			
+			// 初始化展示列表
+			private function initColumn(ac:ArrayCollection):void
+			{
+				var dgc:DataGridColumn = null;
+				for each(var col:String in ac)
+				{
+					dgc = new DataGridColumn();
+					dgc.headerText = col.split(",")[0];
+					dgc.dataField = col.split(",")[1];
+					logger.info(">>> 标题:" + dgc.headerText + ",英文列:" + dgc.dataField + " >>>");
+					if("alarmseverity" == dgc.dataField)
+					{
+						dgc.itemRenderer = new ClassFactory(AlarmSeverityColor);
+					}
+					arr.push(dgc);
+					expArr.push({id:col.split(",")[1],name:col.split(",")[0]});
+				}
+				logger.info(">>> arr:" + this.arr + " >>>");
+				warns.columns = this.arr;
+			}
+			
+			// 设置数据
+			public function setData(datas:ArrayCollection):void
+			{
+				if(null == datas || 0 == datas.length)
+				{
+					logger.info(">>> 该网元下没有告警信息 >>>");
+				}
+				warns.dataProvider = datas;
+			}
+			
+			// 设置列表标题
+			public function setTitle(moInfo:String):void
+			{
+				titleInfo.text = "网元 [" + moInfo + "] 对应的告警信息";
+			}
+			
+			// 导出数据
+			private function expDatas():void
+			{
+				logger.info(">>> 导出数据。。。   加载需要导出的数据。。。");
+				// 查询需要导出的告警列表
+				var expDatas:ArrayCollection = warns.dataProvider as ArrayCollection;
+				if(null == expDatas || 0 == expDatas.length)
+				{
+					Alert.show("列表中没有数据");
+					return;
+				}
+				logger.info(">>> 导出的告警记录数:" + expDatas.length + " >>>");
+				ExcelUtil.exportSimpleExcel("告警结果导出",expArr,expDatas);
+			}
+			
+			// 配置展示列
+			private function confColumns(event:Event):void
+			{
+				ExternalInterface.call("showColConfWindow");
+			}
+
+			private function showWarnDetail(event:ListEvent):void
+			{
+				var alarmuniqueid:Object = event.itemRenderer.data.alarmuniqueid;
+				logger.info(">>> 查询告警[" + alarmuniqueid + "]详情 >>>");
+				navigateToURL(new URLRequest("/cms/warn/rule/report/nonprofess/NonprofessWarnAction!queryWarnInfo.action?alarmNo=" + alarmuniqueid), "_blank");
+			}
+
+		]]>
+	</fx:Script>
+	<mx:HBox top="5" right="0" bottom="2" width="100%" height="20">
+		<mx:HBox horizontalAlign="left" width="50%"
+				 verticalAlign="middle"
+				 paddingLeft="6"
+				 paddingTop="6"
+				 >
+			<s:Label id="titleInfo" color="0xFFFFFF" text="告警查询信息"/>
+		</mx:HBox>
+		<mx:HBox horizontalAlign="right" width="50%"
+				 verticalAlign="middle"
+				 paddingRight="20"
+				 paddingTop="5"
+				 >
+			<mx:Image id="export"
+					  source="{iconExport}"
+					  autoLoad="true"
+					  toolTip="查询结果导出"
+					  buttonMode="true"
+					  visible="true"
+					  click="expDatas()" />
+			<mx:Image id="tool"
+					  source="{iconConfig}"
+					  autoLoad="true"
+					  toolTip="显示列配置"
+					  visible="true"
+					  buttonMode="true"
+					  click="confColumns(event)" />
+		</mx:HBox>
+	</mx:HBox>
+	<mx:DataGrid 
+		id="warns" 
+		width="100%" 
+		height="100%" 
+		top="27"
+		doubleClickEnabled="true"
+		itemDoubleClick="showWarnDetail(event)">
+	</mx:DataGrid>
+</s:BorderContainer>

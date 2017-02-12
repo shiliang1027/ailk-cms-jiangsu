@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+			  title="图例"
+			  width="280"
+			  minHeight="24"
+			  dragable="true"
+			  close="closePanel()"
+			  maximizable="false">
+	<panel:layout>
+		<s:VerticalLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.core.parser.ElementProperties;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			// log
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.view.component.LegendPanel");
+
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				super.topoCanvas = value;
+
+				_topoCanvas.addEventListener(TopoEvent.LEGEND_TOGGLE, function(event:TopoEvent):void
+					{
+						if (showStatus)
+						{
+							closePanel();
+						}
+						else
+						{
+							showPanel();
+						}
+					});
+			}
+
+			// 展示元素的信息
+			private function showPanel():void
+			{
+				show();
+			}
+
+			// 关闭面板
+			private function closePanel():void
+			{
+				hide();
+			}
+		]]>
+	</fx:Script>
+	<mx:Form width="100%"
+			 height="100%">
+		<mx:FormItem label="普通连线">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="{ElementProperties.DEFAULT_LINE_COLOR}"
+											weight="{ElementProperties.DEFAULT_LINE_WIDTH}"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+		<mx:FormItem label="一干光缆">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0x003eff"
+											weight="6"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+		<mx:FormItem label="二干光缆">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0x00c0ff"
+											weight="5"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+		<mx:FormItem label="本地网骨干层">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0xa27fcc"
+											weight="4"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+		<mx:FormItem label="本地网接入层">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0x278a24"
+											weight="3"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+		<mx:FormItem label="光缆选择">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0x2a5695"
+											weight="2"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+		<mx:FormItem label="标石段">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0x8b4462"
+											weight="2"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+		<mx:FormItem label="杆道段">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0x1a7ca4"
+											weight="2"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+		<mx:FormItem label="管道段">
+			<s:Group>
+				<s:Line xFrom="0"
+						yFrom="0"
+						xTo="100"
+						yTo="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0x75ca7d"
+											weight="2"
+											caps="square"/>
+					</s:stroke>
+				</s:Line>
+
+			</s:Group>
+		</mx:FormItem>
+	</mx:Form>
+</panel:AbstractCEPWindow>

@@ -1,0 +1,648 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" 
+		 width="100%" 
+		 height="100%" 
+		 xmlns:gis="com.linkage.gis.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.metry.GisRectangle;
+			import com.linkage.gis.core.styles.GisFillPredefinedStyle;
+			import com.linkage.gis.core.styles.GisLinePredefinedStyle;
+			import com.linkage.gis.core.styles.GisLineStyle;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.regional.data.GisServ;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.Canvas;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.core.UIComponent;
+			import mx.formatters.DateFormatter;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			import nl.demonsters.debugger.MonsterDebugger;
+			
+			import spark.components.BorderContainer;
+			import spark.components.Label;
+			
+			[Embed(source="com/linkage/module/cms/general/img/u1219.jpg")]
+			[Bindable]
+			private static var toLeft:Class;
+			
+			[Embed(source="com/linkage/module/cms/general/img/u1221.jpg")]
+			[Bindable]
+			private static var toRight:Class;
+			
+			[Embed(source="com/linkage/module/cms/general/img/u940.png")]
+			[Bindable]
+			private static var autoPlay:Class;
+			
+			[Embed(source="com/linkage/module/cms/general/img/jizhan.png")]
+			[Bindable]
+			private static var jizhan:Class;
+			
+			[Embed(source="com/linkage/module/cms/general/img/2g.png")]
+			[Bindable]
+			private static var pic_2g:Class;
+			
+			[Embed(source="com/linkage/module/cms/general/img/3g.png")]
+			[Bindable]
+			private static var pic_3g:Class;
+			
+			private var lm:LoadManager;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.main");
+			
+			//GIS视图
+			private var view:MainView = null;
+			
+			//记录缩略图数量
+			private var miniMapNum:int = 0;
+			
+			//记录当前移动的位置
+			private var curLocation:int = 1;
+			
+			//每屏显示的缩略图数量
+			private var showMapNum:int = 8;
+			
+			//缩略图宽度
+			private var miniMapWidth:int = 140;
+			
+			//缩略图之间空间
+			private var miniMapGap:int = 5;
+			
+			//缩略图高度
+			private var miniMapHeight:int = 100;
+			
+			//数据接口
+			private var _gisServ:GisServ = null;
+			
+			//测试数据
+			private var testData:Object = {
+				"1308715200":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308718800":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308722400":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308726000":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308729600":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308733200":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308736800":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308740400":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308744000":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308747600":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308751200":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}],
+				"1308754800":[{"grid_id":"1","longitude":"113.259518","latitude":"23.13172","width":"100","heigth":"100","color":"0x555555"}]
+			};
+
+			//缓存所有的时间节点
+			public var timeArr:ArrayCollection = new ArrayCollection();
+			
+			//当前节点
+			private var curIndex:int = 0;
+			
+			//是否可以点击移动缩略图
+			private var isMoveabled:Boolean = false;
+			
+			//调试标志
+			private var _isDebug:Boolean = false;
+			
+			//当前显示的场景编号
+			private var _monitorId:String = null;
+			private var _perfId:Object = null;
+			
+			//地图是否初始化好
+			private var mapInit:Boolean = false;
+			
+			//图片的偏移量
+			private var leftPicXOffset:Number = 15;
+			private var leftPicYOffset:Number = -7;
+			private var rightPicXOffset:Number = -10;
+			private var rightPicYOffset:Number = -7;
+			
+			private var timeoutIdCache:Object = new Object();
+
+			public function get monitorId():String
+			{
+				return _monitorId;
+			}
+
+			public function set monitorId(value:String):void
+			{
+				_monitorId = value;
+			}
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+			
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+			
+			public function get gisServ():GisServ
+			{
+				return _gisServ;
+			}
+
+			public function set gisServ(value:GisServ):void
+			{
+				_gisServ = value;
+			}
+
+			public function init(view:MainView):void
+			{
+				this.view = view;
+				lm = new LoadManager(miniHgroup);
+			}
+			
+			public function showMap():void
+			{
+				lm.showLoading("正在加载数据，请稍后...");
+				
+				for each(var tid:uint in timeoutIdCache)
+				{
+					clearTimeout(tid);	
+				}
+				timeoutIdCache = new Object();
+				
+				var tid:uint = setTimeout(beginProcess, 1100);
+				timeoutIdCache['beginProcess'] = tid;
+			}
+			
+			private function beginProcess():void
+			{
+				if (mapInit)
+				{
+					//先清除数据
+					this.showGroup.removeAllElements();
+					this.miniMapWork.map.removeAllGisFeature();
+					this.miniMapWork.map.removeAllGisLayers();
+					timeArr.removeAll();
+					
+					var param:Object = new Object();
+					param.monitor_id = _monitorId;
+					param.perf_type = _perfId;
+					
+//					log.info(" -- >><< --  mini params");
+//					MonsterDebugger.trace(" -- >><< --  mini params", param);
+//					log.info(" -- >><< --  mini params");
+					//调用接口数据
+					_gisServ.getBreviaryInfo(param,loadMapData,null,loadMapDataErr);
+				}
+				else
+				{
+					//等待1秒再调
+					
+					var tid:uint = setTimeout(showMap,1000);
+					timeoutIdCache['showMap'] = tid;
+				}
+			}
+			
+			public function loadMapData(obj:Object):void
+			{
+				lm.hideLoading();
+				if (obj != null)
+				{
+					log.info("查询GIS缩略图成功！");
+					initMiniMap(obj);
+				}
+				else
+				{
+					log.info("查询GIS缩略图数据为空！");
+					if (_isDebug)
+					{
+						initMiniMap(testData);
+					}
+				}
+			}
+			
+			public function loadMapDataErr(obj:Object):void
+			{
+				lm.hideLoading();
+				log.info("加载GIS缩略图异常！");
+				if (_isDebug)
+				{
+					initMiniMap(testData);
+				}
+			}
+			
+			private function initMiniMap(obj:Object):void
+			{
+				//取所有的时间节点
+				if (obj != null)
+				{
+					for (var str:String in obj)
+					{
+						timeArr.addItem(str);
+					}
+				}
+				
+				//对时间进行排序
+				if (timeArr.length > 1)
+				{
+					orderList();
+				}
+				
+				log.info("缩略图数据节点：" + timeArr.length);
+				
+				if (timeArr.length > 0)
+				{
+					//设置存放缩略图的容器
+					var num:Number = showMapNum;
+					if(timeArr.length > showMapNum)
+						num = timeArr.length;
+					
+					this.showGroup.minWidth = (miniMapWidth + miniMapGap) * num - miniMapGap;
+					this.showGroup.x = -(miniMapWidth + miniMapGap) * (num - showMapNum);
+					curLocation = num - showMapNum + 1;
+					
+					//取第一个节点数据
+					curIndex = 0;
+					var key:String = String(timeArr.getItemAt(curIndex));
+					initGisFeature(String(curIndex),obj[key]);
+					curIndex ++;
+					miniMapNum ++;
+					//开始定时
+					//由于GIS地图洒点后不能直接取到，所以下面做了延迟的定时任务
+					var tid:uint = setTimeout(loopProcess, 1000, obj, key);
+					timeoutIdCache['loopProcess'] = tid;
+				}
+				else
+				{
+					log.info("返回的缩略图数据为0！");
+				}
+			}
+			
+			//对采集到的时间进行排序
+			private function orderList():void
+			{
+				var len:int = timeArr.length;
+				
+				for (var i:int=0;i<len;i++)
+				{
+					for (var j:int=0;j<(len-i-1);j++)
+					{
+						if (Number(timeArr.getItemAt(j)) < Number(timeArr.getItemAt(j+1)))
+						{
+							switchTime(j,j+1);
+						}
+					}
+				}
+			}
+			
+			private function switchTime(i:int,j:int):void
+			{
+				var tmpStr:String = String(timeArr.getItemAt(j));
+				
+				timeArr[j] = timeArr.getItemAt(i);
+				timeArr[i] = tmpStr;
+			}
+			
+			private function loopProcess(obj:Object, time:String):void
+			{
+				//创建历史节点
+				var uiGroup:Group = new Group();
+				uiGroup.width = miniMapWidth;
+				uiGroup.height = miniMapHeight;
+				
+				createMiniMap(uiGroup,curIndex,time);
+				this.showGroup.addElementAt(uiGroup,0);
+				//取下一个数据
+				if (curIndex < timeArr.length)
+				{
+					var key:String = String(timeArr.getItemAt(curIndex));
+					initGisFeature(String(curIndex),obj[key]);
+					curIndex ++;
+					miniMapNum ++;
+					
+					var tid:uint = setTimeout(loopProcess,1000,obj,key);
+					timeoutIdCache['loopProcess'] = tid;
+				}
+				else
+				{
+					//循环结束后，可以点击移到图片的按钮
+					isMoveabled = true;
+					//循环结束后，重新定位，以防位置偏移
+//					autoMove();
+				}
+			}
+			
+			//创建缩略图
+			private function createMiniMap(uiGroup:Group,i:int,time:String):void
+			{
+				//添加图片
+				var ui:UIComponent = new UIComponent();
+				ui.buttonMode = true;
+				ui.width = miniMapWidth;
+				ui.height = miniMapHeight;
+				
+				var mdata:BitmapData = this.miniMapWork.map.exportAsBitmapData();
+				
+				var matrix:Matrix = new Matrix();
+				matrix.identity();
+				matrix.scale(miniMapWidth/miniMapWork.width,miniMapHeight/miniMapWork.height);
+				ui.graphics.beginBitmapFill(mdata, matrix);
+				ui.graphics.drawRect(0, 0, miniMapWidth, miniMapHeight);
+				ui.graphics.endFill();
+				
+				ui.addEventListener(MouseEvent.CLICK,function(event:MouseEvent):void{
+					if (view != null)
+					{
+						log.info("显示历史数据：" + time);
+						view.showHistory(time);
+					}
+				});
+				
+				uiGroup.addElement(ui);
+				
+				//添加时间
+				var bc:BorderContainer = new BorderContainer();
+				bc.setStyle("borderColor", "0x000000");
+				bc.setStyle("borderStyle", "solid");
+				bc.setStyle("backgroundAlpha", "0.6");
+				bc.setStyle("backgroundColor", "0x000000");
+				bc.left = 1;
+				bc.right = 1;
+				bc.bottom = 5;
+				bc.height = 20;
+				
+				var timeText:Label = new Label();
+				timeText.percentWidth = 100;
+				timeText.setStyle("color","0xFFFFFF");
+				timeText.setStyle("textAlign","center");
+				timeText.setStyle("paddingTop","3");
+				var d:Date = new Date(Number(time)*1000);
+				var dateFormatter:DateFormatter = new DateFormatter();
+				dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+				timeText.text = dateFormatter.format(d);
+				bc.addElement(timeText);
+				uiGroup.addElement(bc);
+				
+			}
+			
+			//初始化GIS地图数据
+			private function initGisFeature(str:String,data:Object):void
+			{
+				this.miniMapWork.map.removeAllGisFeature();
+				
+				var pic:GisMarkerPictureStyle = null;
+				var feature:GisFeature = null;
+				
+				//放置网格
+				var xSum:Number = 0;
+				var ySum:Number = 0;
+				var count:uint = 0;
+				var h:Number = 0;
+				
+				for each (var grid:Object in data)
+				{
+					var p:GisPoint = createGrid(grid);
+					xSum += p.x;
+					ySum += p.y;
+					count++;
+					h = grid.heigth;
+				}
+				
+				var tid:uint = setTimeout(
+						function():void
+						{
+//							miniMapWork.map.viewRefresh();
+//							miniMapWork.map.panTo(new GisPoint(xSum/count, ySum/count));
+							miniMapWork.map.zoomToScale(getScale(h), new GisPoint(xSum/count, ySum/count));;
+						}, 200);
+				timeoutIdCache['zoomToScale'] = tid;
+			}
+			
+			private function getScale(h:Number):Number
+			{
+				log.info(" ----><>< h:" + h);
+				var scale:Number = 16000;
+				switch(h)
+				{
+					case 100:
+						scale = 16000;
+						break;
+					
+					case 200:
+						scale = 32000;
+						break;
+					
+					case 300:
+					case 400:
+						scale = 64000;
+						break;
+					
+					case 500:
+					case 600:
+						scale = 125000;
+						break;
+					
+					case 700:
+					case 800:
+						scale = 250000;
+						break;
+					
+					case 900:
+					case 1000:
+						scale = 500000;
+						break;
+				}
+				log.info(" ----><>< scale:" + scale);
+				return scale;
+			}
+			
+			//往地图上渲染网格
+			private function createGrid(grid:Object):GisPoint
+			{
+				//取当前网格的坐标
+				var longitude:Number = Number(grid.longitude);
+				var latitude:Number = Number(grid.latitude);
+				var length:Number = Number(grid.width);
+				var width:Number = Number(grid.heigth);
+				
+//				log.info(" --->< 网格长宽： width:" + width + " length:" + length);
+				
+				var borderStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0xFFFFFF,1,1);
+				var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID,Number(grid.color),0.8,borderStyle);
+				var point:GisPoint = new GisPoint(longitude,latitude);
+				var feature:GisFeature = new GisFeature(new GisRectangle(width,length,point),polygonStyle);
+				feature.autoMoveToTop = false;
+				feature.alpha = 0.8;
+				var obj:Object = new Object();
+				obj.mo_type = "perfGrid";
+				feature.attributes = obj;
+				this.miniMapWork.map.addGisFeatureAt(feature,0);
+				return point;
+			}
+
+			//左移
+			protected function moveLeft():void
+			{
+				if (isMoveabled)
+				{
+					if (curLocation <= (miniMapNum - showMapNum))
+					{
+						//每次移动显示数减一
+						var moveNum:Number = showMapNum - 1;
+						if ((curLocation + moveNum) > (miniMapNum - showMapNum))
+						{
+							moveNum = miniMapNum - showMapNum - curLocation + 1;
+							curLocation = miniMapNum - showMapNum + 1;
+						}
+						else
+						{
+							curLocation = curLocation + moveNum;
+						}
+						
+						showMove.xBy = - (miniMapWidth + miniMapGap) * moveNum;
+						showMove.play();
+					}
+					else
+					{
+						//Alert.show("已到最后端！");
+					}
+				}
+				else
+				{
+					Alert.show("正在加载缩略图，请稍后点击！");
+				}
+			}
+			
+			//右移
+			protected function moveRight():void
+			{
+				if (isMoveabled)
+				{
+					if (curLocation > 1)
+					{
+						//每次移动显示数减一
+						var moveNum:Number = showMapNum - 1;
+						if (moveNum >= curLocation)
+						{
+							moveNum = curLocation - 1;
+							curLocation = 1;
+						}
+						else
+						{
+							curLocation = curLocation - moveNum;
+						}
+						
+						showMove.xBy = (miniMapWidth + miniMapGap) * moveNum;
+						showMove.play();
+					}
+				}
+				else
+				{
+					Alert.show("正在加载缩略图，请稍后点击！");
+				}
+			}
+			
+			private function startPlay():void
+			{
+				if (isMoveabled)
+				{
+					//将缩略图移到起始位置
+					this.showGroup.x = 0;
+					curLocation = 1;
+					
+					autoMove();
+				}
+				else
+				{
+					Alert.show("正在加载缩略图，请稍后点击！");
+				}
+			}
+			
+			//自动播放
+			private function autoMove():void
+			{
+				if (curLocation <= (miniMapNum - showMapNum))
+				{
+					showMove.duration = 800;
+					showMove.xBy = - (miniMapWidth + miniMapGap);
+					showMove.play();
+					
+					curLocation ++;
+					
+					//延时一秒执行
+					var tid:uint = setTimeout(autoMove,1500);
+					timeoutIdCache['autoMove'] = tid;
+				}
+			}
+			
+			//自动定位
+//			private function autoLocation():void
+//			{
+//				
+//				if (curLocation <= (miniMapNum - showMapNum))
+//				{
+//					showMove.duration = 800;
+//					showMove.xBy = - (miniMapWidth + miniMapGap);
+//					showMove.play();
+//					
+//					curLocation ++;
+//					
+//					//延时一秒执行
+//					setTimeout(autoLocation,1500);
+//				}
+//			}
+
+			protected function miniMapWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				mapInit = true;
+			}
+
+			public function get perfId():Object
+			{
+				return _perfId;
+			}
+
+			public function set perfId(value:Object):void
+			{
+				_perfId = value;
+			}
+
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Move id="showMove" duration="600" target="{showGroup}" xBy="0">
+		</s:Move>
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%">
+		<s:HGroup width="100%" height="100" horizontalAlign="center" verticalAlign="middle" gap="15" id="miniHgroup">
+			<mx:Image source="{toLeft}" click="moveRight();" buttonMode="true"/>
+			
+			<mx:Canvas id="showCanvas" width="1075" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+				<mx:HBox id="showGroup" horizontalAlign="right" verticalScrollPolicy="off" horizontalScrollPolicy="off" 
+						 height="100%" horizontalGap="5"/>
+			</mx:Canvas>
+			
+			<mx:Image source="{toRight}" click="moveLeft();" buttonMode="true"/>
+			
+			<s:VGroup horizontalAlign="center" verticalAlign="middle">
+				<mx:Image source="{autoPlay}" click="startPlay();" buttonMode="true"/>
+				<s:Label text="播放" left="3"/>
+			</s:VGroup>
+		</s:HGroup>
+		
+		<gis:MapWork id="miniMapWork" width="360" height="300" visible="false" showOverView="false" showZoomSlider="false" 
+					 mapCreationComplete="miniMapWork_mapCreationCompleteHandler(event)" includeInLayout="false"/>
+	</s:VGroup>
+</s:Group>

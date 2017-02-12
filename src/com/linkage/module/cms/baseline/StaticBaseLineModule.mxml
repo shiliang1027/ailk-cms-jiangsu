@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:local="com.linkage.module.cms.baseline.static.view.*" 
+		   width="100%" height="100%"
+		   preinitialize="module1_preinitializeHandler(event)"
+		   creationComplete="application1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.baseline.static.data.BaseLineDataManager;
+			import com.linkage.module.cms.baseline.static.data.BaseLineDataManagerBS;
+			import com.linkage.module.cms.baseline.static.event.BaseLineEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			
+			import mx.events.FlexEvent;
+			
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.static.BaseLineModule");
+			[Bindable]
+			private var baseLineDataManager:BaseLineDataManager;
+			public var parameters:Object;
+			[Bindable]
+			public var lm:LoadManager;
+			
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("StaticBaseLineModule初始化完成!");
+			}
+			private function doInit():void{
+				parameters = parentApplication.parameters;
+				lm = new LoadManager(this);
+				initLog();
+				//初始化manager
+				initServerClass();
+			}
+			private function initLog():void{
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.baseline.static*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+			}
+			//初始化baseLineDataManager，并给数据类注入context
+			private function initServerClass():void
+			{
+				if(null==baseLineDataManager)
+					baseLineDataManager = new BaseLineDataManagerBS(this.parameters['context']);
+			}
+			protected function module1_preinitializeHandler(event:FlexEvent):void
+			{
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parentApplication.parameters["styleUrl"]);
+				doInit();
+			}
+			protected function showBaseLineViewFun():void
+			{
+				log.info("展示基线页面");
+				baseline.showBaseLineConfig();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%">
+		<local:KPIView id="kpi" width="100%" height="50%" lm="{lm}"  showBaseLineViewFun="showBaseLineViewFun"
+					   baseLineDataManager="{baseLineDataManager}"/>
+		<local:StaticBaseLineView id="baseline" width="100%" height="50%" lm="{lm}"
+					   baseLineDataManager="{baseLineDataManager}"/>
+	</s:VGroup>
+</mx:Module>

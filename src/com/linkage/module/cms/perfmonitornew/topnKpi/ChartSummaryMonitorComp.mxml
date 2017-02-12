@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+             xmlns:s="library://ns.adobe.com/flex/spark"
+             xmlns:mx="library://ns.adobe.com/flex/mx"
+			 xmlns:topnKpi="com.linkage.module.cms.perfmonitornew.topnKpi.*"
+             width="100%"
+             height="100%">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.core.IVisualElement;
+			import mx.events.FlexEvent;
+
+            private var log:ILogger = Log.getLoggerByClass(ChartSummaryMonitorComp);
+
+            private var chartCompCache:Object = {};
+			
+			private var times:ArrayCollection = new ArrayCollection;
+			
+			private var paramTopN:Object;
+			
+			private var kpiId:String;
+			private var kpiName:String;
+			private var schemeName:String = "";
+			private var moTypeId:String;
+			private var scene_id:String;
+			private var area_id:String;
+			
+			public var objConst:Object;
+			
+            public function tilegroup1_creationCompleteHandler(obj:Object):void
+            {
+//				log.info("tilegroup1_creationCompleteHandler  1");
+//				log.info(obj);
+				objConst = obj;
+				kpiId = obj.kpi_id;
+				kpiName =  obj.kpi_name;
+				moTypeId = obj.mo_type_id;
+				scene_id = obj.scene_id;
+				area_id = obj.area_id;
+				
+				obj.schemeName = obj.schemeName;
+				obj.topn = 10;
+				
+				chartCompCache = {};
+//				log.info("obj.width:"+obj.width+"obj.height:"+obj.height);
+//				topnChartWin.width = obj.width;
+//				topnChartWin.height = obj.height;
+				topnChartWin.kpiName = obj.kpi_name;
+				topnChartWin.kpiId = obj.kpi_id;
+				topnChartWin.moTypeId = obj.mo_type_id;
+				topnChartWin.sceneid = obj.scene_id;
+				topnChartWin.areaid = obj.area_id;
+				
+				kpiName =  obj.kpi_name;
+				
+//				log.info("test");
+				topnChartWin.loadTopnData(obj);
+				
+				chartCompCache[topnChartWin.kpiId] = topnChartWin;  
+				
+            }
+			
+			public function paramChangeCallback():void
+			{
+				log.info("first  paramChangeCallback 2");
+				makeParam();
+				
+				log.info(paramTopN);
+//				PerfMonitorDAO.getInstance().getPerfHisKpi(
+				PerfMonitorDAO.getInstance().getPerfHisKpi(
+					paramTopN,
+					function(result:Object):void
+					{
+						topnChartWin.showTopNData(result as IList);
+						
+					});
+			}
+			
+			private function makeParam():void
+			{
+				paramTopN = {};
+				
+				paramTopN.kpi_id = kpiId;
+				paramTopN.kpi_name = kpiName;
+				paramTopN.mo_type_id = moTypeId;
+				paramTopN.area_id = area_id;
+				paramTopN.scene_id = scene_id;
+				paramTopN.mo_ids = topnChartWin.chartAC;
+				
+				times.removeAll();
+				
+				paramTopN.times = times;
+				
+				paramTopN.topn = 10;
+				
+				times.addItem({"name": "今天"});
+				
+				 if (topnChartWin.compareTimeDDL.selectedItem != null)
+					times.addItem(topnChartWin.compareTimeDDL.selectedItem);  
+				
+				/* if (topnChartWin.compareTimeDDL.selectedItemArr.length > 0)
+					times.addAll(topnChartWin.compareTimeDDL.selectedItemArr); */
+				
+				if(topnChartWin.dishi.selected || topnChartWin.wangyuan.selected)
+				{
+//					paramTopN.grading = ""; 
+					paramTopN.res_type = "2";
+				}
+				else{
+					paramTopN.res_type = objConst.res_type;
+				}
+				
+				log.info("aijaaaaaaaaaaa:" + paramTopN.res_type);
+				
+			}
+			
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+		<topnKpi:ChartComponent id="topnChartWin"
+							 	paramChangeCallback="{paramChangeCallback}"/>
+</s:Group>

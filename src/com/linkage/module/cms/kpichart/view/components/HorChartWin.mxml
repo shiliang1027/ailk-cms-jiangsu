@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  height="100%">
+	<!--
+	***************************************
+	This is Content
+	@author hurw (69065)
+	@version 1.0
+	@date 2014-8-11
+	@langversion 3.0
+	@playerversion Flash 11
+	@productversion Flex 4
+	@copyright Ailk NBS-Network Mgt. RD Dept.
+	***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChart;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			
+			import flashx.textLayout.formats.TextAlign;
+			
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			
+			import spark.components.Label;
+			import spark.components.VGroup;
+			
+			private var log:ILogger = Log.getLoggerByClass(HorChartWin);
+			
+			private var _chartWidth:Number;
+			
+			private var _chartHeight:Number;
+			
+			private var _kpiName:String;
+			
+			private var unit:String;
+			
+			//加入chart 表格
+			public function addChart(topnData:ArrayCollection):void
+			{
+				log.info("表格处理开始：width:{0},height:{1}", chartWidth, chartHeight);
+				log.debug(topnData);
+				var vg:VGroup = new VGroup();
+				vg.width = chartWidth;
+				vg.height = this.height;
+				vg.horizontalAlign = "center";
+				this.addElement(vg);
+				
+				for each (var obj:Object in topnData)
+				{
+					kpiName = obj["kpi_name"];
+					unit = obj["unit"];
+				}
+				topnData.removeItemAt(topnData.length-1);
+				log.debug(topnData);
+				
+				var label:Label = new Label();
+				label.text = "单位("+unit+")";
+				label.percentWidth = 100;
+				label.setStyle("fontSize",14);
+				label.setStyle("textAlign",TextAlign.LEFT);
+				vg.addElement(label);
+				
+				var chart:PrettyChart = new PrettyChart();
+				chart.showXaxisTitle = true;
+				chart.showYaxisTitle = false;
+				chart.maxColumnWidth = 100;
+				chart.width = chartWidth - 8;
+				chart.height = chartHeight - 30;
+				vg.addElement(chart);
+				
+				label = new Label();
+				label.text = kpiName;
+				label.setStyle("fontSize",16);
+				vg.addElement(label);
+				
+				log.info("加入图表kpi_name:{0} 开始", kpiName);
+				var p1:SerialParam = new SerialParam('perf_value', kpiName);
+				p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+				p1.yAxis = "left";
+				
+				var charParam:ChartParam = new ChartParam();
+				charParam.labelStep = 4;
+				//设置横坐标参数
+				charParam.xAxisProperty = "gather_time";
+				charParam.use3DColumn = true;
+				charParam.showLegend = false;
+				charParam.itemClickEnable = true;
+				charParam.padding = 0;
+				charParam.useShowDataEffect = true;
+				chart.chartParam = charParam;
+//				chart.dataTipFunc = topnTipFunc;
+				chart.series = new ArrayCollection([p1]);
+				chart.chartData(topnData, true);
+				log.info("加入图表kpi_name:{0} 结束", kpiName);
+				
+			}
+			
+			public function topnTipFunc(hd:HitData):String
+			{
+				var data:Object = hd.item;
+				return "<B>" + data["kpi_name"] + "</B>\n" + data["gather_time"] + "\n" + data["perf_value"]+data["unit"];
+			}
+			
+			public function get chartWidth():Number
+			{
+				return _chartWidth;
+			}
+			
+			public function set chartWidth(value:Number):void
+			{
+				_chartWidth = value;
+			}
+			
+			public function get chartHeight():Number
+			{
+				return _chartHeight;
+			}
+			
+			public function set chartHeight(value:Number):void
+			{
+				_chartHeight = value;
+			}
+			
+			public function get kpiName():String
+			{
+				return _kpiName;
+			}
+			
+			public function set kpiName(value:String):void
+			{
+				_kpiName = value;
+			}
+		]]>
+	</fx:Script>
+</s:HGroup>

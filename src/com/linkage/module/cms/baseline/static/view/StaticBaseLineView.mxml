@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group 			xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:panel="com.linkage.system.component.panel.*"
+					xmlns:components="com.linkage.module.cms.baseline.static.components.*" 
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					creationComplete="baseLine_creationCompleteHandler()"
+					width="100%" height="100%">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[			
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.baseline.static.data.BaseLineDataManager;
+			import com.linkage.module.cms.baseline.static.demoData.DemoDatas;
+			import com.linkage.module.cms.baseline.static.staticData.BaseLineBean;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			public var lm:LoadManager = null;
+			public var parameters:Object;
+			[Bindable]
+			private var _showName:String = "aaa";
+			[Bindable]
+			public var baseLineDataManager:BaseLineDataManager;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.static.components.StaticBaseLineView");
+			
+			[Bindable]
+			private var _datas:ArrayCollection = new ArrayCollection();
+			
+			protected function baseLine_creationCompleteHandler():void
+			{
+				log.info("StaticBaseLineView初始化！");
+				alarmcfgBox.reset.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				configChartBuildChart();
+			}
+			public function showBaseLineConfig():void
+			{
+				var params:Object = BaseLineBean.getParams();
+				chartTitleLabel.text = BaseLineBean.perfTypeName+"（"+BaseLineBean.unit+"）阀值预览";
+				log.info(params);
+				lm.showLoading();
+				baseLineDataManager.loadStaticBSConfig(params,loadStaticBSConfigHandler);
+			}
+			/**
+			 *1.加载配置
+			 * 
+			 **/
+			private function loadStaticBSConfigHandler(result:Object):void{
+				lm.hideLoading();
+				log.info(result);
+				alarmcfgBox.initData(result);
+			}
+			
+			/****************************************************************以下---配置预览chart ******************************************************************/
+			public function configChartBuildChart():void
+			{
+				configChart.xAxisFontSize = 13;
+				configChart.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				var oneSp1:SerialParam = new SerialParam("oneField1", "一级下线阀值");
+				oneSp1.lineStrokeColor = 0xF91313;
+				oneSp1.showDataDot = false;
+				var oneSp2:SerialParam = new SerialParam("oneField2", "一级上线阀值");
+				oneSp2.lineStrokeColor = 0xF91313;
+				oneSp2.showDataDot = false;
+				
+				var twoSp1:SerialParam = new SerialParam("twoField1", "二级下线阀值");
+				twoSp1.lineStrokeColor = 0xFA8714;
+				twoSp1.showDataDot = false;
+				var twoSp2:SerialParam = new SerialParam("twoField2", "二级上线阀值");
+				twoSp2.lineStrokeColor = 0xFA8714;
+				twoSp2.showDataDot = false;
+//				twoSp2.chartType = "area";
+//				twoSp2.strokeColor = 0xFA8714;
+				
+				var threeSp1:SerialParam = new SerialParam("threeField1", "三级下线阀值");
+				threeSp1.lineStrokeColor = 0xFFFF00;
+				threeSp1.showDataDot = false;
+//				threeSp1.chartType = "area";
+//				threeSp1.strokeColor = 0xFFFF00;
+				var threeSp2:SerialParam = new SerialParam("threeField2", "三级上线阀值");
+				threeSp2.lineStrokeColor = 0xFFFF00;
+				threeSp2.showDataDot = false;
+				
+				series.addItem(oneSp1);
+				series.addItem(oneSp2);
+				series.addItem(twoSp1);
+				series.addItem(twoSp2);
+				series.addItem(threeSp1);
+				series.addItem(threeSp2);
+				
+				configChart.series = series;
+				configChart.canDropLabels = true;
+				configChart.xAxisFontSize = 12;
+				
+				var chartparam:ChartParam = new ChartParam();
+				chartparam.labelStep = 1;
+				chartparam.xAxisProperty = 'time';
+				chartparam.showLegend = false;
+				chartparam.useShowDataEffect = false;
+				chartparam.use3DColumn = true;
+				configChart.chartParam = chartparam;
+			}
+			/****************************************************************以上---配置预览chart ******************************************************************/
+			
+			/****************************************************************以下---配置页面的函数 ******************************************************************/
+			/**
+			 *处理配置数据预览功能 
+			 **/
+			protected function configViewFun(param:Object):void
+			{
+				log.info("configViewFun!");
+				log.info(param);
+				var chartdata:ArrayCollection = this.createViewAC(param);
+				log.info(chartdata);
+				configChart.chartParam.xAxisProperty = 'time';
+				configChart.chartParam.use3DColumn = true;
+				configChart.chartParam.showLegend = false;
+				this.configChart.chartData(chartdata, true);
+			}
+			protected function saveConfigFun(paramArr:ArrayCollection):void
+			{
+				log.info("saveConfigFun!");
+				log.info(paramArr);
+				var params:Object = {};
+				params.datas = paramArr;
+				baseLineDataManager.saveStaticBSConfig(params,saveStaticBSConfig_Handler);
+			}
+			/**
+			 * 
+			 **/
+			private function saveStaticBSConfig_Handler(result:Object):void{
+				log.info("保存修改的静态基线success！");
+				log.info(result.saveFlag);
+				if(result.saveFlag){
+					Alert.show('保存成功！');
+				}else{
+					Alert.show('保存失败，请重试！');
+				}
+			}
+			protected function createViewAC(param:Object):ArrayCollection
+			{
+				var data:ArrayCollection = new ArrayCollection();
+				
+				var dataItem:Object = {};
+				for (var i:int = 0; i < 24; i++) 
+				{
+					var dataItem:Object = {};
+					this.setParamItemProperty(dataItem,param,'oneField1');
+					this.setParamItemProperty(dataItem,param,'oneField2');
+					this.setParamItemProperty(dataItem,param,'twoField1');
+					this.setParamItemProperty(dataItem,param,'twoField2');
+					this.setParamItemProperty(dataItem,param,'threeField1');
+					this.setParamItemProperty(dataItem,param,'threeField2');
+					if(i<10){
+						dataItem['time'] ="0" + i + ":00";
+					}else{
+						dataItem['time'] = i + ":00";
+					}
+					data.addItem(dataItem);
+				}
+				return data;
+			}
+			private function setParamItemProperty(dataItem:Object,item:Object,itemKey:String):void
+			{
+				dataItem[itemKey] = item[itemKey];
+//				if(item.hasOwnProperty(itemKey)){
+//				}
+			}
+			/****************************************************************以上---配置页面的函数 ******************************************************************/
+
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup gap="4" right="4" left="4" top="4" bottom="10"  width="100%" height="100%" >
+			<panel:Window id="mainWin"
+						  width="100%"
+						  height="100%"
+						  closable="false"
+						  maximizable="false"
+						  minimizable="false"
+						  styleName="windowPerf"
+						  title="指标阀值设置">
+				<s:HGroup width="100%" height="100%" horizontalAlign="center">
+					<s:VGroup width="42%" height="100%" paddingTop="5" horizontalAlign="center">
+						<s:BorderContainer cornerRadius="5" borderWeight="1" width="98%" height="98%">
+							<s:VGroup width="100%" height="100%" horizontalAlign="center">
+								<s:Label text="阀值预览" id="chartTitleLabel" fontWeight="bold"/>
+								<ailk_chart:PrettyChart id="configChart" width="100%" height="100%" />
+							</s:VGroup>
+						</s:BorderContainer>
+					</s:VGroup>
+					<s:VGroup width="58%" height="100%" verticalAlign="middle" horizontalAlign="center">
+						<components:AlarmConfigBox1 id="alarmcfgBox" configViewFun="configViewFun" saveConfigFun="saveConfigFun"/>
+					</s:VGroup>
+				</s:HGroup>
+			</panel:Window>
+	</s:HGroup>
+</s:Group>

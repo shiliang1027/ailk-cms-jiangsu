@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				autoDrawBackground="false" xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			protected function checkbox_changeHandler(event:Event):void
+			{
+				// TODO Auto-generated method stub
+				data.isShow=event.target.selected?"1":"0";
+				var e:SceneEvent = new SceneEvent("PANEL_CHANGE");
+				e.param=data;
+				dispatcher(e);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<s:HGroup horizontalAlign="center" verticalAlign="middle">
+		<s:CheckBox label="{data.panelName}" selected="{data.isShow=='1'?true:false}" change="checkbox_changeHandler(event)"/>
+	</s:HGroup>
+</s:ItemRenderer>

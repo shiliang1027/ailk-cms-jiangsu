@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx">
+	
+	<!--集客拓扑高级检索子toolbar面板，包含检索条件、检索输入内容、查询按钮
+		add by donglm at 2013-11-06
+	-->
+	
+	<s:layout>
+		<s:HorizontalLayout horizontalAlign="right" verticalAlign="middle"/>
+	</s:layout>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:DropDownList id="searchTypeList" dataProvider="{selectTypes}" labelField="name"
+					prompt="请选择查询类型" requireSelection="true"/>
+	<s:TextInput id="input" width="100" keyDown="input_keyDownHandler(event)"/>
+	<mx:Image buttonMode="true" click="search_clickHandler()" source="{TopoIcons.searchIcon}"
+			  toolTip="搜索拓扑"/>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.utils.StringUtils;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.assets.TopoIcons;
+			import com.linkage.module.topo.framework.core.model.element.point.INode;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.util.MessageUtil;
+			import com.linkage.module.topo.framework.util.TopoNameBuffer;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.module.topo.framework.view.component.panel.ElementListPanel;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.view.component.toolbar.AdvanceTopoSearch");
+			private var selectTypes : ArrayCollection = new ArrayCollection([{name:"集客名称",value:"1"},
+				{name:"专线名称",value:"2"},{name:"电路名称",value:"3"},{name:"设备名称",value:"4"}]); 
+			// toponame缓存
+			private var _topoNameBuffer:TopoNameBuffer = TopoNameBuffer.getInstance();
+			// 画布
+			[Bindable]
+			private var _topoCanvas:TopoCanvas = null;
+			// 数据源
+			private var _dataSource:IDataSource = null;
+			// loading
+			private var _loading:ILoadingInfo = null;
+			// 展示查询列表的面板
+			private var _elementListPanel:ElementListPanel = null;
+			// 搜索范围的topoName
+			private var _searchTopoNames:Array = null;
+			// 捕获按键按下
+			private function input_keyDownHandler(event:KeyboardEvent):void
+			{
+				// 按下回车,直接提交搜索
+				if (event.keyCode == 13)
+				{
+					search_clickHandler();
+				}
+			}
+			
+			// 搜索拓扑
+			private function search_clickHandler():void
+			{
+				if (!checkForm())
+				{
+					return;
+				}
+				var searchType:int = searchTypeList.selectedItem.value;
+				var searchValue:String = StringUtils.trim(input.text);
+				var boxNameArray:Array = [];
+				var topoSqlArray:Array = [];
+				topoSqlArray.push(DataUtil.buildTopoSqlEqual("visible", "1"));
+				topoSqlArray.push(DataUtil.buildTopoSqlEqual(Constants.XML_KEY_ROOTPID, Constants.TOP_PID_JTKH));
+				topoSqlArray.push(DataUtil.buildTopoSqlLike("name", searchValue));
+				switch(searchType)
+				{
+					case 1:
+						boxNameArray.push(Constants.TOPOSQL_TYPE_SEGMENT);
+						topoSqlArray.push(DataUtil.buildTopoSqlEqual("type", "segment.jtkh"));
+						break;
+					case 2:
+						boxNameArray.push(Constants.TOPOSQL_TYPE_SEGMENT);
+						topoSqlArray.push(DataUtil.buildTopoSqlEqual("type", "segment.prod"));
+						break;
+					case 3:
+						boxNameArray.push(Constants.TOPOSQL_TYPE_LINK);
+						topoSqlArray.push(DataUtil.buildTopoSqlEqual("_ea_.link_type", "link.circ"));
+						break;
+					case 4:
+						boxNameArray.push(Constants.TOPOSQL_TYPE_NODE);
+						break;
+					default:
+						boxNameArray.push(Constants.TOPOSQL_TYPE_NODE);
+						boxNameArray.push(Constants.TOPOSQL_TYPE_SEGMENT);
+						boxNameArray.push(Constants.TOPOSQL_TYPE_LINK);
+				}
+				var topoSql:String = DataUtil.buildFinalTopoSql_And(topoSqlArray);
+				var boxnames:String = boxNameArray.join(",");
+				
+				log.debug("搜索拓扑 topoName={0} searchTopoNames={1} boxnames={2} topoSql={3}", _topoCanvas.topoName, _searchTopoNames, boxnames, topoSql);
+				_elementListPanel.hide();
+				_elementListPanel.clearList();
+				_loading.loadingStart();
+				if (_searchTopoNames != null && _searchTopoNames.length > 0)
+				{
+					// 若数组里面没有当前的名称,将当前名称放入
+					if (_searchTopoNames.indexOf(_topoCanvas.topoName) == -1)
+					{
+						_searchTopoNames.unshift(_topoCanvas.topoName);
+					}
+					
+					
+					var size:int = _searchTopoNames.length;
+					var index:int = 0;
+					var totalSearchNum:int = 0;
+					doSearchTopo(_searchTopoNames[index], boxnames, topoSql, afterSearchTopoCallback);
+					
+					function afterSearchTopoCallback(searchNum:int):void
+					{
+						index++;
+						totalSearchNum += searchNum;
+						if (index == size)
+						{
+							if (totalSearchNum == 0)
+							{
+								// 为搜索到对象,尝试当前层搜索
+								if (!localSearch(searchValue))
+								{
+									MessageUtil.showMessage("未搜索到对象!");
+								}
+							}
+							_loading.loadingEnd();
+							return;
+						}
+						doSearchTopo(_searchTopoNames[index], boxnames, topoSql, afterSearchTopoCallback);
+					}
+				}
+				else
+				{
+					doSearchTopo(_topoCanvas.topoName, boxnames, topoSql, function(searchNum:int):void
+					{
+						if (searchNum == 0)
+						{
+							if (!localSearch(searchValue))
+							{
+								MessageUtil.showMessage("未搜索到对象!");
+							}
+						}
+						_loading.loadingEnd();
+					});
+				}
+				
+			}
+			
+			/**
+			 * 本层次搜索
+			 */
+			private function localSearch(searchValue:String):Boolean
+			{
+				// 为搜索到对象,尝试当前层搜索
+				return _topoCanvas.someNode(function(id:String, node:INode):Boolean
+				{
+					if (searchValue == node.name)
+					{
+						_topoCanvas.locateElement(node.id, node.name, _topoCanvas.topoName);
+						return true;
+					}
+					else
+					{
+						return false;
+					}
+				});
+			}
+			
+			/**
+			 * 执行真正的搜索拓扑
+			 *
+			 * @param topoName
+			 * @param boxnames
+			 * @param topoSql
+			 * @param callback 执行完后的回调,入参为： searchNum(搜索到的对象数量)
+			 */
+			private function doSearchTopo(topoName:String,boxnames:String, topoSql:String, callback:Function = null):void
+			{
+				log.debug("开始搜索 {0} ......", topoName);
+				_dataSource.loadTopoDataBySql(topoName, boxnames, topoSql, function(data:XML):void
+				{
+					var searchNum:int = 0;
+					try
+					{
+						var topoName:String = data.@toponame;
+						var port:String = data.@port;
+						
+						var netView:XML = data.child("NetView")[0];
+						var obj:XML = null;
+						var searchList:XMLListCollection = new XMLListCollection();
+						// ------------- 拼装查询结果列表 -------------
+						// Nodes
+						var nodes:XMLList = netView.Nodes;
+						if (nodes)
+						{
+							for each (obj in nodes.Node)
+							{
+								obj["@topoName"] = topoName;
+								searchList.addItem(obj);
+							}
+						}
+						// Segments
+						var segments:XMLList = netView.Segments;
+						if (segments)
+						{
+							for each (obj in segments.Segment)
+							{
+								obj["@topoName"] = topoName;
+								searchList.addItem(obj);
+							}
+						}
+						// Objects
+						var objects:XMLList = netView.Objects;
+						if (objects)
+						{
+							for each (obj in objects.Object)
+							{
+								obj["@topoName"] = topoName;
+								searchList.addItem(obj);
+							}
+						}
+						// Groups
+						var groups:XMLList = netView.Groups;
+						if (groups)
+						{
+							for each (obj in groups.Group)
+							{
+								obj["@topoName"] = topoName;
+								searchList.addItem(obj);
+							}
+						}
+						// Links
+						var links:XMLList = netView.Links;
+						if (links)
+						{
+							for each (obj in links.Link)
+							{
+								obj["@topoName"] = topoName;
+								searchList.addItem(obj);
+							}
+						}
+						
+						searchNum = searchList.length;
+						if (searchNum > 0)
+						{
+							// 放到列表面板中
+							_elementListPanel.appendDataXML(searchList);
+							_elementListPanel.show();
+						}
+					}
+					catch (e:Error)
+					{
+						log.error("搜索异常:" + e.message + " StackTrace:" + e.getStackTrace());
+					}
+					if (callback != null)
+					{
+						callback.call(null, searchNum);
+					}
+				}, function():void
+				{
+					
+				}, function():void
+				{
+					log.error("搜索拓扑异常!(通信异常)");
+					if (callback != null)
+					{
+						callback.call(null, 0);
+					}
+				});
+			}
+			
+			/**
+			 * 展示查询列表的面板
+			 */
+			public function set elementListPanel(value:ElementListPanel):void
+			{
+				_elementListPanel = value;
+			}
+			
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+			
+			public function set topoCanvas(value:TopoCanvas):void
+			{
+				_topoCanvas = value;
+				_loading = LoadingManager.getInstance().loadingInfo;
+			}
+			
+			private function checkForm():Boolean
+			{
+				if (StringUtils.trim(input.text) == "")
+				{
+					MessageUtil.showMessage("请输入查询条件");
+					return false;
+				}
+				return true;
+			}
+			
+			/**
+			 * 搜索范围的topoName
+			 */
+			public function set searchTopoNames(value:Array):void
+			{
+				_searchTopoNames = value;
+			}
+			
+			/**
+			 * 根据regex查询所有可用的toponame作为搜索范围
+			 */
+			public function set searchTopoNamesRegex(regex:String):void
+			{
+				log.info("设置拓扑搜索TopoName的正则表达式: " + regex);
+				_searchTopoNames = [];
+				if (regex == null)
+				{
+					return;
+				}
+				_topoNameBuffer.loadTopoNames(regex, _dataSource, function(topoNames:Array):void
+				{
+					_searchTopoNames = topoNames;
+				});
+			}
+		]]>
+	</fx:Script>
+</s:Group>

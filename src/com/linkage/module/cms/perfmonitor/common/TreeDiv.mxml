@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:navbar="com.linkage.module.cms.components.navbar.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			[Embed(source="../img/treeOpen.png")]
+			public static var treeOpen:Class;
+			
+			[Embed(source="../img/treeClose.png")]
+			public static var treeClose:Class;
+			
+			private var _callBack:Function;
+			
+			private var initFlag:Boolean = false;
+			private var treeDp:XML;
+			
+			private var openItems:ArrayCollection = new ArrayCollection();
+			
+			private var defaultCityId:Object;
+			public function initTree(title:String, data:Object, callBack:Function):void
+			{
+				_callBack = callBack;
+				legendBar.title = title;
+				
+				defaultCityId = data['city_id'];
+				
+				createTree(String(data['nodes']));
+			}
+			
+			private function createTree(txmlStr:String):void
+			{
+				
+				var txml:XML = new XML(txmlStr);
+				if(!initFlag)
+				{
+					initFlag = true;
+					tree.dataProvider = txml;
+					treeDp = txml;
+				}
+				else
+				{
+					txml = treeDp;
+				}
+				openItems.removeAll();
+				openItems.addItem(txml);
+				forEachTree(txml);
+			}
+			
+			private function forEachTree(node:XML):void
+			{
+				for each(var child:XML in node.children())
+				{
+					if(child.@id == defaultCityId)
+					{
+						openItems.addItem(node);
+						tree.openItems = openItems;
+						tree.selectedItem = child;
+						break;
+					}
+					if(child.hasComplexContent())
+					{
+						forEachTree(child);
+					}
+				}
+			}
+
+			protected function tree_itemClickHandler(event:ListEvent):void
+			{
+				_callBack.call(null, event.currentTarget.selectedItem.@id, 
+					event.currentTarget.selectedItem.@label,
+					event.currentTarget.selectedItem.@city_layer);
+			}
+
+			public function getSelectedItem():Object
+			{
+				return tree.selectedItem.@id;
+			}
+		]]>
+	</fx:Script>
+	
+	<navbar:NavBar id="legendBar" location="right" top="30" x="0">
+		<s:Group id="gp" width="140" height="350">
+			<fx:Script>
+				<![CDATA[
+					import mx.events.ListEvent;
+				]]>
+			</fx:Script>
+			<mx:Tree id="tree" 
+					 labelField="@label"  
+					 showRoot="true" 
+					 width="100%" 
+					 height="100%" 
+					 borderStyle="none" 
+					 folderClosedIcon="{null}" 
+					 folderOpenIcon="{null}" 
+					 defaultLeafIcon="{null}" 
+					 disclosureClosedIcon="{treeClose}" 
+					 disclosureOpenIcon="{treeOpen}"
+					 itemClick="tree_itemClickHandler(event)"
+					 />
+		</s:Group>
+	</navbar:NavBar>
+</s:Group>

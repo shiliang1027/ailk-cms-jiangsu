@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				autoDrawBackground="false" width="100%" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.quitstatnew.domain.QuitStatDM;
+			
+			import mx.events.ColorPickerEvent;
+			
+			import spark.events.TextOperationEvent;
+			
+			[Inject("quitStatDM")]
+			[Bindable]
+			public var dm:QuitStatDM;
+			
+			protected function downThresHold_changeHandler(event:TextOperationEvent):void
+			{
+				data.downThresHold = TextInput(event.currentTarget).text;
+			}
+			
+			protected function upThresHold_changeHandler(event:TextOperationEvent):void
+			{
+				data.upThresHold = TextInput(event.currentTarget).text;
+			}
+			
+			protected function colorpicker1_changeHandler(event:ColorPickerEvent):void
+			{
+				ColorPicker(event.currentTarget).selectedColor = dm.levelColorMap[data.index];
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<s:HGroup width="100%" horizontalAlign="center" verticalAlign="middle">
+		<s:Label text="级别{data.index}" styleName="label"/>
+		<s:TextInput text="{data.downThresHold}" change="downThresHold_changeHandler(event)"/>
+		<s:TextInput text="{data.upThresHold}" change="upThresHold_changeHandler(event)"/>
+		<mx:ColorPicker selectedColor="{dm.levelColorMap[data.index]}"  change="colorpicker1_changeHandler(event)"/>
+	</s:HGroup>
+</s:ItemRenderer>

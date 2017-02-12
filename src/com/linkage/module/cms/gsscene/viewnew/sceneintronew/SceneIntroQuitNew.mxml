@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:PopUpCompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					width="600"
+					height="350">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.event.PrettyChartEvent;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			[Bindable]
+			public var pieChartLabel:String = "退服基站";
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			
+			/**
+			 *下钻网元告警列表
+			 **/
+			public var doDrillAlarm:Function;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneIntroKPIDetailNew);
+			
+			private var initFlag:Boolean = true;
+			
+			
+			[MessageHandler(selector = "LOAD_SCENE_QUIT_DATA_SUCC")]
+			public function sceneIntroQuitLoadData(event:SceneIntroEvent):void{
+				log.info("加载数据data");
+				this.loadData(scenePM.sceneIntroDM.sceneIntroQuitData);
+			}
+			
+			public function loadData(data:Object):void{
+				log.info("饼图加载数据！");
+				/* if(initFlag){
+					this.pieChartBuildChart();
+					initFlag = false;
+				} */
+				this.pieChartBuildChart();
+				var dataArrayColl:ArrayCollection = new ArrayCollection();
+				dataArrayColl.addAll(data.quitDatas as IList);
+				log.info(dataArrayColl);
+				pieChart.chartData(dataArrayColl, false);
+			}
+			/**
+			 * 
+			 * 创建图形。
+			 **/ 
+			public function pieChartBuildChart():void
+			{
+				pieChart.xAxisFontSize = 13;
+				pieChart.justifyMaxValue = true;
+				var series:ArrayCollection = new ArrayCollection();
+				var sp:SerialParam = new SerialParam("value", pieChartLabel);
+				sp.chartType = "pie";
+				series.addItem(sp);
+				
+				pieChart.series = series;
+				pieChart.canDropLabels = true;
+				pieChart.xAxisFontSize = 12;
+				var chartparam:ChartParam = new ChartParam();
+				chartparam.labelStep = 1;
+				chartparam.itemClickEnable = true;
+				chartparam.xAxisProperty = 'moTypeName';
+				chartparam.use3DColumn = true;
+				pieChart.chartParam = chartparam;
+			}
+			
+			protected function pieChart_DataClickHandler(event:PrettyChartEvent):void
+			{
+				log.info("饼图级联，加载设备告警统计！");
+				var param:Object = event.data;
+				doDrillAlarm(param);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" verticalAlign="middle" horizontalAlign="center" gap="10">
+		<s:Group width="96%" height="96%">
+			<s:Rect alpha="1" x="0" y="0" width="100%" height="100%" 
+					radiusX="10" radiusY="10">
+				<s:fill>
+					<s:LinearGradient>
+						<s:GradientEntry color="0XBDCEE0" alpha="0.5"/> 
+					</s:LinearGradient>
+				</s:fill>
+			</s:Rect>
+			<ailk_chart:PrettyChart	id="pieChart"
+									showYaxisTitle="true"
+									showXaxisTitle="true"
+									horizontalCenter="0"
+									verticalCenter="0"
+									DataClick="pieChart_DataClickHandler(event)"
+									width="100%"
+									height="90%"/>
+		</s:Group>
+	</s:VGroup>
+</viewnew:PopUpCompWindow>

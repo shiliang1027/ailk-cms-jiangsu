@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="416"
+		 height="227"
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-1-9
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			[Embed(source="../../../../img/箭头向上.png")]
+			[Bindable]
+			private var upArrow:Class;
+
+			[Embed(source="../../../../img/箭头向下.png")]
+			[Bindable]
+			private var downArrow:Class;
+
+			[Embed(source="../../../../img/箭头向左.png")]
+			[Bindable]
+			private var leftArrow:Class;
+
+			[Embed(source="../../../../img/箭头向右.png")]
+			[Bindable]
+			private var rightArrow:Class;
+
+			[Embed(source="../../../../img/关闭.png")]
+			[Bindable]
+			private var close:Class;
+
+			[Embed(source="../../../../img/继续.png")]
+			[Bindable]
+			private var continueImg:Class;
+
+			[Embed(source="../../../../img/泡泡.png")]
+			[Bindable]
+			private var papawImg:Class;
+
+			[Bindable]
+			public var showUp:Boolean = false;
+			[Bindable]
+			public var showDown:Boolean = false;
+			[Bindable]
+			public var showLeft:Boolean = false;
+			[Bindable]
+			public var showRight:Boolean = false;
+			[Bindable]
+			public var showRightUp:Boolean = false;
+
+			private var log:ILogger = Log.getLoggerByClass(MaskInstructionTip);
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			//设置需要显示的箭头的方向
+			public function direction(d:String):void
+			{
+				showUp = false;
+				showDown = false;
+				showLeft = false;
+				showRight = false;
+				showRightUp = false;
+
+				switch (d)
+				{
+					case "up":
+						showUp = true;
+						break;
+					case "down":
+						showDown = true;
+						break;
+					case "left":
+						showLeft = true;
+						break;
+					case "right":
+						showRight = true;
+						break;
+					case "rightup":
+						showRightUp = true;
+						break;
+					default:
+						break;
+				}
+			}
+
+			//设置需要显示的提示信息内容
+			public function showMsg(msg:String):void
+			{
+
+				msgLabel.text = msg;
+				log.info("msg:" + msg);
+			}
+
+			public function showTitle(title:String):void
+			{
+				titleLabel.text = title;
+			}
+
+			//下一步
+			protected function nextStep(event:MouseEvent):void
+			{
+				msgDispatcher(new SceneEvent(SceneEvent.CMS_SCENE_MASK_NEXT));
+			}
+
+			//隐藏蒙板
+			protected function image2_clickHandler(event:MouseEvent):void
+			{
+				msgDispatcher(new SceneEvent(SceneEvent.CMS_SCENE_MASK_HIDE));
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="5"
+			  horizontalAlign="center"
+			  verticalAlign="middle">
+
+		<mx:Image id="upImg"
+				  visible="{showUp}"
+				  includeInLayout="{showUp}"
+				  source="{upArrow}"/>
+
+		<s:HGroup width="100%"
+				  height="100%"
+				  gap="5"
+				  horizontalAlign="center"
+				  verticalAlign="middle">
+			<mx:Image id="leftImg"
+					  visible="{showLeft}"
+					  source="{leftArrow}"/>
+			<s:Group>
+				<mx:Image source="{papawImg}"
+						  width="100%"
+						  height="100%"/>
+				<!--<mx:Image source="{continueImg}"
+					 width="87"
+					 height="31"
+					 buttonMode="true"
+					 right="55"
+					 bottom="20"
+					 click="nextStep(event)"/>-->
+				<mx:Image source="{close}"
+						  width="28"
+						  height="28"
+						  buttonMode="true"
+						  click="image2_clickHandler(event)"
+						  top="1"
+						  right="30"/>
+				<mx:Image id="rightImgUp"
+						  visible="{showRightUp}"
+						  source="{rightArrow}"
+						  top="1"
+						  right="-55"/>
+			</s:Group>
+			<mx:Image id="rightImg"
+					  visible="{showRight}"
+					  source="{rightArrow}"/>
+		</s:HGroup>
+
+		<mx:Image id="downImg"
+				  visible="{showDown}"
+				  includeInLayout="{showDown}"
+				  source="{downArrow}"/>
+
+	</s:VGroup>
+	<s:VGroup width="100%"
+			  height="100%"
+			  gap="20"
+			  horizontalAlign="center"
+			  paddingLeft="98"
+			  paddingTop="20"
+			  verticalAlign="middle">
+
+		<s:Label id="titleLabel"
+				 fontWeight="bold"
+				 text="配置向导"
+				 color="0x086aab"
+				 fontSize="20"/>
+		<s:Label id="msgLabel"
+				 width="355"
+				 textAlign="center"
+				 fontSize="18"
+				 color="0"
+				 fontFamily="幼圆"/>
+		<mx:Image source="{continueImg}"
+				  width="87"
+				  height="31"
+				  buttonMode="true"
+				  right="55"
+				  bottom="20"
+				  click="nextStep(event)"/>
+	</s:VGroup>
+</s:Group>

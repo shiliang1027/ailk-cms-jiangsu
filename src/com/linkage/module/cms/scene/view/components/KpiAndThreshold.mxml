@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 minWidth="955"
+		 minHeight="600">
+	<!--
+		 /**
+		 *
+		 *
+		 * @author xudx (69291)
+		 * @version 1.0
+		 * @date 2013-2-20
+		 * @langversion 3.0
+		 * @playerversion Flash 11
+		 * @productversion Flex 4
+		 * @copyright Ailk NBS-Network Mgt. RD Dept.
+		 *
+		 */
+	-->
+
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			private var log:ILogger=Log.getLoggerByClass(KpiAndThreshold);
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("kpiAndThresholdPM")]
+			[Bindable]
+			public var kpiAndThresholdPM:KpiAndThresholdPM;
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid width="100%"
+						 height="100%"
+						 styleName="sceneDG"
+						 rowHeight="20"
+						 verticalAlign="middle"
+						 horizontalScrollPolicy="auto"
+						 dataProvider="{kpiAndThresholdPM.kpiAndThresholdDM.KpiAndThresholdList}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="RES_ID_NAME"
+									   width="155"
+									   headerText="场景或网元类型名称"
+									   textAlign="center"/>
+			<mx:AdvancedDataGridColumn dataField="SHOW_NAME"
+									   width="106"
+									   headerText="指标名称"/>
+			<mx:AdvancedDataGridColumn dataField="MO_TYPE_NAME"
+									   width="165"
+									   headerText="网元类型名"/>
+			<mx:AdvancedDataGridColumn dataField="INDEX_ID"
+									   width="190"
+									   headerText="门限级别"/>
+			<mx:AdvancedDataGridColumn dataField="DOWN_THRESHOLD"
+									   width="190"
+									   headerText="阈值下限"/>
+			<mx:AdvancedDataGridColumn dataField="UP_THRESHOLD"
+									   width="190"
+									   headerText="阈值上限"/>
+			<mx:AdvancedDataGridColumn dataField="ISALARM"
+									   width="190"
+									   headerText="是否发告警 "/>
+			<mx:AdvancedDataGridColumn dataField="CITY_NAME"
+									   width="190"
+									   headerText="地市"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</s:Group>

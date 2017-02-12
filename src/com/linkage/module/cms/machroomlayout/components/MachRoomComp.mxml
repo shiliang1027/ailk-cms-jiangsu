@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					  xmlns:s="library://ns.adobe.com/flex/spark" 
+					  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+					  dragEnter="room_dragEnterHandler(event)" 
+					  dragDrop="room_dragDropHandler(event)" 
+					  backgroundAlpha="0" backgroundColor="0xffffff" 
+					  xmlns:components="com.linkage.module.cms.machroomlayout.components.*" 
+					  creationComplete="machRoomComp_creationCompleteHandler(event)">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:states>
+		<s:State name="common"/>
+		<s:State name="edit"/>
+	</s:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.machroomlayout.event.EditorEvent;
+			import com.linkage.module.cms.machroomlayout.util.Conts;
+			
+			import mx.controls.Alert;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			import mx.events.StateChangeEvent;
+			import mx.managers.DragManager;
+			import mx.utils.ObjectUtil;
+			
+			private var subEditorComps:Array = new Array;
+			
+			protected function machRoomComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				var wall:WallComp = new WallComp();
+				wall.left=0;
+				wall.width=4;
+				wall.percentHeight=100;
+				wall.location = Conts.LOCATION_LEFT;
+				wall.currentState=this.currentState;
+				this.addElement(wall);
+				subEditorComps.push(wall);
+				wall = new WallComp();
+				wall.top=0;
+				wall.percentWidth=100;
+				wall.height=4;
+				wall.location = Conts.LOCATION_TOP;
+				wall.currentState=this.currentState;
+				this.addElement(wall);
+				subEditorComps.push(wall);
+				wall = new WallComp();
+				wall.right=0;
+				wall.width=4;
+				wall.percentHeight=100;
+				wall.location = Conts.LOCATION_RIGHT;
+				wall.currentState=this.currentState;
+				this.addElement(wall);
+				subEditorComps.push(wall);
+				wall = new WallComp();
+				wall.bottom=0;
+				wall.percentWidth=100;
+				wall.height=4;
+				wall.location = Conts.LOCATION_BOTTOM;
+				wall.currentState=this.currentState;
+				this.addElement(wall);
+				subEditorComps.push(wall);
+				
+				this.addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE,onStateChange);
+			}
+			
+			private function onStateChange(event:StateChangeEvent):void{
+				subEditorComps.forEach(function(editorComp:EditorComp,index:int,arr:Array):void{
+					if(editorComp is WallComp){
+						editorComp.editTool.visible=false;
+					}
+					editorComp.currentState = event.newState;
+				});
+			}
+			
+			
+			protected function room_dragEnterHandler(event:DragEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (this.currentState == Conts.ACTION_EDIT && event.dragInitiator is EditorComp) 
+				{ 
+					DragManager.acceptDragDrop(MachRoomComp(event.currentTarget)); 
+				} 
+			}
+			
+			
+			protected function room_dragDropHandler(event:DragEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(event.dragInitiator is WallComp){
+//					var wall:WallComp = new WallComp();
+//					wall.left=0;
+//					wall.width=4;
+//					wall.percentHeight=100;
+//					wall.location = Conts.LOCATION_LEFT;
+//					wall.currentState=this.currentState;
+//					this.addElement(wall);
+				}else if(event.dragInitiator is MachComp){
+					var machComp:MachComp = new MachComp();
+					machComp.width = 150;
+					machComp.height = 30;
+					machComp.x = event.localX;
+					machComp.y = event.localY;
+					machComp.currentState = this.currentState;
+					machComp.addEventListener(MouseEvent.MOUSE_DOWN,onCompMouseDown);
+					machComp.addEventListener(MouseEvent.MOUSE_UP,onCompMouseUp);
+					machComp.addEventListener(EditorEvent.DELETE,onDeleteComp);
+					machComp.addEventListener(EditorEvent.ARROW,onArrowComp);
+					this.addElement(machComp);
+					subEditorComps.push(machComp);
+				}else if(event.dragInitiator is RoadComp){
+					var roadComp:RoadComp = new RoadComp();
+					roadComp.x = event.localX;
+					roadComp.y = event.localY;
+					roadComp.currentState = this.currentState;
+					roadComp.addEventListener(MouseEvent.MOUSE_DOWN,onCompMouseDown);
+					roadComp.addEventListener(MouseEvent.MOUSE_UP,onCompMouseUp);
+					roadComp.addEventListener(EditorEvent.DELETE,onDeleteComp);
+					roadComp.addEventListener(EditorEvent.ARROW,onArrowComp);
+					this.addElement(roadComp);
+					subEditorComps.push(roadComp);
+				}
+			}
+			
+			private function onCompMouseDown(event:MouseEvent):void{
+				if(this.currentState != Conts.ACTION_EDIT){
+					return;
+				}
+				EditorComp(event.currentTarget).startDrag(false, new Rectangle(0, 0, this.width-EditorComp(event.currentTarget).width, this.height-EditorComp(event.currentTarget).height));
+			}
+			private function onCompMouseUp(event:MouseEvent):void{
+				if(this.currentState != Conts.ACTION_EDIT){
+					return;
+				}
+				EditorComp(event.currentTarget).stopDrag();
+			}
+		
+			private function onDeleteComp(event:EditorEvent):void{
+				subEditorComps.forEach(function(comp:EditorComp,index:int,arr:Array):void{
+					if(comp == EditorComp(event.currentTarget)){
+						arr.splice(index,1);
+					}
+				});
+				this.removeElement(EditorComp(event.currentTarget));
+			}
+			
+			private function onArrowComp(event:EditorEvent):void{
+				if(event.currentTarget is MachComp){
+					var machComp:MachComp = MachComp(event.currentTarget);
+					var temp:Number = machComp.width;
+					machComp.width = machComp.height;
+					machComp.height = temp;
+				}else if(event.currentTarget is RoadComp){
+					var roadComp:RoadComp = RoadComp(event.currentTarget);
+					rotate.angleFrom = roadComp.angle;
+					roadComp.angle = roadComp.angle==0?90:0
+					rotate.angleTo = 0 - roadComp.angle;
+					rotate.target = roadComp;
+					rotate.play();
+					rotate.target=null;
+				}
+				
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Rotate id="rotate" duration="0" autoCenterTransform="true"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<components:WallSC left="0" width="40" height="100%"/>
+	<components:WallSC top="0" width="100%" height="40"/>
+	<components:WallSC right="0" width="40" height="100%"/>
+	<components:WallSC bottom="0" width="100%" height="40"/>
+	
+	<components:DirectionComp right="20" top="20" direction="东" currentState="{this.currentState}"/>
+</s:SkinnableContainer>

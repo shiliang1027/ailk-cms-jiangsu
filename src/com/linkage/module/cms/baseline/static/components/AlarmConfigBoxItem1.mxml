@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 verticalAlign="middle">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.baseline.static.staticData.BaseLineBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			[Bindable]
+			public var alarmTitle:String;
+			[Bindable]
+			public var alarmColor:uint;
+			[Bindable]
+			public var alarmTitleColor:uint=0xffffff;
+			/* 告警级别  */
+			public var warningLevel:String;
+			/* 默认为true */
+			private var addFlag:Boolean=true;
+			
+			private var thresholdId:String;//id
+			
+			[Bindable]
+			public var isAlarmList:ArrayCollection = new ArrayCollection([{"isAlarm": "", "alarmName": "请选择"}, {"isAlarm": "0", "alarmName": "否"}, {"isAlarm": "1", "alarmName": "是"}]);
+			[Bindable]
+			public var isDispatchList:ArrayCollection = new ArrayCollection([{"isDispatch": "", "dispatchName": "请选择"},{"isDispatch": "0", "dispatchName": "否"}, {"isDispatch": "1", "dispatchName": "是"}]);
+			[Bindable]
+			public var downOperList:ArrayCollection = new ArrayCollection([{"downOper": "4", "downOperName": ">"}, {"downOper": "5", "downOperName": ">="}]);
+			[Bindable]
+			public var upOperList:ArrayCollection = new ArrayCollection([{"upOper": "1", "upOperName": "<"}, {"upOper": "2", "upOperName": "<="}]);
+			
+			/**
+			 *反填已经存储的数据。 
+			 **/
+			public function initData(arr:ArrayCollection):void
+			{
+				addFlag = true;//如果数据库不存在，则置addFlag=true
+				thresholdId = "";
+				for each (var item:Object in arr) 
+				{
+					if(warningLevel==String(item.warningLevel)){
+						thresholdDown.text = item['thresholdDown'];
+						thresholdUp.text = item['thresholdUp'];
+//						watchTime.text = item['watchTime'];
+//						alarmBeginTime.text = item['alarmBeginTime'];
+//						alarmEndTime.text = item['alarmEndTime'];
+						this.selectDropDownList(downOperComp,"downOper",item['downOper']);
+						this.selectDropDownList(upOperComp,"upOper",item['upOper']);
+//						this.selectDropDownList(isDispatchComp,"isDispatch",item['isDispatch']);
+//						this.selectDropDownList(isAlarmComp,"isAlarm",item['isAlarm']);
+						thresholdId = item['thresholdId'];
+						addFlag = false;
+						break;
+					}
+				}
+			}
+			private function selectDropDownList(dropDownListId:DropDownList,key:String,selectValue:String):void
+			{
+				for each (var obj:Object in dropDownListId.dataProvider) 
+				{
+					if(obj[key]==selectValue){
+						dropDownListId.selectedItem = obj;
+						break;
+					}
+				}
+			}
+			/**
+			 *重置数据
+			 **/
+			public function reset_clickHandler():void
+			{
+				thresholdDown.text = "";
+				thresholdUp.text = "";
+//				isDispatchComp.selectedIndex=0;
+//				isAlarmComp.selectedIndex=0;
+				downOperComp.selectedIndex=0;
+				upOperComp.selectedIndex=0;
+//				watchTime.text = "60";//默认60，如果为空，则java控制插入60
+//				alarmBeginTime.text = "";
+//				alarmEndTime.text = "";
+			}
+			/**********************************************************获取参数*********************************************************/
+			public function getParams():Object
+			{
+				var params:Object = {};
+				if(""==thresholdDown.text&&""==thresholdUp.text){
+					return params;
+				}
+				params['thresholdDown'] = thresholdDown.text;
+				params['thresholdUp'] = thresholdUp.text;
+//				params['watchTime'] = watchTime.text;
+//				params['alarmBeginTime'] = alarmBeginTime.text;
+//				params['alarmEndTime'] = alarmEndTime.text;
+				params['isDispatch'] = "1";
+				params['isAlarm'] = "1";
+				params['warningLevel'] = warningLevel;
+				params['rendingColor'] = "0X" + alarmColor.toString(16);
+				params['moTypeId'] = BaseLineBean.moTypeId;
+				params['perfTypeId'] = BaseLineBean.perfTypeId;
+				params['perfTypeName']=BaseLineBean.perfTypeName;
+				params['moTypeName']=BaseLineBean.moTypeName;
+				params['downOper'] = downOperComp.selectedItem.downOper;
+				params['upOper'] = upOperComp.selectedItem.upOper;
+				params['username'] = this.parentApplication.parameters['account'];
+				params['thresholdId'] = this.thresholdId;
+				params['addFlag'] = addFlag;
+				return params;
+			}
+			/**
+			 *数据是否合法 
+			 **/
+			public function checkCompData():Boolean
+			{
+				var flag:Boolean = true;//可设 可不设
+//				if(""!=thresholdDown.text||""!=thresholdUp.text){
+//					flag = false;
+//				}
+				return flag;
+			}
+			
+			
+			/*********************************************************************阀值预览控制*******************************************************************/
+			
+//			systemManager.getSandboxRoot().addEventListener(MouseEvent.MOUSE_DOWN, focusOut);
+//			systemManager.getSandboxRoot().addEventListener(MouseEvent.MOUSE_WHEEL, focusOut);
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:BorderContainer color="{alarmTitleColor}" backgroundColor="{alarmColor}" backgroundAlpha="1" borderVisible="false" width="10%" height="30">
+		<s:Label text="{alarmTitle}" verticalCenter="0" horizontalCenter="0"/>
+	</s:BorderContainer>
+	<s:BorderContainer width="120" height="25">
+		<s:DropDownList id="downOperComp"
+						left="1" top="1"
+						dataProvider="{downOperList}"
+						labelField="downOperName"
+						requireSelection="true"
+						width="55"
+						height="23"
+						borderVisible="false"/>
+		<s:TextInput id="thresholdDown"
+					 restrict="0-9"
+					 width="60"
+					 height="25"
+					 right="1" top="1"/>
+	</s:BorderContainer>
+	<s:Label text="~" />
+	<s:BorderContainer width="120" height="25">
+		<s:DropDownList id="upOperComp"
+						left="1" top="1"
+						dataProvider="{upOperList}"
+						labelField="upOperName"
+						requireSelection="true"
+						borderVisible="false"
+						borderAlpha="0"
+						height="23"
+						width="55"/>
+		<s:TextInput id="thresholdUp"
+					 right="1" top="1"
+					 restrict="0-9"
+					 width="60"
+					 height="25"/>
+	</s:BorderContainer>
+</s:HGroup>

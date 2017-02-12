@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  title="集客告警列表"
+			  minWidth="200"
+			  minHeight="30" minimizableLeft="10" minimizableBottom="10"
+			  close="this.visible=false" visible="false"
+			  width="600"
+			  dragable="true" creationComplete="custAlarmListWindow_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="custShow", type="com.linkage.module.cms.groupclient.event.CustAlarmWindowEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclient.event.CustAlarmWindowEvent;
+			import com.linkage.module.cms.groupclient.renderer.CustAlarmGroupWarnRenderer;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.AdvancedDataGrid;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.GroupTotalModuleControl");
+			protected function custAlarmListWindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(CustAlarmWindowEvent.DATACHANGE,onDataChange);
+			}
+
+			private var advanceddatagrid:AdvancedDataGrid;
+			private function onDataChange(event:CustAlarmWindowEvent):void{
+				var result:Object = event.param;
+				log.info("getCustAlarmHandler ->dataList size:"+result.dataList.length);
+				this.removeAllElements();
+				advanceddatagrid = new AdvancedDataGrid();
+				advanceddatagrid.percentHeight=100;
+				advanceddatagrid.percentWidth=100;
+				advanceddatagrid.minHeight=300;
+				advanceddatagrid.horizontalScrollPolicy="auto";
+				this.addElement(advanceddatagrid);
+				advanceddatagrid.addEventListener(ListEvent.ITEM_CLICK,onCustAlarmItemClick);
+//				advanceddatagrid.addEventListener(ListEvent.ITEM_DOUBLE_CLICK,onItemDoubleClick);
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+					log.info("[buildColumns]name:"+name+",column:"+result.colum[i]);
+					var dataGridColumn:CustAlarmAdvancedDGColumn = new CustAlarmAdvancedDGColumn();
+					dataGridColumn.width=150;
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					if(result.colum[i]=="alarm_num"){
+						dataGridColumn.itemRenderer =  new ClassFactory(CustAlarmGroupWarnRenderer);
+						dataGridColumn.sortCompareFunction = function(obj1:Object,obj2:Object):int{
+							if(int(obj1["alarm_level_num"])>int(obj2["alarm_level_num"])){
+								return -1;
+							}else if(int(obj1["alarm_level_num"])<int(obj2["alarm_level_num"])){
+								return 1;
+							}
+							return 0;
+						}
+					}
+					columns.push(dataGridColumn);
+					i++;
+				}
+				advanceddatagrid.columns = columns;
+				var dataList:ArrayCollection = new ArrayCollection();
+				for each(var data:Object in result.dataList){
+					for each(var servType:Object in data.serv_type){
+						var tempData:Object = new Object();
+						for(var key:String in data){
+							log.info("getCustAlarmHandler ->key:"+key+",value:"+data[key]);
+							if(key != "serv_type"){
+								tempData[key]=data[key];
+							}
+						}
+						tempData["serv_type"]=servType["serv_type"];
+						tempData["alarm_num"]=servType["alarm_num"];
+						tempData["safe_level"]=servType["safe_level"];
+						tempData["alarm_level_num"]=servType["alarm_level_num"];
+						dataList.addItem(tempData);
+					}
+				}
+				advanceddatagrid.dataProvider = dataList;
+				var sort:Sort=new Sort();
+				sort.fields=[new SortField("alarm_level_num", true)];
+				dataList.sort = sort;
+				dataList.refresh();
+				if(!this.visible){
+					this.visible=true;
+					this.x=(this.parent.width-this.width)/2;
+					this.y=50;
+				}
+			}
+			
+			private function onCustAlarmItemClick(event:ListEvent):void{
+				var data:Object = AdvancedDataGrid(event.target).dataProvider[event.rowIndex];
+				var evt:CustAlarmWindowEvent = new CustAlarmWindowEvent(CustAlarmWindowEvent.CUSTSHOW);
+				var param:Object = new Object;
+				param.custId=encodeURI(data.cust_id);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			
+			private function onItemDoubleClick(event:ListEvent):void{
+				var data:Object = AdvancedDataGrid(event.target).dataProvider[event.rowIndex];
+				var evt:CustAlarmWindowEvent = new CustAlarmWindowEvent(CustAlarmWindowEvent.CUSTSHOW);
+				var param:Object = new Object;
+				param.custId=encodeURI(data.cust_id);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+</panel:Window>

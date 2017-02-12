@@ -1,0 +1,1534 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+		 width="100%"
+		 height="100%">
+
+	<!--
+		 ***************************************
+		 This is Content
+		 * @author xudx (69291)
+		 @version 1.0
+		 @date 2012-8-28
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<s:RadioButtonGroup id="statisticsLevelg"/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.ui.chart.core.ChartParam;
+            import com.ailk.common.ui.chart.core.PrettyChartType;
+            import com.ailk.common.ui.chart.core.SerialParam;
+            import com.ailk.common.ui.chart.event.PrettyChartEvent;
+            import com.linkage.module.cms.components.loadmanager.LoadManager;
+            import com.linkage.module.cms.scenedaily.domain.common.IUser;
+            import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+            import com.linkage.module.cms.scenedaily.event.mainchart.ChartCompEvent;
+            import com.linkage.module.cms.scenedaily.view.MedicalCardView;
+            import com.linkage.module.cms.scenedaily.view.components.util.DateUtils;
+            import com.linkage.module.cms.scenedaily.view.components.util.FileUpDownLoad;
+            import com.linkage.system.core.lk_internal;
+            
+            import flash.utils.setTimeout;
+            
+            import mx.collections.ArrayCollection;
+            import mx.controls.Alert;
+            import mx.formatters.DateFormatter;
+            import mx.managers.PopUpManager;
+            
+            import org.spicefactory.lib.reflect.types.Void;
+
+			private var log:ILogger = Log.getLoggerByClass(ChartComp);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[Inject("chartPM")]
+			[Bindable]
+			public var chartPM:ChartPM;
+
+			[Inject("medicalCardView")]
+			public var medicalCardView:MedicalCardView;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var param:Object = new Object(); //劣化排名 指标趋势 使用参数
+
+			private var popParam:Object = new Object(); //弹出窗口使用参数
+
+			private var fileRefer:FileReference = new FileReference();
+			private var fileUpDownLoad:FileUpDownLoad;
+
+			[Bindable]
+			private var countDate:Date;
+
+			[Bindable]
+			private var historyDate:String;
+
+			[Bindable]
+			private var historyName:String;
+
+			[Bindable]
+			private var historyLabelBottom:String;
+
+			[Bindable]
+			private var historyTime:String;
+
+			[Bindable]
+			private var compareDateData:String;
+
+			private var count:Number = 0;
+
+			private var numCompare:Number = 0;
+
+			private var statisticsLevel:String;
+
+			private var isNextD:String;
+
+			private var df:DateFormatter = new DateFormatter();
+
+			private var compareDateList:ArrayCollection = new ArrayCollection();
+
+			private var arrayListD:ArrayCollection = new ArrayCollection();
+
+			private var arrayListM:ArrayCollection = new ArrayCollection();
+
+			private var arrayListY:ArrayCollection = new ArrayCollection();
+            
+            private var lm:LoadManager = new LoadManager(this);
+
+			[Bindable]
+			public var myDP:ArrayCollection = new ArrayCollection([{chartType: "柱状图", type: "Column"}, {chartType: "折线图", type: "Line"}]);
+
+
+			//初始加载topn数据和加载历史趋势图
+			[MessageHandler(selector="LOAD_IMP_PRO_KPI_EVENT")]
+			public function parametersHandler(e:SceneDailyEvent):void
+			{
+
+				//TODO 配置窗口初始化和外面面板一致。
+				log.info("开始加载图表配置信息！！！");
+				if(user.interval=="0"){
+					statisticsLevel = "4";
+					statisticsDateF.visible = false;
+					statisticsDateF.includeInLayout = false;
+					compareDateF.visible = false;
+					compareDateF.includeInLayout = false;
+					trendStartTime.visible = false;
+					trendStartTime.includeInLayout = false;
+					statisticsLevelg.selectedValue = 4;
+				}else{
+				statisticsLevelg.selectedValue = int(user.interval);
+				}
+				statisticsDate.text = user.gatherTime;
+				var date:Date = DateUtils.stringToDate(user.gatherTime);
+				if(trendStartDate.text == null || trendStartDate.text.length == 0)
+				{
+					if(statisticsLevelg.selectedValue == 1)
+					{
+						trendStartDate.selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1);
+					}
+					else if(statisticsLevelg.selectedValue == 2)
+					{
+						trendStartDate.selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 7);
+					}
+					else if(statisticsLevelg.selectedValue == 3)
+					{
+						trendStartDate.selectedDate = new Date(date.getFullYear(), date.getMonth() - 1, date.getDate());
+					}
+				}
+				log.info("加载图表配置信息！！！end");
+
+				log.info("开始加载  劣化排名 / 历史趋势  数据 ！" + e.param.perfGroupName);
+
+				labelhead.text = e.param.perfGroupName;
+				if(e.param.hasOwnProperty("kpiId") && e.param["kpiId"])
+				{
+					param = new Object();
+					param.interval = e.param.interval; //统计粒度type。
+					param.kpiId = e.param.kpiId; //指标Id
+					param.kpiName = e.param.perfGroupName; //指标Id
+					param.moTypeId = e.param.moTypeId; //网元类型Id
+					param.resId = e.param.resId; //资源Id
+					param.resType = e.param.resType; //资源类型 1:resId为省份Id 2:resId为地市Id3:resId为网元Id
+					if(e.param.isHealthOrThreshold == "1")
+						param.type = "0";
+					else if(e.param.isHealthOrThreshold == "2")
+						param.type = "1"; //0为健康度数据， 1为阈值劣化
+					param.gatherTime = e.param.statisticsDate; //统计时间statisticsDate
+					param.viewType = e.param.viewType; //视图层次(1:领导,2:管理,3:一线)
+					param.isNext = "1"; //是否下一级钻取
+					param.isHis = "0";
+//				user.kpiId = param.kpiId;
+//				user.kpiName = param.kpiName;
+//				user.moTypeId = param.moTypeId;
+
+					historyDate = param.gatherTime;
+
+					log.info(param);
+
+                    if(chartTabBar.selectedIndex == 0)
+                    {
+    					log.info("开始加载  劣化排名  数据 ！");
+    					chartPM.loadData(param);
+                        
+                        setTimeout(function():void
+                        {
+        					log.info("开始加载  历史趋势  数据 ！");
+        					chartPM.loadHistoryTrendData(param);
+                        }, 1500);
+                    }
+                    else
+                    {
+                        setTimeout(function():void
+                        {
+                            log.info("开始加载  劣化排名  数据 ！");
+                            chartPM.loadData(param);
+                        }, 2500);
+                        
+                        log.info("开始加载  历史趋势  数据 ！");
+                        chartPM.loadHistoryTrendData(param);
+                    }
+
+				}
+				else
+				{
+					log.info("当前resType[{0}]状态下，指标不存在！！！清空劣化指标和历史趋势图数据。");
+					chartPM.chartDM.topNList.removeAll();
+					chartPM.chartDM.kpiTrendList.removeAll();
+					badTopNChart.chartData(chartPM.chartDM.topNList);
+					hisTrendChart.chartData(chartPM.chartDM.kpiTrendList);
+                    
+                    lm.hideLoading();
+				}
+			}
+
+
+			//劣化排名图表渲染
+			[MessageHandler(selector="SHOW_DRGRADATIONRANKING_DATA")]
+			//下一级钻取时 渲染劣化排名
+			[MessageHandler(selector="SHOW_TOPOLOWERLEVELDRILLING_DATA")]
+			public function showKpiChart(event:ChartCompEvent=null):void
+			{
+				log.info("展示 劣化排名 图标数据! :: " + chartPM.chartDM.topNList.length);
+
+				badTopNChart.percentHeight = 100;
+				badTopNChart.percentWidth = 100;
+
+				if(chartPM.chartDM.topNList.length == 0)
+				{
+					log.info("展示 劣化排名 图标数据 长度为0，使用false参数");
+					badTopNChart.chartData(chartPM.chartDM.topNList);
+					return;
+				}
+
+				var p1:SerialParam = new SerialParam('kpiValue', '');
+				p1.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+				p1.yAxis = "left";
+
+				if(chartPM.chartDM.topNList.length > 0 && chartPM.chartDM.topNList.getItemAt(0).hasOwnProperty('color'))
+				{
+					var fillArr:Array = new Array();
+
+					for each(var obj:Object in chartPM.chartDM.topNList)
+					{
+						fillArr.push(uint(obj['color']));
+					}
+
+					p1.fillColorArray = fillArr;
+				}
+
+				var p2:SerialParam = new SerialParam('compareDate1Value', '');
+				p2.chartType = PrettyChartType.CHART_TYPE_LINE;
+
+				var p3:SerialParam = new SerialParam('compareDate2Value', '');
+				p3.chartType = PrettyChartType.CHART_TYPE_LINE;
+
+				var p4:SerialParam = new SerialParam('compareDate3Value', '');
+				p4.chartType = PrettyChartType.CHART_TYPE_LINE;
+
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "resName";
+				charParam.use3DColumn = false;
+				charParam.showLegend = false;
+				charParam.horizontalGridLineFillAlpha = 0;
+
+				this.badTopNChart.chartParam = charParam;
+
+				badTopNChart.chartParam.itemClickEnable = true;
+				badTopNChart.addEventListener(PrettyChartEvent._DATA_CLICK, dealClick);
+
+				this.badTopNChart.series = new ArrayCollection([p1, p2, p3, p4]);
+
+				//画门限
+				var lenth:int=0;
+				if(chartPM.chartDM.topNList.length>0 && chartPM.chartDM.topNList.getItemAt(0).len!=null)
+				{
+					log.debug("draw men xian");
+					lenth=chartPM.chartDM.topNList.getItemAt(0).len; //门限数量
+					if (thresholdBad.selected)
+					{
+						if(lenth)
+						{
+							for (var i:int=1; i <= lenth; i++)
+							{
+								var aa:String="thresholdValue" + i;
+								var p:SerialParam=new SerialParam(aa, '门限');
+								p.chartType=PrettyChartType.CHART_TYPE_LINE;
+								p.yAxis='left';
+								//p.fillColorArray=rendingColorArray;
+								p.lineStrokeColor=uint(chartPM.chartDM.topNList.getItemAt(0)["color" + i]);
+								p.showDataDot=false;
+								this.badTopNChart.series.addItem(p);
+							}
+						}
+					}
+				}
+				badTopNChart.chartData(chartPM.chartDM.topNList, true);
+				log.info("展示 劣化排名 图标数据 end!!");
+                
+                lm.hideLoading();
+			}
+            
+			//开始加载数据了 显示loading
+			[MessageHandler(selector="LOAD_IMP_PRO_KPI_EVENT")]
+			public function showLoading(event:SceneDailyEvent):void
+            {
+                if(this.visible)
+                lm.showLoading();
+            }
+            
+            
+			//历史趋势图数据渲染
+			[MessageHandler(selector="SHOW_INDEXTREND_DATA")]
+			public function showKpiTrendChart(event:ChartCompEvent=null):void
+			{
+				log.info("历史趋势图标数据! :: " + chartPM.chartDM.kpiTrendList.length);
+				hisTrendChart.width = 700;
+				hisTrendChart.height = 100;
+				var p4:SerialParam = new SerialParam('kpiTrend', '');
+				p4.chartType = PrettyChartType.CHART_TYPE_LINE;
+				p4.yAxis = "left";
+
+				var chartParam:ChartParam = new ChartParam();
+				chartParam.xAxisProperty = "date";
+				chartParam.use3DColumn = false;
+				chartParam.showLegend = false;
+
+				chartParam.horizontalGridLineFillAlpha = 0;
+
+				this.hisTrendChart.chartParam = chartParam;
+
+				this.hisTrendChart.series = new ArrayCollection([p4]);
+				//画门限
+				var lenth:int=0;
+				if(chartPM.chartDM.kpiTrendList.length>0)
+				{
+					lenth=chartPM.chartDM.kpiTrendList.getItemAt(0).len; //门限数量
+					if (thresholdChar.selected)
+					{
+						if(lenth)
+						{
+							for (var i:int=1; i <= lenth; i++)
+							{
+								var aa:String="thresholdValue" + i;
+								var p:SerialParam=new SerialParam(aa, '门限');
+								p.chartType=PrettyChartType.CHART_TYPE_LINE;
+								p.yAxis='left';
+								//p.fillColorArray=rendingColorArray;
+								p.lineStrokeColor=uint(chartPM.chartDM.kpiTrendList.getItemAt(0)["color" + i]);
+								p.showDataDot=false;
+								this.hisTrendChart.series.addItem(p);
+							}
+						}
+					}
+				}
+				hisTrendChart.chartData(chartPM.chartDM.kpiTrendList, true);
+
+				hisTrendChart.percentHeight = 100;
+				hisTrendChart.percentWidth = 100;
+                
+                lm.hideLoading();
+			}
+
+//-----------------------------菜单 相关 ---------------------------------------------------begin
+			//根据数据处理图表菜单。
+			private function dealClick(e:PrettyChartEvent):void
+			{
+				log.info("---dealClick要开始" + e.data.resName);
+				PopUpManager.removePopUp(hisPopupWin);
+				PopUpManager.removePopUp(popupTopnWin);
+				log.info(e.data);
+
+				menuWin.visible = true;
+				menuWin.includeInLayout = true;
+
+				historyName = e.data.resName;
+				historyLabelBottom = e.data.kpiName;
+
+				//点击数据的时候更新弹出参数
+				popParam = new Object();
+
+				popParam.kpiId = e.data.kpiId; //指标Id
+				popParam.kpiName = e.data.kpiName; //指标name
+				popParam.moTypeId = e.data.moTypeId; //网元类型Id
+				popParam.interval = e.data.interval; //粒度0:15min  1：日  2：周  3：月
+				popParam.resId = e.data.resId; //资源Id
+				popParam.resType = String(Number(user.resType) + 1); //资源类型 1:resId为省份Id 2:resId为地市Id3:resId为网元Id
+				popParam.type = e.data.type; //0为健康度数据， 1为阈值劣化
+				popParam.isCover = e.data.isCover; //0显示， 1不显示
+				popParam.gatherTime = e.data.time;
+				popParam.isHis = "1";
+				if(e.data.hasOwnProperty("compareDate1"))
+					popParam.compareDate1 = e.data.compareDate1; //比较时间1
+				if(e.data.hasOwnProperty("compareDate2"))
+					popParam.compareDate2 = e.data.compareDate2; //比较时间1
+				if(e.data.hasOwnProperty("compareDate3"))
+					popParam.compareDate3 = e.data.compareDate3; //比较时间1
+				//				popParam.resName = e.data.resName; //比较时间1
+				popParam.isNext = e.data.isNext; //比较时间1
+				//popParam.isHis = e.data.isHis;
+				log.info("[chart]修改参数结果如下:");
+				log.info(popParam);
+
+				isNextD = e.data.isNext;
+
+				menuWin.x = (e.currentTarget as PrettyChart).contentMouseX - 45;
+				menuWin.y = (e.currentTarget as PrettyChart).contentMouseY - 30;
+                
+                if(menuWin.x < 0)
+                    menuWin.x = 5;
+                if(menuWin.x + menuWin.width > this.width - 20)
+                    menuWin.x = this.width - menuWin.width - 25;
+
+				nextLevelBC.visible = isNextD == "1";
+				nextLevelBC.includeInLayout = isNextD == "1";
+
+				kqikpipiBC.visible = user.interval != "0";
+				kqikpipiBC.includeInLayout = user.interval != "0";
+
+				moBadCard.visible = (Number(param.resType) >= 2);
+				moBadCard.includeInLayout = (Number(param.resType) >= 2);
+
+				moCoverRange.visible = (e.data.isCover == "1" && Number(param.resType) >= 2);
+				moCoverRange.includeInLayout = (e.data.isCover == "1" && Number(param.resType) >= 2);
+			}
+
+			//下一级钻取 菜单处理
+			protected function drillDown():void
+			{
+				log.debug("[下一级钻取：抛出事件 CHANGE_MAP");
+
+				this.menuWin.visible = false;
+				this.menuWin.includeInLayout = false;
+
+				if(popParam.resType == "1" || popParam.resType == "2")
+					user.cityId = popParam.resId;
+				user.resId = popParam.resId;
+				user.resType = popParam.resType;
+
+				//切换地图事件
+				var evt:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.CHANGE_MAP);
+				evt.param = new Object();
+				evt.param.interval = popParam.interval;
+				evt.param.gatherTime = popParam.gatherTime;
+				evt.param.isHealthOrThreshold = popParam.type;
+				msgDispatcher(evt);
+			}
+
+			//历史趋势图菜单处理 
+			protected function showHistoryTrend():void
+			{
+				log.debug("历史趋势 菜单处理！");
+				this.menuWin.visible = false;
+				this.menuWin.includeInLayout = false;
+				myDDL.selectedIndex = 0;
+				chartPM.loadHistoryTrendData(popParam, "popup");
+
+				log.info("addPopUp:hisPopupWin");
+				PopUpManager.addPopUp(hisPopupWin, this.parent as DisplayObject);
+
+				hisPopupWin.x = (this.stage.width - hisPopupWin.width) / 2 - 150;
+				hisPopupWin.y = (this.stage.height - hisPopupWin.height) / 2 - 50;
+			}
+
+			//网元病历卡 菜单处理  弹出页面
+			protected function toMoMadicalCard():void
+			{
+				log.debug("网元病历卡  菜单处理！");
+				this.menuWin.visible = false;
+				this.menuWin.includeInLayout = false;
+
+				log.debug("网元病历卡弹窗处理~" +　(medicalCardView!=null));
+				medicalCardView.width = 1000;
+				medicalCardView.height = 600;
+				
+				medicalCardView.x = (this.parentApplication.width - medicalCardView.width) / 2;
+				medicalCardView.y = 5;
+				medicalCardView.pm.param['resId'] = popParam.resId;
+				medicalCardView.pm.param.flag="0";
+				PopUpManager.addPopUp(medicalCardView, this.parent as DisplayObject);
+
+                setTimeout(function():void
+                {
+    				medicalCardView.initData();
+                }, 2000);
+			}
+
+			//影响范围  菜单处理。
+			protected function showPolygon():void
+			{
+				log.debug("影响范围  菜单处理！");
+				this.menuWin.visible = false;
+				this.menuWin.includeInLayout = false;
+
+                var e:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.SHOW_MO_COVER_AREA);
+                e.param.moId = popParam.resId;
+				e.param.moTypeId = popParam.moTypeId;
+				e.param.kpiId = popParam.kpiId;
+                this.msgDispatcher(e);
+			}
+
+			//KQIKPIPI关联关系钻取
+			protected function kqikpipiDrilling():void
+			{
+				log.debug("KQIKPIPI  菜单处理！");
+				this.menuWin.visible = false;
+				this.menuWin.includeInLayout = false;
+
+				navigateToURL(new URLRequest(user.context + "cms/scenedaily/KqiKpiPi.jsp?kpiId=" + popParam.kpiId + "&moTypeId=" + popParam.moTypeId + "&interval=" + popParam.interval + "&gatherTime=" + popParam.gatherTime + "&resId=" + popParam.resId + "&resType=" + popParam.resType + "&isHealthOrThreshold=" + (int(user.isHealthOrThreshold) - 1) + "&cityId=" + user.cityId), "_blank");
+			}
+
+//-----------------------------菜单 相关 --------------------------------------------------- end
+
+			//历史趋势  弹出窗口数据渲染
+			[MessageHandler(selector="SHOW_INDEXTREND_DATA_POPUP")]
+			public function showKpiHistoryColumnChart(event:ChartCompEvent):void
+			{
+				log.info("kpi历史趋势 弹出窗口渲染：" + chartPM.chartDM.kpiHistoryList.length);
+
+				var p1:SerialParam = new SerialParam('kpiTrend', '');
+				p1.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+
+				if(chartPM.chartDM.kpiHistoryList.length > 0 && chartPM.chartDM.kpiHistoryList.getItemAt(0).hasOwnProperty('color'))
+				{
+					var fillArr:Array = new Array();
+
+					for each(var obj:Object in chartPM.chartDM.kpiHistoryList)
+					{
+						fillArr.push(uint(obj['color']));
+					}
+
+					p1.fillColorArray = fillArr;
+				}
+
+				hisPopChart.percentHeight = 100;
+				hisPopChart.percentWidth = 100;
+
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "date";
+				charParam.use3DColumn = false;
+				this.hisPopChart.chartParam = charParam;
+
+				hisPopChart.chartParam.itemClickEnable = true;
+				hisPopChart.contextMenu;
+				hisPopChart.addEventListener(PrettyChartEvent._DATA_CLICK, historydealClick);
+
+				this.hisPopChart.series = new ArrayCollection([p1]);
+				hisPopChart.chartData(chartPM.chartDM.kpiHistoryList, true);
+				log.info("kpi历史趋势 弹出窗口渲染 结束！");
+			}
+
+			//弹出窗口图表 点击事件处理 
+			private function historydealClick(e:PrettyChartEvent):void
+			{
+				log.info("-历史时间 topn 捕获 -date");
+//				hisPopupWin.visible = false;
+//				hisPopupWin.includeInLayout = false;
+
+				log.info(e.data);
+
+				historyLabelBottom = e.data.kpiName;
+				historyTime = e.data.date;
+
+				//
+				popParam = new Object();
+
+				popParam.kpiId = e.data.kpiId; //指标Id
+				popParam.kpiName = e.data.kpiName; //指标Id
+				popParam.moTypeId = e.data.moTypeId; //网元类型Id
+				popParam.interval = e.data.interval; //粒度  1：日  2：周  3：月
+//				popParam.time = e.data.date; //时间
+				popParam.gatherTime = e.data.date;
+
+				popParam.resId = e.data.resId; //资源Id
+				popParam.resType = e.data.resType;
+				popParam.type = e.data.type; //0为健康度数据， 1为阈值劣化
+				popParam.isHis = "1";
+				if(e.data.hasOwnProperty("compareDate1"))
+					popParam.compareDate1 = e.data.compareDate1; //比较时间1
+				if(e.data.hasOwnProperty("compareDate2"))
+					popParam.compareDate2 = e.data.compareDate2; //比较时间1
+				if(e.data.hasOwnProperty("compareDate3"))
+					popParam.compareDate3 = e.data.compareDate3; //比较时间1
+//				popParam.resName = e.data.resName; //比较时间1
+
+				popParam.isNext = e.data.isNext; //比较时间1
+				log.info("更新popParam参数设置：");
+				log.info(popParam);
+
+				isNextD = e.data.isNext; //比较时间1
+				var isMInterval:String = e.data.interval;
+				var isResType:String = e.data.resType;
+
+				if(isNextD == "1")
+				{
+					PopUpManager.removePopUp(hisPopupWin);
+					//加载点击时间对应的劣化排名数据
+					//修改 cms 根据type抛出不同的事件  下面处理该时间  渲染弹出窗口的劣化排名图表
+					this.chartPM.loadData(popParam, "popup");
+				}
+			}
+
+			//历史趋势  弹出历史topn数据处理
+			[MessageHandler(selector="SHOW_DRGRADATIONRANKING_DATA_POPUP")]
+			public function showHisTopNChart(event:ChartCompEvent):void
+			{
+				log.debug("[Topo劣化 弹出窗口 网元排名！]");
+
+				PopUpManager.addPopUp(popupTopnWin, this.parent as DisplayObject);
+				popupTopnWin.x = (this.stage.width - popupTopnWin.width) / 2 - 150;
+				popupTopnWin.y = (this.stage.height - popupTopnWin.height) / 2 - 50;
+
+				   log.info("topo劣化 弹出窗口 网元排名柱状图：！" + chartPM.chartDM.popupTopNList.length);
+
+				var p1:SerialParam = new SerialParam('kpiValue', '');
+				p1.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "resName";
+				charParam.use3DColumn = false;
+				this.chart5.chartParam = charParam;
+				chart5.chartParam.showLegend = false;
+
+				this.chart5.series = new ArrayCollection([p1]);
+				chart5.chartData(chartPM.chartDM.popupTopNList, true);
+
+				chart5.percentWidth = 100;
+				chart5.height = 260;
+			}
+
+			private function openWin():void
+			{
+				log.debug("[配置：指标窗口]: 开始！");
+
+				PopUpManager.addPopUp(configurationWin, this.parent as DisplayObject);
+				configurationWin.x = (this.stage.width - configurationWin.width) / 2 - 150;
+				configurationWin.y = (this.stage.height - configurationWin.height) / 2 - 50;
+				configurationWin.visible = true;
+			}
+
+			protected function ok_clickHandler():void
+			{
+				log.info("vgroup.numElements:" + vgroup.numElements);
+				//TODO 	
+				var compareDate:String = "";
+
+				for(var i:int = 0; i < vgroup.numElements; i++)
+				{
+					if(vgroup.getElementAt(i) is CompareDateVGroup)
+					{
+						var cdg:CompareDateVGroup = vgroup.getElementAt(i) as CompareDateVGroup;
+						log.info("cdg.compareDate---" + cdg.compareDate);
+
+						if(cdg.compareDate != null && cdg.compareDate != "")
+						{
+							compareDate += "," + cdg.compareDate;
+						}
+					}
+				}
+
+//				historyDate = statisticsDate.text;
+//
+//				param.statisticsDate = statisticsDate.text;
+//				param.compareDateList = compareDate;
+//				param.trendStartDate = trendStartDate.text;
+//
+//				param.type = user.isHealthOrThreshold;
+//				param.interval = statisticsLevel;
+//				param.kpiId = user.kpiId;
+//				param.moTypeId = user.moTypeId;
+////				param.resId = user.resId;
+////				param.resType = user.resType;
+//				param.time = trendStartDate.text;
+
+				log.info(param);
+				//TODO 修改配置后 产生的结果
+//				param = new Object();
+//				param.type = 
+				//劣化排名使用统计日期
+				param.interval = String(statisticsLevelg.selectedValue);
+				param.gatherTime = statisticsDate.text;
+				if(compareDate.length > 0)
+				{
+					param.compareDate = compareDate.substr(1);
+				}
+				chartPM.loadData(param);
+
+				//指标趋势使用趋势开始时间
+				param.gatherTime = trendStartDate.text;
+				chartPM.loadHistoryTrendData(param);
+
+				//还原gatherTime
+				param.gatherTime = statisticsDate.text;
+				param.isHis = "0";
+
+			}
+
+//			protected function lowerLevelDrillingCity():void
+//			{
+//				log.debug("[下一级钻取：地市]: 开始！");
+//				this.menuWin.visible = false;
+//				this.menuWin.includeInLayout = false;
+//				chartPM.loadData(param);
+//				msgDispatcher(new ChartCompEvent(ChartCompEvent.SHOW_LOWERLEVELDRILLINGCITY_DATA));
+//			}
+
+
+
+//			protected function lowerLevelDrillingTopoHistory():void
+//			{
+//				log.debug("[下一级钻取：历史网元]: 开始！");
+//
+//				chartPM.loadData(param);
+//
+//				PopUpManager.addPopUp(popChartWin, this.parent as DisplayObject);
+//				popChartWin.x = (this.stage.width - popChartWin.width) / 2 - 150;
+//				popChartWin.y = (this.stage.height - popChartWin.height) / 2 - 50;
+//				popChartWin.visible = true;
+//			}
+
+			private function chartTypeSelection():void
+			{
+				log.info("历史趋势图：根据时间与地市或网元选择柱状图或者折线图");
+
+				if(myDDL.selectedItem.type == "Column")
+				{
+					hisPopChart.chartType = PrettyChartType.CHART_TYPE_COLUMN;
+//					msgDispatcher(new ChartCompEvent(ChartCompEvent.SHOW_KPIHISTORY_COLUMN_CHART));
+				}
+				else if(myDDL.selectedItem.type == "Line")
+				{
+					hisPopChart.chartType = PrettyChartType.CHART_TYPE_LINE;
+//					msgDispatcher(new ChartCompEvent(ChartCompEvent.SHOW_KPIHISTORY_LINE_CHART));
+				}
+				log.info("历史趋势图：根据时间与地市或网元选择柱状图或者折线图 end");
+			}
+
+			protected function exportData(expType:String):void
+			{
+				log.info("导出:{0}.", expType);
+
+				var expParam:Object = null; //导出所需参数
+
+				var fileType:FileFilter = new FileFilter("Excel", "*.xls");
+				var fileTypes:Array = new Array(fileType);
+				fileUpDownLoad = new FileUpDownLoad();
+
+				var downLoadData:URLVariables = new URLVariables();
+
+				//expType  compare or trend or ''
+				if(expType == '' || expType == null)
+				{
+					log.info("如果是劣化排名，指标趋势，那么调用参数param:");
+					log.info(param);
+					expParam = param;
+
+					if(chartViewStack.selectedIndex == 0)
+					{
+						expType = "compare";
+					}
+					else if(chartViewStack.selectedIndex == 1)
+					{
+						expType = "trend";
+					}
+				}
+				else
+				{
+					log.info("否则，如果是历史趋势图等，那么调用弹出参数：");
+					log.info(popParam);
+					expParam = popParam
+				}
+
+				if(expType != "compare" && expType != "trend")
+				{
+					log.info("未定义该导出类型:{0}.", expType);
+					return;
+				}
+
+				//传递导出excel所需参数
+				downLoadData.type = expParam.type;
+				downLoadData.kpiId = expParam.kpiId;
+				downLoadData.resId = expParam.resId;
+				downLoadData.resType = expParam.resType;
+				downLoadData.interval = expParam.interval;
+				downLoadData.moTypeId = expParam.moTypeId;
+				downLoadData.gatherTime = expParam.gatherTime;
+				downLoadData.isHis = expParam.isHis;
+				if(expType == "compare")
+				{
+					var cmpTimes:String = "";
+					if(expParam.compareDate1)
+						cmpTimes += "," + expParam.compareDate1;
+					if(expParam.compareDate2)
+						cmpTimes += "," + expParam.compareDate2;
+					if(expParam.compareDate3)
+						cmpTimes += "," + expParam.compareDate3;
+					downLoadData.compareDate = cmpTimes;
+					log.info("导出传递参数如下,cmpTimes:{0};", downLoadData.compareDate);
+				}
+
+				var url:String = "";
+				if(expType == "trend")
+				{
+					url = user.context + "/cms/scenedaily/scenechart/scenechart!exportExcelTopNKpiTrend.action";
+				}
+				else if(expType == "compare")
+				{
+					url = user.context + "/cms/scenedaily/scenechart/scenechart!exportExcelTopNKpiCompare.action";
+				}
+
+				//"?kpiId=" + param.kpiId + "&resId=" + param.resId + "&resType=" + param.resType + "
+				//&interval=" + param.interval + "&moTypeId=" + param.moTypeId + "&gatherTime=" + user.gatherTime + "&compareDate=" + cmpTimes;
+
+
+				var downLoadUrl:URLRequest = new URLRequest(url); //URL地址
+
+				downLoadUrl.data = downLoadData;
+				fileUpDownLoad.downLoadURLRequest = downLoadUrl;
+				fileUpDownLoad.fileFilters = fileTypes;
+				fileUpDownLoad.downLoad();
+			}
+
+			protected function dayLevel_clickHandler():void
+			{
+				statisticsDateF.visible = true;
+				statisticsDateF.includeInLayout = true;
+				compareDateF.visible = true;
+				compareDateF.includeInLayout = true;
+				trendStartTime.visible = true;
+				trendStartTime.includeInLayout = true;
+				
+				statisticsLevel = "1";
+				countDate = new Date();
+				countDate.setDate(countDate.getDate() - 1);
+				log.info(countDate + "countDate");
+				statisticsDate.selectedDate = countDate;
+				//trendStartDate 如果月粒度设置比统计时间提前1个月 周粒度比统计时间提前1周，日粒度比统计时间提前一天
+				trendStartDate.selectedDate =  new Date(countDate.getFullYear(), countDate.getMonth(), countDate.getDate()-1);
+			}
+
+			protected function weekLevel_clickHandler():void
+			{
+				statisticsDateF.visible = true;
+				statisticsDateF.includeInLayout = true;
+				compareDateF.visible = true;
+				compareDateF.includeInLayout = true;
+				trendStartTime.visible = true;
+				trendStartTime.includeInLayout = true;
+				
+				statisticsLevel = "2";
+				countDate = new Date();
+				if(0 == countDate.getDay())
+				{
+					countDate.setDate(countDate.getDate() - 7 - 6);
+				}
+				else
+				{
+					countDate.setDate(countDate.getDate() - countDate.getDay() - 6);
+				}
+
+				statisticsDate.selectedDate = countDate;
+				//trendStartDate 如果月粒度设置比统计时间提前1个月 周粒度比统计时间提前1周，日粒度比统计时间提前一天
+				trendStartDate.selectedDate =  new Date(countDate.getFullYear(), countDate.getMonth(), countDate.getDate()-7);
+
+			}
+
+			protected function monthLevel_clickHandler():void
+			{
+				statisticsDateF.visible = true;
+				statisticsDateF.includeInLayout = true;
+				compareDateF.visible = true;
+				compareDateF.includeInLayout = true;
+				trendStartTime.visible = true;
+				trendStartTime.includeInLayout = true;
+				
+				statisticsLevel = "3";
+				countDate = new Date();
+				countDate.setMonth(countDate.getMonth() - 1);
+				statisticsDate.selectedDate = countDate;
+				//trendStartDate 如果月粒度设置比统计时间提前1个月 周粒度比统计时间提前1周，日粒度比统计时间提前一天
+				trendStartDate.selectedDate =  new Date(countDate.getFullYear(), countDate.getMonth() - 1, 1);
+
+			}
+
+			protected function trendStartDate_changeHandler():void
+			{
+
+				if(statisticsLevel == "1")
+				{
+					log.info("日粒度趋势开始时间校验趋势：开始时间");
+
+					log.info(statisticsDate.text + "statisticsDate日粒度趋势开始时间校验~~~~~~");
+					log.info(trendStartDate.text + "trendStartDate日粒度趋势开始时间校验~~~~~~");
+
+					if(trendStartDate.text >= statisticsDate.text)
+					{
+						trendStartDate.errorString = "趋势开始时间应在统计时间之前";
+					}
+					else
+					{
+						trendStartDate.errorString = null;
+					}
+				}
+
+				if(statisticsLevel == "2")
+				{
+					log.info("周粒度趋势开始时间校验");
+					if(trendStartDate.text >= statisticsDate.text)
+					{
+						trendStartDate.errorString = "趋势开始时间应在统计时间之前";
+					}
+					else
+					{
+						trendStartDate.errorString = null;
+					}
+				}
+
+				if(statisticsLevel == "3")
+				{
+					log.info("月粒度趋势开始时间校验");
+					if(trendStartDate.text >= statisticsDate.text)
+					{
+						trendStartDate.errorString = "趋势开始时间应在统计时间之前";
+					}
+					else
+					{
+						trendStartDate.errorString = null;
+					}
+				}
+
+			}
+
+			/**
+			 * 校验当前新增对象在已有集合中是否重复
+			 * returnFlag：true：不重复；false：重复
+			 */
+			private function voliade(destArr:ArrayCollection, currentObj:Object):Boolean
+			{
+				var returnFlag:Boolean = true;
+				for each(var obj:Object in destArr)
+				{
+					if(obj == currentObj)
+					{
+						returnFlag = false;
+						break;
+					}
+				}
+				return returnFlag;
+			}
+
+
+			protected function compareDateAdd():void
+			{
+				var compareDG:CompareDateVGroup = new CompareDateVGroup();
+				compareDG.dispatchMsg = this.msgDispatcher;
+
+				log.info("count:" + count);
+
+				if(count < 3)
+				{
+					vgroup.addElement(compareDG);
+				}
+				else
+				{
+					Alert.show("比较时间最多添加三个！", "提示");
+					trendStartDate.text = "";
+				}
+
+				if(count <= 2)
+				{
+					count++;
+				}
+				else
+				{
+					count = 3
+				}
+			}
+
+			/**
+			 *
+			 * 判断当前日期是一年的第几周
+			 * */
+			private function weekOfYear(yyyy:Number, mm:Number, dd:Number):Number
+			{
+				var myDate:Date = new Date(yyyy, mm - 1, dd);
+				var startDate:Date = new Date(2012, 0, 1);
+				var diff:int = myDate.valueOf() - startDate.valueOf();
+				var d:Number = Math.round(diff / 86400000);
+				return Math.ceil((d + ((startDate.getDay() + 1) - 1)) / 7);
+			}
+
+			[MessageHandler(selector="COMPARE_DATE")]
+			public function compareDate(e:ChartCompEvent):void
+			{
+				//判断当前输入时间值是否小于初始设定时间值
+				log.info("粒度为:" + statisticsLevel);
+				if(statisticsLevel == "1")
+				{
+					var currentDate:Date = new Date();
+					currentDate.setDate(currentDate.getDate() - 1);
+					log.info("currentDate:" + currentDate);
+					var cd:String = DateUtils.parseDate(currentDate, "YYYY-MM-DD");
+					log.info("cd:" + cd);
+					log.info("(e.param['date'] as DateField).text:" + (e.param['date'] as DateField).text);
+
+					if((e.param['date'] as DateField).text < cd)
+					{
+						log.info("日粒度--比较时间符合要求:" + compareDate);
+						var uu:String = (e.param['date'] as DateField).text;
+						log.info("uu:" + uu);
+						if(!voliade(arrayListD, uu)) // 判断当前输入时间值是否在已有对象中存在
+						{
+							(e.param['date'] as DateField).errorString = "时间值输入重复";
+							log.info("Day？:" + compareDate);
+						}
+						else
+						{
+							(e.param['date'] as DateField).errorString = null;
+							compareDateData = (e.param['date'] as DateField).text;
+							arrayListD.addItem(uu);
+							log.info("Day结束:" + compareDate);
+						}
+					}
+					else
+					{
+						log.info("日粒度--比较时间与当前时间比较:" + compareDate);
+						(e.param['date'] as DateField).errorString = "比较日期不能早于当前日期";
+					}
+				}
+				else
+				{
+					if(statisticsDate.text <= (e.param['date'] as DateField).text)
+					{
+						(e.param['date'] as DateField).errorString = "比较日期不能早于统计日期";
+					}
+					else
+					{
+						if(statisticsLevel == "2")
+						{
+							var vv:Date = DateField.stringToDate((e.param['date'] as DateField).text, "YYYY-MM-DD");
+							var jj:int = weekOfYear(vv.getFullYear(), vv.getMonth(), vv.getDate());
+							log.info("jj:" + jj);
+							if(!voliade(arrayListM, jj))
+							{
+								(e.param['date'] as DateField).errorString = "比较时间不能为同一个周内的日期！";
+								log.info("Month？:" + compareDate);
+							}
+							else
+							{
+								(e.param['date'] as DateField).errorString = null;
+								compareDateData = (e.param['date'] as DateField).text;
+								arrayListM.addItem(jj);
+								log.info("month结束:" + compareDate);
+							}
+						}
+						else if(statisticsLevel == "3")
+						{
+							var qq:Date = DateField.stringToDate((e.param['date'] as DateField).text, "YYYY-MM-DD");
+							var zz:String = qq.getFullYear() + "." + qq.getMonth();
+							log.info("zz:" + zz);
+							if(!voliade(arrayListY, zz))
+							{
+								(e.param['date'] as DateField).errorString = "比较时间不能为同一个月内的日期！";
+								log.info("year？:" + compareDate);
+							}
+							else
+							{
+								(e.param['date'] as DateField).errorString = null;
+								compareDateData = (e.param['date'] as DateField).text;
+								arrayListY.addItem(zz);
+								log.info("year结束" + compareDate);
+							}
+						}
+					}
+				}
+			}
+
+			[MessageHandler(selector="DELETE_COMPARE_DATE")]
+			public function deleteCompareDate(e:ChartCompEvent):void
+			{
+				count--;
+
+				if(count == 0)
+				{
+					vgroup.removeAllElements();
+				}
+
+				log.info("count:" + count + "deleteCompareDate");
+			}
+
+			/* public function resizeHandle(flag:Boolean):void
+			   {
+			   chartViewStack.visible = flag;
+			   chartViewStack.includeInLayout = flag;
+			 } */
+
+			private function openChart(type:int):void
+			{
+				if(type == 1)
+				{
+					chartViewStack.selectedIndex = 1;
+					chartViewStack.visible = true;
+
+					badTopNChart.visible = false;
+					badTopNChart.includeInLayout = false;
+
+					hisTrendChart.visible = true;
+					hisTrendChart.includeInLayout = true;
+				}
+				else
+				{
+					chartViewStack.selectedIndex = 0;
+					chartViewStack.visible = true;
+
+					badTopNChart.visible = true;
+					badTopNChart.includeInLayout = true;
+
+					hisTrendChart.visible = false;
+					hisTrendChart.includeInLayout = false;
+				}
+			}
+			
+			protected function aDay_clickHandler():void
+			{
+				statisticsLevel = "4";
+				statisticsDateF.visible = false;
+				statisticsDateF.includeInLayout = false;
+				compareDateF.visible = false;
+				compareDateF.includeInLayout = false;
+				trendStartTime.visible = false;
+				trendStartTime.includeInLayout = false;
+//				countDate = new Date();
+//				countDate.setMonth(countDate.getMonth() - 1);
+//				statisticsDate.selectedDate = countDate;
+//				//trendStartDate 如果月粒度设置比统计时间提前1个月 周粒度比统计时间提前1周，日粒度比统计时间提前一天
+//				trendStartDate.selectedDate =  new Date(countDate.getFullYear(), countDate.getMonth() - 1, 1);
+			}
+			
+		]]>
+	</fx:Script>
+
+	<s:VGroup width="100%"
+			  minHeight="24"
+			  gap="0"
+			  clipAndEnableScrolling="true"
+			  height="100%">
+		<s:TabBar dataProvider="{chartViewStack}"
+				  id="chartTabBar"
+				  styleName="sceneTabBar1"/>
+		<mx:ViewStack width="100%"
+					  height="100%"
+                      styleName="sceneViewStack"
+					  id="chartViewStack"
+					  creationPolicy="all">
+			<s:NavigatorContent width="100%"
+								height="100%"
+								label="劣化排名">
+				<ailk_chart:PrettyChart id="badTopNChart"
+										visible="{chartViewStack.visible}"
+										width="700"
+										height="100"/>
+
+			</s:NavigatorContent>
+			<s:NavigatorContent width="100%"
+								height="100%"
+								label="指标趋势">
+				<ailk_chart:PrettyChart id="hisTrendChart"
+										width="700"
+										visible="{chartViewStack.visible}"
+										height="100"/>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:VGroup>
+	<!--<s:HGroup width="100%"
+		 minHeight="24"
+		 gap="0"
+		 clipAndEnableScrolling="true"
+		 height="100%"
+		 horizontalAlign="center">
+		 <s:VGroup width="22"
+		 height="150"
+		 gap="4"
+		 left="2">
+		 <s:Label text="劣化排名"
+		 height="73"
+		 width="100%"
+		 buttonMode="true"
+		 click="openChart(0)"/>
+		 <s:Label text="指标趋势"
+		 height="73"
+		 width="100%"
+		 buttonMode="true"
+		 click="openChart(1)"/>
+		 </s:VGroup>
+		 <ailk_chart:PrettyChart id="badTopNChart"
+		 width="700"
+		 height="100"/>
+
+		 <ailk_chart:PrettyChart id="hisTrendChart"
+		 width="700"
+		 visible="false"
+		 includeInLayout="false"
+		 height="100"/>
+		 </s:HGroup>-->
+
+	<mx:HBox left="190"
+			 height="24"
+			 verticalAlign="middle">
+		<mx:Image source="@Embed('../../../img/u2.png')"
+				  buttonMode="true"
+				  toolTip="配置"
+				  click="openWin();"/>
+		<mx:Image source="@Embed('../../../img/u22.png')"
+				  buttonMode="true"
+				  toolTip="导出"
+				  click="exportData('')"/>
+		<s:CheckBox label="显示门限"
+					styleName="label"
+					visible="{chartTabBar.selectedIndex==0}"
+					includeInLayout="{chartTabBar.selectedIndex==0}"
+					click="showKpiChart()"
+					id="thresholdBad"/>
+		<s:CheckBox label="显示门限"
+					styleName="label"
+					visible="{chartTabBar.selectedIndex==1}"
+					includeInLayout="{chartTabBar.selectedIndex==1}"
+					click="showKpiTrendChart()"
+					id="thresholdChar"/>
+		<s:Label id="labelhead"
+				 styleName="label"/>
+	</mx:HBox>
+
+	<!-- 弹出菜单 -->
+	<ailk_compts:Window id="menuWin"
+						styleName="window"
+						minimizable="false"
+						maximizable="false"
+						closable="false"
+						minHeight="20"
+						width="110"
+						rollOut="{this.menuWin.visible = false; this.menuWin.includeInLayout = false;}" 
+						visible="false"
+						cornerRadius="10"
+						includeInLayout="false">
+		<mx:VBox width="100%"
+				 top="-5"
+				 textAlign="left"
+				 height="100%">
+			<s:BorderContainer id="nextLevelBC"
+							   borderColor="0xB1D5ED"
+							   borderAlpha="1"
+							   backgroundColor="0xB1D5ED"
+							   backgroundAlpha=".6"
+							   width="100%"
+							   height="20">
+				<s:HGroup verticalAlign="middle"
+						  paddingLeft="15"
+						  width="100%"
+						  height="100%">
+					<s:Label text="下一级钻取"
+							 buttonMode="true"
+							 width="100%"
+							 click="drillDown()"/>
+				</s:HGroup>
+			</s:BorderContainer>
+			<s:BorderContainer width="100%"
+							   borderColor="0xB1D5ED"
+							   borderAlpha="1"
+							   backgroundColor="0xB1D5ED"
+							   backgroundAlpha=".6"
+							   height="20">
+				<s:HGroup verticalAlign="middle"
+						  paddingLeft="15"
+						  width="100%"
+						  height="100%">
+					<s:Label text="历史趋势图"
+							 width="100%"
+							 buttonMode="true"
+							 click="showHistoryTrend()"/>
+				</s:HGroup>
+			</s:BorderContainer>
+			<s:BorderContainer id="moBadCard"
+							   borderColor="0xB1D5ED"
+							   borderAlpha="1"
+							   backgroundColor="0xB1D5ED"
+							   backgroundAlpha=".6"
+							   width="100%"
+							   height="20">
+				<s:HGroup verticalAlign="middle"
+						  paddingLeft="15"
+						  width="100%"
+						  height="100%">
+					<s:Label text="网元病历卡"
+							 buttonMode="true"
+							 width="100%"
+							 click="toMoMadicalCard()"/>
+				</s:HGroup>
+			</s:BorderContainer>
+			<s:BorderContainer id="moCoverRange"
+							   borderColor="0xB1D5ED"
+							   borderAlpha="1"
+							   backgroundColor="0xB1D5ED"
+							   backgroundAlpha=".6"
+							   width="100%"
+							   height="20">
+				<s:HGroup verticalAlign="middle"
+						  paddingLeft="15"
+						  width="100%"
+						  height="100%">
+					<s:Label text="影响范围"
+							 buttonMode="true"
+							 width="100%"
+							 click="showPolygon()"/>
+				</s:HGroup>
+			</s:BorderContainer>
+			<s:BorderContainer id="kqikpipiBC"
+							   width="100%"
+							   borderColor="0xB1D5ED"
+							   borderAlpha="1"
+							   backgroundColor="0xB1D5ED"
+							   backgroundAlpha=".6"
+							   height="20">
+				<s:HGroup verticalAlign="middle"
+						  paddingLeft="15"
+						  width="100%"
+						  height="100%">
+					<s:Label text="KQI-KPI-PI"
+							 buttonMode="true"
+							 width="100%"
+							 click="kqikpipiDrilling()"/>
+				</s:HGroup>
+			</s:BorderContainer>
+		</mx:VBox>
+	</ailk_compts:Window>
+
+	<!-- 配置窗口-->
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="configurationWin"
+							styleName="window"
+							minimizable="false"
+							maximizable="false"
+							dragable="true"
+							close="{PopUpManager.removePopUp(configurationWin);}">
+			<s:BorderContainer styleName="borderContainer1"
+							   width="100%"
+							   height="100%">
+				<s:layout>
+					<s:VerticalLayout/>
+				</s:layout>
+
+				<mx:Form>
+					<mx:FormItem label="统计粒度"
+								 id="statisticsLevel1">
+						<mx:HBox>
+							<s:RadioButton label="日粒度"
+										   groupName="statisticsLevelg"
+										   id="dayLevel"
+										   click="dayLevel_clickHandler()"
+										   value="1"
+										   width="80"/>
+							<s:RadioButton label="周粒度"
+										   groupName="statisticsLevelg"
+										   id="weekLevel"
+										   click="weekLevel_clickHandler()"
+										   value="2"
+										   width="80"/>
+							<s:RadioButton label="月粒度"
+										   groupName="statisticsLevelg"
+										   id="monthLevel"
+										   click="monthLevel_clickHandler()"
+										   value="3"
+										   width="80"
+										   selected="true"/>
+							<s:RadioButton label="最新24小时"
+										   groupName="statisticsLevelg"
+										   id="aDay" 
+										   click="aDay_clickHandler()"
+										   value="4"
+										   width="120"
+										   selected="true"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="统计日期"
+								 id="statisticsDateF">
+						<mx:DateField id="statisticsDate"
+									  width="150"
+									  formatString="YYYY-MM-DD"/>
+					</mx:FormItem>
+					<mx:FormItem label="比较日期"
+								 id="compareDateF">
+						<mx:Image id="addSymbol"
+								  source="@Embed('../../../img/addDate.png')"
+								  toolTip="添加"
+								  buttonMode="true"
+								  click="compareDateAdd()"/>
+						<s:VGroup id="vgroup"/>
+					</mx:FormItem>
+					<mx:FormItem label="趋势开始时间"
+								 id="trendStartTime">
+						<mx:DateField id="trendStartDate"
+									  width="150"
+									  formatString="YYYY-MM-DD"
+									  change="trendStartDate_changeHandler()"/>
+					</mx:FormItem>
+					<mx:FormItem direction="vertical">
+						<s:Button label="确定"
+								  click="ok_clickHandler()"/>
+					</mx:FormItem>
+				</mx:Form>
+
+			</s:BorderContainer>
+		</ailk_compts:Window>
+	</mx:Box>
+
+	<!--<mx:Box visible="false"
+		 includeInLayout="false">
+		 <ailk_compts:Window id="popChartWin"
+		 width="400"
+		 height="300"
+		 styleName="window"
+		 minimizable="false"
+		 maximizable="false"
+		 dragable="true"
+		 close="{PopUpManager.removePopUp(popChartWin)}">
+		 <ailk_chart:PrettyChart id="chart3"
+		 width="200"
+		 height="100"/>
+		 </ailk_compts:Window>
+		 </mx:Box>-->
+
+	<!-- 历史趋势弹出窗口 -->
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<ailk_compts:Window id="hisPopupWin"
+							width="500"
+							height="300"
+							dragable="true"
+							title="{historyLabelBottom}"
+							close="{PopUpManager.removePopUp(hisPopupWin);}"
+							styleName="window"
+							minimizable="false"
+							maximizable="false">
+			<s:BorderContainer width="100%"
+							   borderStyle="solid"
+							   cornerRadius="8"
+							   borderColor="gray"
+							   borderWeight="3"
+							   borderAlpha=".5"
+							   height="100%">
+				<mx:VBox width="100%"
+						 verticalGap="2"
+						 height="100%">
+					<mx:HBox verticalAlign="middle"
+							 horizontalAlign="center"
+							 verticalGap="2"
+							 top="-8"
+							 verticalScrollPolicy="off"
+							 horizontalScrollPolicy="off"
+							 width="100%"
+							 height="60">
+						<mx:HBox verticalAlign="middle"
+								 height="100%">
+							<s:Label text="历史趋势图"/>
+							<mx:Image source="@Embed('../../../img/u22.png')"
+									  toolTip="导出"
+									  buttonMode="true"
+									  click="exportData('trend')"/>
+						</mx:HBox>
+						<s:DropDownList id="myDDL"
+										selectedIndex="0"
+										width="100"
+										dataProvider="{myDP}"
+										labelField="chartType"
+										change="chartTypeSelection();"/>
+						<mx:Form verticalGap="2"
+								 height="100%">
+							<mx:FormItem label="地域维度">
+								<s:Label text="{historyName}"/>
+							</mx:FormItem>
+							<mx:FormItem label="时间维度">
+								<s:Label text="{historyDate}"/>
+							</mx:FormItem>
+						</mx:Form>
+					</mx:HBox>
+					<mx:HRule width="100%"
+							  strokeColor="gray"
+							  height="2"/>
+					<ailk_chart:PrettyChart id="hisPopChart"
+											width="250"
+											height="150"/>
+				</mx:VBox>
+			</s:BorderContainer>
+		</ailk_compts:Window>
+	</mx:Box>
+
+	<!-- 历史topn弹出窗口 -->
+	<mx:VBox visible="false"
+			 includeInLayout="false">
+		<ailk_compts:Window id="popupTopnWin"
+							width="500"
+							height="400"
+							dragable="true"
+							close="{PopUpManager.removePopUp(popupTopnWin);}"
+							styleName="window"
+							minimizable="false"
+							maximizable="false">
+			<mx:VBox width="100%"
+					 height="100%">
+				<mx:HBox width="100%"
+						 height="100%">
+					<mx:HBox width="100%"
+							 height="100%">
+						<s:Label text="劣化网元排名"/>
+						<mx:Image source="@Embed('../../../img/u22.png')"
+								  toolTip="导出"
+								  click="exportData('compare')"/>
+					</mx:HBox>
+				</mx:HBox>
+				<ailk_chart:PrettyChart id="chart5"
+										width="200"
+										height="100"/>
+				<s:Label text="{historyName}"/>
+				<s:Label text="{historyTime}"/>
+			</mx:VBox>
+		</ailk_compts:Window>
+	</mx:VBox>
+
+</s:Group>

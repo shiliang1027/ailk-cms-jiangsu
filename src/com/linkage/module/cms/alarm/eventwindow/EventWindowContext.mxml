@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.eventwindow.dao.EventWindowDAOImpl;
+			import com.linkage.module.cms.alarm.eventwindow.domain.EventWindowDM;
+			import com.linkage.module.cms.alarm.eventwindow.serv.DeleteWindowCMD;
+			import com.linkage.module.cms.alarm.eventwindow.serv.EventWindowCMD;
+			import com.linkage.module.cms.alarm.eventwindow.serv.IVRWindowCMD;
+			import com.linkage.module.cms.alarm.eventwindow.serv.SelectFilterDatasWindowCMD;
+			import com.linkage.module.cms.alarm.eventwindow.serv.SelectRemarkWindowCMD;
+			import com.linkage.module.cms.alarm.eventwindow.serv.UpdateRemarkWindowCMD;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.User;
+			
+			import mx.rpc.remoting.RemoteObject;
+		]]>
+	</fx:Script><!--http://10.40.9.185:54321/cms/messagebroker/amf http://211.103.0.102:8080-->
+	<fx:Declarations>
+		<parsley:Object id="remoteObject" type="{RemoteObject}">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_warn_view_config_WarnViewConfServImp"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		
+		<parsley:Object id="remoteObjectIVR" type="{RemoteObject}">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_schedulingServImpl"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		<parsley:Object id="remoteObjetUpdate" type="{RemoteObject}">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_remarkServImpl"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		
+		<parsley:Object id="user"
+						type="{User}"
+						lazy="true"/>
+		
+		<parsley:Object id="eventWindowDao" type="{EventWindowDAOImpl}" lazy="true"/>
+		<parsley:Object id="eventWindowDM" type="{EventWindowDM}" lazy="true"/>
+		
+		<parsley:MapCommand selector="LOAD_EVENTWINDOW_DATA">
+			<parsley:Command type="{EventWindowCMD}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="DELETE_EVENTWINDOW_DATA">
+			<parsley:Command type="{DeleteWindowCMD}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="CALL_IVRWINDOW_IVR">
+			<parsley:Command type="{IVRWindowCMD}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="SELECT_REMARK_BYID">
+			<parsley:Command type="{SelectRemarkWindowCMD}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="UPDATE_REMARK_BYID">
+			<parsley:Command type="{UpdateRemarkWindowCMD}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="SELECT_FILER_DATAS">
+			<parsley:Command type="{SelectFilterDatasWindowCMD}"/>
+		</parsley:MapCommand>
+	</fx:Declarations>
+</fx:Object>

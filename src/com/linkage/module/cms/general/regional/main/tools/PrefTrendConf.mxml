@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  maximizable="false"
+			  minimizable="false"
+			  minHeight="30"
+			  dragable="true"
+			  width="220"
+			  height="196"
+			  close="hideWindow()"
+			  closable="true">
+	<fx:Script>
+		<![CDATA[
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.CheckBox;
+			//日志
+			public var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.tools.PrefTrendConf");
+			private var selectMap:Object=new Object();
+			private var _callback:Function=null;
+
+			public function initPrefTrendData(data:Object, callback:Function, showCallBck:Function):void
+			{
+				_callback=callback;
+
+				vGroup.removeAllElements();
+				
+				var index:int=0;
+				var hGroup:HGroup=null;
+				//解析参数
+				for each (var obj:Object in data)
+				{
+					log.info("重点性能指标perf_type_id=" + obj.perf_type_id + ",is_show=" + obj.is_show);
+					if (index % 2 == 0)
+					{
+						hGroup=new HGroup();
+						hGroup.percentWidth=100;
+						hGroup.horizontalAlign="left";
+						vGroup.addElement(hGroup);
+					}
+					var check:CheckBox=new CheckBox();
+					check.label=obj.show_name;
+					check.id=obj.perf_type_id;
+					check.addEventListener(MouseEvent.CLICK, checkClick);
+					if (obj.is_show == "1")
+					{
+						check.selected=true;
+						selectMap[obj.perf_type_id]=obj.perf_type_id;
+					}
+					hGroup.addElement(check);
+					index++;
+				}
+				//展示趋势图
+				showCallBck.call(this, selectMap);
+			}
+
+			private function checkClick(event:MouseEvent):void
+			{
+				log.info("点击性能趋势指标+++++++++++++");
+				var check:CheckBox=event.currentTarget as CheckBox;
+				log.info("点击性能趋势指标+++++++++++++check.selected=" + check.selected);
+				if (check.selected == true)
+				{
+					selectMap[check.id]=check.id;
+				}
+				else
+				{
+					delete selectMap[check.id];
+				}
+
+			}
+
+			protected function hideWindow():void
+			{
+				this.visible=false;
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				hideWindow();
+			}
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				_callback.call(this, selectMap);
+				hideWindow();
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:Scroller width="100%"
+					height="100%"
+					verticalScrollPolicy="auto">
+			<s:VGroup id="vGroup"
+					  width="100%"
+					  height="100%">
+
+			</s:VGroup>
+		</s:Scroller>
+		<s:HGroup width="100%"
+				  height="30">
+			<s:Button label="确定"
+					  click="button2_clickHandler(event)"/>
+			<s:Button label="取消"
+					  click="button1_clickHandler(event)"/>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

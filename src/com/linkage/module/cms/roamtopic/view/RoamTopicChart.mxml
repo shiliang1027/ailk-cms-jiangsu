@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 title="{charTitle}"
+		 maximizable="true" 
+		 closable="false" resizable="true"
+		 minimizable="false" styleName="window"
+		 width="100%" height="100%">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.event.PrettyChartEvent;
+			import com.linkage.module.cms.roamtopic.RoamTopicModuleContext;
+			import com.linkage.module.cms.roamtopic.event.RoamTopicEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			
+			private var log:ILogger=Log.getLoggerByClass(RoamTopicChart);
+			[Inject("roamTopicPM")]
+			[Bindable]
+			public var pm:RoamTopicPM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			[Bindable]
+			private var charTitle:String = new String();
+			//动态生成图表
+			[MessageHandler(selector="REFRESH_ROMTOPIC")]
+			public function refreshRoamCHART(event:RoamTopicEvent):void{
+				if("1" == pm.dm.roamTopicType && "1"!=pm.dm.parameters.type||pm.dm.type == "4"){
+					return;
+				}
+				if("2" == pm.dm.parameters.type 
+					&& "2"== pm.dm.roamTopicType
+					&& pm.dm.parameters.shengnei
+					&& pm.dm.parameters.shengnei == "5"){
+					return;
+				}
+				if("2" == pm.dm.roamTopicType){
+					if(pm.dm.selectIndex == 0){
+						charTitle = "漫入" + pm.dm.provinceName + "用户统计（万）";
+					}else if(pm.dm.selectIndex == 1){
+						charTitle = "漫出" + pm.dm.provinceName + "用户统计（万）";
+					}else{
+						charTitle = "漫入" + pm.dm.provinceName + "用户统计（万）";
+					}
+					
+				}
+				if("1" == pm.dm.roamTopicType){
+					charTitle = "省际漫入漫出" + pm.dm.provinceName + "用户统计（万）";
+					/* if(pm.dm.selectIndex == 0){
+						charTitle = "省际入出" + pm.dm.provinceName + "用户统计（万）";
+					}else{
+						charTitle = "省际漫出" + pm.dm.provinceName + "用户统计（万）";
+					} */
+					
+				}
+				var series:ArrayCollection = new ArrayCollection();
+				if(pm.dm.roamTopicType == "2"){
+					 if(pm.dm.selectIndex == 0){
+						 var p1:SerialParam = new SerialParam(pm.dm.selectIndex == 0 ? "user_num" : "user_num_out", "漫入用户");
+						 var p2:SerialParam = new SerialParam("lte_num", "4G漫入");
+						 series.addItem(p1);
+						 series.addItem(p2);
+					}else{
+						var p1:SerialParam = new SerialParam(pm.dm.selectIndex == 0 ? "user_num" : "user_num_out", "漫出用户");
+						series.addItem(p1);
+					} 
+					
+				}else{
+					var p1:SerialParam = new SerialParam("user_num", "漫入用户");
+					var p2:SerialParam = new SerialParam("user_num_out", "漫出用户");
+					var p3:SerialParam = new SerialParam("lte_num", "4G漫入");
+					series.addItem(p1);
+					series.addItem(p2);
+					series.addItem(p3);
+					
+				}
+				
+				roamTopicChart.series=series;
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "time";
+				charParam.use3DColumn = true;
+				charParam.showLegend = false;
+				if("1" == pm.dm.parameters.type && "1"== pm.dm.roamTopicType){
+					charParam.itemClickEnable = true;
+				}else if("2" == pm.dm.parameters.type && "2"== pm.dm.roamTopicType){
+					charParam.itemClickEnable = true;
+				}else{
+					charParam.itemClickEnable = false;
+				}
+				roamTopicChart.chartParam = charParam;
+				roamTopicChart.justifyMaxValue = true;
+				roamTopicChart.canDropLabels = false;
+				roamTopicChart.chartData(pm.dm.roamTopicCHART,true);
+				roamTopicChart.addEventListener(PrettyChartEvent._DATA_CLICK, roamTopicChart_DataClickHandler);
+			}
+			
+			protected function roamTopicChart_DataClickHandler(event:PrettyChartEvent):void
+			{
+				log.info("roamTopicChart_DataClickHandler");
+				log.info(event.data);
+				log.info(event.field);
+				var dd:Date = new Date();
+				var time:String = event.data["defaulttime"];
+				pm.dm.parameters.time=time;
+				/* if("2" == pm.dm.parameters.type && "2"== pm.dm.roamTopicType){
+					pm.dm.parameters.shengnei = "5";
+					//pm.dm.time = pm.dm.parameters.time;
+				}else{
+					pm.dm.parameters.type="4";
+				} */
+				
+								
+				if(pm.dm.roamTopicType == "2"){
+					if(pm.dm.selectIndex == 1){
+						log.info("1 1");
+						return;
+					}else{
+						log.info("1 0");
+						pm.dm.parameters.selectIndex = 0;
+						pm.dm.selectIndex = 0;
+					}
+					pm.dm.isproChartClick = true;
+				}else{
+					if(pm.dm.type!="5"){
+					pm.dm.type = "4";
+					}
+					pm.dm.parameters.type="1";
+					if(event.field == "user_num_out"){
+						log.info("2  1");
+						return;
+					}else{
+						log.info("2  0");
+						if(pm.dm.selectIndex!=1){
+						pm.dm.parameters.selectIndex = 0;
+						pm.dm.selectIndex = 0;
+							
+						}
+					}
+				}
+				
+//				pm.dm.parameters.type = 4;
+				//pm.dm.time = pm.dm.parameters.time;
+//				Alert.show(pm.dm.parameters.time);
+				dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+				dispatchMsg(new RoamTopicEvent("LOAD_DATA"));
+			}
+			
+		]]>
+	</fx:Script>
+	<ailk_chart:PrettyChart id="roamTopicChart"
+							width="100%"
+							height="100%"
+							steadyYAxis="false"
+							xAxisFontSize="12"
+							horizontalCenter="0"
+							verticalCenter="0"/>
+</ailk_compts:Window>

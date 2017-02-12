@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					dragable="true"
+					title="历史查询"
+					styleName="windowScene"
+					maximizable="false"
+					minimizable="false"
+					close="window1_closeHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:common="com.linkage.module.cms.quitstatnew.common.*">
+
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hrw (Ailk No.)
+		 @version 1.0
+		 @date 2012-8-28
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.quitstatnew.QuitModulePM;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+			import com.linkage.module.cms.quitstatnew.view.util.DateUtil;
+
+			import flash.utils.setTimeout;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+
+			private var log:ILogger = Log.getLoggerByClass(QuitHistoryComp);
+
+			[Inject("quitModulePM")]
+			[Bindable]
+			public var pm:QuitModulePM;
+
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			private var date:Date = new Date();
+			private var df:DateFormatter = new DateFormatter();
+
+			[MessageHandler(selector="QUITSTAT_LOADDATA_HISTORY_WINDOW_SHOW")]
+			public function quitStatLoadDataHistoryWindowShow(e:QuitStatEvent):void
+			{
+
+				df.formatString = "YYYY-MM-DD JJ:NN:SS";
+				endTime.text = df.format(date);
+				endTime.selectedDate = date;
+				date.setDate(date.getDate() - 1);
+				startTime.text = df.format(date);
+				startTime.selectedDate = date;
+				this.visible = this.includeInLayout = true;
+				this.x = (this.parent.width - this.width) / 2;
+				this.y = (this.parent.height - this.height) / 2;
+				pm.timerStop();
+			}
+
+			private function formatDate(date:Date):String
+			{
+				return DateUtil.formatDate(date);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				log.info("[历史查询]查询指定时间地市的退服统计数据");
+				if (!StringUtils.trim(startTime.text))
+				{
+					Alert.show("开始时间不能为空！", "提示");
+					return;
+				}
+				if (!StringUtils.trim(endTime.text))
+				{
+					Alert.show("结束时间不能为空！", "提示");
+					return;
+				}
+				if (citys.selectedItems.length == 0)
+				{
+					Alert.show("请选择地市！", "提示");
+					return;
+				}
+				var param:Object = new Object();
+				param.startTime = startTime.text;
+				param.endTime = endTime.text;
+				//对方只要地市名称 故作处理
+				var cityNames:ArrayCollection = new ArrayCollection();
+				for each (var ci:Object in citys.selectedItems)
+				{
+					cityNames.addItem(ci.label);
+				}
+				param.citys = cityNames;
+				log.debug("参数如下startTime:{0},endTime:{1},citys:", param.startTime, param.endTime);
+				log.debug(param.citys);
+
+				var evt:QuitStatEvent = new QuitStatEvent(QuitStatEvent.QUITSTAT_LOADDATA_HISTORY);
+				evt.param = param;
+				dispatchMsg(evt);
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				this.visible = false;
+				this.includeInLayout = false;
+				pm.timerStart();
+			}
+		]]>
+	</fx:Script>
+
+	<mx:Form>
+		<mx:FormItem direction="horizontal">
+			<s:Label text="开始时间："/>
+			<common:UXDateField id="startTime"
+								width="190"
+								labelFunction="formatDate"
+								yearNavigationEnabled="true"/>
+			<s:Label text="结束时间："/>
+			<common:UXDateField id="endTime"
+								width="190"
+								labelFunction="formatDate"
+								yearNavigationEnabled="true"/>
+		</mx:FormItem>
+
+		<mx:FormItem direction="horizontal">
+			<s:Label text="属地："/>
+			<!--<common:MyComboBox id="citys"
+				 width="190"
+				 dpHeight="300"
+				 promptText="name"
+				 promptDefault="选择地市"
+				 dataProvider="{pm.dm.citys}"/>-->
+			<common:ComboCheck id="citys"
+							   width="190"
+							   dataProvider="{pm.dm.citys}"/>
+			<s:Button label="查询"
+					  buttonMode="true"
+					  click="button1_clickHandler(event)"/>
+		</mx:FormItem>
+	</mx:Form>
+</ailk_compts:Window>

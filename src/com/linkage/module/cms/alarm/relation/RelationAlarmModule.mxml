@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:component="com.linkage.module.cms.alarm.relation.component.*"
+		   creationComplete="application_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.AlarmContainer;
+			import com.linkage.module.cms.alarm.framework.common.event.SystemEvent;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.module.server.source.RelationCollection;
+			import com.linkage.module.cms.alarm.relation.component.RelationWinAcross;
+			import com.linkage.module.cms.alarm.relation.component.RelationWinView;
+			import com.linkage.module.cms.alarm.relation.core.RelationManager;
+			import com.linkage.module.cms.alarm.relation.resource.imagesclass.IconParam;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			
+			import spark.components.NavigatorContent;
+			import spark.events.IndexChangeEvent;
+			/**
+			 * 当前窗口子窗口
+			 */
+			private var _view:RelationWinView=null;
+			/**
+			 * 加载管理器
+			 */
+			private var _loadManager:LoadManager=null;
+			/**
+			 * 数据控制类
+			 */
+			private var _alarmAction:AlarmAction=null;
+			/**
+			 * 关联关系管理类
+			 */
+			private var _relationManager:RelationManager=null;
+			/**
+			 * 告警唯一序列ID
+			 */
+			
+			private var _running:Boolean=true;
+			
+			private var _windowUniqueKey:String=RelationContainer.WINDOWNAME_SPECIALTYINNER;
+			
+			public var parameters:Object;
+			//初始化告警信息
+			protected function application_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+				//1.初始化logger
+				var target:ILoggingTarget=new MonsterTarget2();
+				target.level=this.parameters.logLevel;
+				target.filters=[this.parameters.filters];
+				Log.addTarget(target);
+				//2.初始化告警信息
+				if (this.parameters.local == "true")
+				{
+					styleManager.loadStyleDeclarations2("./css/common/show/ui.swf");
+				}
+				else
+				{
+					styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				}
+				
+				System.useCodePage=true;
+				//1.初始化加载管理器
+				_loadManager=new LoadManager(this);
+				
+				//1.初始化关联关系管理类
+				_relationManager=new RelationManager(myViewStack, this.parameters);
+				
+				//2.初始化告警信息
+				if (this.parameters.local == "true")
+				{
+					localTest();
+				}
+				else
+				{
+					serversRun();
+				}
+				
+				//3.定时设置数据
+				setDataByTime();
+				
+				parentApplication.add(this);
+			}
+			
+			
+			// 开始
+			public function start():void
+			{
+				_running=true;
+				if (_alarmAction != null)
+				{
+					_alarmAction.reload(null,false);
+				}
+			}
+			
+			// 结束
+			public function stop():void
+			{
+				_running=false;
+				if (_alarmAction != null)
+				{
+					//清空流水
+					_alarmAction.stopLoad();
+					//清空矩阵
+					//_relationManager.clearAllMatrixGrid();
+				}
+			}
+			
+			//服务器上运行
+			private function serversRun():void
+			{
+				_loadManager.showLoading();
+				
+				//1.初始化矩阵窗口
+				_view=_relationManager.initMatrixView(this);
+				
+				//2.设置过滤规则
+				var ruleList:ArrayList=new ArrayList();
+				var ruleObject:Object=new Object();
+				ruleObject[AlarmContainer.PARAMKEY_WINDOWNAME]=RelationContainer.WINDOWNAME_RELATIONCUST;
+				ruleObject[AlarmContainer.PARAMKEY_RULECONTENT]="customerflag=1";
+				ruleList.addItem(ruleObject);
+				
+				//3.初始化告警控制类并把数据注入视图
+				_alarmAction=new AlarmAction(this.parameters, RelationCollection);
+				_alarmAction.regListener(ruleList, function():void
+				{
+					_relationManager.initAlarmFlow(_alarmAction);
+					_loadManager.hideLoading();
+				});
+			}
+			
+			//定时设置数据
+			private function setDataByTime():void
+			{
+				setInterval(function():void
+				{
+					if (_view != null)
+					{
+						beforeRelation.text=String(_view.beforeNum);
+						afterRelation.text=String(_view.afterNum);
+					}
+				}, 500);
+			}
+			
+			//本地测试
+			private function localTest():void
+			{
+				_loadManager.showLoading();
+				//1.初始化矩阵窗口
+				_relationManager.initMatrixView(this);
+				
+				//2.初始化告警控制类并把数据注入视图
+				_alarmAction=new AlarmAction(this.parameters, RelationCollection);
+				_alarmAction.regListenerRelationTest();
+				_relationManager.initAlarmFlow(_alarmAction);
+				_loadManager.hideLoading();
+				_alarmAction.sendRlAlarmTest();
+			}
+			
+			//关联窗口设置
+			protected function defindClickHandler():void
+			{
+				var baseUrl:String=_relationManager.relationParams.baseUrl;
+				var url:String=baseUrl + "/warn/view/config/warnViewConfAction!initRelationWins.action?tab=" + _windowUniqueKey;
+				ExternalInterface.call("function(){window.open('" + url + "','','resizable=yes,toolbar=no')}");
+			}
+			
+			//TAB改变事件
+			public function tabbarChangeHandler(event:IndexChangeEvent=null):void
+			{
+				var navigator:NavigatorContent=myViewStack.selectedChild as NavigatorContent;
+				var winView:Object=navigator.getElementAt(0);
+				if (winView is RelationWinView)
+				{
+					//设置窗口唯一KEY
+					_windowUniqueKey=navigator.id;
+					
+					//设置关联前关联后
+					_view=winView as RelationWinView;
+				}
+				else if (winView is RelationWinAcross)
+				{
+					var relationWin:RelationWinAcross=winView as RelationWinAcross;
+					navigator=relationWin.myViewStack.selectedChild as NavigatorContent;
+					//设置窗口唯一KEY
+					_windowUniqueKey=navigator.id;
+					
+					//设置关联前关联后
+					_view=navigator.getElementAt(0) as RelationWinView;
+				}
+			}
+			
+			public function get running():Boolean
+			{
+				return _running;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Group id="relationWin"
+			 width="100%"
+			 height="100%"
+			 bottom="2">
+		<s:HGroup width="100%"
+				  paddingTop="3"
+				  paddingRight="10"
+				  verticalAlign="middle"
+				  horizontalAlign="right">
+			<s:Label text="关联前："/>
+			<s:Label id="beforeRelation"
+					 text="0"/>
+			<s:Label text="关联后："/>
+			<s:Label id="afterRelation"
+					 text="0"
+					 paddingRight="6"/>
+			<mx:Image width="16"
+					  height="16"
+					  buttonMode="true"
+					  click="defindClickHandler()"
+					  source="{IconParam.iconDefind}"/>
+		</s:HGroup>
+		<mx:ViewStack id="myViewStack"
+					  width="100%"
+					  height="100%"
+					  top="23"
+					  creationPolicy="all"
+					  paddingBottom="2"
+					  paddingLeft="2"
+					  paddingRight="2"
+					  paddingTop="2">
+		</mx:ViewStack>
+		<s:TabBar buttonMode="true"
+				  styleName="commonTabBar"
+				  dataProvider="{myViewStack}"
+				  change="tabbarChangeHandler(event)"/>
+	</s:Group>
+</mx:Module>

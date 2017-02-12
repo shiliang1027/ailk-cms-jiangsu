@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="800"
+					height="350"
+					dragable="true"
+					resizable="true"
+					styleName="window"
+					minimizable="false"
+					maximize="maximizeHandler(event)"
+					restore="restoreHandler(event)"
+					close="closeHandler(event)"
+					title="网元处于不健康状态详细信息"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-11-7
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			[Inject("leaderAttentionPanelPM")]
+			[Bindable]
+			public var leaderAttentionPanelPM:LeaderAttentionPanelPM;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+
+			import mx.managers.PopUpManager;
+
+			protected function closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function maximizeHandler(event:WindowEvent):void
+			{
+				var w:Window = event.currentTarget as Window;
+				w.x = 0;
+				w.y = 0;
+				w.width = parentApplication.width;
+				w.height = parentApplication.height;
+				w.closeButton.visible = false;
+			}
+
+			protected function restoreHandler(event:WindowEvent):void
+			{
+				var w:Window = event.currentTarget as Window;
+				w.x = 230;
+				w.y = 130;
+				w.width = 800;
+				w.height = 350;
+				w.closeButton.visible = true;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid width="100%"
+						 height="100%"
+						 id="impDataGrid"
+						 styleName="sceneDG"
+						 horizontalScrollPolicy="auto"
+						 dataProvider="{leaderAttentionPanelPM.leaderAttentionPanelDM.leaderDetailData}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="cityName"
+									   headerText="地市"/>
+			<mx:AdvancedDataGridColumn dataField="moName"
+									   headerText="网元名称"/>
+			<mx:AdvancedDataGridColumn dataField="moTypeName"
+									   headerText="网元类型"/>
+			<mx:AdvancedDataGridColumn dataField="kpiName"
+									   width="240"
+									   headerText="指标名称"/>
+			<mx:AdvancedDataGridColumn dataField="kpiValue"
+									   headerText="指标值"/>
+			<mx:AdvancedDataGridColumn dataField="gatherTime"
+									   headerText="时间"/>
+			<mx:AdvancedDataGridColumn dataField="healthRange"
+									   headerText="阈值范围"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</ailk_compts:Window>

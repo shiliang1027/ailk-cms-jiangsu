@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					minimizable="false"
+					styleName="windowScene"
+					dragable="true"
+					close="closeWindow()"
+					title="病历卡信息"
+					restore="window1_restoreHandler(event)"
+					maximize="window1_maximizeHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="medicalCard_creationCompleteHandler(event)"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:medicalcard="com.linkage.module.cms.scenedaily.view.components.medicalcard.*"
+					xmlns:util="com.linkage.module.cms.scenedaily.view.components.util.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 华伟 (69088)
+		 @version 1.0
+		 @date 2012-8-17
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			include "components/util/DateUtil.as";
+
+			private var df:DateFormatter = new DateFormatter();
+			private var log:ILogger = Log.getLoggerByClass(MedicalCardView);
+			[Bindable]
+			public var nowTime:String = "";
+
+			private var timer:Timer = new Timer(1000);
+
+			[Inject("medicalCardViewPM")]
+			[Bindable]
+			public var pm:MedicalCardViewPM;
+
+			public function initData():void
+			{
+				if(pm)
+				{
+					var date1:Date = new Date();
+					var nowStr1:String = dateFormatter.format(date1);
+					var date2:Date = new Date();
+					date2.setDate(date2.getDate() - 1);
+					var nowStr2:String = dateFormatter.format(date2);
+					pm.param.startTime = nowStr2;
+					pm.param.endTime = nowStr1;
+					pm.param.caseTimeType = "1";
+					pm.loadDataMap();
+				}
+			}
+
+
+			protected function medicalCard_creationCompleteHandler(event:FlexEvent):void
+			{
+				df.formatString = "YYYY-MM-DD JJ:NN:SS";
+				nowTime = df.format(new Date);
+//				timer.addEventListener(TimerEvent.TIMER, onTimerHandler);
+//				timer.start();
+
+				endTime.text = nowStr1;
+				startTime.text = nowStr2;
+
+				var date1:Date = new Date();
+				var nowStr1:String = dateFormatter.format(date1);
+
+				endTime.text = nowStr1;
+
+				var date2:Date = new Date();
+
+				date2.setDate(date2.getDate() - 1);
+
+				var nowStr2:String = dateFormatter.format(date2);
+
+				startTime.text = nowStr2;
+			}
+
+			private function onTimerHandler(event:TimerEvent):void
+			{
+				nowTime = df.format(new Date);
+			}
+
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				pm.export();
+			}
+
+			protected function queryData_clickHandler(event:MouseEvent):void
+			{
+				if(startTime.text > endTime.text)
+				{
+					endTime.errorString = "开始时间不能大于结束时间";
+					return;
+				}
+				pm.param.caseTimeType = "2";
+				pm.param.startTime = startTime.text;
+				pm.param.endTime = endTime.text;
+				pm.loadDataMap();
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				this.closeButton.visible = false;
+			}
+
+			protected function closeWindow():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				this.width = 800;
+				this.height = 480;
+				this.x = (this.parentApplication.width - this.width) / 2
+				this.y = 5;
+				this.closeButton.visible = true;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup height="100%"
+			  top="3"
+			  gap="4"
+			  width="100%">
+		<s:HGroup left="10"
+				  width="100%"
+				  horizontalAlign="center"
+				  verticalAlign="middle">
+			<s:Label styleName="label"
+					 text="病历卡 {pm.dm.title}"/>
+			<!--<s:Label styleName="label"
+				 textAlign="right"
+				 text="{nowTime}"/>-->
+		</s:HGroup>
+
+		<s:VGroup width="100%"
+				  id="base"
+				  gap="0"
+				  height="19%">
+			<s:TabBar dataProvider="{baseViewStack}"
+					  styleName="sceneTabBar1"
+					  id="baseTabBar"/>
+			<mx:ViewStack id="baseViewStack"
+						  width="100%"
+						  height="100%"
+						  minHeight="70">
+				<s:NavigatorContent id="baseMetaData"
+									label="基础信息"
+									height="100%"
+									width="100%">
+					<s:VGroup width="100%"
+							  height="100%"
+							  paddingTop="10"
+							  gap="8"
+							  textAlign="center">
+						<s:HGroup width="100%"
+								  horizontalAlign="center">
+							<s:Label text="省份："
+									 width="25%"
+									 textAlign="center"
+									 height="100%"/>
+							<s:Label text="{pm.dm.baseDataMap.provinceName}"
+									 width="25%"
+									 textAlign="center"
+									 height="100%"/>
+							<s:Label text="入网版时间："
+									 textAlign="center"
+									 width="25%"
+									 height="100%"/>
+							<s:Label text="{pm.dm.baseDataMap.onlineTime}"
+									 width="25%"
+									 textAlign="center"
+									 height="100%"/>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  horizontalAlign="center">
+							<s:Label text="设备厂家："
+									 width="25%"
+									 textAlign="center"
+									 height="100%"/>
+							<s:Label text="{pm.dm.baseDataMap.equipment}"
+									 width="25%"
+									 textAlign="center"
+									 height="100%"/>
+							<s:Label text="软件版本号："
+									 width="25%"
+									 textAlign="center"
+									 height="100%"/>
+							<s:Label text="{pm.dm.baseDataMap.version}"
+									 width="25%"
+									 textAlign="center"
+									 height="100%"/>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  horizontalAlign="center">
+							<s:Label text="所在机房："
+									 textAlign="center"
+									 width="25%"
+									 height="100%"/>
+							<s:Label text="{pm.dm.baseDataMap.generatorRoom}"
+									 width="25%"
+									 textAlign="center"
+									 height="100%"/>
+							<s:Label text="地市："
+									 width="25%"
+									 visible="false"
+									 textAlign="center"
+									 height="100%"/>
+							<s:Label width="25%"
+									 visible="false"
+									 textAlign="center"
+									 height="100%"/>
+						</s:HGroup>
+					</s:VGroup>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+
+		</s:VGroup>
+
+		<s:VGroup width="100%"
+				  height="80%"
+				  gap="0"
+				  id="kpiRecord">
+			<s:TabBar dataProvider="{badViewStack}"
+					  styleName="sceneTabBar1"
+					  id="badTabBar"/>
+			<mx:ViewStack id="badViewStack"
+						  width="100%"
+						  height="100%">
+				<s:NavigatorContent width="100%"
+									height="100%"
+									id="badKpi"
+									label="指标劣化记录">
+					<mx:AdvancedDataGrid width="100%"
+										 variableRowHeight="true"
+										 height="100%"
+										 wordWrap="true"
+										 textAlign="center"
+										 verticalAlign="top"
+										 verticalScrollPolicy="auto"
+										 dataProvider="{pm.dm.badDataList}">
+						<mx:groupedColumns>
+							<mx:AdvancedDataGridColumn dataField="perfName"
+													   headerText="指标名称"/>
+							<mx:AdvancedDataGridColumn dataField="perfValue"
+													   headerText="当前值"/>
+							<mx:AdvancedDataGridColumn dataField="healthLevelShow"
+													   headerText="健康度"/>
+							<mx:AdvancedDataGridColumn dataField="normalThreshold"
+													   headerText="阀值"/>
+							<mx:AdvancedDataGridColumnGroup headerText="历史指标病例记录">
+								<mx:AdvancedDataGridColumn headerText="时段"
+														   width="200"
+														   dataField="casePerfTimes"
+														   itemRenderer="com.linkage.module.cms.scenedaily.view.components.util.SuperColumnLabelRenderer"/>
+								<mx:AdvancedDataGridColumn headerText="指标值"
+														   dataField="casePerfValues"
+														   itemRenderer="com.linkage.module.cms.scenedaily.view.components.util.SuperColumnLabelRenderer"/>
+							</mx:AdvancedDataGridColumnGroup>
+							<mx:AdvancedDataGridColumn dataField="fcHealthLevelShow"
+													   headerText="未来健康预测"/>
+						</mx:groupedColumns>
+					</mx:AdvancedDataGrid>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+		</s:VGroup>
+	</s:VGroup>
+
+	<mx:Image source="@Embed('../img/u2.png')"
+			  y="{base.y+5}"
+			  x="{base.x + 120}"
+			  toolTip="时间"
+			  buttonMode="true"
+			  width="35"
+			  height="20"
+			  click="queryWindow.visible = true"/>
+	<mx:Image source="@Embed('../img/icon_export.png')"
+			  y="{kpiRecord.y+5}"
+			  x="{kpiRecord.x + 140}"
+			  toolTip="导出"
+			  buttonMode="true"
+			  click="export_clickHandler(event)"/>
+
+	<ailk_compts:Window id="queryWindow"
+						x="300"
+						y="80"
+						styleName="window"
+						dragable="true"
+						visible="false"
+						minimizable="false"
+						maximizable="false"
+						close="queryWindow.visible = false">
+		<mx:Form>
+			<mx:FormItem label="开始时间：">
+				<util:UXDateField id="startTime"
+								  width="190"
+								  editable="true"
+								  labelFunction="formatDate"
+								  textAlign="right"
+								  yearNavigationEnabled="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="结束时间：">
+				<util:UXDateField id="endTime"
+								  width="190"
+								  editable="true"
+								  labelFunction="formatDate"
+								  textAlign="right"
+								  yearNavigationEnabled="true"/>
+			</mx:FormItem>
+			<mx:FormItem direction="vertical">
+				<s:Button label="确定"
+						  click="queryData_clickHandler(event)"/>
+			</mx:FormItem>
+		</mx:Form>
+	</ailk_compts:Window>
+</ailk_compts:Window>
+

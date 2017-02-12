@@ -1,0 +1,649 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="客户网络数据"
+		 creationComplete="baseInfoComp_creationCompleteHandler(event)"
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 xmlns:component="com.linkage.module.cms.topo.component.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="clientInfoQuery",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+		[Event(name="thicknessTableDataQuery",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+		[Event(name="equipmentInfoQuery",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")] 
+		[Event(name="topoLoad",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")] 
+		[Event(name="saveCustInfo",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")] 
+		[Event(name="exportBase",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")] 
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.linkage.module.cms.groupclient.event.HealthInfoCompEvent;
+			import com.linkage.module.cms.groupclient.renderer.AlarmCustRenderer;
+			import com.linkage.module.cms.groupclient.renderer.AlarmLerver1Renderer;
+			import com.linkage.module.cms.groupclient.renderer.AlarmLerver2Renderer;
+			import com.linkage.module.cms.groupclient.renderer.AlarmLerver3Renderer;
+			import com.linkage.module.cms.groupclient.renderer.AlarmLerver4Renderer;
+			import com.linkage.system.component.panel.Window;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.core.ScrollPolicy;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			// log
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.groupclient.components.BaseInfoComp");
+			[Bindable]
+			private var thicknessTableDGData:Object=new Object();
+			private var equipmentInfoDGData:Object=new Object();
+			
+			[Bindable]
+			private var groupCustomerList:Object=new Object();
+			[Bindable]
+			private var groupCustomerOtherList:Object=new Object();
+			
+			[Bindable]
+			var isEditOrAdd:String = "";
+			
+			[Bindable]
+			private var changeData:Object = {};
+
+			protected function baseInfoComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(HealthInfoCompEvent.RESBASEINFODATACHANGE, onClientInfoDataChange);
+				this.addEventListener(HealthInfoCompEvent.THICKNESSTABLEDATACHANGE, onThicknessDataChange);
+				this.addEventListener(HealthInfoCompEvent.EQUIPMENTINFOCHANGE, onEquitmentInfoChange);
+				this.addEventListener(HealthInfoCompEvent.ISSAVECUSTINFO, onIsSUC);
+				this.addEventListener(HealthInfoCompEvent.REFRESH, onRefresh);
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.REFRESH));
+			}
+
+			private function onRefresh(event:HealthInfoCompEvent):void
+			{
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.CLIENTINFOQUERY));
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.THICKNESSTABLEDATAQUERY));
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.EQUIPMENTINFOQUERY));
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.TOPOLOAD));
+			}
+
+			private function onClientInfoDataChange(event:HealthInfoCompEvent):void
+			{
+				groupCustomerList = event.param.groupCustomerList;
+				groupCustomerOtherList = event.param.groupCustomerOtherList;
+				
+//				if(groupCustomerOtherList == null)
+				 if(groupCustomerOtherList["manager_b"] == null || groupCustomerOtherList["manager_b"] == "" || groupCustomerOtherList["manager_phone"] == null || groupCustomerOtherList["manager_phone"] == "" || groupCustomerOtherList["manager_board"] == null || groupCustomerOtherList["manager_board"] == "" || groupCustomerOtherList["manager_board_phone"] == null || groupCustomerOtherList["manager_board_phone"] == "" || groupCustomerOtherList["patrol_contact"] == null || groupCustomerOtherList["patrol_contact"] == "" || groupCustomerOtherList["patrol_contact_phone"] == null || groupCustomerOtherList["patrol_contact_phone"] == "" )
+				{
+					addInfo.visible = true;
+					addInfo.includeInLayout = true;
+					cancel.visible = true;
+					cancel.includeInLayout = true;
+					cancel.label = "取消编辑或增加";
+					
+				}else{
+					
+					addInfo.visible = false;
+					addInfo.includeInLayout = false;
+					cancel.label = "取消编辑";
+				} 
+				
+			}
+			
+			private function onIsSUC(event:HealthInfoCompEvent):void
+			{
+				log.info("onDataChange   onIsSUC");
+				log.info(event.param);
+				
+				if(event.param == "no"){
+					Alert.show("保存失败","提示");
+					
+				}else if(event.param == "yes"){
+					Alert.show("保存成功","提示");
+				}
+				else if(event.param == "repeat"){
+					Alert.show("数据类型已存在","提示");
+				}
+				
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.CLIENTINFOQUERY));
+			}
+
+			private var expData:ArrayCollection=new ArrayCollection;
+			private var headerArr:Array=new Array();
+
+			private function onThicknessDataChange(event:HealthInfoCompEvent):void
+			{
+				thicknessTableDG.dataProvider=event.param;
+//				thicknessTableDGData = event.param;
+//				for(var key:Object in thicknessTableDGData)
+//				{
+//					log.info("厚度");
+//					log.info(key);
+//				}
+//				var columns:Array = buildColumns(thicknessTableDGResult);
+//				for each(var column:AdvancedDataGridColumn in columns){
+//					if(column.dataField == "safe_level"){
+//						column.width=120;
+//					}else if(column.dataField == "level1"){
+//						column.width=150;
+//						column.itemRenderer = new ClassFactory(AlarmLerver1Renderer);
+//					}else if(column.dataField == "level2"){
+//						column.width=150;
+//						column.itemRenderer = new ClassFactory(AlarmLerver2Renderer);
+//					}else if(column.dataField == "level3"){
+//						column.width=150;
+//						column.itemRenderer = new ClassFactory(AlarmLerver3Renderer);
+//					}else if(column.dataField == "level4"){
+//						column.width=150;
+//						column.itemRenderer = new ClassFactory(AlarmLerver4Renderer);
+//					}else{
+//						column.width=250;
+//						column.itemRenderer = new ClassFactory(AlarmCustRenderer);
+//					}
+//				}
+//				thicknessTableDG.columns = columns;
+//				thicknessTableDG.dataProvider = thicknessTableDGResult.dataList;
+//				thicknessTableDGData = thicknessTableDGResult.dataList;
+			}
+
+			private function onEquitmentInfoChange(event:HealthInfoCompEvent):void
+			{
+				/* log.info("设备信息数据：");
+				   log.info(event.param);
+				   log.info("event.param.datas="+event.param.datas.length);
+				 log.info(event.param.datas); */
+
+				equipmentInfoDG.dataProvider=event.param.datas;
+			}
+
+
+			private function buildColumns(result:Object):Array
+			{
+				var columns:Array=new Array();
+				var i:Number=0;
+				headerArr.splice(0);
+				for each (var name:String in result.name)
+				{
+//					log.info("[buildColumns]name:" + name + ",column:" + result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+					dataGridColumn.width=150;
+					dataGridColumn.headerText=name;
+					dataGridColumn.dataField=result.colum[i];
+					columns.push(dataGridColumn);
+					headerArr.push({"id": result.colum[i], "name": name});
+					i++;
+				}
+
+				return columns;
+			}
+			
+			protected function editDG_clickHandler(event:MouseEvent):void
+			{
+				isEditOrAdd = "edit";
+				doClear();
+			}
+			
+			protected function doClear():void
+			{
+				manager_bInput.text = "";
+				manager_phoneInput.text = "";
+				manager_boardInput.text = "";
+				manager_board_phoneInput.text = "";
+				patrol_contactInput.text = "";
+				patrol_contact_phoneInput.text = "";
+			}
+			
+			protected function addInfo_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				isEditOrAdd = "add";
+				PopUpManager.centerPopUp(changeDataWin);
+				changeDataWin.visible = true;
+				changeDataWin.includeInLayout = true;
+				doClear();
+			}
+			
+			protected function cancel_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				isEditOrAdd = "cancel";
+				PopUpManager.removePopUp(changeDataWin);
+				changeDataWin.visible = false;
+				changeDataWin.includeInLayout = false;
+				doClear();
+			}
+			
+			protected function changeDataWin_closeHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(changeDataWin);
+				changeDataWin.visible = false;
+				changeDataWin.includeInLayout = false;
+				
+				doClear();
+			}
+			
+			protected function saveDG_clickHandler():void
+			{
+				if(manager_bInput.text == null || manager_bInput.text =="" ||manager_phoneInput.text == null || manager_phoneInput.text == "" || manager_boardInput.text == null || manager_boardInput.text == "" || manager_board_phoneInput.text == null || manager_board_phoneInput.text == "" || patrol_contactInput.text == null || patrol_contactInput.text == "" || patrol_contact_phoneInput.text == null || patrol_contact_phoneInput.text == "")
+				{
+					Alert.show("输入框值不能为空！");
+				}
+				else
+				{
+					log.info("saveDG_clickHandler");
+					
+					changeData['manager_b'] = manager_bInput.text;
+					changeData['manager_phone'] = manager_phoneInput.text;
+					changeData['manager_board'] = manager_boardInput.text;
+					changeData['manager_board_phone'] = manager_board_phoneInput.text;
+					changeData['patrol_contact'] = patrol_contactInput.text;
+					changeData['patrol_contact_phone'] = patrol_contact_phoneInput.text;
+					
+					log.info("changeData");
+					log.info(changeData);
+					
+					save(changeData);		
+				}
+			}
+			
+			protected function save(data:Object):void
+			{
+				var param:Object = new Object();
+				param.List = data;
+				param.isEditOrAdd = isEditOrAdd;
+				
+				changeDataWin.visible = false;
+				changeDataWin.includeInLayout = false;
+				
+				var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.SAVECUSTINFO);
+				evt.param = param;
+				log.info("保存键");
+				log.info(param);
+				this.dispatchEvent(evt);
+			}
+			
+			protected function GIChangedata_clickHandler():void
+			{
+				if(isEditOrAdd == "edit")
+				{
+					PopUpManager.removePopUp(changeDataWin);
+					PopUpManager.addPopUp(changeDataWin, this.parent as DisplayObject);
+					PopUpManager.centerPopUp(changeDataWin);
+					changeDataWin.visible = true;
+					changeDataWin.includeInLayout = true;
+					
+					changeData=groupCustomerOtherList;
+					
+					log.info("changeData");
+					log.info(changeData);
+					
+					manager_bInput.text = changeData['manager_b'];
+					manager_phoneInput.text = changeData['manager_phone'];
+					manager_boardInput.text = changeData['manager_board'];
+					manager_board_phoneInput.text = changeData['manager_board_phone'];
+					patrol_contactInput.text = changeData['patrol_contact'];
+					patrol_contact_phoneInput.text = changeData['patrol_contact_phone'];
+				}
+			}
+			
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var evt:HealthInfoCompEvent = new HealthInfoCompEvent(HealthInfoCompEvent.EXPORTBASE);
+				this.dispatchEvent(evt);
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%"
+				  gap="0">
+			<s:VGroup width="100%" height="100%"
+					  paddingLeft="2"
+					  paddingRight="2"
+					  paddingBottom="2"
+					  paddingTop="2"
+					  gap="0">
+				<s:HGroup horizontalAlign="right" >
+					<s:Button id="editDG" label="编辑表格" click="editDG_clickHandler(event)"/>
+					<s:Button id="addInfo" label="添加" click="addInfo_clickHandler(event)"/>
+					<s:Button id="cancel" label="取消编辑或添加" click="cancel_clickHandler(event)"/>
+					<s:Button id="export" label="导出" click="export_clickHandler(event)"/>
+				</s:HGroup>
+				<panel:Window id="custInfoWindow"
+							  title="客户信息"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<s:Scroller width="100%"
+								horizontalScrollPolicy="auto" height="100%" verticalScrollPolicy="auto">
+						<s:VGroup width="100%">
+							<mx:Grid width="100%"
+									 verticalGap="0"
+									 horizontalGap="0" >
+								<mx:GridRow width="100%"
+											minHeight="24"
+											styleName="gridRowOdd">
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="集团名称"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerList.CUSTNAME}"/>
+									</mx:GridItem>
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="中心点地址"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerList.CUSTADDR}"/>
+									</mx:GridItem>
+								</mx:GridRow>
+								<mx:GridRow width="100%"
+											minHeight="24"
+											styleName="gridRowEven">
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="客户联系人"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerList.CONTACTPERSON}"/>
+									</mx:GridItem>
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="客户联系方式"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerList.CONTACTTYPE}"/>
+									</mx:GridItem>
+								</mx:GridRow>
+								<mx:GridRow width="100%"
+											minHeight="24"
+											styleName="gridRowOdd">
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="客户经理（A角）"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerList.CUSTMANAGERA}"/>
+									</mx:GridItem>
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="客户经理联系方式"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerList.MGRACONTACTTYPE}"/>
+									</mx:GridItem>
+								</mx:GridRow>
+								<mx:GridRow width="100%"
+											minHeight="24"
+											styleName="gridRowEven">
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="客户经理（B角）"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerOtherList.manager_b}" click="GIChangedata_clickHandler()"/>
+									</mx:GridItem>
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="客户经理联系方式"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerOtherList.manager_phone}" click="GIChangedata_clickHandler()"/>
+									</mx:GridItem>
+								</mx:GridRow>
+								<mx:GridRow width="100%"
+											minHeight="24"
+											styleName="gridRowOdd">
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="挂牌经理（客响）"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerOtherList.manager_board}" click="GIChangedata_clickHandler()"/>
+									</mx:GridItem>
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="挂牌经理联系方式"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerOtherList.manager_board_phone}" click="GIChangedata_clickHandler()"/>
+									</mx:GridItem>
+								</mx:GridRow>
+								<mx:GridRow width="100%"
+											minHeight="24"
+											styleName="gridRowEven">
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="巡检联系人"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerOtherList.patrol_contact}" click="GIChangedata_clickHandler()"/>
+									</mx:GridItem>
+									<mx:GridItem width="20%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="联系方式"/>
+									</mx:GridItem>
+									<mx:GridItem width="30%"
+												 minHeight="24"
+												 verticalAlign="middle"
+												 horizontalAlign="center">
+										<s:Label text="{groupCustomerOtherList.patrol_contact_phone}" click="GIChangedata_clickHandler()"/>
+									</mx:GridItem>
+								</mx:GridRow>
+							</mx:Grid>
+						</s:VGroup>
+					</s:Scroller>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="thicknessTableGroup">
+				<panel:Window id="thicknessTableWindow"
+							  title="厚度表"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="thicknessTableDG"
+										 width="100%"
+										 height="100%"
+										 dataProvider="{thicknessTableDGData}">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="集团短信"
+													   dataField="SMS"/>
+							<mx:AdvancedDataGridColumn headerText="集团E网"
+													   dataField="ENET"/>
+							<mx:AdvancedDataGridColumn headerText="集团GPRS"
+													   dataField="GPRS"/>
+							<mx:AdvancedDataGridColumn headerText="M2M/行业应用卡"
+													   dataField="M2M"/>
+							<mx:AdvancedDataGridColumn headerText="语音专线/政企固话"
+													   dataField="VOICE"/>
+							<mx:AdvancedDataGridColumn headerText="移动400"
+													   dataField="M400"/>
+							<mx:AdvancedDataGridColumn headerText="数据专线"
+													   dataField="DATALINE"/>
+							<mx:AdvancedDataGridColumn headerText="互联网专线"
+													   dataField="NETWORK"/>
+							<mx:AdvancedDataGridColumn headerText="本月业务厚度"
+													   dataField="THICKNESS"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="equitmentInfoGroup">
+				<panel:Window id="equitmentInfoWindow"
+							  title="设备信息表"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="equipmentInfoDG"
+										 width="100%"
+										 height="100%">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="地市"
+													   dataField="cityName"/>
+							<mx:AdvancedDataGridColumn headerText="机房名称"
+													   dataField="roomName"/>
+							<mx:AdvancedDataGridColumn headerText="设备名称"
+													   dataField="devName"/>
+							<mx:AdvancedDataGridColumn headerText="设备所在EMS"
+													   dataField="ems"/>
+							<mx:AdvancedDataGridColumn headerText="现场照片（机房环境）"
+													   dataField="circuitName"/>
+							<mx:AdvancedDataGridColumn headerText="现场照片（设备）"
+													   dataField="produceCaseIdentify"/>
+							<!--<mx:AdvancedDataGridColumn headerText="业务带宽(速率)"
+								 dataField="businessBandwidth"/>
+								 <mx:AdvancedDataGridColumn headerText="业务保障等级"
+								 dataField="businessEnsureLevel"/>
+								 <mx:AdvancedDataGridColumn headerText="监控级别"
+								 dataField="monitoringLevel"/>
+								 <mx:AdvancedDataGridColumn headerText="客户机房传输网元"
+								 dataField="clientMotorRoomTransportNE"/>
+								 <mx:AdvancedDataGridColumn headerText="传输业务端口"
+								 dataField="TransportBusinessPort"/>-->
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup  width="100%"
+					   height="600">
+				<panel:Window title="拓扑信息 "
+							  width="100%"
+							  height="100%">
+					<s:Group width="100%"
+							 height="100%"
+							 id="topoGroup">
+						<component:TopoComponent width="100%"
+												 height="100%"
+												 id="topo"/>
+					</s:Group>
+				</panel:Window>
+			</s:VGroup>
+		</s:VGroup>
+	</s:Scroller>
+	<panel:Window id="changeDataWin" title="编辑窗口" visible="false" includeInLayout="false" dragable="true" close="changeDataWin_closeHandler(event)">
+		<s:VGroup>
+			<s:HGroup>
+				<s:Label text="客户经理(B角):"/>
+				<s:TextInput id="manager_bInput" width="100"/>
+				<s:Label text="客户经理联系方式:"/>
+				<s:TextInput id="manager_phoneInput" width="200"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="挂牌经理（客响）:"/>
+				<s:TextInput id="manager_boardInput" width="100"/>
+				<s:Label text="挂牌经理联系方式（客响）:"/>
+				<s:TextInput id="manager_board_phoneInput" width="200"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text="巡检联系人:"/>
+				<s:TextInput id="patrol_contactInput" width="100"/>
+				<s:Label text="巡检联系人联系方式:"/>
+				<s:TextInput id="patrol_contact_phoneInput" width="200"/>
+			</s:HGroup>
+			<!--<s:HGroup width="100%"
+					  horizontalAlign="left">
+				<s:Label text="注：除“业务类型”和“是否主用”，其他输入框只能输入内容均为数字！" color="red" fontSize="10"/>
+			</s:HGroup>-->
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button id="saveDG" label="保存" 
+						  click="saveDG_clickHandler()"/>
+				<s:Button id="cancelDG" label="取消" 
+						  click="cancel_clickHandler(event)"/>
+			</s:HGroup>
+			
+		</s:VGroup>
+	</panel:Window>
+</mx:VBox>

@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 width="100%"
+		 height="100%"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		 xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis"
+		 xmlns:ailk="http://www.ailk.com/2011/ailk"
+		 xmlns:components="com.linkage.module.cms.scene.view.components.*"
+		 creationComplete="group1_creationCompleteHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author wuchao (Ailk No.)
+		 @version 1.0
+		 @date 2012-12-13
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<s:Fade id="fade"
+				alphaFrom="0"
+				alphaTo="1"/>
+		<mx:ProgressBar id="progressBar"
+						visible="false"
+						width="200"
+						labelPlacement="center"
+						mode="manual"/>
+	</fx:Declarations>
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import baidu.map.basetype.LngLat;
+			import baidu.map.projection.MercatorProjection;
+			import baidu.map.projection.Projection;
+
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.ailk.common.ui.components.mask.SimpleMask;
+			import com.ailk.common.ui.components.pagination.event.PaginationEvent;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.GisLayer;
+			import com.ailk.common.ui.gis.core.metry.GisLine;
+			import com.ailk.common.ui.gis.core.metry.GisPoint;
+			import com.ailk.common.ui.gis.core.metry.GisRegion;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.ailk.common.ui.gis.core.styles.GisTextStyle;
+			import com.ailk.common.ui.gis.event.GisDrawEvent;
+			import com.ailk.common.ui.gis.event.GisExtentEvent;
+			import com.ailk.common.ui.gis.event.MapEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.AreaQuickConifgEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.view.components.FileUpDownAndLoad;
+			import com.linkage.module.cms.scene.view.components.FileUpDownLoad;
+			import com.linkage.module.cms.scene.view.components.FileUpDownLoad2;
+
+			import flash.utils.setTimeout;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.utils.UIDUtil;
+
+			import spark.events.IndexChangeEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(AreaQuickConfigView);
+
+			private var picFeatureArray:Array = new Array();
+			private var labelFeatureArray:Array = new Array();
+			[Bindable]
+			private var showList:ArrayCollection = new ArrayCollection();
+
+			[Bindable]
+			[Inject("areaQuickConfigViewPM")]
+			public var pm:AreaQuickConfigViewPM;
+
+			[Embed(source='../img/areaquickconfig/jizhan_2G.png')]
+			private var jizhan_2G:Class;
+			[Embed(source='../img/areaquickconfig/jizhan_3G.png')]
+			private var jizhan_3G:Class;
+			[Embed(source='../img/areaquickconfig/wlan.png')]
+			private var wlan:Class;
+			[Embed(source='../img/areaquickconfig/jizhan.png')]
+			private var jizhan:Class;
+			[Embed(source='../img/areaquickconfig/site.png')]
+			private var site:Class;
+			[Embed(source='../img/areaquickconfig/rain.png')]
+			private var rain:Class;
+			[Embed(source='../img/areaquickconfig/rain1.png')]
+			private var rain1:Class;
+
+			[Embed(source='../img/areaquickconfig/25/jizhan_2G.png')]
+			private var jizhan_2G_25:Class;
+			[Embed(source='../img/areaquickconfig/25/jizhan_3G.png')]
+			private var jizhan_3G_25:Class;
+			[Embed(source='../img/areaquickconfig/25/wlan.png')]
+			private var wlan_25:Class;
+			[Embed(source='../img/areaquickconfig/25/jizhan.png')]
+			private var jizhan_25:Class;
+			[Embed(source='../img/areaquickconfig/25/site.png')]
+			private var site_25:Class;
+
+			[Embed(source='../img/areaquickconfig/35/jizhan_2G.png')]
+			private var jizhan_2G_35:Class;
+			[Embed(source='../img/areaquickconfig/35/jizhan_3G.png')]
+			private var jizhan_3G_35:Class;
+			[Embed(source='../img/areaquickconfig/35/wlan.png')]
+			private var wlan_35:Class;
+			[Embed(source='../img/areaquickconfig/35/jizhan.png')]
+			private var jizhan_35:Class;
+			[Embed(source='../img/areaquickconfig/35/site.png')]
+			private var site_35:Class;
+
+			[Embed(source='../img/areaquickconfig/50/jizhan_2G.png')]
+			private var jizhan_2G_50:Class;
+			[Embed(source='../img/areaquickconfig/50/jizhan_3G.png')]
+			private var jizhan_3G_50:Class;
+			[Embed(source='../img/areaquickconfig/50/wlan.png')]
+			private var wlan_50:Class;
+			[Embed(source='../img/areaquickconfig/50/jizhan.png')]
+			private var jizhan_50:Class;
+			[Embed(source='../img/areaquickconfig/50/site.png')]
+			private var site_50:Class;
+
+			[Embed(source='../img/areaquickconfig/75/jizhan_2G.png')]
+			private var jizhan_2G_75:Class;
+			[Embed(source='../img/areaquickconfig/75/jizhan_3G.png')]
+			private var jizhan_3G_75:Class;
+			[Embed(source='../img/areaquickconfig/75/wlan.png')]
+			private var wlan_75:Class;
+			[Embed(source='../img/areaquickconfig/75/jizhan.png')]
+			private var jizhan_75:Class;
+			[Embed(source='../img/areaquickconfig/75/site.png')]
+			private var site_75:Class;
+
+
+			[Inject(fileUpDownAndLoad)]
+			public var fileUpAndDown:FileUpDownAndLoad;
+
+			private var flag:String = "A";
+
+			private var p:Projection = new MercatorProjection();
+
+			[Inject("user")]
+			public var user:IUser;
+
+			//缓存地市的GIS
+			private var picFeatureMap:Object = new Object();
+			private var labelFeatureMap:Object = new Object();
+
+			private var relArray:Array = ["A","B","C","D","E","F","G","H","I","G","K"];
+
+			private var currentfeature:GisFeature;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var pointsCacheObj:Object = new Object();
+
+			private var queryname:String = "";
+			private var moNameQuy:String = "";
+
+			private var lm:LoadManager = new LoadManager(this, "blue");
+
+			private var mk:SimpleMask;
+			private var itip:MaskInstructionTip;
+
+			private var areaLayer:GisLayer = new GisLayer;
+			private var featureLayer:GisLayer = new GisLayer;
+
+			protected function mapWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				mapWork.map.addGisLayer(areaLayer);
+				mapWork.map.addGisLayer(featureLayer);
+				log.info("地图加载完成！！");
+
+			}
+
+			protected function mapWork_draw_clickHandler(event:GisDrawEvent):void
+			{
+				log.info("mapWork_draw_clickHandler");
+			}
+
+			protected function mapWork_draw_endHandler(event:GisDrawEvent):void
+			{
+				lm.showLoading();
+				log.info(" 框选完成，查询框选范围内的网元信息。。。");
+				//清空地图
+				featureLayer.clear();
+
+				picFeatureArray = new Array();
+				labelFeatureArray = new Array();
+
+				//框选完成， 返回多边形顶点集合
+				var param:ArrayCollection = new ArrayCollection();
+				var parts:Array = (event.gisFeature.gisMetry as GisRegion).parts;
+
+				for each (var point:GisPoint in parts)
+				{
+					var pointObj:Object = new Object();
+					pointObj.x = point.x;
+					pointObj.y = point.y;
+
+					//					log.info(">>>>>>>>>> 点信息， x:" + point.x + " y:" + point.y);
+
+					//param.push(pointObj);
+					param.addItem(pointObj);
+				}
+				log.info("points");
+				log.info(param);
+				var index:String = new Date().getTime() + "_" + Math.random();
+
+				//缓存框选区域的顶点信息
+				pointsCacheObj[index] = parts;
+				currentfeature = event.gisFeature;
+				log.info("mapWork_draw_endHandler");
+			}
+
+			protected function mapWork_drawPointSelectHandler(event:GisDrawEvent):void
+			{
+				log.info("mapWork_drawPointSelectHandler");
+			}
+
+			protected function mapWork_extent_changeHandler(event:GisExtentEvent):void
+			{
+				log.info("mapWork_extent_changeHandler");
+				featureLayer.clear();
+				var perObj:Object;
+				if (pm.dm.treeData == null || pm.dm.treeData == "")
+				{
+					log.info("查询框选网元数据为 空！");
+					return;
+				}
+				log.info("mapWork_extent_changeHandler end");
+
+			}
+
+			protected function mapWork_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("mapWork_creationCompleteHandler");
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+			}
+		]]>
+	</fx:Script>
+
+
+
+	<!--<ailk_gis:MapWork id="mapWork"
+		 width="100%"
+		 height="100%"
+		 showToolBar="true"
+		 showOverView="false"
+		 showZoomSlider="true"
+		 extent_change="mapWork_extent_changeHandler(event)"
+		 drawPointSelect="mapWork_drawPointSelectHandler(event)"
+		 draw_end="mapWork_draw_endHandler(event)"
+		 draw_click="mapWork_draw_clickHandler(event)"
+		 creationComplete="mapWork_creationCompleteHandler(event)"
+		 mapCreationComplete="mapWork_mapCreationCompleteHandler(event)">
+		 <ailk_gis:drawToolBar>
+		 <ailk_gis:DrawToolBar id="dtb"
+		 bottom="-2"
+		 horizontalCenter="0"
+		 backEnabled="false"
+		 forwardEnabled="false"/>
+		 </ailk_gis:drawToolBar>
+		 </ailk_gis:MapWork>-->
+
+	<ailk_gis:MapWork id="mapWork"
+					  width="100%"
+					  height="100%"
+					  showToolBar="true"
+					  showOverView="false"
+					  showZoomSlider="true"
+					  draw_end="mapWork_draw_endHandler(event)"
+					  extent_change="mapWork_extent_changeHandler(event)"
+					  toolbar_picLayer="mapWork_toolbar_picLayerHandler(event)"
+					  mapCreationComplete="mapWork_creationCompleteHandler()">
+		<ailk_gis:drawToolBar>
+			<ailk_gis:DrawToolBar id="dtb"
+								  bottom="-10"
+								  horizontalCenter="0"
+								  backEnabled="false"
+								  forwardEnabled="false"/>
+		</ailk_gis:drawToolBar>
+	</ailk_gis:MapWork>
+</s:Group>

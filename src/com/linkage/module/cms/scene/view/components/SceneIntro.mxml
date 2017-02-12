@@ -1,0 +1,1994 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    width="100%"
+                    title="{sceneIntroPM.sceneIntroDM.sceneInfo}"
+                    mouseOver="sceneIntroTitle_mouseOverHandler(event)"
+                    styleName="windowScene"
+                    minimizable="false"
+                    titleIcon="@Embed(source='../../img/title_ico02.png')"
+                    close="closeWindow(1)"
+                    creationComplete="window2_creationCompleteHandler(event)"
+                    maximize="window2_resize(true)"
+                    restore="window2_resize(false)"
+                    name="sceneNameTitle"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    xmlns:components="com.linkage.module.cms.scene.view.components.*">
+
+
+
+    <!--
+         ***************************************
+         This is Content
+         * @author xudx (69291)
+         @version 1.0
+         @date 2012-7-27
+         @langversion 3.0
+         @playerversion Flash 11
+         @productversion Flex 4
+         @copyright Ailk NBS-Network Mgt. RD Dept.
+         ***************************************
+    -->
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+        <parsley:Configure/>
+        <s:Move id="gridMove"/>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scene.dao.ScenePanelDao;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.MapVectorEvent;
+			import com.linkage.module.cms.scene.event.RaceInfoEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.SceneResumeEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+			import com.linkage.module.cms.scene.view.MaskInstructionTip;
+			import com.linkage.module.cms.scene.view.SceneView;
+			import com.linkage.module.cms.scene.view.components.sceneintro.AreaWindow;
+			import com.linkage.module.cms.scene.view.components.sceneintro.SceneInfoWin;
+			import com.linkage.module.cms.scene.view.components.sceneintro.SportDetailDow;
+			import com.linkage.module.cms.scene.view.components.sceneintro.UnitWindow;
+			import com.linkage.module.cms.scene.view.util.ImageFactory;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Text;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Button;
+			import spark.events.TextOperationEvent;
+
+            private var log:ILogger = Log.getLoggerByClass(SceneIntro);
+
+            public var location:String;
+            public var index:String;
+            private var maxFlag:Boolean = false;
+
+            [Bindable]
+            private var isLTESceneFlag:Boolean = false;
+
+            [Inject("user")]
+            [Bindable]
+            public var user:IUser;
+
+            [Inject("sceneIntroPM")]
+            [Bindable]
+            public var sceneIntroPM:SceneIntroPM;
+            [Bindable]
+            public var filterAlarm:Function;
+
+            private var itip:MaskSceneIntroTip = new MaskSceneIntroTip();
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+            [Bindable]
+            private var cm:ContextMenu;
+            [Bindable]
+            private var userStr:String;
+            [Bindable]
+            private var telephoneStr:String;
+            [Bindable]
+            private var telephoneStr1:String;
+            [Bindable]
+            private var quitServiceStr:String;
+            [Bindable]
+            private var warnStr:String;
+            [Bindable]
+            private var provinceStr:int;
+            [Bindable]
+            private var areaStr:int;
+            [Bindable]
+            private var unitStr:int;
+            //流量数据
+            [Bindable]
+            private var gsmFlow:String;
+            [Bindable]
+            private var tdFlow:String;
+            [Bindable]
+            private var lteFlow:String;
+
+            private var childOverFlag:Boolean = false;
+
+//            [Bindable]
+//            private var textAreaB:TextArea;
+
+//            [Bindable]
+//            private var stringStr:String;
+
+            [MessageDispatcher]
+            public var dispatchMsg:Function;
+
+            private var mx:Number = -100;
+            private var my:Number = -100;
+
+            [Inject("sportDetailDow")]
+            public var sportDetailDow:SportDetailDow;
+            [Inject("areaWindow")]
+            public var areaWindow:AreaWindow;
+            [Inject("unitWindow")]
+            public var unitWindow:UnitWindow;
+            [Inject("sceneInfoWin")]
+            public var sceneInfoWin:SceneInfoWin;
+            [Inject("kpiAreaOrMoBadTrendComp")]
+            public var kpiAreaOrMoBadTrendComp:KpiAreaOrMoBadTrendComp;
+
+            [Inject("sceneIntroQuit")]
+            public var sceneIntroQuit:SceneIntroQuit;
+            [Inject("sceneIntroQuitDetail")]
+            public var sceneIntroQuitDetail:SceneIntroQuitDetail;
+            [Inject("sceneIntroAlarmStats")]
+            public var sceneIntroAlarmStats:SceneIntroAlarmStats;
+
+            private var pauseCounts:int = 0;
+
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+            [MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+            public function loadData(e:SceneEvent = null):void
+            {
+//                setTimeout(loadA, 10);
+				loadA();
+
+//                //刷新数据的时候 停止滚动
+//                pauseCounts++;
+//
+//                gridMove.pause();
+//
+//                //延迟触发滚动
+//                setTimeout(function():void
+//                {
+//                    if (--pauseCounts == 0)
+//                        gridMove.resume();
+//                }, 10000);
+            }
+			
+//			[MessageHandler(selector = "CMS_SCENE_GENERAL_MAPVECTOR_DYEMAP")]
+//			public function dyeMapHandler(e:MapVectorEvent):void
+//			{
+//				loadA();
+//			}
+
+            private function loadA():void
+            {
+                itip.visible = false;
+                itip.includeInLayout = false;
+
+                log.info("场景介绍 加载数据！");
+                sceneIntroPM.loadData();
+                sceneIntroPM.getMoTypeBadKpiList();
+
+                var obj:Object = new Object();
+
+                obj.sceneId = user.sceneId;
+                obj.level = user.level;
+                obj.cityId = user.cityId;
+                obj.labelId = 101;
+
+                //提示信息
+                var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                e.obj = obj;
+                log.info("loadA()");
+                log.info(e.obj);
+//                dispatchMsg(e);
+				
+				requestServerUtil.addRequest(e);
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_RACEINFO_CLOSEPOPWIN")]
+            public function refreshGridGroup(evt:RaceInfoEvent):void
+            {
+                if (gridMove.isPlaying)
+                {
+                    gridMove.stop();
+                }
+                var obj:Object = new Object();
+
+                obj.sceneId = user.sceneId;
+                obj.level = user.level;
+                obj.cityId = user.cityId;
+                obj.labelId = 101;
+
+                //提示信息
+                var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                e.obj = obj;
+                log.info("loadA()");
+                log.info(e.obj);
+//                dispatchMsg(e);
+				requestServerUtil.addRequest(e);
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_SCENEINTRO_SCENEINTROSTRING")]
+            public function dealSceneIntroString(e:SceneIntroEvent):void
+            {
+                log.info("--滚动场景介绍--");
+                var lab:Label;
+
+                if (e.params && e.params.labelTypeId == "101")
+                {
+                    gridGroup.removeAllElements();
+                    sceneIntroPM.sceneIntroDM.sceneDetail = e.params.sceneIntroString;
+                    log.info("SHOW_SCENE_GAME_ACTIVE    sceneIntroString==" + sceneIntroPM.sceneIntroDM.sceneDetail);
+
+                    lab = new Label();
+                    lab.percentWidth = 100;
+                    lab.buttonMode = true;
+                    lab.styleName = "sceneNewsLable2";
+                    lab.text = sceneIntroPM.sceneIntroDM.sceneDetail;
+					log.info("sceneIntroPM.sceneIntroDM.sceneDetail:"+sceneIntroPM.sceneIntroDM.sceneDetail);
+
+                    lab.doubleClickEnabled = true;
+
+                    lab.addEventListener(MouseEvent.DOUBLE_CLICK, gridGroup_doubleClickHandler);
+                    gridGroup.addElement(lab);
+                }
+//                setTimeout(function():void
+//                {
+                    log.info("todayGroup.height acDG.height:{0},{1}", todayGroup.height, gridGroup.height);
+                    gridMove.stop();
+                    gridMove.yFrom = todayGroup.height;
+                    gridMove.yTo = -gridGroup.height;
+                    gridMove.easer = null;
+                    gridMove.repeatCount = 0;
+                    gridMove.repeatDelay = 0;
+                    gridMove.duration = Math.ceil(gridGroup.height / 7) * 1000;
+                    gridMove.play([gridGroup]);
+//                }, 18000);
+            }
+
+            [MessageHandler(selector = "SHOW_SCENE_GAME_ACTIVE")]
+            public function showSceneGameActive(e:SceneIntroEvent):void
+            {
+
+                userStr = sceneIntroPM.sceneIntroDM.kpiData['userNum'];
+                telephoneStr = sceneIntroPM.sceneIntroDM.kpiData['callNum'];
+                telephoneStr1 = sceneIntroPM.sceneIntroDM.kpiData['callNum1'];
+                quitServiceStr = sceneIntroPM.sceneIntroDM.kpiData['quitMo'];
+                warnStr = sceneIntroPM.sceneIntroDM.kpiData['alarm1MoNument'];
+
+                gsmFlow = sceneIntroPM.sceneIntroDM.kpiData['gsmFlow'];
+                tdFlow = sceneIntroPM.sceneIntroDM.kpiData['tdFlow'];
+                lteFlow = sceneIntroPM.sceneIntroDM.kpiData['lteFlow'];
+            }
+
+            [MessageHandler(selector = "SHOW_MO_KPI_INFO")]
+            public function showSceneIntroMo(e:SceneIntroEvent):void
+            {
+
+                provinceStr = sceneIntroPM.sceneIntroDM.areaNums;
+                areaStr = sceneIntroPM.sceneIntroDM.areaBadNums;
+                unitStr = sceneIntroPM.sceneIntroDM.moBadNums;
+
+                if (areaWindow.visible == true)
+                {
+                    label1_clearHandler();
+                }
+
+                if (unitWindow.visible == true)
+                {
+                    label2_clickHandler();
+                }
+				log.warn("[SHOW_MO_KPI_INFO事件]: 结束：{0}", new Date().toString());
+            }
+
+            private function openUrl():void
+            {
+                if (user.sceneTypeId == "3")
+                    navigateToURL(new URLRequest(user.context + "/cms/scene/venue/sports.action?sceneId=" + user.sceneId + "&level=" + user.level), "_blank");
+            }
+
+//            protected function sport_closeHandler(event:WindowEvent):void
+//            {
+//                PopUpManager.removePopUp(sportDetailDow);
+//                Window(event.target).visible = false;
+//            }
+
+
+            //点击事件进入事件详情查询页面
+            protected function datagrid1_itemClickHandler(e:MouseEvent):void
+            {
+//				if(acDG.selectedItem.hasOwnProperty("kpiFlag"))
+//					return;
+
+                log.debug("[运动会详情]: 开始！");
+                this.sceneIntroPM.getSceneTodayGameList();
+
+//                if (!sportDetailDow)
+//                {
+//                    sportDetailDow = new SportDetailDow();
+//                }
+                PopUpManager.addPopUp(sportDetailDow, this.parent as DisplayObject);
+                sportDetailDow.x = (this.stage.width - sportDetailDow.width) / 2 - 150;
+                sportDetailDow.y = (this.stage.height - sportDetailDow.height) / 2 - 50;
+//                sportDetailDow.visible = true;
+            }
+
+            [MessageHandler(selector = "PAUSE_NEWS")]
+            public function gridGroup_mouseOverHandler(e:SceneEvent = null):void
+            {
+                gridMove.pause();
+            }
+
+            [MessageHandler(selector = "RESUME_NEWS")]
+            public function gridGroup_mouseOutHandler(e:SceneEvent = null):void
+            {
+                gridMove.resume();
+
+            }
+
+            public function closeWindow(type:int = 0):void
+            {
+                PopUpManager.removePopUp(sportDetailDow);
+
+                if (type == 1)
+                {
+                    if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+                    {
+                        this.visible = false;
+                        this.includeInLayout = false;
+                    }
+                }
+                else
+                    (this.parent as Group).removeElement(this);
+
+                if (type == 1)
+                {
+                    var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+                    e.panelName = this.name;
+                    e.param.index = this.index;
+                    e.param.pid = this.parent['id'];
+                    msgDispatcher(e);
+                }
+            }
+
+            protected function window2_resize(flag:Boolean):void
+            {
+                log.info("##_## 最大化、恢复窗口：" + flag + "_" + maxFlag);
+                var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+                e.panelName = this.name;
+                e.panelIndex = this.index;
+                e.panellocation = this.location;
+                e.panelMaxFlag = this.maxFlag;
+                msgDispatcher(e);
+                log.info("##_## 最大化、恢复窗口：派发事件！");
+
+                this.maxFlag = flag;
+
+                this.closeButton.visible = !flag;
+                this.closeButton.includeInLayout = !flag;
+            }
+
+            /**
+             * 弹出区域级指标信息窗口
+             */
+            protected function label1_clearHandler(event:Event = null):void
+            {
+                log.debug("区域级指标信息...");
+
+//                if (!areaWindow)
+//                {
+//                    areaWindow = new AreaWindow();
+//                }
+                PopUpManager.addPopUp(areaWindow, this.parent as DisplayObject);
+//				PopUpManager.centerPopUp(unitWindow);
+                areaWindow.x = (this.stage.width - areaWindow.width) / 2 - 150;
+                areaWindow.y = (this.stage.height - areaWindow.height) / 2 - 50;
+                areaWindow.visible = true;
+
+                areaWindow.areaBadGroup.removeAllElements();
+
+                if (sceneIntroPM.sceneIntroDM.areaBadList.length > 0)
+                {
+
+                    var kpiAr:Array = new Array();
+                    var kpiMap:Object = new Object();
+
+                    //处理数据
+                    for each (var obj:Object in sceneIntroPM.sceneIntroDM.areaBadList)
+                    {
+                        if (kpiMap.hasOwnProperty(obj["moTypeId"] + obj["kpiId"]))
+                        {
+                            (kpiMap[obj["moTypeId"] + obj["kpiId"]] as ArrayCollection).addItem(obj);
+                        }
+                        else
+                        {
+                            kpiMap[obj["moTypeId"] + obj["kpiId"]] = new ArrayCollection();
+                            (kpiMap[obj["moTypeId"] + obj["kpiId"]] as ArrayCollection).addItem(obj);
+                            kpiAr.push(obj["moTypeId"] + obj["kpiId"]);
+                        }
+                    }
+
+                    //放入数据
+                    var serialNum:int = 1;
+
+                    for each (var kpiName:String in kpiAr)
+                    {
+
+                        var kabd:KpiAreaBadDetail = new KpiAreaBadDetail();
+                        kabd.areaDataList = kpiMap[kpiName] as ArrayCollection;
+                        kabd.label = (kabd.areaDataList.getItemAt(0))["kpiName"] + "(" + kabd.areaDataList.length + ")";
+                        kabd.serialNum = String(serialNum++);
+                        kabd.addEventListener(SceneIntroEvent.CMS_SCENE_SCENEINTRO_AREAGETBADTREND, getBadTrend);
+                        log.info("KpiAreaBadDetail 高度：{0}", kabd.height);
+                        areaWindow.areaBadGroup.addElement(kabd);
+                    }
+
+                }
+
+
+            }
+
+            /**
+             * 弹出网元级指标信息窗口
+             */
+            protected function label2_clickHandler(event:MouseEvent = null):void
+            {
+                log.debug("网元级指标信息...");
+
+//                if (!unitWindow)
+//                {
+//                    unitWindow = new UnitWindow();
+//                }
+
+                PopUpManager.addPopUp(unitWindow, this.parent as DisplayObject);
+                unitWindow.visible = true;
+                unitWindow.x = (this.stage.width - unitWindow.width) / 2 - 150;
+                unitWindow.y = (this.stage.height - unitWindow.height) / 2 - 50;
+                unitWindow.moBadGroup.removeAllElements();
+
+                if (sceneIntroPM.sceneIntroDM.moBadList.length > 0)
+                {
+                    var serialNum:int = 1;
+
+                    for each (var obj:Object in sceneIntroPM.sceneIntroDM.moBadList)
+                    {
+                        var kmbd:KpiMoBadDetail = new KpiMoBadDetail();
+                        kmbd.moDataList = obj["values"] as ArrayCollection;
+                        kmbd.label = obj["kpiName"] + "(" + kmbd.moDataList.length + ")";
+                        kmbd.serialNum = String(serialNum++);
+                        kmbd.addEventListener(SceneIntroEvent.CMS_SCENE_SCENEINTRO_AREAGETBADTREND, getBadTrend);
+                        unitWindow.moBadGroup.addElement(kmbd);
+                    }
+
+                    setTimeout(function():void
+                    {
+                        unitWindow.moBadGroup.validateNow();
+                    }, 550);
+                }
+            }
+
+            public function getBadTrend(e:SceneIntroEvent):void
+            {
+                log.info("======");
+
+                if (e.params.badType == "1")
+                {
+                    e.params.sceneId = user.sceneId;
+                }
+                msgDispatcher(e);
+            }
+
+//            private var areaWindowWidth:Number;
+//            private var areaWindowHeight:Number;
+
+//            protected function area_maximizeHandler():void
+//            {
+//                areaWindowWidth = areaWindow.width;
+//                areaWindowHeight = areaWindow.height;
+//                this.areaWindow.width = this.parentApplication.width;
+//                this.areaWindow.height = this.parentApplication.height;
+//                areaWindow.closeButton.visible = false;
+//                areaWindow.closeButton.includeInLayout = false;
+//            }
+//
+//            protected function areaWindow_restoreHandler(event:WindowEvent):void
+//            {
+//                // TODO Auto-generated method stub
+//                areaWindow.width = areaWindowWidth;
+//                areaWindow.height = areaWindowHeight;
+//                areaWindow.closeButton.visible = true;
+//                areaWindow.closeButton.includeInLayout = true;
+//            }
+
+//            private var unitWindowWidth:Number;
+//            private var unitWindowHeight:Number;
+
+//            protected function unit_maximizeHandler():void
+//            {
+//                unitWindowWidth = unitWindow.width;
+//                unitWindowHeight = unitWindow.height;
+//                this.unitWindow.width = this.parentApplication.width;
+//                this.unitWindow.height = this.parentApplication.height;
+//                unitWindow.closeButton.visible = false;
+//                unitWindow.closeButton.includeInLayout = false;
+//
+//            }
+
+//            private function kpiAreaOrMoComp_maximizeHandler():void
+//            {
+//                this.kpiAreaOrMoBadTrendComp.width = this.parentApplication.width;
+//                this.kpiAreaOrMoBadTrendComp.height = this.parentApplication.height;
+//                kpiAreaOrMoBadTrendComp.closeButton.visible = false;
+//                kpiAreaOrMoBadTrendComp.closeButton.includeInLayout = false;
+//            }
+
+//            protected function unitWindow_restoreHandler(event:WindowEvent):void
+//            {
+//                // TODO Auto-generated method stub
+//                this.unitWindow.width = unitWindowWidth;
+//                this.unitWindow.height = unitWindowHeight;
+//                unitWindow.closeButton.visible = true;
+//                unitWindow.closeButton.includeInLayout = true;
+//            }
+
+//            protected function kpiAreaOrMoComp_restoreHandler(event:WindowEvent):void
+//            {
+//                // TODO Auto-generated method stub
+//                kpiAreaOrMoBadTrendComp.width = 400;
+//                this.kpiAreaOrMoBadTrendComp.height = 500;
+//                kpiAreaOrMoBadTrendComp.closeButton.visible = true;
+//                kpiAreaOrMoBadTrendComp.closeButton.includeInLayout = true;
+//            }
+
+//            protected function unitWindow_closeHandler(event:WindowEvent):void
+//            {
+//                PopUpManager.removePopUp(unitWindow);
+//                unitWindow.visible = false;
+//            }
+
+//            protected function areaWindow_closeHandler(event:WindowEvent):void
+//            {
+//                PopUpManager.removePopUp(areaWindow);
+//                areaWindow.visible = false;
+//
+//            }
+//
+//            protected function image1_clickHandler(event:MouseEvent):void
+//            {
+//                log.debug("场景介绍：区域级劣化网元导出begin...");
+//                var areaDataStr:String = "";
+//                var data:ArrayCollection = sceneIntroPM.sceneIntroDM.areaBadList as ArrayCollection;
+//                var headArr:Array = new Array;
+//
+//                if (data == null || data.length < 1)
+//                {
+//                    Alert.show("没有数据");
+//                    return;
+//                }
+//
+//                headArr.push({"id": "kpiName", "name": "指标名称"});
+//
+//                for each (var col:AdvancedDataGridColumn in(areaBadGroup.getElementAt(0) as KpiAreaBadDetail).areaDataGrid.columns)
+//                {
+//                    if (col.dataField != "" && col.headerText != "")
+//                        headArr.push({"id": col.dataField, "name": col.headerText});
+//                }
+//
+//                ExcelUtil.exportSimpleExcel("区域网元详情列表", headArr, data);
+//                log.info("区域网元详情导出结束");
+//            }
+
+//            protected function image2_clickHandler(event:MouseEvent):void
+//            {
+//                var headArr:Array = new Array;
+//                log.info("劣化网元详情导出开始");
+//                var data:Object = sceneIntroPM.sceneIntroDM.moBadList;
+//
+//                if (data == null || data.length < 1)
+//                {
+//                    Alert.show("没有数据");
+//                    return;
+//                }
+//
+//                var datas:ArrayCollection = new ArrayCollection();
+//
+//                for each (var kpiInfo:Object in sceneIntroPM.sceneIntroDM.moBadList)
+//                {
+//                    datas.addAll(kpiInfo["values"] as ArrayCollection);
+//                }
+//
+//                headArr.push({"id": "kpiName", "name": "指标名称"});
+//
+//                for each (var col:AdvancedDataGridColumn in(moBadGroup.getElementAt(0) as KpiMoBadDetail).moDataGrid.columns)
+//                {
+//                    if (col.dataField != "" && col.headerText != "")
+//                        headArr.push({"id": col.dataField, "name": col.headerText});
+//                }
+//
+//                log.info(datas);
+//                ExcelUtil.exportSimpleExcel("劣化网元详情列表", headArr, datas);
+//                log.info("劣化网元详情导出结束");
+//            }
+
+//            protected function button1_clickHandler(event:MouseEvent):void
+//            {
+//                log.info("多网元gis定位", event);
+//                moBadGroup.numElements;
+//                var tempItem:Object;
+//                var arr:ArrayCollection = new ArrayCollection();
+//
+//                for (var i:int = 0; i < moBadGroup.numElements; i++)
+//                {
+//                    var kmbd:KpiMoBadDetail = moBadGroup.getElementAt(i) as KpiMoBadDetail;
+//
+//                    for each (var item:Object in kmbd.moDataGrid.dataProvider)
+//                    {
+//                        if (item.selected)
+//                        {
+//                            tempItem = item;
+//                            tempItem.alarmLevel = item["warnLevel"];
+//                            arr.addItem(tempItem);
+//                        }
+//                    }
+//                }
+//                log.info(arr);
+//
+//                if (arr.length > 0)
+//                {
+//                    var evt:SceneEvent = new SceneEvent(SceneEvent.MOIDS_COORDINATE_SEARCH);
+//                    evt.param = new Object;
+//                    evt.param = arr;
+//                    msgDispatcher(evt);
+//                }
+//            }
+//
+//            //全部gis定位
+//            protected function button2_clickHandler(event:MouseEvent):void
+//            {
+//                if (sceneIntroPM.sceneIntroDM.moBadList.length > 0)
+//                {
+//                    var tempItem:Object;
+//
+//                    var evt:SceneEvent = new SceneEvent(SceneEvent.MOIDS_COORDINATE_SEARCH);
+//                    evt.param = new Object;
+////					evt.param = sceneIntroPM.sceneIntroDM.moBadList;
+//                    var moBadList:ArrayCollection = new ArrayCollection;
+//
+//                    for each (var obj:Object in sceneIntroPM.sceneIntroDM.moBadList)
+//                    {
+//                        if ((obj["values"] as ArrayCollection).length > 0)
+//                        {
+//                            for each (var item:Object in obj["values"])
+//                            {
+//                                tempItem = item;
+//                                tempItem.alarmLevel = item["warnLevel"];
+//                                moBadList.addItem(tempItem);
+//                            }
+//
+//                        }
+//                    }
+//                    evt.param = moBadList;
+//                    msgDispatcher(evt);
+//                }
+//            }
+
+//            private function expandAllGridButton():void
+//            {
+//                var kmbd:KpiMoBadDetail;
+//
+//                if (expBtn.label == "全部展开")
+//                {
+//                    expBtn.label = "全部关闭";
+//
+//                    for (var i:int = 0; i < moBadGroup.numElements; i++)
+//                    {
+//                        kmbd = moBadGroup.getElementAt(i) as KpiMoBadDetail;
+//                        kmbd.height = 200;
+//                        kmbd.moDataGrid.dataProvider = kmbd.moDataList;
+//                        kmbd.moDataGrid.visible = true;
+//                        kmbd.moDataGrid.includeInLayout = true;
+//                    }
+//                }
+//                else
+//                {
+//                    expBtn.label = "全部展开"
+//
+//                    for (i = 0; i < moBadGroup.numElements; i++)
+//                    {
+//                        kmbd = moBadGroup.getElementAt(i) as KpiMoBadDetail;
+//                        kmbd.height = 20;
+//                        kmbd.moDataGrid.visible = false;
+//                        kmbd.moDataGrid.includeInLayout = false;
+//                    }
+//                }
+//            }
+
+            protected function window2_creationCompleteHandler(event:FlexEvent):void
+            {
+                if (this.user.sceneId == "1011")
+                {
+                    isLTESceneFlag = true;
+                    phoneNum.text = "流量";
+                    unitLabel.text = "[MB]";
+                    this.height = 260;
+                    maingroup.height = 160;
+                    person_hgroup.percentWidth = 50;
+                    traffic_hgroup.percentWidth = 50;
+                }
+                else
+                {
+                    this.height = 300;
+                }
+//				timer.addEventListener(TimerEvent.TIMER, showMoList);
+
+                //给退服统计和一级告警增加链接
+                quitServiceId.setStyle("textDecoration", "underline");
+                quitService_hgroup.mouseChildren = "true";
+                quitService_hgroup.useHandCursor = "true";
+                quitService_hgroup.buttonMode = "true";
+                quitService_hgroup.addEventListener(MouseEvent.CLICK, quitService_hgroup_clickHandler);
+
+                warnStrId.setStyle("textDecoration", "underline");
+                sceneIntroAlarmGroupId.mouseChildren = "true";
+                sceneIntroAlarmGroupId.useHandCursor = "true";
+                sceneIntroAlarmGroupId.buttonMode = "true";
+                sceneIntroAlarmGroupId.addEventListener(MouseEvent.CLICK, sceneIntroAlarmStats_clickHandler);
+
+            }
+
+            protected function quitService_hgroup_clickHandler(event:MouseEvent):void
+            {
+                log.info("SceneIntro 显示sceneIntroQuit");
+
+                sceneIntroQuit.doDrillAlarm = quitDetailService_clickHandler;
+
+                PopUpManager.addPopUp(sceneIntroQuit, this.parentDocument as DisplayObject);
+                sceneIntroQuit.visible = true;
+                PopUpManager.centerPopUp(sceneIntroQuit); //居中显示;
+//				msgDispatcher(new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_QUIT_DATA));
+                sceneIntroQuit.loadStatDatas();
+            }
+
+            protected function sceneIntroAlarmStats_clickHandler(event:MouseEvent = null):void
+            {
+                log.info("SceneIntro sceneIntroAlarmStats");
+                sceneIntroAlarmStats.filterAlarm = filterAlarm;
+                PopUpManager.addPopUp(sceneIntroAlarmStats, this.parentDocument as DisplayObject);
+                sceneIntroAlarmStats.visible = true;
+                PopUpManager.centerPopUp(sceneIntroAlarmStats); //居中显示;
+                sceneIntroAlarmStats.loadStatDatas();
+            }
+
+            /* protected function editSceneActivityInfo_clickHandler():void
+               {
+               PopUpManager.addPopUp(sceneInfoWin, this.parent as DisplayObject);
+               sceneInfoWin.x = (this.stage.width - sceneInfoWin.width) / 2 - 150;
+               sceneInfoWin.y = (this.stage.height - sceneInfoWin.height) / 2 - 50;
+               sceneInfoWin.visible = true;
+
+               var evt:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.SCENEINFO_GROUP);
+               msgDispatcher(evt);
+             } */
+
+//            protected function saveSceneInfo_clickHandler():void
+//            {
+////				var gameInfo:ArrayCollection = new ArrayCollection();
+//
+//                var evt:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.SAVE_SCENEINFO);
+//                evt.params = new Object;
+//                evt.params.sceneId = user.sceneId;
+//                evt.params.level = user.level;
+//                evt.params.sceneName = editSceneName.text;
+//                evt.params.cityId = user.cityId;
+//                evt.params.sceneIntroStr = editSceneNameIntro.text;
+//
+////				var arr:ArrayCollection = sceneIntroPM.sceneIntroDM.activities;
+////				if (arr && arr.length > 0)
+////				{
+////					for each (var activity:Object in arr)
+////					{
+////						gameInfo.addItem({'gameId': String(activity.gameId), 'gameName': String(textAreaB.text)});
+////					}
+////				}
+////				evt.params.gameInfo = gameInfo;
+//                log.info("SAVE_SCENEINFO");
+//                log.info(evt.params);
+//                msgDispatcher(evt);
+//
+//                PopUpManager.removePopUp(sceneInfoWin);
+//                sceneInfoWin.visible = false;
+//            }
+//
+//            protected function cancelSceneInfo_clickHandler():void
+//            {
+//                PopUpManager.removePopUp(sceneInfoWin);
+//                sceneInfoWin.visible = false;
+//            }
+//
+//            protected function close_sceneInfoWin():void
+//            {
+//                PopUpManager.removePopUp(sceneInfoWin);
+//                sceneInfoWin.visible = false;
+//            }
+
+            [MessageHandler(selector = "SHOW_SCENE_GAME_ACTIVE_SUC")]
+            public function showSceneInfoSuc(event:SceneIntroEvent):void
+            {
+                log.info("event.params.isSaveSceneInfo==" + event.params.isSaveSceneInfo);
+
+                if (event.params.isSaveSceneInfo == "success")
+                {
+                    Alert.show("已修改成功！", "提示");
+                    log.info("已修改成功");
+                    loadA();
+                }
+                else if (event.params.isSaveSceneInfo == "failure")
+                {
+                    Alert.show("修改失败！", "提示");
+                    log.info("修改失败！");
+                }
+            }
+
+//            protected function editSceneName_changeHandler():void
+//            {
+//                if (editSceneName.text.length > 30)
+//                {
+//                    editSceneName.errorString = " 场景名称不能超过30个汉字!";
+//                    editSceneName.text = "";
+//                }
+//                else
+//                {
+//                    editSceneName.errorString = null;
+//                }
+//            }
+
+            [MessageHandler(selector = "CMS_SCENE_SCENEINTRO_SHOWAREAORMOBADTRENDGRID")]
+            public function showBadTrend(e:SceneIntroEvent):void
+            {
+                log.info("劣化趋势！！");
+                log.info(e.params);
+
+//                if (!kpiAreaOrMoBadTrendComp)
+//                {
+//                    kpiAreaOrMoBadTrendComp = new KpiAreaOrMoBadTrendComp();
+//                }
+                kpiAreaOrMoBadTrendComp.param = e.params.param;
+                kpiAreaOrMoBadTrendComp.startTime.text = e.params.param.beginTime;
+                kpiAreaOrMoBadTrendComp.endTime.text = e.params.param.gatherTime;
+                kpiAreaOrMoBadTrendComp.trendGrid.dataProvider = e.params.result;
+
+                if (!kpiAreaOrMoBadTrendComp.visible)
+                {
+                    kpiAreaOrMoBadTrendComp.visible = true;
+                    PopUpManager.addPopUp(kpiAreaOrMoBadTrendComp, this.parent as DisplayObject);
+                    kpiAreaOrMoBadTrendComp.x = (this.stage.width - kpiAreaOrMoBadTrendComp.width) / 2 - 150;
+                    kpiAreaOrMoBadTrendComp.y = (this.stage.height - kpiAreaOrMoBadTrendComp.height) / 2 - 50;
+                }
+            }
+
+            protected function gridGroup_doubleClickHandler(e:MouseEvent):void
+            {
+                log.info("双击：进入编辑窗口");
+
+//                if (!sceneInfoWin)
+//                {
+//                    sceneInfoWin = new SceneInfoWin();
+//                }
+                PopUpManager.removePopUp(sceneInfoWin);
+                //textAreaSceneIntro.text = sceneIntroPM.sceneIntroDM.sceneIntroStr;
+                PopUpManager.addPopUp(sceneInfoWin, this.parent as DisplayObject);
+                sceneInfoWin.x = (this.stage.width - sceneInfoWin.width) / 2 - 150;
+                sceneInfoWin.y = (this.stage.height - sceneInfoWin.height) / 2 - 50;
+                sceneInfoWin.visible = true;
+
+//				var evt:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.SCENEINFO_GROUP);
+//				msgDispatcher(evt);
+
+            }
+
+            protected function showSignInfo(oldX:Number, oldY:Number, label:Label):void
+            {
+                log.info("showSignInfo");
+                var obj:Object = {};
+
+                //var moType:String;
+                if (mx != oldX || my != oldY)
+                {
+                    return;
+                }
+
+                childOverFlag = false;
+
+                obj.sceneId = user.sceneId;
+                obj.level = user.level;
+                obj.cityId = user.cityId;
+
+                if (label.id == "userNum")
+                {
+                    obj.labelId = 102;
+                }
+                else if (label.id == "phoneNum")
+                {
+                    obj.labelId = 103;
+                }
+                else if (label.id == "sceneKPI")
+                {
+                    obj.labelId = 107;
+                }
+                else if (label.id == "moKPI")
+                {
+                    obj.labelId = 108;
+                }
+
+                user.labelTypeId = obj.labelId;
+                var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                e.obj = obj;
+                log.info("sceneIntroduction  showSignInfo");
+                log.info(e.obj);
+//                dispatchMsg(e);
+				requestServerUtil.addRequest(e);
+            }
+
+            protected function showSignNameInfo(oldX:Number, oldY:Number, label:String, labelstr:String):void
+            {
+                log.info("showSignNameInfo test");
+                var obj:Object = {};
+
+                if (mx != oldX || my != oldY)
+                {
+                    return;
+                }
+
+                obj.sceneId = user.sceneId;
+                obj.level = user.level;
+                obj.cityId = user.cityId;
+
+                if (label == "场景介绍" || labelstr == "")
+                {
+                    obj.labelId = 101;
+                }
+
+                user.labelTypeId = obj.labelId;
+                var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                e.obj = obj;
+                log.info("sceneIntroduction  showSignNameInfo");
+                log.info(e.obj);
+//                dispatchMsg(e);
+				requestServerUtil.addRequest(e);
+            }
+
+//            protected function editSceneNameIntro_changeHandler():void
+//            {
+//                if (editSceneNameIntro.text.length > 200)
+//                {
+//                    editSceneNameIntro.errorString = " 场景基本介绍不能超过200个汉字!";
+//                    editSceneNameIntro.text = "";
+//                }
+//                else
+//                {
+//                    editSceneNameIntro.errorString = null;
+//                }
+//            }
+
+
+
+            protected function sceneIntro_mouseOverHandler(event:MouseEvent):void
+            {
+                childOverFlag = true;
+
+//				log.info("sceneIntro_mouseOverHandler");
+                if (user.isNew == "1")
+                {
+                    mx = event.stageX;
+                    my = event.stageY;
+
+                    setTimeout(function():void
+                    {
+                        showSignInfo(event.stageX, event.stageY, event.target as Label);
+                    }, 3000);
+                }
+                else
+                {
+                    PopUpManager.removePopUp(itip);
+                }
+            }
+
+            protected function sceneIntroTitle_mouseOverHandler(event:MouseEvent):void
+            {
+                if (childOverFlag)
+                    return;
+
+                if (user.isNew == "1")
+                {
+                    mx = event.stageX;
+                    my = event.stageY;
+
+                    log.info("sceneIntroTitle_mouseOverHandler=" + (event.currentTarget is Window) + " " + (event.currentTarget is Label));
+
+                    var sName:String = (event.currentTarget as Window).name;
+//					if(event.currentTarget is Window)
+//					{
+                    setTimeout(function():void
+                    {
+                        showSignNameInfo(event.stageX, event.stageY, sName, "");
+                    }, 3000);
+//					}else{
+//						setTimeout(function():void
+//						{
+//							showSignInfo(event.stageX, event.stageY, event.target as Label);
+//						}, 3000);
+//					}
+
+                        //var sNameid:String =(event.currentTarget as Window).;
+                }
+                else
+                {
+                    PopUpManager.removePopUp(itip);
+                }
+            }
+
+            [MessageHandler(selector = "CMS_SCENE_SCENEINTRO_SHOWTISHI")]
+            public function showTishiIntro(e:SceneEvent):void
+            {
+                log.info("提示信息！！");
+                PopUpManager.removePopUp(itip);
+
+                if (user.isNew == "1")
+                {
+                    PopUpManager.addPopUp(itip, FlexGlobals.topLevelApplication as DisplayObject);
+                    itip.visible = true;
+                    log.info("e.labelTypeId+" + e.labelTypeId);
+
+                    switch (e.labelTypeId)
+                    {
+                        case "101":
+                            scene101(e.sceneIntroString);
+                            break;
+                        case "102":
+                            scene102(e.sceneIntroString);
+                            break;
+                        case "103":
+                            scene102(e.sceneIntroString);
+                            break;
+                        case "107":
+                            scene107(e.sceneIntroString);
+                            break;
+                        case "108":
+                            scene107(e.sceneIntroString);
+                            break;
+                        case "201":
+                            scene201(e.sceneIntroString);
+                            break;
+                        case "203":
+                            scene201(e.sceneIntroString);
+                            break;
+                        case "301":
+                            scene301(e.sceneIntroString);
+                            break;
+                        case "401":
+                            scene401(e.sceneIntroString);
+                            break;
+                        case "402":
+                            scene402(e.sceneIntroString);
+                            break;
+                        case "403":
+                            scene403(e.sceneIntroString);
+                            break;
+                        case "404":
+                            scene404(e.sceneIntroString);
+                            break;
+                        case "405":
+                            scene405(e.sceneIntroString);
+                            break;
+                        case "406":
+                            scene406(e.sceneIntroString);
+                            break;
+                        case "407":
+                            scene407(e.sceneIntroString);
+                            break;
+                        case "408":
+                            scene408(e.sceneIntroString);
+                            break;
+                        case "409":
+                            scene409(e.sceneIntroString);
+                            break;
+                        case "410":
+                            scene410(e.sceneIntroString);
+                            break;
+                        case "501":
+                            scene501(e.sceneIntroString);
+                            break;
+                        case "502":
+                            scene501(e.sceneIntroString);
+                            break;
+                        case "601":
+                            scene601(e.sceneIntroString);
+                            break;
+                        case "602":
+                            scene601(e.sceneIntroString);
+                            break;
+                        case "701":
+                            scene701(e.sceneIntroString);
+                            break;
+                        case "702":
+                            scene701(e.sceneIntroString);
+                            break;
+                        case "801":
+                            scene801(e.sceneIntroString);
+                            break;
+                        default:
+                            hideMask(null);
+                            break;
+                    }
+                }
+                else
+                {
+                    sceneIntroPM.sceneIntroDM.sceneDetail = e.sceneIntroString;
+                }
+            }
+
+            public function hideMask(e:SceneEvent):void
+            {
+                log.debug("-关闭提示面板。-- --- 移除itip");
+
+                if (itip)
+                {
+                    PopUpManager.removePopUp(itip);
+//					this.removeElement(itip);
+                }
+                itip = null;
+            }
+
+            public function scene101(str:String):void
+            {
+                log.debug("-scene101===========str=" + str);
+                itip.direction("up");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+
+                itip.x = mouseX + 50;
+                itip.y = mouseY + 20;
+                //itip.y = mouseY - itip.height / 2;
+                log.info("mouseX+" + mouseX + "  mouseY+" + mouseY + " itip.x+" + itip.x + "  itip.y+ " + itip.y);
+                sceneIntroPM.sceneIntroDM.sceneDetail = str;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene102(str:String):void
+            {
+                log.debug("-scene102===========str=" + str);
+                itip.direction("left");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+
+                itip.x = mouseX + 50;
+                itip.y = mouseY - itip.height / 2;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene107(str:String):void
+            {
+                log.debug("-scene107==========str=" + str);
+                itip.direction("left");
+
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+
+                itip.x = mouseX + 50;
+                itip.y = mouseY - itip.height / 2;
+
+                log.info("-------scene107==========");
+                setTimeRemoveItip();
+            }
+
+            public function scene201(str:String):void
+            {
+                log.debug("-scene201=========str=" + str);
+                itip.direction("left");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var emgyResource:EmgyResource = new EmgyResource();
+                itip.x = mouseX + 50;
+                itip.y = mouseY - itip.height / 2;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene301(str:String):void
+            {
+                log.debug("-scene301==========str=" + str);
+                itip.direction("left");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var emgyResource:EmgyResource = new EmgyResource();
+                itip.x = mouseX + 50;
+                itip.y = mouseY - itip.height / 2;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene401(str:String):void
+            {
+                log.debug("-scene401==========str=" + str);
+                itip.direction("left");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneTreeComp:SceneTreeComp = new SceneTreeComp();
+                itip.x = mouseX + 50;
+                itip.y = mouseY - 60;
+                setTimeRemoveItip();
+            }
+
+            public function scene402(str:String):void
+            {
+                log.debug("-scene402==========str=" + str);
+                itip.direction("left");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX + 50;
+                itip.y = mouseY - itip.height / 2;
+                setTimeRemoveItip();
+            }
+
+            public function scene403(str:String):void
+            {
+                log.debug("-scene403===========str=" + str);
+                itip.direction("up");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width / 2 - 40;
+                itip.y = mouseY + 50;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene404(str:String):void
+            {
+                log.debug("-scene404==========str=" + str);
+                itip.direction("up");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width / 2 - 40;
+                itip.y = mouseY + 50;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene405(str:String):void
+            {
+                log.debug("-scene405==========str=" + str);
+                itip.direction("up");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width / 2 - 40;
+                itip.y = mouseY + 50;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene406(str:String):void
+            {
+                log.debug("-scene406==========str=" + str);
+                itip.direction("up");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width / 2 - 40;
+                ;
+                itip.y = mouseY + 50;
+                setTimeRemoveItip();
+            }
+
+            public function scene407(str:String):void
+            {
+                log.debug("-scene407==========str=" + str);
+                itip.direction("rightup");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width - 150;
+                itip.y = mouseY;
+                setTimeRemoveItip();
+            }
+
+            public function scene408(str:String):void
+            {
+                log.debug("-scene408==========str=" + str);
+                itip.direction("left");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+                itip.x = mouseX + 50;
+                itip.y = mouseY - itip.height / 2;
+                setTimeRemoveItip();
+            }
+
+            public function scene409(str:String):void
+            {
+                log.debug("-scene409==========str=" + str);
+                itip.direction("down");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width / 2;
+                itip.y = mouseY - itip.height - 50;
+                setTimeRemoveItip();
+            }
+
+            public function scene410(str:String):void
+            {
+                log.debug("-scene410==========str=" + str);
+                itip.direction("down");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width / 2;
+                itip.y = mouseY - itip.height - 100;
+                setTimeRemoveItip();
+            }
+
+            public function scene501(str:String):void
+            {
+                log.debug("-scene501===========str=" + str);
+                itip.direction("right");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width - 100;
+                itip.y = mouseY - itip.height / 2;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene601(str:String):void
+            {
+                log.debug("-scene601===========str=" + str);
+                itip.direction("right");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width - 100;
+                itip.y = mouseY - itip.height / 2;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene701(str:String):void
+            {
+                log.debug("-scene701==========str=" + str);
+                itip.direction("right");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width - 100;
+                itip.y = mouseY - itip.height / 2;
+
+                setTimeRemoveItip();
+            }
+
+            public function scene801(str:String):void
+            {
+                log.debug("-scene801==========str=" + str);
+                itip.direction("down");
+                itip.showTitle("提示信息");
+                itip.showMsg(str);
+//				var sceneView:SceneView = new SceneView();
+                itip.x = mouseX - itip.width / 2;
+                itip.y = mouseY - itip.height - 100;
+
+                setTimeRemoveItip();
+            }
+
+            public function setTimeRemoveItip():void
+            {
+                setTimeout(function():void
+                {
+                    PopUpManager.removePopUp(itip);
+                }, 1000 * 5);
+            }
+
+//            protected function sceneInfoWin_maximizeHandler(event:WindowEvent):void
+//            {
+//                sceneInfoWin.width = this.parent.parent.width;
+//                sceneInfoWin.height = this.parent.parent.height;
+//            }
+
+            public function quitDetailService_clickHandler(param:Object = null):void
+            {
+                log.info("SceneIntro sceneIntroQuitDetail");
+                sceneIntroQuitDetail.filterAlarm = filterAlarm;
+                PopUpManager.addPopUp(sceneIntroQuitDetail, this.parentDocument as DisplayObject);
+                sceneIntroQuitDetail.visible = true;
+                PopUpManager.centerPopUp(sceneIntroQuitDetail); //居中显示;
+                sceneIntroQuitDetail.queryFirstPageData(param);
+            }
+        ]]>
+    </fx:Script>
+
+
+    <s:VGroup width="100%">
+        <s:Group width="100%">
+            <s:SkinnableContainer width="100%"
+                                  height="68"
+                                  styleName="sceneNewsMainBg"
+                                  left="1"
+                                  right="1">
+                <s:Group id="todayGroup"
+                         clipAndEnableScrolling="true"
+                         top="3"
+                         left="3"
+                         width="100%"
+                         height="100%">
+                    <s:VGroup id="gridGroup"
+                              width="100%"
+                              height="100%"
+                              right="1"
+                              left="1"
+                              mouseOver="gridGroup_mouseOverHandler()"
+                              mouseOut="gridGroup_mouseOutHandler()">
+                    </s:VGroup>
+                    <!--<s:Button label="编辑"
+                         id="editSceneActivityInfo"
+                         click="editSceneActivityInfo_clickHandler()"
+                         bottom="5"
+                         left="5"/>-->
+                </s:Group>
+            </s:SkinnableContainer>
+        </s:Group>
+
+        <s:SkinnableContainer id="maingroup"
+                              width="100%"
+                              height="200">
+            <s:layout>
+                <s:VerticalLayout gap="0"/>
+            </s:layout>
+
+            <mx:HRule width="100%"
+                      height="2"/>
+            <s:HGroup width="100%"
+                      height="100%"
+                      gap="0">
+                <s:HGroup id="person_hgroup"
+						  visible="{isLTESceneFlag}"
+						  includeInLayout="{isLTESceneFlag}"
+                          width="50%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/yonghushu.png"
+                              left="0"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="用户数"
+                                 id="userNum"
+                                 mouseOver="sceneIntro_mouseOverHandler(event)"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label id="userNumStr"
+                                     text="{userStr}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[万]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+                <s:HGroup id="traffic_hgroup"
+                          width="50%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/huawuliang.png"
+                              left="0"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="2G话务量(时)"
+                                 id="phoneNum"
+                                 mouseOver="sceneIntro_mouseOverHandler(event)"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label id="phoneNumStr"
+                                     text="{telephoneStr}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label id="unitLabel"
+                                     text="[ERL]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+                <s:HGroup width="50%"
+                          id="oneTalkGroup"
+                          height="100%"
+                          visible="{!isLTESceneFlag}"
+                          includeInLayout="{!isLTESceneFlag}"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/huawuliang.png"
+                              left="0"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="3G话务量(时)"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label text="{telephoneStr1}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[ERL]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+            </s:HGroup>
+
+            <mx:HRule width="100%"
+                      height="2"
+                      visible="{!isLTESceneFlag}"
+                      includeInLayout="{!isLTESceneFlag}"/>
+            <s:HGroup width="100%"
+                      height="100%"
+                      visible="{!isLTESceneFlag}"
+                      includeInLayout="{!isLTESceneFlag}"
+                      gap="0">
+                <s:HGroup width="33%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/water_16.png"
+                              left="0"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="2G流量(时)"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label text="{gsmFlow}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[M]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+                <s:HGroup width="33%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/water_16.png"
+                              left="0"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="3G流量(时)"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label text="{tdFlow}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[M]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+                <s:HGroup width="33%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/water_16.png"
+                              left="0"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="4G流量(时)"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label text="{lteFlow}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[M]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+            </s:HGroup>
+            <mx:HRule width="100%"
+                      height="2"/>
+            <s:HGroup width="100%"
+                      height="100%"
+                      gap="0">
+
+                <s:HGroup id="quitService_hgroup"
+                          width="50%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/tuifujizhan.png"
+                              left="4"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="退服基站"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label id="quitServiceId"
+                                     text="{quitServiceStr}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[个]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+                <mx:VRule width="2"
+                          height="100%"/>
+                <s:HGroup id="sceneIntroAlarmGroupId"
+                          width="50%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/yijigaojingzhibiao.png"
+                              left="4"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="一级告警数"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label id="warnStrId"
+                                     text="{warnStr}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[个]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+
+            </s:HGroup>
+
+            <mx:HRule width="100%"
+                      height="2"/>
+            <s:HGroup width="100%"
+                      height="100%"
+                      gap="0">
+
+                <s:HGroup width="50%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/quanshengbaozhangquyu.png"
+                              left="4"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="保障区域"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label text="{provinceStr}"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[个]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+                <mx:VRule width="2"
+                          height="100%"/>
+                <s:HGroup width="50%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/quyujiliehuazhibiao.png"
+                              left="4"/>
+                    <s:VGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="场景级劣化指标"
+                                 id="sceneKPI"
+                                 mouseOver="sceneIntro_mouseOverHandler(event)"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label text="{areaStr}"
+                                     click="label1_clearHandler(event)"
+                                     textDecoration="underline"
+                                     buttonMode="true"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[个]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:VGroup>
+                </s:HGroup>
+
+            </s:HGroup>
+
+            <mx:HRule width="100%"
+                      height="2"/>
+            <s:HGroup width="100%"
+                      height="34"
+                      gap="0">
+                <s:HGroup width="100%"
+                          height="100%"
+                          verticalAlign="middle"
+                          horizontalAlign="left">
+                    <mx:Image source="img/wangyuanjiliehuazhibiao.png"
+                              left="4"/>
+                    <s:HGroup width="100%"
+                              height="100%"
+                              verticalAlign="middle">
+                        <s:Label text="网元级劣化指标"
+                                 id="moKPI"
+                                 mouseOver="sceneIntro_mouseOverHandler(event)"
+                                 styleName="sceneNewsLable3"/>
+                        <s:HGroup gap="0">
+                            <s:Label text="{unitStr}"
+                                     click="label2_clickHandler(event)"
+                                     textDecoration="underline"
+                                     buttonMode="true"
+                                     styleName="sceneNewsLable4"/>
+                            <s:Label text="[个]"
+                                     styleName="sceneNewsLable5"/>
+                        </s:HGroup>
+                    </s:HGroup>
+                </s:HGroup>
+
+            </s:HGroup>
+        </s:SkinnableContainer>
+
+    </s:VGroup>
+
+    <!--今日赛事详情-->
+    <!--<mx:Box width="300"
+            height="200"
+            visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="sportDetailDow"
+                            close="sport_closeHandler(event)"
+                            minimizableBottom="10"
+                            minimizable="false"
+                            dragable="true"
+                            styleName="windowScene"
+                            titleIcon="@Embed(source='../../img/title_ico03.png')"
+                            title="详情"
+                            width="470"
+                            height="260"
+                            resizable="true"
+                            minimizableLeft="10"
+                            minWidth="200"
+                            visible="false">
+            <mx:AdvancedDataGrid id="sportDetailDataGrid"
+                                 width="100%"
+                                 height="100%"
+                                 horizontalScrollPolicy="auto"
+                                 styleName="sceneDG"
+                                 verticalAlign="middle"
+                                 dataProvider="{sceneIntroPM.sceneIntroDM.sportMeetTodayArr}">
+                <mx:columns>
+                    <mx:AdvancedDataGridColumn dataField="gamename"
+                                               headerText="赛事名称"/>
+                    <mx:AdvancedDataGridColumn dataField="gamestarttime"
+                                               headerText="开始时间"/>
+                    <mx:AdvancedDataGridColumn dataField="gameendtime"
+                                               headerText="结束时间"/>
+                    <mx:AdvancedDataGridColumn dataField="gameresult"
+                                               headerText="比赛结果"/>
+                    <mx:AdvancedDataGridColumn dataField="areaid"
+                                               headerText="区域名称"/>
+                    <mx:AdvancedDataGridColumn dataField="venues"
+                                               headerText="场馆名称"/>
+                    <mx:AdvancedDataGridColumn dataField="gamedesc"
+                                               headerText="赛事描述"/>
+                </mx:columns>
+            </mx:AdvancedDataGrid>
+        </ailk_compts:Window>
+    </mx:Box>-->
+    <!--	网元劣化详情（区域级）-->
+    <!--<mx:Box width="300"
+            height="200"
+            visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="areaWindow"
+                            close="areaWindow_closeHandler(event)"
+                            minimizableBottom="10"
+                            minimizable="false"
+                            dragable="true"
+                            visible="false"
+                            styleName="windowScene"
+                            titleIcon="@Embed(source='../../img/title_ico03.png')"
+                            title="区域级劣化详情"
+                            width="470"
+                            height="260"
+                            maximize="area_maximizeHandler()"
+                            restore="areaWindow_restoreHandler(event)"
+                            resizable="true"
+                            minimizableLeft="10"
+                            minWidth="200">
+            <s:Scroller width="100%"
+                        height="100%"
+                        horizontalScrollPolicy="auto"
+                        verticalScrollPolicy="auto"
+                        styleName="sceneScroller">
+                <s:VGroup id="areaBadGroup"
+                          width="100%"
+                          height="100%"
+                          gap="5">
+                </s:VGroup>
+            </s:Scroller>
+            <mx:Image source="@Embed('../../img/icon_export.png')"
+                      width="30"
+                      height="20"
+                      right="40"
+                      toolTip="导出"
+                      top="-23"
+                      buttonMode="true"
+                      click="image1_clickHandler(event)"/>
+        </ailk_compts:Window>
+    </mx:Box>-->
+    <!--	网元劣化详情（网元级）-->
+    <!--<mx:Box width="300"
+            height="200"
+            visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="unitWindow"
+                            close="unitWindow_closeHandler(event)"
+                            minimizable="false"
+                            dragable="true"
+                            styleName="windowScene"
+                            visible="false"
+                            titleIcon="@Embed(source='../../img/title_ico03.png')"
+                            title="网元级劣化详情"
+                            width="470"
+                            height="260"
+                            maximize="unit_maximizeHandler()"
+                            restore="unitWindow_restoreHandler(event)"
+                            resizable="true"
+                            minWidth="200">
+            <s:Scroller width="100%"
+                        height="100%"
+                        horizontalScrollPolicy="auto"
+                        verticalScrollPolicy="auto"
+                        styleName="sceneScroller">
+                <s:VGroup id="moBadGroup"
+                          width="100%"
+                          height="100%"
+                          gap="2">
+                </s:VGroup>
+            </s:Scroller>
+            <mx:Image source="@Embed('../../img/icon_export.png')"
+                      width="30"
+                      height="20"
+                      right="40"
+                      toolTip="导出"
+                      top="-23"
+                      buttonMode="true"
+                      click="image2_clickHandler(event)"/>
+            <s:Button label="GIS定位"
+                      top="-23"
+                      right="83"
+                      click="button1_clickHandler(event)"/>
+            <s:Button label="全部gis定位"
+                      top="-23"
+                      right="150"
+                      click="button2_clickHandler(event)"/>
+            <s:Button id="expBtn"
+                      label="全部展开"
+                      top="-23"
+                      right="240"
+                      click="expandAllGridButton()"/>
+        </ailk_compts:Window>
+    </mx:Box>-->
+    <!--<mx:Box visible="false"
+            includeInLayout="false">
+        <ailk_compts:Window id="sceneInfoWin"
+                            visible="false"
+                            width="450"
+                            height="100%"
+                            title="场景介绍编辑"
+                            styleName="windowScene"
+                            close="close_sceneInfoWin()"
+                            maximizable="false"
+                            dragable="true">
+            <mx:VBox>
+                <mx:HBox>
+                    <s:Label id="sceneNameE"
+                             text="场景名称:"
+                             width="85"/>
+                    <s:TextArea id="editSceneName"
+                                width="350"
+                                height="20"
+                                text="{sceneIntroPM.sceneIntroDM.sceneInfo}"
+                                change="editSceneName_changeHandler()"/>
+                </mx:HBox>
+                <mx:HBox>
+                    <s:Label id="sceneNameIntro"
+                             text="场景基本介绍:"
+                             width="85"/>
+                    <s:TextArea id="editSceneNameIntro"
+                                width="350"
+                                height="100"
+                                text="{stringStr}"
+                                change="editSceneNameIntro_changeHandler()"/>
+                </mx:HBox>-->
+    <!--<mx:HBox height="150"
+         id="sceneInfoDetailBox"
+         visible="false"
+         includeInLayout="false">
+         <s:Label id="sceneInfoE"
+         text="场景信息详情:"
+         width="85"/>
+         <s:Scroller width="100%"
+         height="100%"
+         horizontalScrollPolicy="auto"
+         verticalScrollPolicy="auto"
+         styleName="sceneScroller">
+         <s:VGroup id="editSceneInfoGroup"
+         width="100%"
+         height="100%">
+         </s:VGroup>
+         </s:Scroller>
+         </mx:HBox>
+    <mx:HBox horizontalAlign="right"
+             width="300">
+        <s:Button id="saveSceneInfo"
+                  label="保存"
+                  click="saveSceneInfo_clickHandler()"/>
+        <s:Button id="cancelSceneInfo"
+                  label="取消"
+                  click="cancelSceneInfo_clickHandler()"/>
+    </mx:HBox>
+</mx:VBox>
+</ailk_compts:Window>
+</mx:Box>-->
+    <!--<mx:Box visible="false"
+            includeInLayout="false">
+        <components:KpiAreaOrMoBadTrendComp id="kpiAreaOrMoBadTrendComp"
+                                            maximize="kpiAreaOrMoComp_maximizeHandler()"
+                                            restore="kpiAreaOrMoComp_restoreHandler(event)"
+                                            resizable="true"
+                                            visible="false"
+                                            width="400"
+                                            height="500"/>
+    </mx:Box>-->
+
+    <!--<mx:Box visible="false"
+            includeInLayout="false">
+        <components:SceneIntroQuit id="sceneIntroQuit"
+                                   title="退服基站"
+                                   doDrillAlarm="quitDetailService_clickHandler"/>
+    </mx:Box>-->
+    <!--<mx:Box visible="false"
+            includeInLayout="false">
+        <components:SceneIntroQuitDetail id="sceneIntroQuitDetail"
+                                         title="退服基站"/>
+    </mx:Box>
+    <mx:Box visible="false"
+            includeInLayout="false">
+        <components:SceneIntroAlarmStats filterAlarm="{filterAlarm}"
+                                         id="sceneIntroAlarmStats"
+                                         title="告警信息"/>
+    </mx:Box>-->
+</ailk_compts:Window>

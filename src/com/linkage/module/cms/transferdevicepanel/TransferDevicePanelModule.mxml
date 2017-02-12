@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:view="com.linkage.module.cms.transferdevicepanel.view.*"
+		   creationComplete="module_creationCompleteHandler(event)"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2014-5-25
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.transferdevicepanel.domain.TransferDevicePanelDM;
+			import com.linkage.module.cms.transferdevicepanel.event.TransferDevicePanelEvent;
+			import com.linkage.module.cms.transferdevicepanel.view.CardPanelCompPM;
+			
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			private var log:ILogger=Log.getLoggerByClass(TransferDevicePanelModule);
+			[Embed(source="assets/shiftBtn2_1.png")]
+			[Bindable]
+			private static var pic21:Class;
+
+			[Embed(source="assets/shiftBtn2_2.png")]
+			[Bindable]
+			private static var pic22:Class;
+
+			[Embed(source="assets/shiftBtn2_3.png")]
+			[Bindable]
+			private static var pic23:Class;
+
+			[Embed(source="assets/shiftBtn2_4.png")]
+			[Bindable]
+			private static var pic24:Class;
+
+			[Embed(source="assets/shiftBtn3_1.png")]
+			[Bindable]
+			private static var pic41:Class;
+
+			[Embed(source="assets/shiftBtn3_2.png")]
+			[Bindable]
+			private static var pic42:Class;
+
+			[Embed(source="assets/shiftBtn3_3.png")]
+			[Bindable]
+			private static var pic43:Class;
+
+			[Embed(source="assets/shiftBtn3_4.png")]
+			[Bindable]
+			private static var pic44:Class;
+
+			[Inject("cardPanelCompPM")]
+			[Bindable]
+			public var pm:CardPanelCompPM;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				pm.dm.parameters=this.parentApplication.parameters;
+				pm.dm.queryParam.neid=pm.dm.parameters.neid;
+				pm.dm.queryParam.nename=pm.dm.parameters.nename;
+				pm.dm.loadManager = this.parentApplication.loadManager;
+				styleManager.loadStyleDeclarations2(pm.dm.parameters["styleUrl"]);
+				if(pm.dm.parameters.propheaders){
+					var propheaders:Array = String(pm.dm.parameters.propheaders).split(",");
+					var propfields:Array = String(pm.dm.parameters.propfields).split(",");
+					var propwidths:Array = String(pm.dm.parameters.propwidths).split(",");
+					for(var i:int=0;i<propheaders.length;i++){
+						var adg:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						adg.headerText=propheaders[i];
+						adg.dataField=propfields[i];
+						if(i<propheaders.length-1){
+							adg.width = int(this.width*Number(propwidths[i]));
+						}
+						adg.showDataTips=true;
+						pm.dm.propColumns.push(adg);
+					}
+					log.info(pm.dm.propColumns);
+					dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.PROPCOLUMNSCHANGE));
+				}
+				dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.REFRESH));
+				dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.LOAD_PROPDATA));
+				dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.PROPCOMPCHANGE))
+			}
+
+			[MessageHandler(selector="PROPCOMPCHANGE")]
+			public function propcompchange(e:TransferDevicePanelEvent):void
+			{
+				flowGroup.height == 0 ? flowGroupOpenEffect.play() : flowGroupCloseEffect.play();
+			}
+//			[MessageHandler(selector="LOAD_PROPDATA")]
+//			public function load_ptppropdata(e:TransferDevicePanelEvent):void
+//			{
+//				if(flowGroup.height == 0){
+//					dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.PROPCOMPCHANGE))
+//				}
+//			}
+//			
+//			[MessageHandler(selector="LOAD_PTPPROPDATA")]
+//			public function load_propdata(e:TransferDevicePanelEvent):void
+//			{
+//				if(flowGroup.height == 0){
+//					dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.PROPCOMPCHANGE))
+//				}
+//			}
+			
+			protected function img1_mouseOver(event:MouseEvent):void
+			{
+				this.img1.source=this.img1.source == pic24 ? pic23 : this.img1.source == pic22 ? pic21 : pic23;
+			}
+
+			protected function img1_mouseOut(event:MouseEvent):void
+			{
+				this.img1.source=this.img1.source == pic23 ? pic24 : this.img1.source == pic21 ? pic22 : pic24;
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{TransferDevicePanelModuleContext}"/>
+		</parsley:ContextBuilder>
+		<s:Fade id="fadeEffect"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="3000"/>
+
+		<s:Animate id="flowGroupOpenEffect"
+				   target="{flowGroup}"
+				   repeatCount="1"
+				   duration="500"
+				   effectStart="dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.ALARMFLOWSTOP));img1.enabled=false;flowBtn.enabled=false;img1.removeEventListener(MouseEvent.MOUSE_OVER,img1_mouseOver);img1.removeEventListener(MouseEvent.MOUSE_OUT,img1_mouseOut);"
+				   effectEnd="img1.enabled=true;flowBtn.enabled=true;flowBtn.label='收起';img1.source=pic22;img1.addEventListener(MouseEvent.MOUSE_OVER,img1_mouseOver);img1.addEventListener(MouseEvent.MOUSE_OUT,img1_mouseOut);">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="height"
+									valueFrom="0"
+									valueTo="220"/>
+			</s:motionPaths>
+		</s:Animate>
+		<s:Animate id="flowGroupCloseEffect"
+				   target="{flowGroup}"
+				   repeatCount="1"
+				   duration="500"
+				   effectStart="img1.enabled=false;flowBtn.enabled=false;img1.removeEventListener(MouseEvent.MOUSE_OVER,img1_mouseOver);img1.removeEventListener(MouseEvent.MOUSE_OUT,img1_mouseOut);"
+				   effectEnd="dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.ALARMFLOWSTART));img1.enabled=true;flowBtn.enabled=true;flowBtn.label='展开';img1.source=pic24;img1.addEventListener(MouseEvent.MOUSE_OVER,img1_mouseOver);img1.addEventListener(MouseEvent.MOUSE_OUT,img1_mouseOut);">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="height"
+									valueFrom="220"
+									valueTo="0"/>
+			</s:motionPaths>
+		</s:Animate>
+	</fx:Declarations>
+	<s:SkinnableContainer width="100%"
+						  height="100%"
+						  styleName="backgroud">
+		<mx:VDividedBox width="100%"
+						height="100%">
+			<s:Group width="100%"
+					 height="100%">
+				<view:CardPanelComp bottom="5"/>
+				<s:HGroup id="imgOne"
+						  width="100%"
+						  bottom="0"
+						  height="5"
+						  horizontalAlign="center">
+					<mx:Image id="img1"
+							  click="dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.PROPCOMPCHANGE))"
+							  buttonMode="true"
+							  source="{pic24}">
+					</mx:Image>
+				</s:HGroup>
+				<s:Button right="20"
+						  bottom="0"
+						  buttonMode="true"
+						  click="dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.PROPCOMPCHANGE))"
+						  id="flowBtn"
+						  label="展开"
+						  cornerRadius="5"/>
+			</s:Group>
+			<!-- 资源信息部分 -->
+			<s:Group id="flowGroup"
+					 width="100%"
+					 height="0">
+				<s:layout>
+					<s:BasicLayout/>
+				</s:layout>
+				<view:PropertyComp/>
+			</s:Group>
+		</mx:VDividedBox>
+
+
+	</s:SkinnableContainer>
+</mx:Module>

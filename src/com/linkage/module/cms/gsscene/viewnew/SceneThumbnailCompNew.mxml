@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:parsley="http://www.spicefactory.org/parsley"
+				   xmlns:panel="com.linkage.system.component.panel.*"
+				   width="100%"
+				   styleName="sceneBorderContainer" showEffect="{showE}" hideEffect="{hideE}">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<!--<s:Resize target="{this}" widthTo="0" widthFrom="{this.width}" id="hideE"/>
+		<s:Resize target="{this}" widthTo="{this.width}" widthFrom="0" id="showE"/>-->
+		
+		<s:Animate id="hideE"
+				   target="{this}"
+				   duration="500">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="percentWidth"
+									valueFrom="100"
+									valueTo="0"/>
+				<!--<s:SimpleMotionPath property="left"
+									valueFrom="0"
+									valueTo="{this.width}"/>-->
+			</s:motionPaths>
+		</s:Animate>
+		
+		<s:Animate id="showE"
+				   target="{this}"
+				   duration="500"  effectEnd="Group(this.parent).setElementIndex(this,Group(this.parent).numElements-1);">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="percentWidth"
+									valueFrom="0"
+									valueTo="100"/>
+				<!--<s:SimpleMotionPath property="left"
+									valueFrom="{this.width}"
+									valueTo="0"/>-->
+			</s:motionPaths>
+		</s:Animate>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneresume.components.GroupTip;
+			import com.linkage.module.cms.gsscene.view.components.scenethumbnail.event.SceneThumbnailEvent;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			
+			import spark.components.Group;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneThumbnailCompNew);
+			[Embed(source = "../img/left_gray.png")]
+			[Bindable]
+			private var _left_gray:Class;
+			
+			[Embed(source = "../img/left_blue.png")]
+			[Bindable]
+			private var _left_blue:Class;
+			
+			[Embed(source = "../img/right_gray.png")]
+			[Bindable]
+			private var _right_gray:Class;
+			
+			[Embed(source = "../img/right_blue.png")]
+			[Bindable]
+			private var _right_blue:Class;
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Inject("user")]
+			public var user:IUser;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			[Bindable]
+			[Embed(source = "../img/start_end.png")]
+			public var startEnd:Class;
+			
+			private var cityId:String = ""; //当前缩略图显示的地市
+			
+			private var firstFlag:Boolean = true;
+			
+//			[Inject("sceneThumbnailCompPM")]
+//			public var stcPM:SceneThumbnailCompPM;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+//			[MessageHandler(selector = "AREAORMO_DATACHANGE")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				list.selectedIndex=-1;
+				//如果是1004场景，判断是否是第一次加载，如果是第一次加载，那么加载假数据，不需要从后台获取数据
+				if (user.sceneId == "1004" && firstFlag && scenePM.sceneThumbnailDM.data.length == 4)
+				{
+					msgDispatcher(new SceneThumbnailEvent(SceneThumbnailEvent.THUMBNAIL_CREATEHANDLER));
+					firstFlag = false;
+					return;
+				}
+				
+				if (user.level == "2" || user.cityId == cityId)
+				{
+					log.info("不加载区域缩略图！！");
+					return;
+				}
+				cityId = user.cityId;
+				log.info("区域缩略图组件 初始化：" + e);
+//				stcPM.getSceneAreaList();
+				requestServerUtil.addRequest(new SceneThumbnailEvent(SceneThumbnailEvent.SCENE_AREA_LIST));
+			}
+			
+			//            //生成缩略图组
+			//            [MessageHandler(selector = "THUMBNAIL_CREATEHANDLER")]
+			//            public function createThumbnailInit(e:SceneThumbnailEvent):void
+			//            {
+			//                log.info("SceneThumbnailComp createThumbnailInit");
+			//                var image:Image = null;
+			//                showGroup.removeAllElements();
+			//
+			//                for each (var obj:Object in stcPM.stdm.data)
+			//                {
+			//                    var gt:GroupTip = new GroupTip();
+			//                    gt.param = obj;
+			//                    gt.id = obj.areaId;
+			//
+			//                    if (obj.CITY_ID)
+			//                        gt.name = obj.CITY_ID;
+			//                    else
+			//                        gt.name = obj.city_id;
+			//
+			//                    gt.toolTip = obj.areaName;
+			//                    gt.source = user.context + obj.imgUrl;
+			//                    gt.text = obj.areaName;
+			//                    gt.setStyle("backgroundPlpha", "1");
+			//
+			//                    if (obj.hasOwnProperty("color") && obj["color"])
+			//                    {
+			//                        gt.setStyle("borderColor", obj["color"]);
+			//                        gt.setStyle("backgroundColor", obj["color"]);
+			//                    }
+			//                    else
+			//                    {
+			//                        gt.setStyle("borderColor", 0X00FF00);
+			//                        gt.setStyle("backgroundColor", 0X00FF00);
+			//                    }
+			//
+			//                    gt.addEventListener(MouseEvent.CLICK, stcPM.getSceneInfo);
+			//
+			//                    if (obj.hasOwnProperty("flag") && obj["flag"] == "1")
+			//                    {
+			//                    }
+			//                    else
+			//                    {
+			//                        gt.contextMenu = new ContextMenu();
+			//                        gt.contextMenu.hideBuiltInItems();
+			//                        var cmi:ContextMenuItem = new ContextMenuItem("性能数据");
+			//                        cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, showImgTip);
+			//                        gt.contextMenu.customItems.push(cmi);
+			//
+			//                        cmi = new ContextMenuItem("删除区域");
+			//                        cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, deleteImgHandler);
+			//                        gt.contextMenu.customItems.push(cmi);
+			//                    }
+			//
+			//
+			//                    showGroup.addElement(gt);
+			//                }
+			//                log.info("缩略图加载完成！！");
+			//            }
+			
+			//            public function showImgTip(evt:ContextMenuEvent):void
+			//            {
+			//                var gt:GroupTip = evt.contextMenuOwner as GroupTip;
+			//
+			////                modalTipWindow.x = gt.x - 115 - mGroup.horizontalScrollBar.value;
+			//                modalTipWindow.y = gt.y - 175;
+			//
+			//                if (modalTipWindow.x < 0)
+			//                    modalTipWindow.x = 5;
+			//
+			//                if (modalTipWindow.x + modalTipWindow.width > this.width)
+			//                    modalTipWindow.x = this.width - modalTipWindow.width - 5;
+			//
+			//                modalTipWindow.visible = true;
+			//                modalTipWindow.includeInLayout = true;
+			//                modalTipWindow.tipArray.removeAll();
+			//                var e:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.SCENE_AREABAD_IMPPERF_GET);
+			//                e.data = new Object;
+			//                e.data.cityId = user.cityId;
+			//                e.data.sceneId = gt.param.sceneId;
+			//                e.data.areaId = gt.param.areaId;
+			////                msgDispatcher(e);
+			//				requestServerUtil.addRequest(e);
+			//            }
+			
+			//删除该区域，如果该区域不是当前用户创建，那么删除失败
+			public function deleteImgHandler(evt:ContextMenuEvent):void
+			{
+				var gt:GroupTip = evt.contextMenuOwner as GroupTip;
+				Alert.show("是否确定删除该区域?", "提示", Alert.YES | Alert.NO, null, function(e:CloseEvent):void
+				{
+					if (e.detail == Alert.YES)
+					{
+						var param:Object = new Object();
+						param.account = user.account;
+						param.areaId = gt.param.areaId;
+						param.sceneId = gt.param.sceneId;
+						param.sceneFlag = "0"; //默认不清楚状态
+//						stcPM.deleteImgData(param);
+						var evt:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_DELETEIMGDATA);
+						evt.data = new Object();
+						evt.data = param;
+						//            dispatchMsg(evt);
+						requestServerUtil.addRequest(evt);
+					}
+				});
+				
+				
+			}
+			
+			private var oldx:Number = -111;
+			private var oldy:Number = -111;
+			
+			//            public function delayHandler(evt:MouseEvent):void
+			//            {
+			//                oldx = evt.stageX;
+			//                oldy = evt.stageY;
+			//
+			//                setTimeout(function():void
+			//                {
+			//                    showImgTipHandler(evt);
+			//                }, 3000);
+			//
+			//            }
+			
+			//            //显示缩略图tip窗口，
+			//            public function showImgTipHandler(evt:MouseEvent = null):void
+			//            {
+			//                if (oldx != evt.stageX || oldy != evt.stageY)
+			//                    return;
+			//
+			//                var gt:GroupTip = evt.currentTarget as GroupTip;
+			//
+			//                var x:Number = gt.x;
+			//                var y:Number = gt.y;
+			//
+			////                modalTipWindow.x = gt.x - 115 - mGroup.horizontalScrollBar.value;
+			//                modalTipWindow.y = gt.y - 175;
+			//
+			//                if (modalTipWindow.x < 0)
+			//                    modalTipWindow.x = 5;
+			//
+			//                if (modalTipWindow.x + modalTipWindow.width > this.width)
+			//                    modalTipWindow.x = this.width - modalTipWindow.width - 5;
+			//
+			//                modalTipWindow.visible = true;
+			//                modalTipWindow.includeInLayout = true;
+			//                modalTipWindow.tipArray.removeAll();
+			//                var e:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.SCENE_AREABAD_IMPPERF_GET);
+			//                e.data = new Object;
+			//                e.data.cityId = user.cityId;
+			//                e.data.sceneId = gt.param.sceneId;
+			//                e.data.areaId = gt.param.areaId;
+			////                msgDispatcher(e);
+			//				requestServerUtil.addRequest(e);
+			//
+			//            }
+			
+			//初始化弹出窗口数据
+			//            [MessageHandler(selector = "SCENE_AREABAD_IMPPERF_INIT")]
+			//            public function initModalTipWindowHandler(e:SceneThumbnailEvent):void
+			//            {
+			//
+			//                modalTipWindow.tipArray.removeAll();
+			//                log.info(stcPM.stdm.badList);
+			//                modalTipWindow.tipArray.addAll(stcPM.stdm.badList);
+			//
+			//            }
+			
+			//删除缩略图tip窗口
+			//            public function hiddenImgTipHandler(evt:MouseEvent):void
+			//            {
+			//                oldx = -111;
+			//                oldy = -111;
+			//                modalTipWindow.visible = false;
+			//                modalTipWindow.includeInLayout = false;
+			//            }
+			
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				setTimeout(function():void
+				{
+					loadData();
+				}, 3000);
+			}
+			
+			public function showEle(flag:Boolean):void
+			{
+				//                mGroup.visible = flag;
+				//                mGroup.includeInLayout = flag;
+			}
+			
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				//抛出事件处理
+				
+				if (user.initSceneId == "1004" || user.initSceneId == "1001"){
+					//					stcPM.startImgGetData();
+					log.info("获取地市tree数据");
+					var evt:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_STARTIMGGETDATA);
+					evt.data = new Object();
+					evt.data.sceneId = user.initSceneId;
+					evt.data.cityId = "00";
+					evt.data.name = "";
+					//            dispatchMsg(evt);
+					requestServerUtil.addRequest(evt);
+				}
+
+				else{
+//					stcPM.cityTreeGetData();
+					log.info("获取地市tree数据");
+					var evt:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_CITYTREEGETDATA);
+					evt.data = new Object();
+					evt.data.sceneId = user.initSceneId;
+					evt.data.level = "1";
+					evt.data.flag = "1";
+					evt.data.cityId = "00";
+					//            dispatchMsg(evt);
+					requestServerUtil.addRequest(evt);
+				}
+			
+			}
+			
+			private var scParam:Object;
+			
+			[MessageHandler(selector = "CMS_SCENE_SCENETHUMBNAIL_DELETEIMGSCENEDATA")]
+			public function confirmSceneDelete(e:SceneThumbnailEvent):void
+			{
+				log.info(e.data);
+				scParam = e.data;
+				Alert.show("该区域是本场景最后一个区域，是否确定删除区域后删除该场景？", "提示", (Alert.OK | Alert.NO | Alert.CANCEL), null, deleteSceneHandler);
+				
+			}
+			
+			private function deleteSceneHandler(ce:CloseEvent):void
+			{
+				var evt:SceneThumbnailEvent = new SceneThumbnailEvent(SceneThumbnailEvent.CMS_SCENE_SCENETHUMBNAIL_DELETEIMGDATA);
+				
+				if (ce.detail == Alert.OK)
+				{
+					log.info("删除场景和区域");
+					scParam.sceneFlag = "1"; //删除
+					evt.data = scParam;
+					log.info(evt.data);
+					//                    dispatchMsg(evt);
+					requestServerUtil.addRequest(evt);
+				}
+				else if (ce.detail == Alert.NO)
+				{
+					log.info("不删除场景，之删除区域");
+					scParam.sceneFlag = "2"; //不删除
+					evt.data = scParam;
+					log.info(evt.data);
+					//                    dispatchMsg(evt);
+					requestServerUtil.addRequest(evt);
+				}
+			}
+			
+			
+			private var indexChangeEvent:IndexChangeEvent;
+			protected function list_changeHandler(event:IndexChangeEvent):void
+			{
+				indexChangeEvent = event;
+				log.info("[list_changeHandler]");
+				// TODO Auto-generated method stub
+				var data:* = list.dataProvider.getItemAt(event.newIndex);
+				log.info(data);
+				if (data)
+				{
+					if (user.sceneId == "1004" && data.hasOwnProperty("flag") && data["flag"] == "1")
+					{
+//						log.info("点击假数据，直接抛出事件，不改任何数据，直接刷新！！！");
+//						
+//						if (data["areaId"] == 1)
+//						{
+//							dispatchMsg(evt);
+//						}
+//						else
+//						{
+//							Alert.show("尚未配置……", "提示");
+//						}
+//						return;
+					}
+					
+					//				if(user.level == "2"){
+					//					evt = new SceneEvent(SceneEvent.CHANGE_MAPVIEW);
+					//				}
+					//				user.areaId = param.areaId;
+					//                user.level = "2";
+					//                user.currentMapType = "0";
+					//                user.layerurl = param.layerUrl;
+					//                user.layerId = param.layerId;
+					//                evt.param = new Object();
+					//                evt.param = param;
+					//                log.info(user);
+					//                dispatchMsg(evt);
+					
+					log.warn("------------");
+					log.debug(data);
+					var param:Object = new Object();
+					param.areaId = String(data.areaId);
+					param.level = "2";
+					param.cityName = "";
+					param.currentMapType = "0";
+					param.centerlongitude = String(data.centerlongitude);
+					param.centerlatitude = String(data.centerlatitude);
+					param.layerurl = data.layerUrl;
+					param.layerId = data.layerId;
+					param.cityId = "";
+//					if (data.CITY_ID)
+//						param.cityId = data.CITY_ID;
+//					else
+//						param.cityId = data.city_id;
+	                user.layerurl = param.layerurl;
+	                user.layerId = param.layerId;
+					user.level = param.level;
+					user.cityId = param.cityId;
+					user.cityName = param.cityName;
+					user.currentMapType = param.currentMapType;
+					user.areaId = param.areaId;
+					
+					
+					
+					var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+					e.param = new Object();
+					if(param.currentMapType=="0"){
+						e.param.currentState="gisMap";
+						e.param.iscounty=true;
+					}else{
+						e.param.currentState="vectorMap";
+						e.param.iscounty=false;
+					}
+					//				e.param.currentState = user.mapType=="0"?"gisMap":"vectorMap";
+					e.param.city_id="";
+					//				e.param.logicalType=user.logicalType;
+					e.param.level=param.level;
+					e.param.city_name=param.cityName;
+					e.param.centerlongitude = param.centerlongitude;
+					e.param.centerlatitude = param.centerlatitude;
+					dispatchMsg(e);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Group id="thGroup"
+			 width="100%">
+		<s:HGroup width="100%" verticalAlign="middle" paddingBottom="5" paddingTop="5" paddingRight="15">
+			<mx:Image id="picImg" click="this.visible=false;"
+					  source="{_right_gray}"
+					  name="right"
+					  toolTip="缩略图面板"
+					  buttonMode="true"
+					  mouseOver="this.picImg.name == 'left'? this.picImg.source = _left_blue : this.picImg.source = _right_blue;"
+					  mouseOut="this.picImg.name == 'left' ? this.picImg.source = _left_gray : this.picImg.source = _right_gray;"/>
+			<s:List id="list" width="100%" height="100%" styleName="sceneList" change="list_changeHandler(event)" dataProvider="{scenePM.sceneThumbnailDM.data}" contentBackgroundAlpha="0" borderVisible="false" itemRenderer="com.linkage.module.cms.gsscene.viewnew.SceneThumbnailItemRenderer" >
+				<s:layout>
+					<s:TileLayout horizontalGap="5" requestedRowCount="1" columnWidth="120" rowHeight="100" columnAlign="justifyUsingWidth" rowAlign="justifyUsingHeight"/>
+				</s:layout>
+			</s:List>
+		</s:HGroup>
+		<!--<components:ModalTipWindow id="modalTipWindow"
+		visible="false"
+		includeInLayout="false"/>-->
+		<mx:Image source="{startEnd}"
+				  buttonMode="true"
+				  top="1"
+				  right="2"
+				  click="image1_clickHandler(event)"
+				  toolTip="区域启停"/>
+	</s:Group>
+</s:BorderContainer>

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  width="410" height="300" close="window1_closeHandler(event)" dragable="true"
+			  maximizable="false" minimizable="false" title="视图选择">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.controls.RadioButton;
+			import mx.controls.RadioButtonGroup;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.HGroup;
+			
+			//单选组
+			private var radioGroup:RadioButtonGroup = null;
+			//告警视图是否显示
+			private var _alarmViewShow:Boolean = false;
+			//视图数组
+			private var _viewArray:Array = null;
+			//回调函数
+			private var _callBack:Function = null;
+			
+			public function initWindow(success:Function):void
+			{
+				//初始化回调函数
+				_callBack = success;
+				radioGroup = new RadioButtonGroup();
+				//初始化选择视图
+				var isIdx:Boolean = true;
+				for each(var view:Object in _viewArray)
+				{
+					var viewGrid:GridRow = new GridRow();
+					
+					var viewIdItem:GridItem = new GridItem();
+					
+					var viewIdRadio:RadioButton = new RadioButton();
+					viewIdRadio.name = "viewIdRadio";
+					viewIdRadio.group = radioGroup;
+					viewIdRadio.value = view.viewId;
+					if(isIdx)
+					{
+						viewIdRadio.selected = true;
+					}
+					
+					
+					viewIdItem.addElement(viewIdRadio);
+					viewGrid.addElement(viewIdItem);
+					
+					var viewNameItem:GridItem = new GridItem();
+					var viewNameLabel:Label = new Label();
+					viewNameLabel.text = view.viewName;
+					viewNameItem.addElement(viewNameLabel);
+					viewGrid.addElement(viewNameItem);
+					
+					var viewCreatorItem:GridItem = new GridItem();
+					var viewCreatorLabel:Label = new Label();
+					viewCreatorLabel.text = view.creator;
+					viewCreatorItem.addElement(viewCreatorLabel);
+					viewGrid.addElement(viewCreatorItem);
+					
+					viewChoose.addElement(viewGrid);
+					
+					isIdx = false;
+				}
+			}
+			
+			//弹出列过滤过滤告警
+			public function showHideWindow(displayObj:DisplayObject):void
+			{
+				if (_alarmViewShow)
+				{
+					//2.去除过滤窗口
+					_alarmViewShow = false;
+					PopUpManager.removePopUp(this);
+				}
+				else
+				{
+					_alarmViewShow = true;
+					PopUpManager.addPopUp(this, displayObj, false);
+					PopUpManager.centerPopUp(this);
+				}
+			}
+			
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				showHideWindow(null);
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				_callBack.call(this,radioGroup.selectedValue);
+				showHideWindow(null);
+			}
+			
+			public function set views(viewArray:Array):void
+			{
+				_viewArray = viewArray;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%">
+		<s:Scroller width="100%" height="90%" horizontalScrollPolicy="off">
+			<s:Group width="100%" height="100%">
+				<mx:Grid id="viewChoose" width="100%" height="100%">
+					<mx:GridRow>
+						<mx:GridItem width="30" height="24" horizontalAlign="left"
+									 verticalAlign="middle">
+							<s:Label text="选择"/>
+						</mx:GridItem>
+						<mx:GridItem width="250" height="24" horizontalAlign="left"
+									 verticalAlign="middle">
+							<s:Label text="视图名称"/>
+						</mx:GridItem>
+						<mx:GridItem width="60" height="24" horizontalAlign="left"
+									 verticalAlign="middle">
+							<s:Label text="创建者"/>
+						</mx:GridItem>
+					</mx:GridRow>
+				</mx:Grid>
+			</s:Group>
+		</s:Scroller>
+		<s:HGroup width="100%" height="10%" horizontalAlign="right">
+			<s:Button label="确认" buttonMode="true" click="button1_clickHandler(event)"/>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

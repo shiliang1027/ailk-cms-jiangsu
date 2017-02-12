@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		   xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   width="100%" height="100%" creationComplete="module_creationCompleteHandler(event)" bottom="5"
+		   layout="absolute" xmlns:components="com.linkage.module.cms.gsscene.view.components.*" xmlns:view="com.linkage.module.cms.viewroam.view.*">
+	
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:states>
+		<s:State name="centerNormal"/>
+		<s:State name="centerMax"/>
+	</mx:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.event.ResMatrixEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneview.SceneConfigDM;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import mx.events.FlexEvent;
+			
+			import spark.core.NavigationUnit;
+			private var log:ILogger = Log.getLoggerByClass(SceneModuleNew);
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			private var parameters:Object;
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Bindable]
+			[Embed(source = "img/down.png")]
+			private var down:Class;
+			
+			[Bindable]
+			[Embed(source = "img/up.png")]
+			private var up:Class;
+
+			[Embed(source = "img/up_gray.png")]
+			[Bindable]
+			private static var _up_gray:Class;
+			[Embed(source = "img/down_gray.png")]
+			[Bindable]
+			private static var _down_gray:Class;
+			
+			[Init]
+			public function _init():void
+			{
+				// TODO Auto-generated method stub
+				
+				this.parameters = this.parentApplication.parameters;
+				scenePM.parameters = this.parameters;
+				user.newAdded = this.parameters['newAdded'];
+				
+				
+				user.context = this.parameters['context'];
+				user.account = this.parameters['account'];
+				user.areaId = this.parameters['areaId'];
+				if(this.parameters['cityId']){
+					user.cityId = this.parameters['cityId'];
+				}else{
+					user.cityId = "00";
+				}
+				user.mapType = this.parameters['mapType'];
+				
+				if (user.newAdded && user.newAdded == "1")
+				{
+					user.sceneId = this.parameters['sceneAreaid'];
+					user.initSceneId = this.parameters['sceneId'];
+					user.rendeType = "2";
+					user.currentMapType = "0"; //初始化数据，当前窗口是gis地图还是矢量地图
+					user.level = "2";
+					user.pointlatitude = this.parameters['pointlatitude'];
+					user.pointlongitude = this.parameters['pointlongitude'];
+				}
+				else
+				{
+					user.sceneId = this.parameters['sceneId'];
+					user.initSceneId = user.sceneId;
+					user.rendeType = "1";
+					user.currentMapType = user.mapType; //初始化数据，当前窗口是gis地图还是矢量地图
+					user.level = this.parameters['level'];
+				}
+				
+				user.sceneTypeId = this.parameters['sceneTypeId'];
+				user.showMoLayer = this.parameters['showMoLayer'];
+				user.usinglayer = this.parameters['usinglayer'];
+				user.layerurl = this.parameters['layerurl'];
+				user.layerId = this.parameters['layerid'];
+				user.isNew = this.parameters["isNew"];
+				
+				user.showBadMoPoints = false;
+				user.isGisFlag = "0";
+				user.initLayerId = user.layerId; //初始layerId
+				user.initLayerUrl = user.layerurl; //初始layerUrl
+				
+				user.alarmParam = this.parameters['mapInfo'];
+				user.logicalType = this.parameters["logicalType"];//场景类型，1-日常节假日，2-LTE，3-（场景-地市-区域），4-（场景-区域）
+			}
+			
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				var e:SceneEvent = new SceneEvent("VIEW_CHANGE");
+				e.param = new Object();
+				e.param.currentState = user.mapType=="0"?"gisMap":"vectorMap";
+				e.param.city_id=user.cityId;
+				e.param.logicalType=user.logicalType;
+				e.param.level=user.level;
+				dispatcher(e);
+//				history.addHistory(e);
+			}
+			
+			[MessageHandler(selector = "MAIN_STATE_CHANGE")]
+			public function MAIN_STATE_CHANGE(e:SceneEvent):void
+			{
+				this.currentState = e.param.currentState;
+				
+				
+			}
+			
+			
+			protected function leftDown_clickHandler(event:MouseEvent = null):void
+			{
+				if (left.viewport.getVerticalScrollPositionDelta(NavigationUnit.END) > left.viewport.verticalScrollPosition)
+				{
+					left.viewport.verticalScrollPosition = left.viewport.getVerticalScrollPositionDelta(NavigationUnit.END);
+					leftImg.source = up;
+				}
+				else
+				{
+					left.viewport.verticalScrollPosition = left.viewport.getVerticalScrollPositionDelta(NavigationUnit.HOME);
+					leftImg.source = down;
+				}
+			}
+			
+			protected function rightDown_clickHandler(event:MouseEvent = null):void
+			{
+				if (right.viewport.getVerticalScrollPositionDelta(NavigationUnit.END) > right.viewport.verticalScrollPosition)
+				{
+					right.viewport.verticalScrollPosition = right.viewport.getVerticalScrollPositionDelta(NavigationUnit.END);
+					rightImg.source = up;
+				}
+				else
+				{
+					right.viewport.verticalScrollPosition = right.viewport.getVerticalScrollPositionDelta(NavigationUnit.HOME);
+					rightImg.source = down;
+				}
+			}
+			
+			protected function alarm_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (img.name == "down")
+				{
+					hideAlarm();
+				}
+				else if (img.name == "up")
+				{
+					showAlarm();
+				}
+			}
+			
+			private function hideAlarm(dura:Number = 100):void
+			{
+				dispatcher(new SceneEvent(SceneEvent.RESUME_NEWS));
+				//关闭流水
+				dispatcher(new SceneEvent("STOP_SCENE_ALARM"));
+				
+				resize.target = alarmVgroup;
+				resize.duration = dura;
+				resize.heightTo = 25;
+				resize.widthTo = Number.NaN;
+				resize.play();
+				
+				img.source = _up_gray;
+				img.name = "up";
+			}
+			
+			private function showAlarm(dura:Number = 100):void
+			{
+				//打开流水
+				dispatcher(new SceneEvent("LOAD_SCENE_ALARM"));
+				
+				resize.target = alarmVgroup;
+				
+				//	alarmComp.reloadAlarm();
+				
+				resize.duration = dura;
+				resize.heightTo = 247;
+				resize.widthTo = Number.NaN;
+				resize.play();
+				
+				img.source = _down_gray;
+				img.name = "down";
+			}
+			
+			
+			[MessageHandler(selector = "EQU_ALARMINFO")]
+			[MessageHandler(selector = "BADMO_CLICK")]
+			public function showAlarmFlow(e:ResMatrixEvent):void
+			{
+				log.info("劣化网元 点击处理：处理流水窗口！");
+				log.info("劣化网元 点击处理：过滤流水！");
+				var param:Object = {};
+				if (e.data.moTypeName == "机房")
+				{
+					param.ruleContent = 'neroom="' + e.data.neroom + '"';
+				}
+				else if (e.data.moTypeName == "电路")
+				{
+					param.ruleContent = 'circ_name="' + e.data.circ_name + '"';
+				}
+				else
+				{
+					param.ruleContent = 'alarmneid="' + e.data.moId + '"';
+				}
+				var evt:SceneEvent = new SceneEvent("CHANGE_SCENE_ALARM_BYFILTER");
+				evt.param = param;
+				dispatcher(evt);
+				doInitOrOpenAlarmsView();
+			}
+			[MessageHandler(selector = "LOAD_REFRESH_ALARM_FLOW")]
+			public function showAlarmFlowByFilter(e:SceneIntroEvent):void
+			{
+				log.info("劣化一级告警详情或者退服基站后的详情 点击处理：处理流水窗口！");
+				var evt:SceneEvent = new SceneEvent("CHANGE_SCENE_ALARM_BYFILTER");
+				evt.param = e.params;
+				dispatcher(evt);
+				//打开流水
+				doInitOrOpenAlarmsView();
+			}
+			private function doInitOrOpenAlarmsView():void{
+				if (alarmVgroup.height <= 35)
+				{
+					log.info("初始化、展开流水窗口！");
+					showAlarm();
+				}else{
+					//重新加载流水
+					dispatcher(new SceneEvent("LOAD_SCENE_ALARM"));
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{SceneModuleContextNew}"/>
+		</parsley:ContextBuilder>
+		
+		<s:Resize heightTo="0"
+				  id="resize"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:HGroup width="100%" height="100%">
+		<viewnew:CompsContainer id="left" width="380" height="100%" dataProvider="{scenePM.scfdm.leftPanelList}"
+								visible.centerMax="false" includeInLayout.centerMax="false"/>
+		
+		<viewnew:CenterComp id="center" width="100%" height="100%"/>
+			
+		<viewnew:CompsContainer id="right" width="380" height="100%" dataProvider="{scenePM.scfdm.rightPanelList}"
+								visible.centerMax="false" includeInLayout.centerMax="false"/>
+	</s:HGroup>
+	
+	<mx:VDividedBox id="mainVdbox" width="100%" height="100%">
+		<s:Group id="arrowImgGroup" width="100%" height="100%">
+			<mx:Image id="leftImg" left="5" bottom="0" buttonMode="true"
+					  click="leftDown_clickHandler(event)" source="{down}"/>
+			<mx:Image id="rightImg" right="5" bottom="0" buttonMode="true"
+					  click="rightDown_clickHandler(event)" source="{down}"/>
+		</s:Group>
+		<!--告警流水-->
+		<s:VGroup id="alarmVgroup" width="100%" minHeight="25" height="25" gap="0" horizontalAlign="center">
+			<mx:Image id="img" buttonMode="true" name="up" source="{_up_gray}" click="alarm_clickHandler(event)"/>
+			<s:Group id="alarmFlowGroup" width="100%" height="100%">
+				<viewnew:SceneAlarmFlowNew/>
+			</s:Group>
+		</s:VGroup>
+	</mx:VDividedBox>
+	
+	<components:KpiCustomView id="kpiCustomView"/>
+	
+	<view:ViewPerfWindow/>
+</mx:Module>

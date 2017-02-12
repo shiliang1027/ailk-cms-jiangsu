@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   xmlns:view="com.linkage.module.cms.scene.view.*"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   preinitialize="module1_creationCompleteHandler(event)"
+		   xmlns:components="com.linkage.module.cms.scenedaily.view.components.*"
+		   xmlns:hangandpick="com.linkage.module.cms.scenedaily.view.components.hangandpick.*"
+		   xmlns:worstmo="com.linkage.module.cms.scenedaily.view.components.worstmo.*"
+		   xmlns:alarmSearch="com.linkage.module.cms.specialty.alarmSearch.*"
+		   xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<fx:Declarations>
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{AlarmSearchModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.ui.components.pagination.event.PaginationEvent;
+			import com.linkage.module.cms.groupmonitor.custscene.alarmSearch.event.AlarmSignEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+
+
+			public var parameters:Object;
+
+			private var log:ILogger = Log.getLoggerByClass(AlarmSignListModule);
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.DEBUG;
+				target.filters = ["com.linkage.module.cms.specialty.*"];
+				Log.addTarget(target);
+
+				log.info(">>> 初始化日志组建完成 ......");
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				log.info("--加载样式完成！");
+			}
+		]]>
+	</fx:Script>
+	<alarmSearch:AlarmSign/>
+</mx:Module>

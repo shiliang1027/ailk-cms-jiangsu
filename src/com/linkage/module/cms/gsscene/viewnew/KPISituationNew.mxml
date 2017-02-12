@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:CompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					title="{_title}"
+					titleIcon="@Embed(source='../img/title_ico01.png')" creationComplete="compwindow_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneResource;
+			import com.linkage.module.cms.gsscene.view.components.kpisituation.event.KPISituationEvent;
+			import com.linkage.module.cms.gsscene.viewnew.kpisituationnew.ThresholdConfigWin;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.ColorUtil;
+			
+			import spark.events.IndexChangeEvent;
+			
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			private var log:ILogger = Log.getLoggerByClass(KPISituationNew);
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			private var _otherTabArray:ArrayCollection = new ArrayCollection([{"id":1,"name":"业务规模"},{"id":2,"name":"网络质量"}]);
+//			private var _LTETabArray:ArrayCollection = new ArrayCollection([{"id":4,"name":"CSFB监控"},{"id":5,"name":"指标同比"}]);
+			private var _LTETabArray:ArrayCollection = new ArrayCollection([{"id":5,"name":"指标同比"}]);
+			private var _LTETitle:String = "CSFB监控/网络指标监控";
+			private var _OtherTitle:String = "指标同比";
+			[Bindable]
+			private var _title:String="";
+			[Bindable]
+			private var _tabArray:ArrayCollection = new ArrayCollection();
+			[MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+			[MessageHandler(selector = "KPISITUATION_REFRESH_DATA")]
+			public function loadData(event:SceneEvent = null):void
+			{
+				log.info("加载指标概况数据：");
+				if(kpiSituationTabBar.selectedItem){
+					user.perfClass = kpiSituationTabBar.selectedItem.id;
+				}else{
+					user.perfClass = _tabArray.getItemAt(0).id;
+				}
+				log.debug("[指标概况:]事件派发加载表格数据：" + KPISituationEvent.SHOW_KPI_DATA);
+				requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.SHOW_KPI_DATA));
+			}
+			private var searchKpiName:String = "";
+			[Bindable]
+			private var arr:ArrayCollection = new ArrayCollection();
+			[MessageHandler(selector = "CMS_SCENE_KPISITUATION_SHOW_DATA")]
+			public function showKpiSituData(event:KPISituationEvent):void
+			{
+				arr.removeAll();
+				if (user.perfClass == 0)
+				{
+					user.perfClass = 1;
+				}
+				var timeInterval:String = "";
+				var threshold:String = "";
+				
+				log.info("指标概况处理：" + user.perfClass + ' -- ' + scenePM.kpiSituationDM.kpiSituationArr.length);
+				
+				for each (var obj:Object in scenePM.kpiSituationDM.kpiSituationArr)
+				{
+					//添加搜索过滤功能
+					var kpiName:String = obj.kpiName as String;
+					
+					if (searchKpiName == null || searchKpiName == "" || kpiName.indexOf(searchKpiName) > -1)
+					{
+						timeInterval = obj["timeInterval"] == null ? "" : obj["timeInterval"];
+						threshold = (obj["threshold"] == null ? "" : obj["threshold"]);
+						obj.showDetial = "粒度:" + timeInterval + "\n" + "阈值:" + threshold;
+						obj.colorShow = ColorUtil.adjustBrightness(uint(obj.color), -120);
+						if (obj.isup == "1"){
+							obj.isupShow=scenePM.parameters['context']+"/cms/img/kpi/up.png";
+						}else if (obj.isup == "0"){
+							obj.isupShow=scenePM.parameters['context']+"/cms/img/kpi/ping.png";
+						}else if (obj.isup == "-1"){
+							obj.isupShow=scenePM.parameters['context']+"/cms/img/kpi/down.png";
+						}
+					 	if('1'==obj.warnLevel){
+							obj.warnIMG = GsSceneResource.gaojin_1;
+						}else if('2'==obj.warnLevel){
+							obj.warnIMG = GsSceneResource.gaojin_2;
+						}else if('3'==obj.warnLevel){
+							obj.warnIMG = GsSceneResource.gaojin_3;
+						}else if('4'==obj.warnLevel){
+							obj.warnIMG = GsSceneResource.gaojin_4;
+						}else {
+							obj.warnIMG = GsSceneResource.gaojin_0;
+						}
+ 						arr.addItem(obj);
+					}
+				}
+				if (user.kpiId != null)
+				{
+					log.info("刷新视图或者下一级钻取后，加载原先的指标。");
+					log.info(user);
+					var param:Object = {};
+					param['kpiId'] = user.kpiId;
+					param['kpiName'] = user.kpiName;
+					param['moTypeId'] = user.moTypeId;
+					param['timeInterval'] = user.timeInterval;
+					showChart(param);
+				}
+			}
+//			protected function kpiSituationViewStack_changeHandler(event:IndexChangedEvent):void
+//			{
+//				log.debug("tabbar info:" + event.newIndex);
+//				user.perfClass = event.newIndex + 1;
+//				this.searchName.text = "";
+//				searchKpiName = "";
+//				requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.SHOW_KPI_DATA));
+//			}
+			
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				this.searchName.text = "";
+				searchKpiName = "";
+				log.debug("查询名称：" + searchKpiName);
+				requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.SHOW_KPI_DATA));
+			}
+			
+			protected function url_link_clickHandler():void
+			{
+				log.debug("跳转至性能指标趋势监控视图");//url待修改。
+				var url:String = user.context + "/flex-release/KpiMonitor.jsp";
+				navigateToURL(new URLRequest(url));
+			}
+			
+			protected function image2_clickHandler(event:MouseEvent):void
+			{
+				log.debug(" 弹出查询控件");
+				PopUpManager.addPopUp(searchWindow, this.parentApplication as DisplayObject);
+				searchWindow.x = 625;
+				searchWindow.y = 60;
+			}
+			
+			[Inject("thresholdConfigWin")]
+			[Bindable]
+			public var thresholdConfigWin:ThresholdConfigWin;
+			protected function image3_clickHandler(event:MouseEvent):void
+			{
+				log.debug("进入阈值配置页面...");
+				
+//				kpiSituationPM.queryKpiNoSelect(noSelectParam);
+				PopUpManager.addPopUp(thresholdConfigWin, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(thresholdConfigWin);//居中显示;
+				//重置指标阈值名称
+				thresholdConfigWin.khgzthresholdName.text = "";
+			}
+			/**
+			 * 显示指标对应的图表
+			 */
+			private function showChart(obj:Object):void
+			{
+				var kpiId:String = obj['kpiId'];
+				var moTypeId:String = obj['moTypeId'];
+				var kpiName:String = obj['kpiName'];
+				var timeInterval:String = obj['timeInterval'];
+				var kpiGatherTime:String = obj['kpiGatherTime'];
+				
+				log.info("load kpi chart data ------><----------------");
+				log.info(obj);
+				
+				user.kpiId = kpiId;
+				user.kpiIdList = kpiId;
+				user.kpiName = kpiName;
+				user.moTypeId = moTypeId;
+				user.moTypeIdList = moTypeId;
+				user.timeInterval = timeInterval;
+				user.kpiGatherTime = kpiGatherTime;
+				user.dateFlag = "1";
+				user.isStaticres = obj['isStaticres'];
+				
+				user.startTime = null;
+				user.endTime = null;
+				log.debug(user);
+				log.debug("[指标概况]：指标切换事件：KPI_CHANGE");
+				var e:SceneEvent = new SceneEvent(SceneEvent.KPI_CHANGE);
+				e.kpiName = kpiName;
+				msgDispatcher(e);
+				
+//				log.info("[指标概况]：刷新泰森多边形数据:" + user.sceneId);
+//				if (!user.isDrillDown)
+//					user.refreshPolygon = true;
+//				
+//				if (user.currentMapType == "0" && user.level == "2" && !user.isDrillDown)
+//					requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_POLYGON));
+			}
+			private function exportKPI():void
+			{
+				var url:String = user.context + "/scene/panels/exportSceneKpiGeneralInfoAction!exportSceneKpiGeneralInfo.action?sceneId=" + user.sceneId + "&cityId=" + user.cityId + "&level=" + user.level;
+				navigateToURL(new URLRequest(url));
+			}
+			protected function kpiList_changeHandler(event:IndexChangeEvent):void
+			{
+				log.debug("指标概况，抛出事件.......");
+				var params:Object = (event.target).selectedItem;
+				log.debug(params);
+//				user.isDrillDown = false;
+				/* 设置矢量地图查询的数据类型为 某项指标 */
+				scenePM.mapVectorDM.loadMapInfoType = GsSceneConts.loadMapInfoType_kpi;
+				showChart(params);
+				msgDispatcher(new SceneEvent("MAPVECTOR_KPI_CHANGE"));
+			}
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this.searchWindow);
+				searchKpiName = this.searchName.text;
+				log.debug("查询名称：" + searchKpiName);
+				requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.SHOW_KPI_DATA));
+			}
+			
+			protected function kpiSituationTabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.debug("tabbar info:" + event.newIndex);
+//				user.perfClass = event.newIndex + 1;
+				switch(user.logicalType){
+					case "2"://LTE
+						//_title = _LTETitle.split("/")[event.newIndex];
+						_title = _OtherTitle;
+						break;
+				}
+				
+				user.perfClass = kpiSituationTabBar.selectedItem.id;
+				this.searchName.text = "";
+				searchKpiName = "";
+				requestServerUtil.addRequest(new KPISituationEvent(KPISituationEvent.SHOW_KPI_DATA));
+			}
+			
+			protected function compwindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(_tabArray.length<=0){
+					switch(user.logicalType){
+						case "2"://LTE
+//							_title = _LTETitle;
+							//_title = _LTETitle.split("/")[0];
+							_title = _OtherTitle;
+							_tabArray.addAll(_LTETabArray);
+							break;
+						default:
+							_title = _OtherTitle;
+							_tabArray.addAll(_otherTabArray);
+							break;
+					}
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup gap="0"
+			  width="100%"
+			  height="100%">
+		<s:TabBar id="kpiSituationTabBar"
+				  styleName="sceneTabBar" selectedIndex="0"
+				  width="100%" buttonMode="true"
+				  dataProvider="{_tabArray}" labelField="name" change="kpiSituationTabBar_changeHandler(event)"/>
+		<s:List width="100%"
+				id="kpiList"
+				styleName="sceneList"
+				allowMultipleSelection="true"
+				height="100%"
+				contentBackgroundAlpha="0" borderVisible="false"
+				dropEnabled="true"
+				dataProvider="{arr}"
+				dragMoveEnabled="true"
+				change="kpiList_changeHandler(event)"
+				itemRenderer="com.linkage.module.cms.gsscene.view.components.kpisituation.components.KpiViewItemRenderer">
+		</s:List>
+	</s:VGroup>
+	<s:HGroup verticalAlign="middle"
+			  horizontalAlign="center"
+			  right="60"
+			  top="-24">
+		<mx:Image source="{GsSceneResource.url_link}"
+				  buttonMode="true"
+				  toolTip="跳转至性能指标趋势监控视图"
+				  click="url_link_clickHandler()"/>
+		<mx:Image source="@Embed('../img/viewAll.png')"
+				  buttonMode="true"
+				  toolTip="显示全部"
+				  click="button2_clickHandler(event)"/>
+		<mx:Image source="@Embed('../img/search.png')"
+				  buttonMode="true"
+				  toolTip="指标查询"
+				  click="image2_clickHandler(event)"/>
+		<mx:Image source="@Embed('../img/u2.png')"
+				  buttonMode="true"
+				  toolTip="阈值设置"
+				  click="image3_clickHandler(event)"/>
+		<!--<mx:Image source="@Embed('../img/u2.png')"
+		buttonMode="true"
+		toolTip="指标配置"
+		click="image1_clickHandler(event)"/>-->
+		<mx:Image source="{GsSceneResource.export}"
+				  buttonMode="true"
+				  toolTip="导出"
+				  click="exportKPI()"/>
+	</s:HGroup>
+	<mx:Box width="268"
+			height="69"
+			visible="false"
+			includeInLayout="false">
+		<viewnew:PopUpCompWindow id="searchWindow"
+							title="查询指标"
+							width="100%"
+							height="100%">
+			<s:VGroup width="100%"
+					  height="100%"
+					  minHeight="38">
+				<s:HGroup width="100%"
+						  verticalAlign="middle">
+					<s:Label text="指标名称："/>
+					<s:TextInput id="searchName"/>
+					<s:Button label="查询"
+							  click="button1_clickHandler(event)"/>
+				</s:HGroup>
+			</s:VGroup>
+		</viewnew:PopUpCompWindow>
+	</mx:Box>
+</viewnew:CompWindow>

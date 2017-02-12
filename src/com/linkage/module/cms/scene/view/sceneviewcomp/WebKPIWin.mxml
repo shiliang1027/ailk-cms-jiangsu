@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    minimizable="false"
+                    maximizable="true"
+                    dragable="true"
+                    closable="true"
+                    close="window1_closeHandler(event)"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    width="100%"
+                    height="100%">
+    <fx:Script>
+        <![CDATA[
+            import com.ailk.common.system.logging.ILogger;
+            import com.ailk.common.system.logging.Log;
+            import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+            import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+
+            import mx.collections.ArrayCollection;
+            import mx.collections.IList;
+            import mx.managers.PopUpManager;
+            import mx.rpc.events.FaultEvent;
+            import mx.rpc.remoting.RemoteObject;
+
+            private var endpoint:String = "/cms/messagebroker/amf";
+            private var remoteDestination:String = "flexdestination_cms_perfmonitornew_kpi_dataService";
+            private var remoteSource:String = "com.linkage.module.cms.perfmonitornew.kpi.serv.KpiServImp";
+
+            private var log:ILogger = Log.getLoggerByClass(WebKPIWin);
+
+
+            protected function window1_closeHandler(event:WindowEvent):void
+            {
+                PopUpManager.removePopUp(this);
+            }
+
+            public function loadData():void
+            {
+                var remote:RemoteObject = BlazeDSUtil.newService(
+                    remoteDestination, remoteSource, endpoint,
+                    function(result:Object):void
+                    {
+                        log.info("查询互联网指标数据成功：");
+                        log.debug(result);
+
+                        if (result != null && result.length > 0)
+                        {
+                            ac.addAll(result as IList);
+                        }
+                        else
+                            log.error("查询互联网指标数据列表成功返回,但是结果集为空");
+                    },
+                    function(event:FaultEvent):void
+                    {
+                        log.error("查询互联网指标数据异常。" + event.fault.faultString);
+                    });
+
+                log.info("查询互联网指标数据。");
+                ac.removeAll();
+                remote.getAllSpec({});
+                remote = null;
+            }
+
+            [Bindable]
+            private var ac:ArrayCollection = new ArrayCollection;
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <mx:AdvancedDataGrid width="100%"
+                         dataProvider="{ac}"
+                         height="100%">
+        <mx:columns>
+            <mx:AdvancedDataGridColumn headerText="指标名称"
+                                       dataField="kpiName"/>
+            <mx:AdvancedDataGridColumn headerText="指标值"
+                                       dataField="kpiValue"/>
+            <mx:AdvancedDataGridColumn headerText="开始时间"
+                                       dataField="startTime"/>
+            <mx:AdvancedDataGridColumn headerText="结束时间"
+                                       dataField="endTime"/>
+        </mx:columns>
+    </mx:AdvancedDataGrid>
+</ailk_compts:Window>

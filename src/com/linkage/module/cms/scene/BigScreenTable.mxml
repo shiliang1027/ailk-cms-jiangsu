@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+               xmlns:s="library://ns.adobe.com/flex/spark"
+               xmlns:mx="library://ns.adobe.com/flex/mx"
+               width="100%"
+               height="100%" fontFamily="微软雅黑"
+               creationComplete="main_creationCompleteHandler(event)"
+               preinitialize="main_preinitializeHandler(event)"
+               preloader="com.linkage.module.cms.components.downloadprogress.CustomPreloader" xmlns:linkage_compts="http://www.ailk.com/2011/ailk/components">
+    <s:layout>
+        <s:BasicLayout/>
+    </s:layout>
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			
+			import mx.charts.LineChart;
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+
+
+            public var lm:LoadManager;
+
+            private var lc:LineChart;
+
+            private var alert:Alert;
+
+            private var levelMap:Object = new Object();
+
+            private static var log:ILogger = Log.getLoggerByClass(BigScreenTable);
+
+            protected function main_preinitializeHandler(event:FlexEvent):void
+            {
+                styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+            }
+
+
+            protected function main_creationCompleteHandler(event:FlexEvent):void
+            {
+                levelMap["info"] = LogEventLevel.INFO;
+                levelMap["debug"] = LogEventLevel.DEBUG;
+                levelMap["warn"] = LogEventLevel.WARN;
+                levelMap["error"] = LogEventLevel.ERROR;
+                levelMap["all"] = LogEventLevel.ALL;
+
+                lm = new LoadManager(this);
+                var moduleUrl:String = this.parameters["moduleUrl"];
+
+                var level:int = 0;
+
+                if (this.parameters["LogLevel"])
+                {
+                    if (int(this.parameters["LogLevel"]) != 0)
+                    {
+                        level = int(this.parameters["LogLevel"]);
+                    }
+                    else
+                    {
+                        level = levelMap[String(this.parameters["LogLevel"]).toLocaleLowerCase()];
+                    }
+
+                    if (int(this.parameters["LogType"]) == 0)
+                    {
+                        var logTarget:com.linkage.system.logging.ILoggingTarget = new com.linkage.system.logging.targets.MonsterTarget2();
+                        logTarget.level = level;
+
+                        if (this.parameters["LogFilters"])
+                        {
+                            logTarget.filters = String(this.parameters["LogFilters"]).split(",");
+                        }
+                        com.linkage.system.logging.Log.addTarget(logTarget);
+                    }
+                    else
+                    {
+                        var newLogTarget:com.ailk.common.system.logging.ILoggingTarget = new com.ailk.common.system.logging.targets.MonsterTarget2();
+                        newLogTarget.level = level;
+
+                        if (this.parameters["LogFilters"])
+                        {
+                            newLogTarget.filters = String(this.parameters["LogFilters"]).split(",");
+                        }
+                        com.ailk.common.system.logging.Log.addTarget(newLogTarget);
+                    }
+                }
+                ExternalInterface.addCallback("flashStart", flashStart);
+                ExternalInterface.addCallback("flashStop", flashStop);
+				
+				timer.addEventListener(TimerEvent.TIMER ,refreshData);
+				timer2.addEventListener(TimerEvent.TIMER ,refreshLocal);
+				timer.start();
+//				laodDataWithColumn();
+				dealDG();
+				
+				laodData();
+            }
+
+            private var startList:ArrayList = new ArrayList();
+            private var isRunning:Boolean = false;
+
+            public function flashStart():String
+            {
+                var message:Array = new Array();
+                startList.source.forEach(function(item:*, index:int, array:Array):void {
+                    try {
+                        if (!item.running) {
+                            item.start();
+                            message.push(item + "启动成功");
+                        } else {
+                            message.push(item + "已经启动");
+                        }
+                    } catch (e:Error) {
+                        message.push(e.getStackTrace());
+                    }
+                });
+                isRunning = true;
+                return message.join("\n") + isRunning;
+            }
+
+            public function flashStop():String
+            {
+                var message:Array = new Array();
+                startList.source.forEach(function(item:*, index:int, array:Array):void {
+                    try {
+                        if (item.running) {
+                            item.stop();
+                            message.push(item + "停止成功");
+                        } else {
+                            message.push(item + "已经停止");
+                        }
+
+                    } catch (e:Error) {
+                        message.push(e.getStackTrace());
+                    }
+                });
+                isRunning = false;
+                return message.join("\n") + isRunning;
+            }
+
+            public function remove(item:Object):void
+            {
+                startList.removeItem(item);
+            }
+
+            public function add(item:Object):void
+            {
+                if (startList.getItemIndex(item) < 0)
+                {
+                    startList.addItem(item);
+                }
+            }
+
+            public function clear():void
+            {
+                startList.removeAll();
+            }
+
+			private var timer:Timer = new Timer(5*60*1000);
+			private var timer2:Timer = new Timer(40*1000);
+			
+			[Bindable]
+			public var ac:ArrayCollection = new ArrayCollection;
+			public var allDatas:ArrayCollection = new ArrayCollection;
+			
+			private function refreshData(e:Object):void
+			{
+//				laodDataWithColumn();
+				laodData();
+			}
+
+            private function laodDataWithColumn():void
+            {
+                log.info("开始加载数据");
+				ac.removeAll();
+
+                var rmtObj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_bigscreen_bigscreenservice", "", "/cms/messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        log.info("加载数据成功。");
+						log.debug(data['columns']);
+						log.debug(data['datas']);
+						
+						initColumns(data['columns'] as IList);
+						
+						lm.hideLoading();
+						
+						if(data['datas'] != null)
+						ac.addAll(data['datas'] as IList);
+						 ac.refresh();   
+                    },
+                    function(e:FaultEvent):void
+                    {
+						lm.hideLoading();
+						log.info("加载数据异常。" +　e.fault.faultDetail);
+                    });
+
+				lm.showLoading();
+                rmtObj.getBigScreenDatas({});
+            }
+
+			private var showIndex:int = 0;
+			
+            private function laodData():void
+            {
+                log.info("开始加载数据");
+				
+				allDatas.removeAll();
+				showIndex= 0;
+				
+				if(timer2.running)
+					timer2.stop();
+
+                var rmtObj:RemoteObject = BlazeDSUtil.newService(
+                    "flexdestination_cms_bigscreen_bigscreenservice", "", "/cms/messagebroker/amf",
+                    function(data:Object):void
+                    {
+                        log.info("加载数据成功。");
+						log.debug(data);
+						
+						lm.hideLoading();
+						
+						if(data != null)
+							allDatas.addAll(data as IList);
+						
+						timer2.start();
+						
+						showIndex = 0;
+						refreshLocal();
+                    },
+                    function(e:FaultEvent):void
+                    {
+						lm.hideLoading();
+						log.info("加载数据异常。" +　e.fault.faultDetail);
+                    });
+
+				lm.showLoading();
+                rmtObj.queryBigScreenInfos({});
+            }
+			
+			private function refreshLocal(e:Object=null):void
+			{
+				log.info("刷新分页数据 -  showIndex: " + showIndex);
+				log.debug("dg.rowCount:" + dg.rowCount);
+				
+				ac.removeAll();
+				
+				if(showIndex >= allDatas.length)
+					showIndex = 0;
+					
+				for(;showIndex<allDatas.length&&ac.length< dg.rowCount; showIndex++)
+				{
+					ac.addItem(allDatas.getItemAt(showIndex));
+				}
+				
+				dg.dataProvider = ac;
+				
+				log.info("刷新分页数据 end: " + ac.length);
+			}
+			
+			private function initColumns(cols:IList):void
+			{
+//				var colArr:Array = new Array;
+//				
+//				for each(var col:Object in cols)
+//				{
+//					var c:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+//					c.dataField = col['key'];
+//					c.headerText = col['name'];
+//					
+//					log.debug(c.headerText + " -> " + c.dataField);
+//					
+//					colArr.push(c);
+//				}
+//				dg.columns = colArr;
+//				dg.validateNow();
+			}
+			
+			private function dealDG():void
+			{
+				dg.rowCount = Math.floor((dg.height - dg.headerHeight)/ dg.rowHeight);
+			}
+        ]]>
+    </fx:Script>
+
+    <s:HGroup width="100%"
+              height="100%"
+              horizontalAlign="center"
+              verticalAlign="middle"
+              paddingBottom="10"
+              paddingLeft="10"
+              paddingRight="10"
+              paddingTop="0">
+        <linkage_compts:AdvancedDataGrid id="dg" headerHeight="65" rowHeight="28"
+							 fontSize="16" verticalScrollPolicy="off"
+							 textAlign="left" sortableColumns="false" draggableColumns="false"
+							 headerWordWrap="true" selectionMode="multipleRows"
+							 width="100%"
+                             height="100%">
+			<linkage_compts:groupedColumns>
+				<linkage_compts:AdvancedDataGridColumn dataField="room_name" headerText="机房"/>
+				<linkage_compts:AdvancedDataGridColumn dataField="mo_name2" headerText="2G小区"/>
+				<linkage_compts:AdvancedDataGridColumn dataField="kpi1" headerText="TCH拥塞率" width="75" textAlign="center" 
+										   itemRenderer="com.linkage.module.cms.scene.AlarmSeverityColumnRenderer"/>
+				<linkage_compts:AdvancedDataGridColumn dataField="kpi2" headerText="TCH掉话率" width="75" textAlign="center" 
+										   itemRenderer="com.linkage.module.cms.scene.AlarmSeverityColumnRenderer"/>
+				<linkage_compts:AdvancedDataGridColumn dataField="mo_name3" headerText="TD小区"/>
+				<linkage_compts:AdvancedDataGridColumn dataField="kpi3" headerText="CS无线接通率" width="75" textAlign="center" 
+										   itemRenderer="com.linkage.module.cms.scene.AlarmSeverityColumnRenderer"/>
+				<linkage_compts:AdvancedDataGridColumn dataField="kpi4" headerText="CS掉话率" width="75" textAlign="center" 
+										   itemRenderer="com.linkage.module.cms.scene.AlarmSeverityColumnRenderer"/>
+				<linkage_compts:AdvancedDataGridColumn dataField="mo_name4" headerText="LTE小区"/>
+				<linkage_compts:AdvancedDataGridColumn dataField="kpi5" headerText="在线RRC连接用户数"  textAlign="center" 
+										   itemRenderer="com.linkage.module.cms.scene.AlarmSeverityColumnRenderer"
+										   width="100"/>
+			</linkage_compts:groupedColumns>
+        </linkage_compts:AdvancedDataGrid>
+    </s:HGroup>
+</s:Application>

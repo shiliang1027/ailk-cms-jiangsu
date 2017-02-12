@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				autoDrawBackground="false" 
+				xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.events.FlexEvent;
+			
+			private var log:ILogger=Log.getLoggerByClass(GisHotCheckBoxKpiItemRenderer);
+			[MessageDispatcher]
+			public var dispatcher:Function;
+
+			protected function checkbox1_changeHandler(event:Event):void
+			{
+				data.selected=CheckBox(event.currentTarget).selected;
+				log.warn("selected change :{0},{1}",data.selected,data.id);
+				dispatcher(new GisHotEvent(GisHotEvent.PICLAYERCHANGE));
+				
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<s:CheckBox left="0" right="0" top="0" bottom="0" label="{data.name}" selected="{data.selected}" change="checkbox1_changeHandler(event)" toolTip="{data.name}" buttonMode="true"/>
+
+</s:ItemRenderer>

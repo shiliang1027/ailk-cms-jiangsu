@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window width="100%"
+                    height="100%"
+                    minimizable="false"
+                    maximizable="false"
+                    closable="false"
+                    title="告警流水窗口"
+                    mouseOver="window1_mouseOverHandler(event)"
+                    mouseOut="window1_mouseOutHandler(event)"
+                    styleName="windowScene"
+                    xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    xmlns:parsley="http://www.spicefactory.org/parsley">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.alarm.framework.common.event.MenuEvent;
+			import com.linkage.module.cms.alarm.framework.view.resource.imagesclass.IconParam;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.ResMatrixEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+			import com.linkage.module.cms.scene.kpicustom.event.KpiCustomEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.controls.Image;
+
+            private var log:ILogger = Log.getLoggerByClass(SceneAlarmFlow);
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            [Inject("user")]
+            public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+            private var showAllImg:Image;
+
+            //告警流水网元定位，网游类型名称和id映射， 因为告警流水中有name没有id，定位接口需要id
+            private var moTypeIdName:Object = {'CELL': '101', 'UTRANCELL': '102', 'BTS': '16', 'NodeB': '28'};
+
+            private var cityInfo:Object = {"0100": "南京", "0200": "苏州", "0300": "无锡", "0400": "常州", "0500": "镇江",
+                    "0600": "扬州", "0700": "南通", "0800": "泰州", "0900": "徐州",
+                    "1000": "淮安", "1100": "盐城", "1200": "连云港", "1300": "宿迁"};
+
+            public function initAlarm(rule:String = null):void
+            {
+                //添加显示全部告警按钮
+                log.info('初始化全部告警按钮~~');
+                showAllImg = new Image();
+                showAllImg.source = IconParam.iconShowAll;
+                showAllImg.buttonMode = true;
+                showAllImg.toolTip = "显示全部告警";
+                showAllImg.visible = false;
+                showAllImg.addEventListener(MouseEvent.CLICK, showAllAlarms);
+                alarmFlow.addToolButton(showAllImg);
+
+                log.info("开始 初始化告警流水！");
+                //初始化告警流水
+                alarmFlow.params = parentApplication.parameters;
+                alarmFlow.params.defaultDisplay = "perf_type_id,neid";
+
+//				alarmFlow.ruleContent = "alarmseverity=1|alarmseverity=2|alarmseverity=3";
+//				var ruleContent:String = "alarmseverity=1|alarmseverity=2|alarmseverity=3";
+                var ruleContent:String = "";
+                log.info(user);
+
+                if (user.level == "2" || user.level == "3")
+                    if (user.cityId != null && user.cityId != "00")
+//						ruleContent = "alarmregion=\"" + cityInfo[user.cityId] + "\"&(" + ruleContent + ")";
+                        ruleContent = "alarmregion=\"" + cityInfo[user.cityId] + "\"";
+                alarmFlow.ruleContent = ruleContent;
+
+                if (rule != null)
+                    alarmFlow.ruleContent = rule;
+
+                alarmFlow.initInfo(null, 1, user.sceneId + "#" + user.level);
+
+
+                //告警网元性能信息
+                alarmFlow.addAlarmListener("QUERYKPI", function(event:MenuEvent):void
+                {
+                    var evt:KpiCustomEvent = new KpiCustomEvent(KpiCustomEvent.QUERYKPI);
+                    var param:Object = new Object();
+                    param.moTypeName = event.data.equipmentclass;
+
+                    if (event.data.perf_type_id != null && event.data.perf_type_id != "")
+                        param.kpiIDs = [event.data.perf_type_id];
+                    param.moOrAreaFlag = "0";
+                    param.moOrAreaId = event.data.neid;
+                    evt.param = param;
+                    log.info(event.data);
+                    log.info(evt.param);
+                    msgDispatcher(evt);
+
+                });
+
+                //告警网元 GIS定位
+                alarmFlow.addAlarmListener("SHOWMO2GIS", function(event:MenuEvent):void
+                {
+                    log.info("告警流水，网元定位：");
+                    var data:Object = event.data;
+                    var e:SceneEvent = new SceneEvent(SceneEvent.SHOWMO2GIS);
+                    e.param = new Object();
+                    if (data.alarmneid == null)
+                        e.param.moId = data.neid;
+                    else
+                        e.param.moId = data.alarmneid;
+                    //modify by donglm at 2013-12-3 20:30
+                    e.param.moTypeId = moTypeIdName[data.alarmnetype];
+                    e.param.alarmLevel = data.alarmseverity;
+
+                    log.info(e.param);
+
+//                    msgDispatcher(e);
+					requestServerUtil.addRequest(e);
+                });
+
+                this.parentApplication.add(alarmFlow);
+
+                log.info("初始化告警 ruleContent：" + alarmFlow.ruleContent);
+            }
+
+            private function showAllAlarms(e:MouseEvent):void
+            {
+                alarmFlow.reload('');
+
+                log.info("取消过滤 告警流水 ruleContent：" + alarmFlow.ruleContent);
+
+                showAllImg.visible = false;
+            }
+
+            [MessageHandler(selector = "CHANGE_VIEW")]
+            public function reloadAlarm(e:SceneEvent = null):void
+            {
+                log.info("change view ,  reload alarm flow!");
+
+                if (user.level == "3")
+                {
+                    log.info("cityName" + cityInfo[user.cityId] + "[ruleContent]" + "alarmregion=\'" + cityInfo[user.cityId] + "\'");
+                    alarmFlow.reload("alarmregion=\"" + cityInfo[user.cityId] + "\"");
+                }
+                else
+                {
+                    alarmFlow.reload(null, user.sceneId + "#" + user.level);
+                }
+            }
+
+            /**
+             *
+             *重载告警流水的规则 ruleContent
+             * 2014-6-25，mod by 汪炜
+             **/
+            public function filterAlarmByFilter(params:Object):void
+            {
+                setTimeout(function():void
+                {
+                    alarmFlow.reload(params["ruleContent"]);
+                }, 500);
+                this.showAllImg.visible = true;
+            }
+
+            public function stopAlarm():void
+            {
+                alarmFlow.stopLoad(true);
+            }
+
+            public function filterAlarm(e:ResMatrixEvent):void
+            {
+                log.info("劣化网元 点击处理：过滤流水！" + e.data.moId);
+                log.info(e.data);
+
+                setTimeout(function():void
+                {
+                    if (e.data.moTypeName == "机房")
+                    {
+                        alarmFlow.reload('neroom="' + e.data.neroom + '"');
+//							alarmFlow.reload('neroom="' + e.data.neroom + '"&(alarmseverity=1|alarmseverity=2|alarmseverity=3)');
+                    }
+                    else if (e.data.moTypeName == "电路")
+                    {
+                        alarmFlow.reload('circ_name="' + e.data.circ_name + '"');
+//							alarmFlow.reload('circ_name="' + e.data.circ_name + '"&(alarmseverity=1|alarmseverity=2|alarmseverity=3)');
+                    }
+                    else
+                        alarmFlow.reload('alarmneid="' + e.data.moId + '"');
+//							alarmFlow.reload('alarmneid="' + e.data.moId + '"&(alarmseverity=1|alarmseverity=2|alarmseverity=3)');
+                }, 500);
+
+                this.showAllImg.visible = true;
+            }
+
+
+            private var flag801:Boolean = false;
+
+            protected function window1_mouseOverHandler(event:MouseEvent):void
+            {
+                flag801 = true;
+//				log.info("flag=" + flag801 + "isNew=" + user.isNew);
+                setTimeout(function():void
+                {
+                    if (flag801 && user.isNew == "1")
+                    {
+                        user.labelTypeId = "801";
+                        var obj:Object = new Object;
+                        obj.sceneId = user.sceneId;
+                        obj.level = user.level;
+                        obj.labelId = 801;
+                        var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                        e.obj = obj;
+//                        msgDispatcher(e);
+						requestServerUtil.addRequest(e);
+                    }
+                    flag801 = false;
+                }, 3000)
+            }
+
+            protected function window1_mouseOutHandler(event:MouseEvent):void
+            {
+                flag801 = false;
+            }
+        ]]>
+    </fx:Script>
+    <!-- sceneflowalarm -->
+    <pubflow:sceneAlarm id="alarmFlow"
+                        width="100%"
+                        alarmStyleName="sceneDG"
+                        height="100%"
+                        moduleKey="sceneflowalarm"/>
+</ailk_compts:Window>

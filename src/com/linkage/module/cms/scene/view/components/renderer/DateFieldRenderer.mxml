@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true"
+								  xmlns:util="com.linkage.module.cms.scene.view.util.*">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			import mx.formatters.DateFormatter;
+			private var log:ILogger = Log.getLoggerByClass(DateFieldRenderer);
+
+			private var df:DateFormatter = new DateFormatter();
+
+			public function formatDate(date:Date):String
+			{
+				df.formatString = "YYYY-MM-DD JJ:NN:SS";
+				return df.format(date);
+			}
+		]]>
+	</fx:Script>
+	<util:UXDateField yearNavigationEnabled="true"
+					  width="190"
+					  editable="true"
+					  labelFunction="formatDate"
+					  text="@{data[listData['dataField']]}"/>
+</s:MXAdvancedDataGridItemRenderer>

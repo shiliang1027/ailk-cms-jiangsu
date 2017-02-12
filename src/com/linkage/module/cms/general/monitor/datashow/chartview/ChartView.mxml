@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" 
+		 preinitialize="group1_preinitializeHandler(event)"
+		 width="100%" height="100%">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.perfshow");
+			
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+			
+			//属地编号
+			private var _cityId:String = null;
+			
+			//图标背景
+			private var fcBgColor:Object = null;
+			
+			// 图表数据
+			private var chartData:ArrayCollection = new ArrayCollection([       
+				{label:'1点'}, 
+				{label:'2点'},
+				{label:'3点'},
+				{label:'4点'},  
+				{label:'5点'},
+				{seriesName:'HLR主处理器负荷'},
+				{value:'96'}, 
+				{value:'90'},
+				{value:'58'},
+				{value:'50'},  
+				{value:'28'}
+			]);
+			
+			private var chartData1:ArrayCollection = new ArrayCollection([
+				{title:"HLR主处理器负荷",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'HLR主处理器负荷'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+				,{title:"位置更新成功率",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'位置更新成功率'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+				,{title:"信道切换成功率A",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'信道切换成功率A'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+			]);
+			
+			// 图表参数
+			private var chartParams:ArrayCollection=new ArrayCollection([     
+				{caption:"性能趋势图"},  
+				{numberPrefix:""},                  
+				{showValues:"0"},
+				{xAxisName:"时间"},
+				{yAxisName:"性能值"},
+				{anchorRadius:"0"},
+				{canvasBorderAlpha: "0"},
+				{lineColor:"0x00FF00"},
+				{lineThickness:"4"}
+			]); 
+			
+			// 图表参数
+			private var chartParams1:ArrayCollection=new ArrayCollection([     
+				{caption:"TOPN图表"},
+				{numberPrefix:""},                  
+				{showValues:"0"}
+			]);
+			
+			//初始化页面
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function initData():void
+			{
+				_remoteData.getPerfChartConfigInfo(loadData,null,loadDataErr);
+			}
+			
+			public function loadData(obj:Object):void
+			{
+				//取时间
+				var now:Date = new Date();
+				var time:Number = now.getTime()/1000;
+				//time.toFixed(0);
+				
+				if (obj != null)
+				{
+					log.info("查询性能趋势图配置成功！");
+					
+					for each (var config:Object in obj)
+					{
+						log.info("性能趋势图查询参数　curCityId=" + _cityId + " moTypeId=" + config.mo_type_id + " moId=" + config.mo_id + " perfTypeId=" + config.perf_type_id + " time=" + time.toFixed(0));
+						_remoteData.getKpiGraphics(_cityId, config.mo_type_id, config.mo_id, config.perf_type_id, time.toFixed(0), null,1,getGraphicsInfo,null,getGraphicsInfoErr);
+					}
+					
+					//默认加载TOPN图表
+					_remoteData.getTopNGraphicsData(null,getMRTGData,null,getMrtgDataErr);
+				}
+				else
+				{
+					log.info("查询性能趋势图配置为空！");
+				}
+			}
+			
+			public function loadDataErr(obj:Object):void
+			{
+				log.info("查询性能趋势图配置失败！");
+			}
+			
+			public function getGraphicsInfo(obj:Object):void
+			{
+				log.info("加载趋势图数据成功！");
+				
+				//生成趋势图
+				var chart1:FusionChartsLK = new FusionChartsLK();
+				chart1.width = 400;
+				chart1.height = 300;
+				chart1.FCChartType = "MSLine";
+				chart1.FCFolder = "/cms/flex-release/FusionCharts";
+				
+				if (obj != null)
+				{
+					//设置横坐标显示单位数量
+					var count:int = 0;
+					for each (var tmp:Object in obj)
+					{
+						count ++;
+					}
+					if (count > 1)
+					{
+						var step:int = count/12;
+						if (step > 1)
+						{
+							var stepObj:Object = new Object();
+							stepObj.labelStep = step;
+							chartParams.addItem(stepObj);
+						}
+						
+						chart1.FCParams = chartParams;
+						chart1.FCData = obj;
+						this.chartGroup.addElement(chart1);
+					}
+				}
+			}
+			
+			public function getGraphicsInfoErr(obj:Object):void
+			{
+				log.info("加载趋势图数据失败！");
+				
+				//生成趋势图
+//				var chart1:FusionCharts = new FusionCharts();
+//				chart1.width = 300;
+//				chart1.height = 220;
+//				this.chartGroup.addElement(chart1);
+//				chart1.FCChartType = "Line";
+//				chart1.FCParams = chartParams;   
+//				chart1.FCData = chartData;
+//				chart1.FCFolder = "/cms/flex-release/FusionCharts";
+			}
+			
+			public function getMRTGData(obj:Object):void
+			{
+				log.info("查询TOPN图表数据成功！");
+				
+				chartData1 = new ArrayCollection();
+				if (obj != null)
+				{
+					for each (var tmp:Object in obj)
+					{
+						chartData1.addItem(tmp);
+					}
+				}
+				
+				initChart();
+			}
+			
+			public function getMrtgDataErr(obj:Object):void
+			{
+				log.info("查询TOPN图表数据失败！");
+				
+//				chartData1 = new ArrayCollection([
+//					{title:"HLR主处理器负荷",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'HLR主处理器负荷'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+//					,{title:"位置更新成功率",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'位置更新成功率'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+//					,{title:"信道切换成功率A",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'信道切换成功率A'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+//				]);
+//				
+//				initChart();
+			}
+			
+			private function initChart():void
+			{
+				//生成图表
+				for each (var data:Object in chartData1)
+				{
+					var chart1:FusionChartsLK = new FusionChartsLK();
+					chart1.width = 400;
+					chart1.height = 300;
+					chart1.FCChartType = "MSColumn3D";
+					chart1.FCFolder = "/cms/flex-release/FusionCharts";
+					chart1.FCParams = chartParams1;
+					chart1.FCData = data.data;
+					this.chartGroup.addElement(chart1);
+				}
+			}
+
+			protected function group1_preinitializeHandler(event:FlexEvent):void
+			{
+				var sd:CSSStyleDeclaration = styleManager.getStyleDeclaration("fcBgColor");
+				if (sd != null)
+				{
+					fcBgColor = sd.getStyle("bgc");
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:Tile id="chartGroup" width="100%" height="100%" verticalScrollPolicy="auto">
+	</mx:Tile>
+</s:Group>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.scenedaily.dao.hangandpick.HangPlateDAO;
+			import com.linkage.module.cms.scenedaily.domain.hangandpick.HangPlateDM;
+			import com.linkage.module.cms.scenedaily.domain.common.User;
+			import com.linkage.module.cms.scenedaily.serv.hangandpick.HangPlateGetCmd;
+			import com.linkage.module.cms.scenedaily.serv.hangandpick.HangPlatePickCmd;
+			import com.linkage.module.cms.scenedaily.view.components.hangandpick.HangPlateCompPM;
+		]]>
+	</fx:Script>
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-9-10
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+
+		<!-- 场景 -->
+		<parsley:Object id="user"
+						type="{User}"
+						lazy="true"/>
+		<!-- 场景 -->
+
+		<!-- 挂牌页面begin -->
+		<parsley:Object id="hangPlateCompPM"
+						type="{HangPlateCompPM}"
+						lazy="true"/>
+		<parsley:Object id="hangPlateDM"
+						type="{HangPlateDM}"
+						lazy="true"/>
+
+		<parsley:Object id="hangPlateDAO"
+						type="{HangPlateDAO}"
+						lazy="true">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_scenedaily_listed_listserv"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+
+		<parsley:MapCommand selector="LOAD_HANGPLATE_DATA">
+			<parsley:Command type="{HangPlateGetCmd}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="PICKPLATE_HANDLER">
+			<parsley:Command type="{HangPlatePickCmd}"/>
+		</parsley:MapCommand>
+		<!-- 挂牌页面end -->
+	</fx:Declarations>
+</fx:Object>

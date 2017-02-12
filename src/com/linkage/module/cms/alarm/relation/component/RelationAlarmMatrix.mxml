@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.common.event.AlarmViewEvent;
+			import com.linkage.module.cms.alarm.framework.common.event.RelationEvent;
+			import com.linkage.module.cms.alarm.framework.common.event.SystemEvent;
+			import com.linkage.module.cms.alarm.framework.common.param.ColumnConstants;
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.module.server.source.ICollection;
+			import com.linkage.module.cms.alarm.relation.RelationContainer;
+			import com.linkage.module.cms.alarm.relation.event.MatrixEvent;
+			import com.linkage.module.cms.alarm.relation.filter.MatrixFilter;
+			import com.linkage.module.cms.alarm.relation.util.RelationUtil;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.structure.map.Map;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.AdvancedDataGridEvent;
+			import mx.events.ListEvent;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.alarm.relation.component.RelationAlarmMatrix");
+			/**
+			 * 矩阵过滤器
+			 */
+			private var _matrixFilter:MatrixFilter=new MatrixFilter();
+			[Bindable]
+			/**
+			 * 告警列表容器
+			 */
+			private var _alarmsAC:ArrayCollection=null;
+			/**
+			 * 告警控制器
+			 */
+			private var _alarmAction:AlarmAction=null;
+			[Bindable]
+			/**
+			 * 告警容器
+			 */
+			private var _alarmsAR:Array=new Array();
+			/**
+			 * 是否降序
+			 */
+			private var _sortDesc:Boolean=false;
+			/**
+			 * 展示列数组
+			 */
+			private var _columnArray:Array=null;
+			/**
+			 * 窗口id
+			 */
+			private var _windowId:String=null;
+			/**
+			 * 窗口类型 1:活动窗口 0:清除窗口
+			 */
+			private var _windowType:int=1;
+			/**
+			 * 展示数据Map
+			 */
+			private var _dataMap:Map=new Map();
+			/**
+			 * 窗口KEY
+			 */
+			private var _windonKey:String=null;
+
+			//初始化视图
+			public function initView():void
+			{
+				//初始化容器
+				_alarmsAC=new ArrayCollection(_alarmsAR);
+
+				//初始化事件监听器
+				_alarmAction.addEventListener(_windowId + _windowType + RelationEvent.Relation_Alarm_Add, addMatrixInfo);
+				_alarmAction.addEventListener(_windowId + _windowType + RelationEvent.Relation_Alarm_Update, updateMatrixInfo);
+				_alarmAction.addEventListener(_windowId + _windowType + RelationEvent.Relation_Alarm_ReAdd, reAddMatrixInfo);
+				_alarmAction.addEventListener(_windowId + _windowType + RelationEvent.Relation_Alarm_Remove, removeMatrixInfo);
+				_alarmAction.addEventListener(_windowId + AlarmViewEvent.ALARM_LOAD_PLE, alarmLoadingEnd);
+				_alarmAction.addEventListener(_windowId + AlarmViewEvent.ALARM_LOAD_EPL, alarmLoadingEnd);
+				_alarmAction.addEventListener(_windowId + AlarmViewEvent.VIEW_REVSTART, alarmFlowRev);
+				_alarmAction.addEventListener(SystemEvent.SYSTEM_ALARMRELOAD, matrixGridClear);
+				_alarmAction.dispatchEvent(new AlarmViewEvent(_windowId + AlarmViewEvent.VIEW_CREATED));
+			}
+
+			//添加矩阵信息
+			public function addMatrixInfo(event:RelationEvent):void
+			{
+				//添加矩阵信息
+				addMatrixInfoByAlarm(event.uniqueId, event.pAlarm, event.alarm);
+			}
+
+			//添加矩阵信息
+			private function addMatrixInfoByAlarm(uniqueId:String, pAlarm:Object, alarm:Object):void
+			{
+				//数据对象
+				var dataObject:Object=_dataMap.get(uniqueId);
+				if (dataObject == null)
+				{
+					//关联后告警增加
+					dataObject=getShowDataObject();
+					_dataMap.put(uniqueId, dataObject);
+					_alarmsAR.push(dataObject);
+				}
+				//设置一行数据唯一标识
+				var uniqueIdArray:Array=dataObject[RelationContainer.MATRIXTREEUNIQUE];
+				if (uniqueIdArray == null)
+				{
+					uniqueIdArray=[];
+					dataObject[RelationContainer.MATRIXTREEUNIQUE]=uniqueIdArray;
+				}
+				//添加父类告警唯一序列
+				if (pAlarm != null)
+				{
+					uniqueIdArray.push(pAlarm[ColumnConstants.KEY_AlarmUniqueId]);
+				}
+				//添加子类告警唯一序列
+				if (alarm != null)
+				{
+					uniqueIdArray.push(alarm[ColumnConstants.KEY_AlarmUniqueId]);
+				}
+				//添加矩阵信息
+				_matrixFilter.addMatrixInfo(alarm, pAlarm, dataObject);
+				//刷新视图
+				refresh();
+			}
+
+			//重新统计
+			public function reAddMatrixInfo(event:RelationEvent):void
+			{
+				var dataObject:Object=_dataMap.get(event.uniqueId);
+				if (dataObject != null)
+				{
+					//先删除
+					removeMatrixInfoById(event.uniqueId);
+					//重新统计父告警
+					if (event.pAlarm != null)
+					{
+						//添加矩阵信息
+						addMatrixInfoByAlarm(event.uniqueId, event.pAlarm, null);
+					}
+					//重新统计子告警
+					if (event.alarm != null && event.alarm is ArrayCollection)
+					{
+						var children:ArrayCollection=event.alarm as ArrayCollection;
+						for each (var alarm:Object in children)
+						{
+							//添加矩阵信息
+							addMatrixInfoByAlarm(event.uniqueId, null, alarm);
+						}
+					}
+				}
+			}
+
+			//更新矩阵信息
+			public function updateMatrixInfo(event:RelationEvent):void
+			{
+				//数据对象
+				var dataObject:Object=_dataMap.get(event.uniqueId);
+				if (dataObject != null)
+				{
+					//更新矩阵信息
+					_matrixFilter.updateMatrixInfo(event.alarm, event.pAlarm, dataObject);
+					//刷新视图
+					refresh();
+				}
+			}
+
+			//告警流水重载
+			public function matrixGridClear(event:SystemEvent=null):void
+			{
+				log.warn("告警流水重载清空+++++++++++++++++++++++++++++"+_windowId);
+				_alarmsAR.length=0;
+				_dataMap.clear();
+				refresh();
+			}
+
+			//告警流水接受
+			public function alarmFlowRev(event:AlarmViewEvent):void
+			{
+				log.warn("告警流水接受清空+++++++++++++++++++++++++++++"+_windowId);
+				_alarmsAR.length=0;
+				_dataMap.clear();
+				refresh();
+			}
+			
+			//移除告警
+			private function removeMatrixInfo(event:RelationEvent):void
+			{
+				removeMatrixInfoById(event.uniqueId);
+			}
+
+			//移除告警
+			private function removeMatrixInfoById(uniqueId:String):void
+			{
+				//数据对象
+				var dataObject:Object=_dataMap.get(uniqueId);
+				if (dataObject != null)
+				{
+					//删除告警列表
+					var len:uint=_alarmsAR.length;
+					for (var rsIndex:uint; rsIndex < len; rsIndex++)
+					{
+						//判断父告警是否要删除
+						if (_alarmsAR[rsIndex] === dataObject)
+						{
+							//展示数据移除
+							_alarmsAR.splice(rsIndex, 1);
+							break;
+						}
+					}
+					//删除Map告警信息
+					_dataMap.remove(uniqueId);
+					//刷新视图
+					refresh();
+				}
+			}
+
+			//获取展示数据对象
+			private function getShowDataObject():Object
+			{
+				var resultObj:Object=new Object();
+				resultObj[RelationContainer.ALARMEVENTTIME]=null;
+				_columnArray.forEach(function(item:*, index:int, array:Array):void
+					{
+						var dataId:String=item.id;
+						if (RelationUtil.checkMatrixCount(dataId) || RelationUtil.checkMatrixBTSOut(dataId) || RelationUtil.checkMatrixSubject(dataId) || RelationUtil.checkMatrixWireLess(dataId))
+						{
+							resultObj[dataId]=0;
+						}
+						else
+						{
+							resultObj[dataId]=null;
+						}
+					});
+				return resultObj;
+			}
+
+			//刷新视图
+			public function refresh():Boolean
+			{
+				return _alarmsAC.refresh();
+			}
+
+			//设置列
+			public function set columns(columnArray:Array):void
+			{
+				var columns:Array=[];
+				var columnLen:int=columnArray.length;
+				var column:AdvancedDataGridColumn=null;
+				columnArray.forEach(function(item:*, index:int, array:Array):void
+					{
+						column=new AdvancedDataGridColumn();
+						column.dataField=item.id;
+						column.headerText=item.name;
+						if (RelationUtil.checkMatrixCount(item.id) || RelationUtil.checkMatrixBTSOut(item.id) || RelationUtil.checkMatrixSubject(item.id) || RelationUtil.checkMatrixWireLess(item.id) || RelationUtil.checkMatrixMainAlarm(item.id))
+						{
+							column.itemRenderer=new ClassFactory(CountColumnRenderer);
+						}
+						else if (RelationUtil.checkBusinessLevel(item.id))
+						{
+							column.sortCompareFunction=RelationUtil.sortCustLevel;
+							column.itemRenderer=new ClassFactory(ColumnRenderer);
+						}
+						else
+						{
+							column.itemRenderer=new ClassFactory(ColumnRenderer);
+						}
+						//设置宽度
+						if (RelationUtil.checkRuleTitle(item.id) || columnLen <= 7)
+						{
+							column.width=210;
+						}
+						else if (RelationUtil.checkRelationTime(item.id))
+						{
+							column.width=136;
+						}
+						else if (!RelationUtil.checkValueNull(item.name))
+						{
+							column.width=(String(item.name).length + 2) * 16;
+						}
+						columns.push(column);
+					});
+				alarms.columns=columns;
+			}
+
+			//窗口列表点击
+			protected function alarms_itemClickHandler(e:ListEvent):void
+			{
+				var column:Object=new Object();
+
+				//1.获取选中表格数据
+				var xId:String=e.target.columns[e.columnIndex].dataField;
+				column[RelationContainer.XID]=xId
+				column[RelationContainer.XVALUE]=e.target.selectedItem[xId];
+				column[RelationContainer.XNAME]=e.target.columns[e.columnIndex].headerText;
+
+				//2.获取选中行唯一数据标识
+				column[RelationContainer.MATRIXTREEUNIQUE]=e.target.selectedItem[RelationContainer.MATRIXTREEUNIQUE];
+
+				dispatchEvent(new MatrixEvent(_windowId + MatrixEvent.MATRIX_CLICK, column));
+			}
+
+			//预装结束
+			private function alarmLoadingEnd(event:AlarmViewEvent):void
+			{
+				//集中性能窗口按派单状态降序，其他窗口按告警发现时间降序
+				if (_windonKey == RelationContainer.WINDOWNAME_RELATIONDATATRANS)
+				{
+					_alarmsAC.sort=AlarmUtil.initFiledSort(RelationContainer.ALARMSHEETSTATUS);
+				}
+				else
+				{
+					_alarmsAC.sort=AlarmUtil.initFiledSort(RelationContainer.ALARMEVENTTIME);
+				}
+				_alarmsAC.refresh();
+			}
+
+			//告警排序
+			private function alarms_sortHandler(event:AdvancedDataGridEvent):void
+			{
+				_sortDesc=!_sortDesc;
+				var field:String=event.dataField;
+				if (RelationUtil.checkMatrixCount(event.dataField) && _windonKey == RelationContainer.WINDOWNAME_RELATIONCUST)
+				{
+					field+="_level";
+				}
+				_alarmsAC.sort=AlarmUtil.initFiledSort(field, _sortDesc);
+				_alarmsAC.refresh();
+			}
+
+			public function set columnArray(value:Array):void
+			{
+				columns=value;
+				_columnArray=value;
+			}
+
+			public function set windonKey(value:String):void
+			{
+				_windonKey=value;
+			}
+
+			public function set alarmAction(alarmAction:AlarmAction):void
+			{
+				_alarmAction=alarmAction;
+			}
+
+			public function set windowId(value:String):void
+			{
+				_windowId=value;
+			}
+
+			public function get beforeNum():int
+			{
+				if (_alarmAction == null)
+				{
+					return 0;
+				}
+				var alarmIC:ICollection=_alarmAction.alarmSource(_windowId, _windowType);
+				if (alarmIC == null)
+				{
+					return 0;
+				}
+				return alarmIC.dataArraySize;
+			}
+
+			public function get afterNum():int
+			{
+				return _dataMap.size;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="alarms"
+						 width="100%"
+						 height="100%"
+						 editable="false"
+						 enabled="true"
+						 sortExpertMode="false"
+						 draggableColumns="false"
+						 horizontalScrollPolicy="auto"
+						 verticalScrollPolicy="auto"
+						 dataProvider="{_alarmsAC}"
+						 liveScrolling="false"
+						 showScrollTips="true"
+						 sort="alarms_sortHandler(event)"
+						 itemClick="alarms_itemClickHandler(event)">
+		<mx:columns>
+
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</s:Group>

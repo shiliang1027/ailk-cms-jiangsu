@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					xmlns:components="com.fusioncharts.components.*"
+					xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					preinitialize="datagroup1_preinitializeHandler(event)">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.Canvas;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+
+			import spark.components.Group;
+
+			private var _this:Object;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.topnPerf");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时调度
+			private var t:Timer = new Timer(300000);
+
+			//TOPN配置窗口
+			private var configWindow:TopNConfig = new TopNConfig();
+
+			//数据缓存
+			private var dataObj:Object = null;
+
+			//图标背景
+			private var fcBgColor:Object = null;
+
+			public var perfTopnList:ArrayCollection = new ArrayCollection([
+				{desc: "性能TOPN", showTime: "2011-05-13 12:00:00",
+					dataArr: [{title: "HLR主处理器负荷", name: ["设备类型", "网元名称", "厂家", "指标值"], column: ["device_model", "mo_name", "vendor", "perf_value"]
+							, datalist: [{device_model: "HLR", mo_name: "南京HLR1", vendor: "华为", perf_value: "70%"}, {device_model: "HLR", mo_name: "南京HLR2", vendor: "ZTE", perf_value: "69%"}, {device_model: "HLR", mo_name: "南京HLR3", vendor: "华为", perf_value: "65%"}, {device_model: "HLR", mo_name: "南京HLR4", vendor: "爱立信", perf_value: "60%"}, {device_model: "HLR", mo_name: "南京HLR5", vendor: "华为", perf_value: "50%"}]}
+						, {title: "位置更新成功率", name: ["设备类型", "网元名称", "厂家", "指标值"], column: ["device_model", "mo_name", "vendor", "perf_value"]
+							, datalist: [{device_model: "HLR", mo_name: "南京HLR1", vendor: "华为", perf_value: "70%"}, {device_model: "HLR", mo_name: "南京HLR2", vendor: "ZTE", perf_value: "69%"}, {device_model: "HLR", mo_name: "南京HLR3", vendor: "华为", perf_value: "65%"}, {device_model: "HLR", mo_name: "南京HLR4", vendor: "爱立信", perf_value: "60%"}, {device_model: "HLR", mo_name: "南京HLR5", vendor: "华为", perf_value: "50%"}]}
+						, {title: "信道切换成功率", name: ["设备类型", "网元名称", "厂家", "指标值"], column: ["device_model", "mo_name", "vendor", "perf_value"]
+							, datalist: [{device_model: "HLR", mo_name: "南京HLR1", vendor: "华为", perf_value: "70%"}, {device_model: "HLR", mo_name: "南京HLR2", vendor: "ZTE", perf_value: "69%"}, {device_model: "HLR", mo_name: "南京HLR3", vendor: "华为", perf_value: "65%"}, {device_model: "HLR", mo_name: "南京HLR4", vendor: "爱立信", perf_value: "60%"}, {device_model: "HLR", mo_name: "南京HLR5", vendor: "华为", perf_value: "50%"}]}
+						, {title: "信道切换成功率A", name: ["设备类型", "网元名称", "厂家", "指标值"], column: ["device_model", "mo_name", "vendor", "perf_value"]
+							, datalist: [{device_model: "HLR", mo_name: "南京HLR1", vendor: "华为", perf_value: "70%"}, {device_model: "HLR", mo_name: "南京HLR2", vendor: "ZTE", perf_value: "69%"}, {device_model: "HLR", mo_name: "南京HLR3", vendor: "华为", perf_value: "65%"}, {device_model: "HLR", mo_name: "南京HLR4", vendor: "爱立信", perf_value: "60%"}, {device_model: "HLR", mo_name: "南京HLR5", vendor: "华为", perf_value: "50%"}]}
+						, {title: "信道切换成功率B", name: ["设备类型", "网元名称", "厂家", "指标值"], column: ["device_model", "mo_name", "vendor", "perf_value"]
+							, datalist: [{device_model: "HLR", mo_name: "南京HLR1", vendor: "华为", perf_value: "70%"}, {device_model: "HLR", mo_name: "南京HLR2", vendor: "ZTE", perf_value: "69%"}, {device_model: "HLR", mo_name: "南京HLR3", vendor: "华为", perf_value: "65%"}, {device_model: "HLR", mo_name: "南京HLR4", vendor: "爱立信", perf_value: "60%"}, {device_model: "HLR", mo_name: "南京HLR5", vendor: "华为", perf_value: "50%"}]}
+					]}
+				]);
+
+			private var chartData:ArrayCollection = new ArrayCollection([
+				{title: "HLR主处理器负荷", data: [{label: '南京HLR1'}, {label: '南京HLR2'}, {label: '南京HLR3'}, {label: '南京HLR4'}, {label: '南京HLR5'}, {seriesName: 'HLR主处理器负荷'}, {value: '96'}, {value: '90'}, {value: '58'}, {value: '50'}, {value: '28'}]}
+				, {title: "位置更新成功率", data: [{label: '南京HLR1'}, {label: '南京HLR2'}, {label: '南京HLR3'}, {label: '南京HLR4'}, {label: '南京HLR5'}, {seriesName: '位置更新成功率'}, {value: '96'}, {value: '90'}, {value: '58'}, {value: '50'}, {value: '28'}]}
+				, {title: "信道切换成功率A", data: [{label: '南京HLR1'}, {label: '南京HLR2'}, {label: '南京HLR3'}, {label: '南京HLR4'}, {label: '南京HLR5'}, {seriesName: '信道切换成功率A'}, {value: '96'}, {value: '90'}, {value: '58'}, {value: '50'}, {value: '28'}]}
+				]);
+
+			// 图表参数
+			private var chartParams:ArrayCollection = new ArrayCollection([
+				{caption: "TOPN图表"},
+				{numberPrefix: ""},
+				{showValues: "0"
+				}]);
+
+			//是否需要刷新图表
+
+			private var isRefresh:Boolean = false;
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				PopUpManager.addPopUp(configWindow, this, false);
+				configWindow.init(refreshData);
+				configWindow.visible = false;
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			private function initChart():void
+			{
+				log.info(" ### 初始化图表，isRefresh:" + isRefresh);
+				if(isRefresh)
+				{
+					this.chartShow.removeAllElements();
+
+					if(fcBgColor != null)
+					{
+						var p:Object = new Object();
+						p.bgColor = fcBgColor;
+						chartParams.addItem(p);
+					}
+
+					//生成图表
+					for each(var data:Object in chartData)
+					{
+						var chart1:FusionChartsLK = new FusionChartsLK();
+						chart1.width = 400;
+						chart1.height = 300;
+						chart1.FCChartType = "MSColumn3D";
+						//添加背景色
+
+						chart1.FCParams = chartParams;
+						chart1.FCData = data.data;
+						log.info(" ### TOPN图表数据：");
+						log.info(data.data);
+						this.chartShow.addElement(chart1);
+					}
+
+					isRefresh = false;
+				}
+			}
+
+			private function changeType(type:int):void
+			{
+				log.info(" ### 切换到TOPN图表, type:" + type);
+				if(type == 1)
+				{
+					this.tableShow.visible = true;
+					this.tableShow.includeInLayout = true;
+					this.chartShow.visible = false;
+					this.chartShow.includeInLayout = false;
+				}
+				else
+				{
+					this.tableShow.visible = false;
+					this.tableShow.includeInLayout = false;
+					this.chartShow.visible = true;
+					this.chartShow.includeInLayout = true;
+
+					initChart();
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				log.info(" ### 开始查询TOPN图表数据");
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityTopNList(_cityId, _specList, getResInfo, null, getResInfoErr);
+					_remoteData.getCityTopNGraphics(_cityId, _specList, getMRTGData, null, getMrtgDataErr);
+				}
+				else
+				{
+					_remoteData.getKpiTopNList(_specList, getResInfo, null, getResInfoErr);
+					_remoteData.getTopNGraphicsData(_specList, getMRTGData, null, getMrtgDataErr);
+				}
+			}
+
+			public function getMRTGData(obj:Object):void
+			{
+				log.info(" ### 查询TOPN图表数据成功！");
+				isRefresh = true;
+
+				chartData = new ArrayCollection();
+				if(obj != null)
+				{
+					for each(var tmp:Object in obj)
+					{
+						chartData.addItem(tmp);
+					}
+				}
+			}
+
+			public function getMrtgDataErr(obj:Object):void
+			{
+				log.info(" ### 查询TOPN图表数据失败！");
+//				isRefresh = true;
+//				
+//				chartData = new ArrayCollection([
+//					{title:"HLR主处理器负荷",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'HLR主处理器负荷'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+//					,{title:"位置更新成功率",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'位置更新成功率'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+//					,{title:"信道切换成功率A",data:[{label:'南京HLR1'},{label:'南京HLR2'},{label:'南京HLR3'},{label:'南京HLR4'},{label:'南京HLR5'},{seriesName:'信道切换成功率A'},{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]}
+//				]);
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("TOPN性能统计结果：" + obj);
+				if(obj != null && obj[0] != null)
+				{
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+
+				else
+				{
+					log.info("TOPN性能统计：查询无数据");
+					Alert.show("查询TOPN统计数据为空！");
+						//createTable(perfTopnList);
+				}
+
+				//loadInfo.hideLoading();
+			}
+
+			//缓存表格
+			private var tableMap:Dictionary = new Dictionary();
+
+			private function createTable(obj:Object):void
+			{
+				var perfTopnInfo:Object = obj[0];
+				var perfNameList:ArrayCollection = new ArrayCollection();
+
+				//显示时间
+				var tmpArr:Array = new Array();
+				var tmp:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+				tmp.headerText = "时间点：" + perfTopnInfo.showTime;
+				tmpArr = tmpArr.concat(tmp);
+				timeTable.columns = tmpArr;
+
+				//循环添加表格
+				for each(var dataInfo:Object in perfTopnInfo.dataArr)
+				{
+					var dataTable:AdvancedDataGrid = null;
+
+					//如果没有当前的TABLE，则重新生成
+					if(tableMap[dataInfo.title] == null)
+					{
+						//生成数据列表
+						dataTable = new AdvancedDataGrid();
+						dataTable.sortableColumns = false;
+						dataTable.height = 160;
+						dataTable.percentWidth = 100;
+
+						//生成表格标题
+						var mcolArr:Array = new Array();
+						var mcol:AdvancedDataGridColumnGroup = new AdvancedDataGridColumnGroup();
+						mcol.headerText = dataInfo.title;
+						var colArr:Array = new Array();
+						for(var i:String in dataInfo.column)
+						{
+							var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+							col.dataField = dataInfo.column[i];
+							col.headerText = dataInfo.name[i];
+							col.width = 100;
+							colArr = colArr.concat(col);
+						}
+						mcol.children = colArr;
+						mcolArr = mcolArr.concat(mcol);
+						dataTable.groupedColumns = mcolArr;
+
+						//缓存
+						tableMap[dataInfo.title] = dataTable;
+						//只有界面显示小于3个才添加
+						if(this.tableDetail.numElements < 3)
+						{
+							this.tableDetail.addElement(dataTable);
+						}
+					}
+					//否则直接赋值
+
+					else
+					{
+						dataTable = (tableMap[dataInfo.title] as AdvancedDataGrid);
+					}
+
+					dataTable.dataProvider = dataInfo.datalist;
+
+					perfNameList.addItem(dataInfo.title);
+				}
+
+				//初始化配置界面
+
+				configWindow.initPerfData(perfNameList);
+
+				obj = null;
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("TOPN性能统计：查询数据异常");
+				Alert.show("查询TOPN性能统计数据异常！");
+				//createTable(perfTopnList);
+				//loadInfo.hideLoading();
+			}
+
+			//通过配置刷新页面
+			public function refreshData(showList:ArrayCollection, topn:int):void
+			{
+				this.tableDetail.removeAllElements();
+				for each(var perfName:String in showList)
+				{
+					if(tableMap[perfName] != null)
+					{
+						var dataTable:AdvancedDataGrid = (tableMap[perfName] as AdvancedDataGrid);
+						dataTable.rowCount = topn + 1;
+						this.tableDetail.addElement(dataTable);
+					}
+				}
+			}
+
+			protected function configImg_clickHandler(event:MouseEvent):void
+			{
+				configWindow.visible = true;
+				configWindow.move(event.stageX - 300, event.stageY);
+			}
+
+
+			protected function datagroup1_preinitializeHandler(event:FlexEvent):void
+			{
+				var sd:CSSStyleDeclaration = styleManager.getStyleDeclaration("fcBgColor");
+				if(sd != null)
+				{
+					fcBgColor = sd.getStyle("bgc");
+				}
+			}
+
+			override public function showToolBar():void
+			{
+				this.toolBar.visible = true;
+				this.toolBar.includeInLayout = true;
+			}
+
+			override public function hideToolBar():void
+			{
+				this.toolBar.visible = false;
+				this.toolBar.includeInLayout = false;
+			}
+
+			override public function showWindowTool():void
+			{
+				this.img1.visible = true;
+				this.img1.includeInLayout = true;
+			}
+
+			override public function hideWindowTool():void
+			{
+				this.img1.visible = false;
+				this.img1.includeInLayout = false;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="info"
+			  width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  height="20"
+				  id="toolBar">
+			<s:HGroup width="50%"
+					  height="20"
+					  horizontalAlign="left">
+				<s:Label text=""
+						 visible="false"
+						 id="showTitle"
+						 color="0xFFFFFF">
+				</s:Label>
+			</s:HGroup>
+			<s:HGroup width="50%"
+					  height="20"
+					  horizontalAlign="right">
+				<mx:Image id="configImg"
+						  source="{config}"
+						  buttonMode="true"
+						  click="configImg_clickHandler(event)"
+						  toolTip="配置">
+				</mx:Image>
+				<mx:Image id="img1"
+						  source="{window}"
+						  click="moveWindow(this.img, showTitle);"
+						  buttonMode="true">
+				</mx:Image>
+				<mx:Image id="img"
+						  source="{open}"
+						  click="openWindow(this.img,this.showTitle);"
+						  buttonMode="true">
+				</mx:Image>
+			</s:HGroup>
+		</s:HGroup>
+		<s:VGroup width="100%"
+				  height="100%"
+				  textAlign="center">
+			<s:HGroup width="100%"
+					  height="20"
+					  horizontalAlign="right">
+				<s:RadioButton label="列表"
+							   value="1"
+							   buttonMode="true"
+							   selected="true"
+							   click="changeType(1);"/>
+				<s:RadioButton label="图表"
+							   value="0"
+							   buttonMode="true"
+							   click="changeType(0);"/>
+			</s:HGroup>
+			<s:VGroup id="tableShow"
+					  width="100%"
+					  height="100%"
+					  visible="true"
+					  includeInLayout="true"
+					  gap="0">
+				<mx:AdvancedDataGrid id="timeTable"
+									 width="100%"
+									 height="25"
+									 sortableColumns="false"
+									 verticalScrollPolicy="auto">
+				</mx:AdvancedDataGrid>
+				<s:VGroup id="tableDetail"
+						  width="100%"
+						  height="100%"
+						  gap="0">
+				</s:VGroup>
+			</s:VGroup>
+			<mx:Tile id="chartShow"
+					 width="100%"
+					 height="100%"
+					 horizontalScrollPolicy="off"
+					 verticalScrollPolicy="auto"
+					 visible="false"
+					 includeInLayout="false">
+			</mx:Tile>
+		</s:VGroup>
+	</s:VGroup>
+</datashow:DataGroup>

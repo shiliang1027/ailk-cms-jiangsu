@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 xmlns:resource="com.linkage.module.cms.perfmonitor.subject.flow.resource.*"
+		 xmlns:perf="com.linkage.module.cms.perfmonitor.subject.flow.perf.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.events.FlexEvent;
+
+			private var _commonService:SubjectInterfaceCommService;
+
+			private var _cellService:SubjectCellService;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subject.flow.CellDataFlow");
+
+			//参数对象
+			private var _param:Object = null;
+
+			private var isInit:Boolean = false;
+
+			private var _isDebug:Boolean = false;
+
+			public var alarmRule:String = "";
+
+			private var _mapView:Object = null;
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+
+			public function get cellService():SubjectCellService
+			{
+				return _cellService;
+			}
+
+			public function set cellService(value:SubjectCellService):void
+			{
+				_cellService = value;
+			}
+
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+			}
+
+			public function initData(type:int, cityId:String, layer:String, cityName:String):void
+			{
+				log.info('加载流水数据 cityId:' + cityId + ' layer:' + layer + ' cityName:' + cityName);
+				//初始化告警
+				if(!isInit)
+				{
+					this.alarmFlow.params = _param;
+					var ruleStr:String = "(nmsalarmtype=3)&(buss_id=61)";
+
+					//最差小区
+					if(type == 1)
+					{
+						ruleStr += "&(perf_type_id=8001)";
+					}
+					//劣化小区
+					if(type == 2)
+					{
+						ruleStr += "&(perf_type_id=8002)";
+					}
+					//无线利用率
+					if(type == 5)
+					{
+						ruleStr += "&(perf_type_id=8003)";
+					}
+					//零业务量小区
+					if(type == 3)
+					{
+						ruleStr += "&(perf_type_id=8000)";
+					}
+
+					ruleStr = '(' + ruleStr + ')|((nmsalarmtype=4)&(alarmnetype=\"CELL\"|alarmnetype=\"UTRANCELL\"))';
+					alarmRule = ruleStr;
+					if(cityName != null && cityName != "")
+					{
+						if(layer == '2')
+							ruleStr = '(' + ruleStr + ")&(alarmregion=\"" + cityName + "\")";
+						else if(layer == '3')
+							ruleStr = '(' + ruleStr + ")&(alarmcounty=\"" + cityName + "\")";
+					}
+					log.info("初始化属地：" + cityId + " 的告警规则：" + ruleStr);
+					this.alarmFlow.ruleContent = ruleStr;
+					this.alarmFlow.initInfo();
+
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(alarmFlow);
+					//-------------------------------------历史回退修改------------------------------------
+
+					isInit = true;
+				}
+				else
+				{
+					if(cityName != null && cityName != "")
+					{
+						if(layer == '2')
+							this.alarmFlow.reload('(' + alarmRule + ")&(alarmregion=\"" + cityName + "\")");
+						else if(layer == '3')
+							this.alarmFlow.reload('(' + alarmRule + ")&(alarmcounty=\"" + cityName + "\")");
+						else
+							this.alarmFlow.reload(alarmRule);
+					}
+					else
+					{
+						this.alarmFlow.reload(alarmRule);
+					}
+				}
+
+				var paramMap:Object = new Object();
+				if(cityId != "")
+				{
+					paramMap.city_id = cityId;
+					paramMap.city_layer = layer;
+				}
+
+				log.info("查询GIS数据参数 city_id=" + paramMap.city_id + " city_layer=" + paramMap.city_layer + " type=" + type);
+				if(type == 1)
+				{
+					//初始化资源
+					_cellService.worstCellGisInfo(paramMap, loadResDataSucc, null, loadResDataErr);
+					//初始化性能
+					_cellService.worstPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+				}
+				else if(type == 2)
+				{
+					//初始化资源
+					_cellService.badCellGisInfo(paramMap, loadResDataSucc, null, loadResDataErr);
+					//初始化性能
+					_cellService.badPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+				}
+				else if(type == 3)
+				{
+					//初始化资源
+					_cellService.zeroCellGisInfo(paramMap, loadResDataSucc, null, loadResDataErr);
+					//初始化性能
+					_cellService.zeroPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+				}
+				else if(type == 4)
+				{
+					//初始化资源
+					_cellService.lowCellGisInfo(paramMap, loadResDataSucc, null, loadResDataErr);
+					//初始化性能
+					_cellService.lowPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+				}
+				else if(type == 5)
+				{
+					//初始化资源
+					_cellService.highUsageRateCellGisInfo(paramMap, loadResDataSucc, null, loadResDataErr);
+					//初始化性能
+					_cellService.highUsageRateCellPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+				}
+				else
+				{
+					//初始化资源
+					_cellService.worstCellGisInfo(paramMap, loadResDataSucc, null, loadResDataErr);
+					//初始化性能
+					_cellService.worstPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+				}
+			}
+
+			private function loadResDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载资源列表成功！");
+					this.resourceFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载资源列表为空！");
+					if(_isDebug)
+					{
+						this.resourceFlow.initData(null);
+					}
+				}
+
+				_mapView.loadGisDataSucc(obj);
+			}
+
+			private function loadResDataErr(obj:Object):void
+			{
+				log.info("加载资源列表/Gis资源失败！" + obj);
+				if(_isDebug)
+				{
+					this.resourceFlow.initData(null);
+				}
+			}
+
+			private function loadPerfDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载性能列表成功！");
+					this.perfFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载性能列表为空！");
+					if(_isDebug)
+					{
+						this.perfFlow.initData(null);
+					}
+				}
+			}
+
+			private function loadPerfDataErr(obj:Object):void
+			{
+				log.info("加载性能列表失败！" + obj);
+				if(_isDebug)
+				{
+					this.perfFlow.initData(null);
+				}
+			}
+
+			public function get mapView():Object
+			{
+				return _mapView;
+			}
+
+			public function set mapView(value:Object):void
+			{
+				_mapView = value;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:ViewStack id="flowViewStack"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2"
+				  creationPolicy="all">
+		<s:NavigatorContent id="alarmNav"
+							label="资源信息">
+			<resource:CellResourceStat id="resourceFlow"
+									   width="100%"
+									   height="100%">
+			</resource:CellResourceStat>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="sheetNav"
+							label="性能告警">
+			<pubflow:alarm id="alarmFlow"
+						   moduleKey="categoriesflowalarm"
+						   width="100%"
+						   height="100%">
+			</pubflow:alarm>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="workStateNav"
+							label="性能信息">
+			<perf:MoPerfStat id="perfFlow"
+							 width="100%"
+							 height="100%">
+			</perf:MoPerfStat>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar dataProvider="{flowViewStack}"
+			  id="tabBar1"
+			  styleName="commonTabBar">
+	</s:TabBar>
+</s:Group>

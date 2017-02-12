@@ -1,0 +1,143 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   paddingLeft="25"
+		   paddingRight="25"
+		   paddingTop="10"
+		   paddingBottom="10"
+		   creationComplete="module1_creationCompleteHandler(event)"
+		   xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		   xmlns:setface="com.linkage.module.cms.scenedaily.view.components.setface.*"
+		   xmlns:view="com.linkage.module.cms.scenedaily.view.*"
+		   xmlns:worstmo="com.linkage.module.cms.scenedaily.view.components.worstmo.*"
+		   xmlns:healthreport="com.linkage.module.cms.scenedaily.view.components.healthreport.*"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			import flash.utils.setTimeout;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(SceneDailyCfgModule);
+			
+			[Bindable]
+			private var dp:ArrayCollection = new ArrayCollection([
+				{'label': "基本设置"},
+				{'label': "阈值设置"},
+				{'label': "健康度算法配置"},
+				{'label': "最差网元算法设置"},
+				{'label': "健康报告分类设置"}]);
+
+			private var nameCompCache:Object = {};
+
+			protected function list1_changeHandler(event:IndexChangeEvent):void
+			{
+				log.info("切换配置页面：" + dp[event.oldIndex]['label']
+					+ " --> "
+					+ dp[event.newIndex]['label']);
+
+				nameCompCache[dp[event.oldIndex]['label']].visible = false;
+				nameCompCache[dp[event.oldIndex]['label']].includeInLayout = false;
+
+				nameCompCache[dp[event.newIndex]['label']].visible = true;
+				nameCompCache[dp[event.newIndex]['label']].includeInLayout = true;
+			}
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("配置页面初始化~");
+
+				labelList.selectedIndex = 0;
+
+				nameCompCache["基本设置"] = baseSet;
+				nameCompCache["阈值设置"] = thresHold;
+				nameCompCache["健康度算法配置"] = healthSet;
+				nameCompCache["最差网元算法设置"] = worstMoModule;
+				nameCompCache["健康报告分类设置"] = HealthReportModule;
+			}
+
+			[Init]
+			public function initData():void
+			{
+				baseSet.init();
+
+				thresHold.init();
+				healthSet.init();
+				worstMoModule.init();
+				HealthReportModule.init();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{SceneDailyCfgModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+
+	<s:Group width="100%"
+			 height="100%"
+			 left="21">
+
+		<!-- 基本设置 -->
+		<setface:BaseSetView width="100%"
+							 height="100%"
+							 id="baseSet"/>
+
+		<!-- 阈值设置 -->
+		<view:ThresHoldView width="100%"
+							height="100%"
+							visible="false"
+							includeInLayout="false"
+							id="thresHold"/>
+
+		<!-- 健康度算法配置 -->
+		<setface:HealthSetView width="100%"
+							   height="100%"
+							   visible="false"
+							   includeInLayout="false"
+							   id="healthSet"/>
+
+		<!-- 最差网元算法设置 -->
+		<worstmo:WorstMoSet width="100%"
+							height="100%"
+							visible="false"
+							includeInLayout="false"
+							id="worstMoModule"/>
+
+		<!-- 健康报告分类设置 -->
+		<healthreport:HealthReportSet width="100%"
+									  height="100%"
+									  visible="false"
+									  includeInLayout="false"
+									  id="HealthReportModule"/>
+	</s:Group>
+
+	<ailk_compts:NavBar location="right"
+						title="设置"
+						x="0"
+						top="20">
+		<s:List id="labelList"
+				change="list1_changeHandler(event)"
+				width="100%"
+				styleName="sceneList"
+				height="100%"
+				contentBackgroundAlpha="0"
+				dataProvider="{dp}"
+				dropEnabled="true"
+				dragEnabled="true"
+				dragMoveEnabled="true"
+				itemRenderer="com.linkage.module.cms.scenedaily.view.components.SceneDailyCfgListRender"/>
+	</ailk_compts:NavBar>
+
+</mx:Module>

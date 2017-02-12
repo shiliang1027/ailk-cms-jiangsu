@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:component="com.linkage.module.cms.general.regional.important.scene.view.component.*"
+		  width="100%"
+		  height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.important.scene.common.event.SceneEvent;
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			/**
+			 * 日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.important.scene.view.component.VideoChartGroup");
+
+			//初始化窗口信息
+			public function initWindow(monitorAction:MonitorAction):void
+			{
+				//1.初始化视频窗口信息
+				videoGroup.monitorAction=monitorAction;
+
+				//2.初始化业务指标窗口
+				serChart.monitorAction=monitorAction;
+
+				//3.初始化性能指标窗口
+				proChart.monitorAction=monitorAction;
+
+				//4.初始化事件监听
+				monitorAction.addEventListener(SceneEvent.SCENE_CLICK, sceneClick);
+			}
+
+			//场景点击事件
+			private function sceneClick(event:SceneEvent):void
+			{
+				var venueId:String=event.venueId;
+				var queryTime:String=event.histroyTime;
+
+				//1.加载视频窗口信息
+				videoGroup.loadVideoPictureData(venueId, this);
+
+				//2.加载业务指标窗口信息
+				serChart.loadChartData(venueId, queryTime);
+
+				//3.加载性能指标窗口
+				proChart.loadChartData(venueId, queryTime);
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%">
+			<component:VideoGroup id="videoGroup"
+								  width="100%"/>
+			<component:ChartWindow id="serChart"
+								   chartType="Column2D"
+								   segmentType="2"
+								   width="100%"
+								   height="200"/>
+			<component:ChartWindow id="proChart"
+								   chartType="Line"
+								   segmentType="1"
+								   width="100%"
+								   height="200"/>
+		</s:VGroup>
+	</s:Scroller>
+</s:HGroup>

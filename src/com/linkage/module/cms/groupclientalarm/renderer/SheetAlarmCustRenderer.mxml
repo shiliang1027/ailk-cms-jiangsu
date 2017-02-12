@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+								  xmlns:s="library://ns.adobe.com/flex/spark" 
+								  xmlns:mx="library://ns.adobe.com/flex/mx" 
+								  focusEnabled="true" dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.groupclientalarm.Config;
+			
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+			import mx.events.FlexEvent;
+			
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				var field:String=(listData as AdvancedDataGridListData).dataField;
+				var fieldColor:String = field + "_color"
+
+				try
+				{
+					if(fieldColor == data["color"])
+					lblData.clearStyle("backgroundColor");
+					if (data && data["color"])
+					{
+						lblData.setStyle("backgroundColor", data["color"]);
+					}
+					
+				}
+				catch (e:Error)
+				{
+				}
+			}
+			
+
+			
+		]]>
+	</fx:Script>
+	<s:SkinnableContainer top="0" left="0" right="0" bottom="0" backgroundAlpha="{Number(data.alarm_level_num)>0?1:0}" backgroundColor="{Number(data.alarm_level_num)>0?Config.alarmColorConfig[data.alarm_level_num]:0xffffff}">
+		<s:layout>
+			<s:HorizontalLayout horizontalAlign="center" verticalAlign="middle"/>
+		</s:layout>
+		<s:Label id="lblData" text="{listData.label}"/>
+	</s:SkinnableContainer>
+</s:MXAdvancedDataGridItemRenderer>

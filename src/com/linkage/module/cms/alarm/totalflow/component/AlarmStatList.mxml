@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  close="windowCloseHandler(event)"
+			  minimizable="false"
+			  maximizable="false"
+			  dragable="true"
+			  minHeight="30"
+			  width="800"
+			  height="360"
+			  xmlns:pager="com.linkage.module.cms.components.pager.*">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.totalflow.AlarmContainer;
+			import com.linkage.module.cms.alarm.totalflow.event.StatEvent;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			//专业
+			private var _specName:String=null;
+			//属地
+			private var _cityName:String=null;
+			//类型
+			private var _queryType:String=null;
+
+			//设置数据
+			public function initDataSource(data:Object):void
+			{
+				statData.dataProvider=data;
+
+			}
+
+			//设置参数
+			public function setParams(specName:String, cityName:String, queryType:String):void
+			{
+				_specName=specName;
+				_cityName=cityName;
+				_queryType=queryType;
+			}
+
+			//设置分页参数
+			public function setPageParam(totalRowCount:int):void
+			{
+				districtCustPager.totalRowCount=totalRowCount;
+				districtCustPager.currentPage=1;
+			}
+
+			//弹出列过滤过滤告警
+			public function showHideWindow(displayObj:DisplayObject=null):void
+			{
+				if (displayObj == null)
+				{
+					PopUpManager.removePopUp(this);
+				}
+				else
+				{
+					PopUpManager.addPopUp(this, displayObj, false);
+					PopUpManager.centerPopUp(this);
+				}
+			}
+
+			protected function districtCustPager_pageChangeHandler(event:PagerEvent):void
+			{
+				var param:Object=new Object;
+				param.curPage=districtCustPager.currentPage;
+				param.pageSize=districtCustPager.pageSize;
+				param.type=_queryType;
+				param.specName=_specName;
+				param.cityName=_cityName;
+				dispatchEvent(new StatEvent(StatEvent.DETAIL_PAGE, param));
+			}
+
+			//关闭窗口
+			protected function windowCloseHandler(event:WindowEvent):void
+			{
+				showHideWindow();
+			}
+
+			//设置标题
+			public function set titleInfo(value:String):void
+			{
+				this.title=value;
+			}
+
+			//统计数据单击
+			protected function statDataItemClickHandler(event:ListEvent):void
+			{
+				var url:String=AlarmContainer.SHEETTOTAL_DETAILURL + event.target.selectedItem.form_no;
+				ExternalInterface.call("function(){window.open('" + url + "','','resizable=yes,toolbar=no')}");
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<mx:AdvancedDataGrid id="statData"
+							 width="100%"
+							 height="100%"
+							 enabled="true"
+							 editable="false"
+							 verticalScrollPolicy="auto"
+							 horizontalScrollPolicy="auto"
+							 itemClick="statDataItemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="工单号"
+										   dataField="form_no"
+										   width="100"/>
+				<mx:AdvancedDataGridColumn headerText="网元名称"
+										   dataField="nename"
+										   width="100"/>
+				<mx:AdvancedDataGridColumn headerText="设备类型"
+										   dataField="class_three_name"
+										   width="100"/>
+				<mx:AdvancedDataGridColumn headerText="告警标题"
+										   dataField="alarmtitle"
+										   width="100"/>
+				<mx:AdvancedDataGridColumn headerText="工单处理环节"
+										   dataField="flow_state"
+										   width="120"/>
+				<mx:AdvancedDataGridColumn headerText="工单受理时间"
+										   dataField="accept_time"
+										   width="120"/>
+				<mx:AdvancedDataGridColumn headerText="工单告警级别"
+										   dataField="alarmseverity"
+										   width="120"/>
+				
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:HGroup width="100%"
+				  horizontalAlign="right">
+			<pager:Pager id="districtCustPager"
+						 pageSize="10"
+						 pageChange="districtCustPager_pageChangeHandler(event)">
+			</pager:Pager>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:AdvancedDataGrid xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 width="100%"
+					 height="100%"
+					 contextMenu="{cm}"
+					 creationComplete="advanceddatagrid1_creationCompleteHandler()"
+					 headerHeight="22"
+					 rowHeight="22"
+					 horizontalScrollPolicy="auto"
+					 verticalScrollPolicy="auto"
+					 verticalAlign="middle"
+					 doubleClickEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			
+			
+			private var log:ILogger = Log.getLoggerByClass(KPIADGrid);
+			[Bindable]
+			private var cm:ContextMenu;
+			
+			public var showEditBSLineFun:Function; 
+			public var showBSLineViewFun:Function; 
+			public var showBLToleranceFun:Function; 
+			public var showKPIUnusualFun:Function; 
+			protected function advanceddatagrid1_creationCompleteHandler():void
+			{
+				log.info("指标列表begin初始化");
+				//					基线定义维护、设置周同比、指标异常设置
+				var cmi1:ContextMenuItem = this.createContextMenuItem("基线定义维护", showEditBSLineFun);
+				var cmi2:ContextMenuItem = this.createContextMenuItem("基线调整", showBSLineViewFun);
+				var cmi3:ContextMenuItem = this.createContextMenuItem("基线容忍度设置", showBLToleranceFun);
+				var cmi4:ContextMenuItem = this.createContextMenuItem("异常值设置", showKPIUnusualFun);
+				var cmi5:ContextMenuItem = this.createContextMenuItem("基线趋势图", null);
+				cm = new ContextMenu();
+				cm.hideBuiltInItems();
+				cm.customItems = [cmi1,cmi3,cmi4];
+			}
+			private function createContextMenuItem(itemName:String,itemSelectFun:Function):ContextMenuItem{
+				var cmi:ContextMenuItem = new ContextMenuItem(itemName, true);
+				cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+				{
+					log.info("抛出"+itemName+"事件...");
+					var param:Object = (evt.mouseTarget as IListItemRenderer).data;
+					log.info(param);
+					itemSelectFun(param);
+				});
+				return cmi;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+		<mx:columns>
+<!--			<mx:AdvancedDataGridColumn minWidth="50" 
+									   itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.CheckBoxSelectedRenderer" 
+									   headerRenderer="com.linkage.module.cms.baseline.dynamic.renderer.CheckBoxSelectHeaderRenderer" />-->
+			<mx:AdvancedDataGridColumn minWidth="200" headerText="指标名称" dataField="perfTypeName"/>
+			<mx:AdvancedDataGridColumn minWidth="200" headerText="网元类型" dataField="moTypeName"/>
+			<mx:AdvancedDataGridColumn minWidth="200" headerText="粒度(分钟)" dataField="timeInterval"/>
+			<mx:AdvancedDataGridColumn minWidth="200" headerText="指标算法" dataField="calcute"/>
+			<mx:AdvancedDataGridColumn minWidth="200" headerText="基线状态" dataField="isActiveDesc"/>
+			<mx:AdvancedDataGridColumn minWidth="200" headerText="基线算法" dataField="evaltypeDesc"/>
+			<mx:AdvancedDataGridColumn headerText="操作" 
+									   dataField="isActive"
+									   textAlign="center"
+									   itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.IsStartKPIRenderer" />
+		</mx:columns>
+</mx:AdvancedDataGrid>

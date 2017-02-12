@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         width="100%"
+         height="100%"
+		 xmlns:kpi="com.linkage.module.cms.perfmonitornew.kpi.*"
+         xmlns:kpiNew="com.linkage.module.cms.perfmonitornew.kpiNew.*">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.event.perfEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+            public var schemeId:String;
+			
+			private var log:ILogger = Log.getLoggerByClass(SchemeMonitor);
+			
+			[Bindable]
+			private var summaryMonitoryKpiArr:ArrayCollection = new ArrayCollection();
+			
+			[Bindable]
+			private var moMonitoryKpiArr:ArrayCollection = new ArrayCollection();
+
+            public function changeScheme(schemeId:String, schemeName:String, remark:String):void
+            {
+//				summaryMonitoryKpiArr.removeAll();
+				moMonitoryKpiArr.removeAll();
+				log.info("changeScheme new  -----@{0},{1},{2}",schemeId,schemeName,remark);
+                if (remark == "汇总")
+                {
+					this.currentState = "summary";
+					PerfMonitorDAO.getInstance().getMoAndKpiByScheme(
+						{"scheme_id": schemeId},
+						function(result:Object):void
+						{
+							log.info("summary--------------");
+							
+//							summaryMonitoryKpiArr.removeAll();
+							list.dataProvider = result as IList;
+//							summaryMonitoryKpiArr.addAll(result as IList);
+							log.info("333333333");
+							log.info(list.dataProvider);
+							
+//							summaryMonitoryKpiArr.refresh();
+//							list.itemRenderer = new ClassFactory(SummaryMonitorRenderer);
+							/* list.dataProvider=new ArrayCollection();
+							list.dataProvider = result as IList; */
+						});
+					
+                }
+                else if (remark == "设备")
+                {
+                    this.currentState = "mo";
+					
+					PerfMonitorDAO.getInstance().getMoAndKpiByScheme(
+						{"scheme_id": schemeId},
+						function(result:Object):void
+						{
+							log.info("mo--------------");
+							log.info(result);
+//							moMonitoryKpiArr.removeAll();
+							moMonitoryKpiArr.addAll(result as IList);
+//							list.itemRenderer = new ClassFactory(MoMonitorRenderer);
+//							list1.dataProvider = result as IList;
+						});
+//                    moMonitor.startMonitor(schemeId, schemeName);
+                }
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <s:states>
+        <s:State name="summary"/>
+        <s:State name="mo"/>
+    </s:states>
+
+	
+	<s:VGroup height="100%"
+			  width="100%"
+			  visible.mo="false"
+			  includeInLayout.mo="false">
+		<s:BorderContainer width="100%"
+						   height="100%">
+			<s:List width="100%" height="100%"  
+					id="list"
+					styleName="sceneList" 
+					contentBackgroundAlpha="0"
+					borderVisible="false" 
+					itemRenderer="com.linkage.module.cms.perfmonitornew.kpiNew.SummaryMonitorRenderer">
+				<s:layout>
+					<s:TileLayout horizontalGap="5" verticalGap="5" requestedColumnCount="2" requestedRowCount="-1" rowHeight="260" columnAlign="justifyUsingWidth" rowAlign="top"/>
+				</s:layout>
+			</s:List>
+		</s:BorderContainer>
+	</s:VGroup>
+	<s:VGroup height="100%"
+			  width="100%"
+			  visible.summary="false"
+			  includeInLayout.summary="false">
+		
+		<s:List width="100%" height="100%" 
+				id="list1"
+				styleName="sceneList" 
+				contentBackgroundAlpha="0" 
+				borderVisible="false" 
+				dataProvider="{moMonitoryKpiArr}"
+				itemRenderer="com.linkage.module.cms.perfmonitornew.kpiNew.MoMonitorRenderer">
+			<s:layout>
+				<s:TileLayout horizontalGap="5" verticalGap="5" requestedColumnCount="2" requestedRowCount="-1" rowHeight="240" columnAlign="justifyUsingWidth" rowAlign="top"/>
+			</s:layout>
+		</s:List>
+	</s:VGroup>
+ <!--   <s:Scroller width="100%"
+                height="100%"
+                left="0"
+                right="0"
+				visible.summary="false"
+				includeInLayout.summary="false"
+                verticalScrollPolicy="auto">
+        <kpi:MoMonitor id="moMonitor"
+                       left="0"
+                       right="0"
+                       width="100%"
+                       height="100%"/>
+    </s:Scroller>-->
+</s:Group>

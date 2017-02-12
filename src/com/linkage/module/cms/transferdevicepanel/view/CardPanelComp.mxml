@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					  width="100%"
+					  height="100%"
+					  xmlns:parsley="http://www.spicefactory.org/parsley"
+					  creationComplete="cardpanelcomp_creationCompleteHandler(event)" click="skinnablecontainer_clickHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2014-5-25
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.transferdevicepanel.event.TransferDevicePanelEvent;
+			
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			[Inject("cardPanelCompPM")]
+			[Bindable]
+			public var pm:CardPanelCompPM;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			private var log:ILogger=Log.getLoggerByClass(CardPanelComp);
+
+			protected function cardpanelcomp_creationCompleteHandler(event:FlexEvent):void
+			{
+				timeDD.selectedIndex=2;
+				timeDD.dispatchEvent(new IndexChangeEvent(IndexChangeEvent.CHANGE));
+			}
+
+			protected function timeDD_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				var e:TransferDevicePanelEvent=new TransferDevicePanelEvent(TransferDevicePanelEvent.REFRESHTIMECHANGE);
+				e.param=timeDD.selectedItem.value;
+				dispatchMsg(e);
+			}
+			
+			protected function skinnablecontainer_clickHandler(event:MouseEvent):void
+			{
+				if(isSlotComp(event.target) || isPtpComp(event.target)){
+				}else if(pm.dm.queryParam.ptp_id || pm.dm.queryParam.slotid){
+					delete pm.dm.queryParam.ptp_id;
+					delete pm.dm.queryParam.slotid;
+					dispatchMsg(new TransferDevicePanelEvent(TransferDevicePanelEvent.LOAD_PROPDATA));
+				}
+			}
+			
+			private function isSlotComp(target:*):Boolean{
+				if(!target){
+					return false;
+				}
+				if(target is SlotComp){
+					return true;
+				}
+				target = target.parent;
+				return isSlotComp(target);
+			}
+			private function isPtpComp(target:*):Boolean{
+				if(!target){
+					return false;
+				}
+				if(target is PtpComp){
+					return true;
+				}
+				target = target.parent;
+				return isPtpComp(target);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  verticalAlign="middle"
+				  paddingLeft="10"
+				  paddingRight="10" paddingTop="5"
+				  fontSize="18">
+			<s:Label text="自动刷新周期："
+					 styleName="label"/>
+			<s:DropDownList id="timeDD"
+							change="timeDD_changeHandler(event)"
+							labelField="name"
+							width="100"
+							dataProvider="{pm.dm.refreshTimes}"/>
+			<s:Label text="分钟 距离下次刷新{pm.refreshCount}秒"
+					 styleName="label"/>
+		</s:HGroup>
+		<s:Scroller width="100%"
+					height="100%"
+					styleName="sceneScroller">
+			<s:HGroup paddingBottom="5"
+					  width="100%"
+					  paddingLeft="5"
+					  paddingRight="5"
+					  gap="35">
+				<s:SkinnableContainer styleName="sceneBorderContainer">
+					<s:layout>
+						<s:VerticalLayout paddingTop="40" paddingLeft="5" paddingRight="5" paddingBottom="10"/>
+					</s:layout>
+					<s:DataGroup dataProvider="{pm.dm.slotData}"
+								 itemRenderer="com.linkage.module.cms.transferdevicepanel.view.renderer.SlotItemRender">
+						<s:layout>
+							<s:BasicLayout/>
+						</s:layout>
+					</s:DataGroup>
+				</s:SkinnableContainer>
+				<s:HGroup width="100%" paddingTop="40">
+					<s:DataGroup width="100%"
+								 dataProvider="{pm.dm.ptpData}"
+								 itemRenderer="com.linkage.module.cms.transferdevicepanel.view.renderer.PtpItemRender">
+						<s:layout>
+							<s:TileLayout horizontalGap="20"
+										  verticalGap="35"
+										  requestedColumnCount="-1"/>
+						</s:layout>
+					</s:DataGroup>
+				</s:HGroup>
+			</s:HGroup>
+		</s:Scroller>
+	</s:VGroup>
+</s:SkinnableContainer>

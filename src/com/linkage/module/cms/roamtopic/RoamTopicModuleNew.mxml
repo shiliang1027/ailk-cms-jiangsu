@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:parsley="http://www.spicefactory.org/parsley"
+		   xmlns:view="com.linkage.module.cms.roamtopic.view.*"
+		   creationComplete="module1_creationCompleteHandler(event)"
+		   layout="absolute" width="100%" height="100%" preinitialize="module1_preinitializeHandler(event)">
+	<!--
+	***************************************
+	This is Content
+	@author gengsan (71951)
+	@version 1.0
+	@date 2014-12-16
+	@langversion 3.0
+	@playerversion Flash 11
+	@productversion Flex 4
+	@copyright Ailk NBS-Network Mgt. RD Dept.
+	***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{RoamTopicModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.roaming.RoamViewApp;
+			import com.linkage.module.cms.roamtopic.event.RoamTopicEvent;
+			import com.linkage.module.cms.roamtopic.view.RoamTopicPM;
+			
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			[Inject("roamTopicPM")]
+			[Bindable]
+			public var pm:RoamTopicPM;
+			private var log:ILogger=Log.getLoggerByClass(RoamTopicModule);
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			private var timer:Timer = new Timer(300000);
+			
+			
+			
+			
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				pm.dm.parameters = this.parentApplication.parameters;
+				if(''==pm.dm.parameters.type || null==pm.dm.parameters.type){
+					pm.dm.parameters.type = "1";//省内      2是全省     3是国际
+				}
+				dateFormatter.formatString = "YYYY-MM-DD JJ";
+				var d:Date = new Date();
+				if(d.getMinutes() < 10)
+				{
+					d.setHours(d.getHours() - 7)
+				}else{
+					d.setHours(d.getHours() - 6)
+				}
+				pm.dm.parameters.time=dateFormatter.format(d) + ":00:00";
+				//pm.dm.parameters.time="2014-12-22 12:00:00";
+				pm.dm.roamTopicType = pm.dm.parameters.type;
+				pm.dm.time = pm.dm.parameters.time;
+				pm.dm.provinceId = "10";
+				pm.dm.provinceName = "江苏省";
+				pm.dm.isproChartClick = false;
+				pm.dm.selectIndex = 0;
+//				pm.dm.provinceId = "31";
+//				pm.dm.provinceName = "新疆";
+				dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+				dispatchMsg(new RoamTopicEvent("LOAD_DATA"));
+				timer.start();
+				timer.addEventListener(TimerEvent.TIMER,onTimerHandler);
+			}
+			
+			private function onTimerHandler(event:TimerEvent):void{
+				timer.stop();
+				timer.reset();
+				log.info("=======定时器开始======");
+				
+				if(''==pm.dm.parameters.type || null==pm.dm.parameters.type){
+					pm.dm.parameters.type = "1";//省内      2是全省     3是国际
+				}
+				dateFormatter.formatString = "YYYY-MM-DD JJ";
+				var d:Date = new Date();
+				if(d.getMinutes() < 10)
+				{
+					d.setHours(d.getHours() - 7)
+				}else{
+					d.setHours(d.getHours() - 6)
+				}
+				pm.dm.parameters.time=dateFormatter.format(d) + ":00:00";
+				//pm.dm.parameters.time="2014-12-22 12:00:00";
+//				pm.dm.roamTopicType = pm.dm.parameters.type;
+				pm.dm.time = pm.dm.parameters.time;
+				pm.dm.provinceId = "10";
+				pm.dm.provinceName = "江苏省";
+				pm.dm.isproChartClick = false;
+				pm.dm.selectIndex = 0;
+				//				pm.dm.provinceId = "31";
+				//				pm.dm.provinceName = "新疆";
+				dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+				dispatchMsg(new RoamTopicEvent("LOAD_DATA"));
+				timer.start();
+				timer.addEventListener(TimerEvent.TIMER,onTimerHandler);
+				
+				
+//				module1_creationCompleteHandler(null);
+			}
+			
+			protected function module1_preinitializeHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				styleManager.loadStyleDeclarations2(this.parentApplication.parameters["styleUrl"]);
+			}
+			
+		]]>
+	</fx:Script>
+	<view:RoamTopicWindowNew id="roamingTopicWindow"/>
+</mx:Module>

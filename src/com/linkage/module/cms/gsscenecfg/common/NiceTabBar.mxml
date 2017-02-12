@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          width="100%"
+          height="100%"
+          gap="-2">
+    <fx:Script>
+        <![CDATA[
+            import mx.collections.ArrayCollection;
+
+            private var _selectedIndex:int = 0;
+
+            private var allItems:ArrayCollection = new ArrayCollection;
+
+            public function setData(datas:ArrayCollection):void
+            {
+                allItems.removeAll();
+
+                for each (var data:Object in datas)
+                {
+                    var item:TabImgItem = new TabImgItem;
+                    item.index = datas.getItemIndex(data) + 1;
+                    item.content = data.name;
+                    item.addEventListener(MouseEvent.CLICK, changeSelected);
+                    this.addElement(item);
+
+                    allItems.addItem(item);
+                }
+
+                (this.getElementAt(0) as TabImgItem).currentState = "selected";
+            }
+
+            private function changeSelected(e:MouseEvent):void
+            {
+                for each (var im:TabImgItem in allItems)
+                    im.currentState = "normal";
+
+                e.currentTarget.currentState = "selected";
+                selectedIndex = e.currentTarget.index - 1;
+            }
+
+            [Bindable]
+            public function get selectedIndex():int
+            {
+                return _selectedIndex;
+            }
+
+            public function set selectedIndex(value:int):void
+            {
+                _selectedIndex = value;
+
+                for each (var im:TabImgItem in allItems)
+                    im.currentState = "normal";
+
+                allItems.getItemAt(value).currentState = "selected";
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+</s:HGroup>

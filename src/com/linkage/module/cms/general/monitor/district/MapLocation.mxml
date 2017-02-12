@@ -1,0 +1,4347 @@
+<?xml version="1.0" encoding="utf-8"?>
+<monitor:CommonGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx" 
+					 xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" width="100%" height="100%"
+					 xmlns:gis="com.linkage.gis.*" 
+					 xmlns:monitor="com.linkage.module.cms.general.monitor.*"
+					 xmlns:tools="com.linkage.module.cms.general.monitor.district.tools.*"
+					 xmlns:district="com.linkage.module.cms.general.monitor.district.*" 
+					 xmlns:panel="com.linkage.system.component.panel.*" 
+					 creationComplete="commongroup1_creationCompleteHandler(event)" xmlns:layers="com.esri.ags.layers.*">
+	<monitor:layout>
+		<s:BasicLayout/>
+	</monitor:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.rpc.remoting.BlazeDSUtil;
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.GisLayer;
+			import com.linkage.gis.core.metry.GisLine;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.metry.GisRegion;
+			import com.linkage.gis.core.styles.GisFillPredefinedStyle;
+			import com.linkage.gis.core.styles.GisLinePredefinedStyle;
+			import com.linkage.gis.core.styles.GisLineStyle;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.event.GisExtentEvent;
+			import com.linkage.gis.event.GisFeatureEvent;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.alarm.framework.module.server.source.Collection;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.common.ImageBuffer;
+			import com.linkage.module.cms.general.common.ImageFactory1;
+			import com.linkage.module.cms.general.monitor.GeneralMonitorModule;
+			import com.linkage.module.cms.general.monitor.datamanager.DevLocation;
+			import com.linkage.module.cms.general.monitor.datamanager.DevLocationImp;
+			import com.linkage.module.cms.general.monitor.datamanager.ImageServ;
+			import com.linkage.module.cms.general.monitor.datamanager.ImageServImp;
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeService;
+			import com.linkage.module.cms.general.monitor.datamanager.LineInfo;
+			import com.linkage.module.cms.general.monitor.district.tools.renderer.QuitItemRender;
+			import com.linkage.module.cms.general.monitor.district.tools.renderer.QuitTransdevAlarmItemRenderer;
+			import com.linkage.module.cms.general.monitor.district.tools.renderer.RouteAlarmItemRenderer;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.ExcelUtil;
+			import com.supermap.web.core.Unit;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.events.AdvancedDataGridEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			import mx.events.ScrollEvent;
+			import mx.messaging.channels.StreamingAMFChannel;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			
+			import nl.demonsters.debugger.MonsterDebugger;
+			
+			import spark.components.Group;
+			import spark.components.Label;
+			import spark.components.List;
+			import spark.events.IndexChangeEvent;
+			import spark.filters.ColorMatrixFilter;
+			
+//			// ---- 颜色滤镜 -----
+			private static const LEVEL1_COLOR_FILTER:ColorMatrixFilter = new ColorMatrixFilter([0, 0, 0, 0, 255].concat([1, 1, 1, 0, -370], [1, 1, 1, 0, -370], [0, 0, 0, 1, 0])); 
+			private static const LEVEL2_COLOR_FILTER:ColorMatrixFilter = new ColorMatrixFilter([0, 0, 0, 0, 255].concat([0.116, 0.116, 0.116, 0, 140], [1, 1, 1, 0, -370], [0, 0, 0, 1, 0])); 
+			private static const LEVEL3_COLOR_FILTER:ColorMatrixFilter = new ColorMatrixFilter([0, 0, 0, 0, 255].concat([0, 0, 0, 0, 255], [1, 1, 1, 0, -370], [0, 0, 0, 1, 0])); 
+			private static const LEVEL4_COLOR_FILTER:ColorMatrixFilter = new ColorMatrixFilter([0.248, 0.248, 0.248, 0, 65].concat([0.196, 0.196, 0.196, 0, 105], [0.039, 0.039, 0.039, 0, 225], [0, 0, 0, 1, 0]));
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.district.MapLocation");
+			
+			[Embed(source="../../img/icon_export.png")]
+			[Bindable]
+			public static var iconExport:Class;
+			
+			private var nowIndex:uint = 0;
+			
+			//主视图			private var _general:Object = null;
+			
+			//VIP类型
+			private var vipTypeMap:Object = {"4":"vvip","3":"vip","-1":"dang","-1":"edu","5":"super"};
+			
+			//劣化和最差类型			private var cellTypeMap:Object = {"1":"worst","2":"bad"};
+			
+			//右键菜单链接
+			private static var cellDetailURL:String = "cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=";
+			private static var perfDetailURL:String = "cms/performance/report/permsg!initForm.action";
+			private static var alarmDetailURL:String = "cms/warn/report/query/ShowAlarmList.jsp";
+			private static var logicTopoURL:String = "cms/webtopo/topo/topolocate.action";
+			private static var logicTopoURLCirc:String = "cms/webtopo/topo/topolocate!circuit.action";
+			private static var customerURL:String = "cms/groupcustom/monitor/monitorMonitor.action";
+			private static var scenenimsURL:String = "http://10.40.4.108:18080/js-view/gis/scenenims.jsp?loginSource=nims&scene=";
+			
+			private var cm:ContextMenu = new ContextMenu();
+			private var showOpticMI:ContextMenuItem = new ContextMenuItem("显示光路");
+			
+			private var lm:LoadManager = new LoadManager(this, "blue");
+			
+			[Bindable]
+			private var routeAlarmItemRender:IFactory =  new ClassFactory(RouteAlarmItemRenderer);
+			
+			[Bindable]
+			private var quitItemRender:IFactory =  new ClassFactory(QuitItemRender);
+			
+			//告警等级对应的颜色
+			private var ALARM_LEVEL_COLOR:Object = {'1':0xFF0000, '2':0xFFB366, '3':0xFFFF4A, '4':0x5555FF, '0':0x00FF00};
+			
+			//数据接口
+			private var _dataService:LevelThreeService = null;
+			
+			//测试数据
+			private var testData:Object = {
+				"bts":[{"mo_id":"1","mo_name":"test","longitude":"113.259518","latitude":"23.13172","alarm_level":"1","vip_type":"3"},
+					{"mo_id":"6","mo_name":"test","longitude":"113.359518","latitude":"23.03172","alarm_level":"1","vip_type":"5"}],
+				"nodeb":[{"mo_id":"2","mo_name":"test1","longitude":"113.269518","latitude":"23.13572","alarm_level":"1","vip_type":"4"}],
+				"worst_cell":[{"mo_id":"3","mo_name":"test2","longitude":"113.279518","latitude":"23.14572","alarm_level":"1","vip_type":"2"}],
+				"bad_cell":[{"mo_id":"4","mo_name":"test3","longitude":"113.275518","latitude":"23.11572","alarm_level":"1","vip_type":"2"}],
+				"venue":[{"mo_id":"5","mo_name":"test4","longitude":"113.375518","latitude":"23.21572","alarm_level":"1","vip_type":"2"}],
+				"oil":[{"mo_id":"7","mo_name":"test4","longitude":"113.475518","latitude":"23.01572","alarm_level":"1","vip_type":"2"}],
+				"communicationcar":[{"mo_id":"8","mo_name":"test4","longitude":"113.575518","latitude":"23.11572","alarm_level":"1","vip_type":"2"}]
+			};
+			
+			//地图是否加载好
+			private var mapInit:Boolean = false;
+			
+			//当前显示的地图属地（即本地网）
+			private var _curMapCity:String = "";
+			
+			//当前的区县
+			private var _curCity:String = "";
+			
+			//当前区县的名称
+			private var _curCityName:String = "";
+			
+			[Bindable]
+			private var defaultCityId:Object;
+			
+			//退服统计报表数据集
+			private var ofsArrc:ArrayCollection = new ArrayCollection();
+			private var ofsColumnArrc:Array = ['区域,city_name', '基站总数,bts_num', '基站退服数,bts_quit_num', 'TD退服数,td_quit_num', '下电机房,power_cut_num', '蓄电池电压低,voltage_low_num', '蓄电池供电,accumulator_num', '传输中断,transfer_off_num'];
+			
+			//劣化小区列表数据集
+			private var perfDownArrc:ArrayCollection = new ArrayCollection();
+			private var perfDownColumnArrc:Array = ['序号,index', '地区,city', '县市,district', '基站,belong_bts', 'LAC,lac', 'CI,ci', '时间,time'];
+			
+			//悬浮窗口显示用
+			private var tmpX:Number = 0;
+			private var tmpY:Number = 0;
+			private var tmpCell:Object = null;
+			
+			//记录上次的告警数据
+			private var lastAlarmObj:Object = null;
+			
+			//管线数据查询接口
+			private var _lineInfo:LineInfo = null;
+			
+			//颜色MAP
+			private var colorMap:Array = [0x00FF00,0x74860D,0x1C999F,0x8E0ABA,0x20A8CA,0x8000FF];
+			
+			//当前颜色序号
+			private var colorId:Number = 0;
+			
+			//定位的网元编号
+			private var _locationNeId:String = null;
+			private var locationNeType:String = "";
+			
+			//定位类型
+			private var _locationType:String = null;
+			
+			//等待提示
+			private var loadInfo:LoadManager;
+			
+			//参数对象
+			private var _param:Object = new Object();
+			
+			//缓存DIS对象
+			//private var gisFeatureArr:ArrayCollection = new ArrayCollection();
+			
+			//缓存对象
+			private var bscMap:Dictionary = new Dictionary();
+			private var rncMap:Dictionary = new Dictionary();
+			private var btsMap:Dictionary = new Dictionary();
+			private var nodebMap:Dictionary = new Dictionary();
+			private var cellMap:Dictionary = new Dictionary();
+			private var ucellMap:Dictionary = new Dictionary();
+			private var wlanMap:Dictionary = new Dictionary();
+			private var roomMap:Dictionary = new Dictionary();
+			private var AZDevMap:Dictionary = new Dictionary();
+			private var coverAreaMap:Dictionary = new Dictionary();
+			private var lineFeatureMap:Dictionary = new Dictionary();
+			
+			//图片缓存对象
+			private var imageBuffer:ImageBuffer = ImageBuffer.getInstance();
+			private var imageFactory:ImageFactory1 = new ImageFactory1();	
+			
+			//网元定位接口方法
+			private var locationServ:DevLocation = null;
+			
+			//网元图片信息查询接口
+			private var imageServ:ImageServ = null;
+			
+			//图片路径缓存
+			private var imageUrlMap:Dictionary = new Dictionary();
+			
+			//图片目录
+			private var _iconUrl:String = "";
+			
+			//GIS图层
+			private var layer:GisLayer = new GisLayer();
+			private var tsLayer:GisLayer = new GisLayer();
+			private var nodeBLayer:GisLayer = new GisLayer();
+			
+			//网元属地
+			private var moCity:String = "";
+			
+			//影响范围相关对象
+			private var devAreaInfo:Object = null;
+			private var devAreaPerfMap:Dictionary = new Dictionary();
+			private var gisColorMap:Dictionary = new Dictionary();
+			private var gisAreaPerfMap:Dictionary = new Dictionary();
+			
+			private var lineCache:ArrayCollection = new ArrayCollection();
+			
+			private var linePointCache:Object = {};
+			private var lineFeatureCache:Object = {};
+			
+			public function get iconUrl():String
+			{
+				return _iconUrl;
+			}
+			
+			public function set iconUrl(value:String):void
+			{
+				_iconUrl = value;
+			}
+			
+			public function get locationType():String
+			{
+				return _locationType;
+			}
+			
+			public function set locationType(value:String):void
+			{
+				_locationType = value;
+			}
+			
+			public function get param():Object
+			{
+				return _param;
+			}
+			
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+			
+			public function get locationNeId():String
+			{
+				return _locationNeId;
+			}
+			
+			public function set locationNeId(value:String):void
+			{
+				_locationNeId = value;
+			}
+			
+			public function get general():Object
+			{
+				return _general;
+			}
+			
+			public function set general(value:Object):void
+			{
+				_general = value;
+			}
+			
+			public function get lineInfo():LineInfo
+			{
+				return _lineInfo;
+			}
+			
+			public function set lineInfo(value:LineInfo):void
+			{
+				_lineInfo = value;
+			}
+			
+			public function get dataService():LevelThreeService
+			{
+				return _dataService;
+			}
+			
+			public function set dataService(value:LevelThreeService):void
+			{
+				_dataService = value;
+				this.routeListWindow.dataService = _dataService;
+			}
+			
+			public function get curCityName():String
+			{
+				return _curCityName;
+			}
+			
+			public function set curCityName(value:String):void
+			{
+				_curCityName = value;
+			}
+			
+			public function get curCity():String
+			{
+				return _curCity;
+			}
+			
+			public function set curCity(value:String):void
+			{
+				_curCity = value;
+			}
+			
+			public function get curMapCity():String
+			{
+				return _curMapCity;
+			}
+			
+			public function set curMapCity(value:String):void
+			{
+				_curMapCity = value;
+				defaultCityId = value;
+			}
+			
+			protected function mapWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				this.mapWork.map.addGisLayer(layer,1);
+				this.mapWork.map.addGisLayer(nodeBLayer,2);
+				this.mapWork.map.addGisLayer(tsLayer,3);
+				
+				//定位属地
+				var param:Object = new Object();
+				param.city_id = _curCity;
+				_dataService.getCitySite(param,loadCitySite,null,loadCitySiteErr);
+				
+				//初始化数据
+				initData();
+			}
+			
+			public function loadCitySite(obj:Object):void
+			{
+				if (obj != null && obj['scale'] != null && obj['longitude'] != null && obj['latitude'] != null)
+				{
+					log.info("加载属地定位数据成功！");
+					this.mapWork.map.zoomToScale(
+						Number(obj['scale']),
+						new GisPoint(Number(obj['longitude']), Number(obj['latitude']))
+					);
+					obj = null;
+				}
+				else
+				{
+					log.info("加载属地定位数据为空！");
+				}
+			}
+			
+			public function loadCitySiteErr(obj:Object):void
+			{
+				log.info("加载属地定位数据失败！");
+			}
+			
+			//初始化实时数据
+			public function initData():void
+			{
+				//显示等待界面
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				if (_locationType == "noaccess")
+				{
+					Alert.show("无相关资源！");
+				}
+				else
+				{
+					this.viewLevel.locationOption();
+					hideDataWindow();
+					
+					//初始化接口
+					locationServ = new DevLocationImp(this.param["context"]);
+					imageServ = new ImageServImp(this.param["context"]);
+					
+					//查询网元数据
+					getData();
+					
+					//查询所有网元的图片路径
+					//imageServ.getAllTopoIconInfo(loadImageUrlSucc,null,loadImageUrlErr);
+				}
+			}
+			
+			//初始化图片缓存
+//			private function loadImageUrlSucc(obj:Object):void
+//			{
+//				if (obj != null)
+//				{
+//					log.info("查询图片缓存信息成功");
+//					for each (var icon:Object in obj)
+//					{
+//						imageUrlMap[icon.type] = icon.iconpath;
+//					}
+//				}
+//				else
+//				{
+//					log.info("查询图片缓存信息为空");
+//				}
+//				
+//				//查询网元数据
+//				getData();
+//			}
+			
+//			private function loadImageUrlErr(obj:Object):void
+//			{
+//				log.info("查询图片缓存信息失败！");
+//				
+//				//查询网元数据
+//				getData();
+//			}
+			
+			override public function hideView():void
+			{
+			}
+			
+			override public function showView():void
+			{
+			}
+			
+			private var isFirst:Boolean=true;
+			public function getData():void
+			{
+				var param:Object = new Object();
+				param.city_id = _curCity;
+				
+				log.info("查询GIS数据参数 city_id="+param.city_id);
+				//_dataService.getResInfo(param,loadData,null,loadDataErr);
+				//locationMo(_locationNeId,_locationType);
+				if (_locationType != "cityLocation")
+				{
+					locationMo(_locationNeId,_locationType);
+				}
+				_dataService.getAllQuitBts(loadData,null,loadDataErr);
+			}
+			
+			public function loadData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载GIS数据成功！-----------------------------");
+					initMap(this.mapWork,obj);
+				}
+				else
+				{
+					log.info("加载GIS数据为空！");
+				}
+				
+				if (_locationType == "cityLocation")
+				{
+					updateCoverAreaColor();
+				}
+				
+				//结束等待提示
+				loadInfo.hideLoading();
+				
+				isFirst=false;
+			}
+			
+			public function loadDataErr(obj:Object):void
+			{
+				log.info("加载GIS数据失败！");
+				
+				if (_locationType == "cityLocation")
+				{
+					updateCoverAreaColor();
+				}
+				
+				//结束等待提示
+				loadInfo.hideLoading();
+			}
+			
+			//放置GIS图标
+			private function initMap(mapTarget:MapWork,obj:Object):void
+			{
+				log.info("开始往GIS上洒点！");
+				
+				var pic:GisMarkerPictureStyle = null;
+				var feature:GisFeature = null;
+				//取基站的数据
+				var btsObj:Object = obj["bts"];
+				var bts:Object = null;
+				var count:int = 0;
+				
+				//取基站
+				log.info("撒点：~~~~~~~~~~~~~~~~~~~~~");				log.info(btsObj);
+				if (btsObj != null)
+				{
+					for each (bts in btsObj)
+					{
+						if (_locationType == "cityLocation")
+						{
+							if (bts.city_id == _locationNeId || _locationNeId == "00")
+							{
+								count++;
+								if (bts.equipmentclass == "NodeB")
+								{
+									addBts(mapTarget,"nodeb","3g",bts,true);
+								}
+								else
+								{
+									addBts(mapTarget,"bts","2g",bts,true);
+								}
+							}
+						}
+						else
+						{
+							if (bts.equipmentclass == "NodeB")
+							{
+								addBts(mapTarget,"nodeb","3g",bts);
+							}
+							else
+							{
+								addBts(mapTarget,"bts","2g",bts);
+							}
+						}
+					}
+				}
+				
+				if (count > 0)
+				{
+//					this.mapWork.map.viewRefresh();
+				}
+				//结束等待提示
+				loadInfo.hideLoading();
+				
+				//启动定时任务
+				//showView();
+				
+				//如果有定位网元则处理
+//				if (_locationNeId != null && _locationNeId != "" && _locationType != "cityLocation")
+//				{
+//					//延时1秒定位
+//					setTimeout(locationMo,1000,_locationNeId,_locationType);
+//				}
+//				else
+//				{
+//					if (count > 0)
+//					{
+//						this.mapWork.map.viewRefresh();
+//					}
+//					//结束等待提示
+//					loadInfo.hideLoading();
+//				}
+			}
+			
+			private var _layer:GisLayer;
+			//放置GIS图标
+			private function initMapGisSaDian(mapTarget:MapWork,obj:Object):void
+			{
+				log.info("开始往GIS上洒点！--");
+				
+				var pic:GisMarkerPictureStyle = null;
+				var feature:GisFeature = null;
+				//取基站的数据
+				var btsObj:Object = obj;
+				var bts:Object = null;
+				var count:int = 0;
+				
+				if(!_layer){
+					_layer = new GisLayer();
+					mapTarget.map.addGisLayer(_layer);
+				}
+				_layer.clear();
+				//取基站
+				
+				if (btsObj != null)
+				{
+					for each (bts in btsObj)
+					{
+						//如果是属地定位，则过滤属地
+						if (_locationType == "cityLocation")
+						{
+							if (bts.city_id == _locationNeId || _locationNeId == "00")
+							{
+								count++;
+								if (bts.equipmentclass == "NodeB")
+								{
+									addBtsGisSanDian(mapTarget,"nodeb","3g",bts,true);
+								}
+								else
+								{
+									addBtsGisSanDian(mapTarget,"bts","2g",bts,true);
+								}
+							}
+						}
+						else
+						{
+							if (bts.equipmentclass == "NodeB")
+							{
+								addBtsGisSanDian(mapTarget,"nodeb","3g",bts);
+							}
+							else
+							{
+								log.info("----------+=========_____________");
+								addBtsGisSanDian(mapTarget,"bts","2g",bts);
+							}
+						}
+					}
+				}
+				
+				if (count > 0)
+				{
+					//					this.mapWork.map.viewRefresh();
+				}
+				//结束等待提示
+				loadInfo.hideLoading();
+			}
+			//创建基站 addBts(mapTarget,"bts","2g",bts);
+			private function addBtsGisSanDian(mapTarget:MapWork,objType:String,cellType:String,btsObj:Object,show:Boolean=false):void
+			{
+				var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imageFactory.getImage("bts",btsObj["alarmLevel"],cellType,""));
+				var feature:GisFeature = new GisFeature(new GisPoint(Number(btsObj.longitude),Number(btsObj.latitude)),pic);
+				var newObj:Object = new Object();
+				newObj.mo_id=btsObj["moId"];
+				newObj.mo_name=btsObj["moName"];
+				newObj.alarmseverity=btsObj["alarmLevel"];
+				newObj.longitude=btsObj["longitude"];
+				newObj.latitude=btsObj["latitude"];
+				newObj.equipmentclass=btsObj["moTypeName"];
+				feature.attributes = newObj;
+				feature.attributes.obj_type = objType;
+				feature.attributes.alarm_target = "true";
+				
+				//鼠标悬浮事件
+				//				feature.addEventListener(GisFeatureEvent.GISFEATURE_OVER,loadCellMsg);
+				//				feature.addEventListener(GisFeatureEvent.GISFEATURE_OUT,removeCellMsg);
+//				feature.onMouseOver = loadCellMsgSanDian;
+//				feature.onMouseOut = removeCellMsg
+				feature.toolTip=btsObj.moName;
+				
+				if (this.viewLevel.filterObject(objType,"",newObj) || true)
+				{
+					log.info("GIS基站添加成功@@@@@@@@");
+					feature.attributes.show = "true";
+					_layer.addGisFeature(feature);
+					
+					//添加菜单
+					addMenuBts(feature);
+				}
+				else
+				{
+					feature.attributes.show = "false";
+				}
+				
+				//this.gisFeatureArr.addItem(feature);
+				if (cellType == "2g")
+				{
+					this.btsMap[btsObj.moId] = feature;
+				}
+				else if (cellType == "3g")
+				{
+					this.nodebMap[btsObj.moId] = feature;
+				}
+				
+				//创建覆盖范围
+				createCoverArea(this.mapWork,Number(btsObj.longitude),Number(btsObj.latitude),objType,btsObj);
+			}
+			//创建基站 addBts(mapTarget,"bts","2g",bts);
+			private function addBts(mapTarget:MapWork,objType:String,cellType:String,btsObj:Object,show:Boolean=false):void
+			{
+				var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imageFactory.getImage("bts",btsObj.alarmseverity,cellType,""));
+				var feature:GisFeature = new GisFeature(new GisPoint(Number(btsObj.longitude),Number(btsObj.latitude)),pic);
+				feature.attributes = btsObj;
+				feature.attributes.obj_type = objType;
+				feature.attributes.alarm_target = "true";
+				
+				//鼠标悬浮事件
+//				feature.addEventListener(GisFeatureEvent.GISFEATURE_OVER,loadCellMsg);
+//				feature.addEventListener(GisFeatureEvent.GISFEATURE_OUT,removeCellMsg);
+				feature.onMouseOver = loadCellMsg;
+				feature.onMouseOut = removeCellMsg
+				
+				
+				if (this.viewLevel.filterObject(objType,"",btsObj) || show)
+				{
+					feature.attributes.show = "true";
+					mapTarget.map.addGisFeature(feature);
+					
+					//添加菜单
+					addMenuBts(feature);
+				}
+				else
+				{
+					feature.attributes.show = "false";
+				}
+				
+				//this.gisFeatureArr.addItem(feature);
+				if (cellType == "2g")
+				{
+					this.btsMap[btsObj.mo_id] = feature;
+				}
+				else if (cellType == "3g")
+				{
+					this.nodebMap[btsObj.mo_id] = feature;
+				}
+				
+				//创建覆盖范围
+				createCoverArea(this.mapWork,Number(btsObj.longitude),Number(btsObj.latitude),objType,btsObj);
+			}
+			
+			//添加其他类型的网元信息
+			private function addOtherMo(mapTarget:MapWork,objType:String,moObj:Object):void
+			{
+				var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imageFactory.getImage(objType,"0","",""));
+				var feature:GisFeature = new GisFeature(new GisPoint(Number(moObj.longitude),Number(moObj.latitude)),pic);
+				feature.attributes = moObj;
+				feature.attributes.obj_type = objType;
+				feature.attributes.alarm_target = "true";
+				
+				//默认不显示，只有在网元定位时才出现
+				feature.attributes.show = "false";
+				//this.gisFeatureArr.addItem(feature);
+				if (objType == "bsc")
+				{
+					this.bscMap[moObj.mo_id] = feature;
+				}
+				else if (objType == "rnc")
+				{
+					this.rncMap[moObj.mo_id] = feature;
+				}
+			}
+			
+			protected function showLegend(event:MapEvent):void
+			{
+				this.legendDiv.visible = true;
+			}
+			
+			protected function mapWork_toolbar_picLayerHandler(event:MapEvent):void
+			{
+				this.viewLevel.x = 100;
+				this.viewLevel.y = this.nowGroup.y;
+				this.viewLevel.visible = true;
+			}
+			
+			//过滤界面对象
+			public function filterObject(name:String, type:String, id:String, checked:Boolean):void
+			{
+				filterGisFeature(this.mapWork,name,type,id,checked);
+			}
+			
+			private function filterGisFeature(map:MapWork, name:String, type:String, id:String, checked:Boolean):void
+			{
+				//如果是保障信息，则不需要遍历GIS
+				if (type == "ensure" && id == "general")
+				{
+					this.generalInfo.visible = checked;
+					//if(checked)
+					//this.generalInfo.init(_history,historyTime);
+				}
+				else if (type == "ensure" && id == "info")
+				{
+					this.esureInfo.visible = checked;
+					this.esureInfo.init();
+				}
+				else if (type == "ensure" && id == "time")
+				{
+					this.alarmTime.visible = checked;
+				}
+				else if (type == "ensure" && id == "history")
+				{
+					this.historyView.visible = checked;
+				}
+				else if (type == "ensure" && id == "weather")
+				{
+					//showWeather(checked);
+				}
+				else if (type == "ensure" && id == "")
+				{
+					this.generalInfo.visible = checked;
+					//if(checked)
+					//this.generalInfo.init(_history,historyTime);
+					
+					this.esureInfo.visible = checked;
+					this.esureInfo.init();
+					this.alarmTime.visible = checked;
+					this.historyView.visible = checked;
+					//showWeather(checked);
+				}
+				else if (type == "coverArea")
+				{
+					if (id != "")
+					{
+						if (checked)
+						{
+							//新加载时，先清下原来的数据
+							removeTSArea(id);
+							loadTSArea(id);
+						}
+						else
+						{
+							removeTSArea(id);
+						}
+					}
+				}
+				else if (type == "coverAreaPerf")
+				{
+					if (id != "")
+					{
+						if (checked)
+						{
+							updCoverArea(id);
+						}
+						else
+						{
+							removeCoverArea(id);
+						}
+					}
+				}
+				else if (type != "")
+				{
+					var featureType:String = "";
+					var subType:String = "";
+					var featureObj:Object = null;
+					var featureId:String = "";
+					var feature:GisFeature = null;
+					
+					for each (feature in btsMap)
+					{
+						if (feature != null && feature.attributes != null)
+						{
+							featureObj = feature.attributes;
+							featureType = feature.attributes.obj_type;
+							
+							if (this.viewLevel.filterObject(featureType,"",featureObj))
+							{
+								if (feature.attributes.show == "false")
+								{
+									map.map.addGisFeature(feature);
+									feature.attributes.show = "true";
+									
+									//添加菜单
+									addMenuBts(feature);
+								}
+							}
+							else
+							{
+								if (feature.attributes.show == "true")
+								{
+									map.map.removeGisFeature(feature);
+									feature.attributes.show = "false";
+									hideCoverArea(feature.attributes.mo_id);
+								}
+							}
+						}
+					}
+					
+					for each (feature in nodebMap)
+					{
+						if (feature != null && feature.attributes != null)
+						{
+							featureObj = feature.attributes;
+							featureType = feature.attributes.obj_type;
+							
+							if (this.viewLevel.filterObject(featureType,"",featureObj))
+							{
+								if (feature.attributes.show == "false")
+								{
+									map.map.addGisFeature(feature);
+									feature.attributes.show = "true";
+									
+									//添加菜单
+									addMenuBts(feature);
+								}
+							}
+							else
+							{
+								if (feature.attributes.show == "true")
+								{
+									map.map.removeGisFeature(feature);
+									feature.attributes.show = "false";
+									hideCoverArea(feature.attributes.mo_id);
+								}
+							}
+						}
+					}
+					
+					for each (feature in cellMap)
+					{
+						if (feature != null && feature.attributes != null)
+						{
+							featureObj = feature.attributes;
+							featureType = feature.attributes.obj_type;
+							
+							if (featureObj.is_worst == "1")
+							{
+								subType = "1";
+							}
+							else if (featureObj.is_bad == "1")
+							{
+								subType = "2";
+							}
+							
+							if (this.viewLevel.filterObject(featureType,subType,featureObj))
+							{
+								if (feature.attributes.show == "false")
+								{
+									map.map.addGisFeature(feature);
+									feature.attributes.show = "true";
+									
+									//添加菜单
+									addMenuCell(feature);
+								}
+							}
+							else
+							{
+								if (feature.attributes.show == "true")
+								{
+									map.map.removeGisFeature(feature);
+									feature.attributes.show = "false";
+								}
+							}
+						}
+					}
+					
+					for each (feature in ucellMap)
+					{
+						if (feature != null && feature.attributes != null)
+						{
+							featureObj = feature.attributes;
+							featureType = feature.attributes.obj_type;
+							
+							if (featureObj.is_worst == "1")
+							{
+								subType = "1";
+							}
+							else if (featureObj.is_bad == "1")
+							{
+								subType = "2";
+							}
+							
+							if (this.viewLevel.filterObject(featureType,subType,featureObj))
+							{
+								if (feature.attributes.show == "false")
+								{
+									map.map.addGisFeature(feature);
+									feature.attributes.show = "true";
+									
+									//添加菜单
+									addMenuCell(feature);
+								}
+							}
+							else
+							{
+								if (feature.attributes.show == "true")
+								{
+									map.map.removeGisFeature(feature);
+									feature.attributes.show = "false";
+								}
+							}
+						}
+					}
+					
+					for each (feature in wlanMap)
+					{
+						if (feature != null && feature.attributes != null)
+						{
+							featureObj = feature.attributes;
+							featureType = feature.attributes.obj_type;
+							
+							if (this.viewLevel.filterObject(featureType,"",featureObj))
+							{
+								if (feature.attributes.show == "false")
+								{
+									map.map.addGisFeature(feature);
+									feature.attributes.show = "true";
+									
+									//添加右键菜单
+									addMenuWlan(feature);
+								}
+							}
+							else
+							{
+								if (feature.attributes.show == "true")
+								{
+									map.map.removeGisFeature(feature);
+									feature.attributes.show = "false";
+								}
+							}
+						}
+					}
+					
+					for each (feature in roomMap)
+					{
+						if (feature != null && feature.attributes != null)
+						{
+							featureObj = feature.attributes;
+							featureType = feature.attributes.obj_type;
+							
+							if (this.viewLevel.filterObject(featureType,"",featureObj))
+							{
+								if (feature.attributes.show == "false")
+								{
+									map.map.addGisFeature(feature);
+									feature.attributes.show = "true";
+								}
+							}
+							else
+							{
+								if (feature.attributes.show == "true")
+								{
+									map.map.removeGisFeature(feature);
+									feature.attributes.show = "false";
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			//创建覆盖范围
+			private function createCoverArea(map:MapWork,x:Number,y:Number,moType:String,btsObj:Object):void
+			{
+				//覆盖范围的点坐标集合
+				var parts:Array = new Array();
+				var distance:Number = 500;
+				parts = [new GisPoint(x - distance * Math.sin(30 * Math.PI/180)/96490, y + distance * Math.cos(30 * Math.PI/180)/110850),
+					new GisPoint(x + distance * Math.sin(30 * Math.PI/180)/96490, y + distance * Math.cos(30 * Math.PI/180)/110850),
+					new GisPoint(x + distance/96490, y),
+					new GisPoint(x + distance * Math.sin(30 * Math.PI/180)/96490, y - distance * Math.cos(30 * Math.PI/180)/110850),
+					new GisPoint(x - distance * Math.sin(30 * Math.PI/180)/96490, y - distance * Math.cos(30 * Math.PI/180)/110850),
+					new GisPoint(x - distance/96490, y)];
+				
+				//多边形样式
+				var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x00FF00,0.3,null);
+				var hexFeature:GisFeature = new GisFeature(new GisRegion(parts),polygonStyle);
+				var obj:Object = new Object();
+				obj.obj_type = "coverArea";
+				obj.mo_id = btsObj.mo_id;
+				obj.cover_type = moType;
+				obj.isShow = "false";
+				hexFeature.attributes = obj;
+				
+				coverAreaMap[btsObj.mo_id] = hexFeature;
+			}
+			
+			//更新覆盖范围颜色
+			private function updCoverArea(id:String):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				var param:Object = new Object();
+				param.city_id = _curCity;
+				param.perf_id = id;
+				
+				log.info("查询性能渲染数据参数 city_id=" + param.city_id + " perf_id=" + param.perf_id);
+				_dataService.getDrawData(param,loadDrawDataSucc,null,loadDrawDataErr);
+			}
+			
+			private function loadDrawDataSucc(obj:Object,type:String):void
+			{
+				if (obj != null)
+				{
+					log.info("查询性能渲染数据成功！");
+					
+					//查询性能指标渲染颜色
+					var perfMap:Dictionary = new Dictionary();
+					for each (var tmp:Object in obj)
+					{
+						perfMap[tmp.mo_id] = tmp.color;
+					}
+					
+					//更新覆盖范围颜色
+					var polygonStyle:GisFillPredefinedStyle = null;
+					for each (var feature:GisFeature in coverAreaMap)
+					{
+						if (feature != null && feature.attributes != null)
+						{
+							var moId:String = feature.attributes.mo_id;
+							if (perfMap[moId] != null)
+							{
+								polygonStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, perfMap[moId],0.3,null);
+							}
+							else
+							{
+								polygonStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x00FF00,0.3,null);
+							}
+							feature.gisStyle = polygonStyle;
+							layer.addGisFeature(feature);
+						}
+					}
+				}
+				else
+				{
+					log.info("查询性能渲染数据为空！");
+				}
+				
+				loadInfo.hideLoading();
+			}
+			
+			private function loadDrawDataErr(obj:Object):void
+			{
+				log.info("查询性能渲染范围数据失败！");
+				loadInfo.hideLoading();
+			}
+			
+			//删除覆盖范围颜色
+			private function removeCoverArea(id:String):void
+			{
+				for each (var feature:GisFeature in layer.gisFeatures)
+				{
+					if (feature != null && feature.attributes != null)
+					{
+						layer.removeGisFeature(feature);
+					}
+				}
+			}
+			
+			private function getColorByAlarmLevel(alarmLevel:Object):Number
+			{
+				return ALARM_LEVEL_COLOR[alarmLevel];
+			}
+			
+			//右键菜单处理函数
+			private function popupDealer(feature:GisFeature):void
+			{
+				//根据网元id加载相关页面
+				var cellId:Object = feature.attributes['mo_id'];
+				var mo_type:Object = feature.attributes['mo_type'];
+				var context:String = _param["context"];
+				var url:String = "";
+				
+				//菜单名称
+				switch(feature.attributes.selectMenuName)
+				{
+					case "资源信息":
+						url = (cellDetailURL + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+					
+					case "告警信息":
+						url = (alarmDetailURL + "?alarmStatus=1&neId=" + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+					
+					case "性能信息":
+                        navigateToURL(new URLRequest(context + "/scene/report/pmlast/pmlastAction.action?neid=" + cellId), "_blank")
+//						url = (perfDetailURL + "?moId=" + cellId + "&moTypeId=" + mo_type).replace(/\$/g, "&");
+//						navigateToURL(new URLRequest(context + url));
+						break;
+					
+					case "关联拓扑":
+						//加载逻辑topo
+						url = logicTopoURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?moId="+cellId));
+						break;
+					
+					case "关联拓扑-软交换拓扑":
+						//加载逻辑topo
+						url = logicTopoURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?specId=1&moId="+cellId));
+						break;
+					
+					case "关联拓扑-传输拓扑":
+						//加载逻辑topo
+						url = logicTopoURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?specId=3&moId="+cellId));
+						break;
+					
+					case "关联拓扑-无线拓扑":
+						//加载逻辑topo
+						url = logicTopoURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?specId=1&moId="+cellId));
+						break;
+					
+					case "传输管线":
+						showLineMsg(feature.attributes, contentMouseX, contentMouseY);
+						break;
+					
+					case "覆盖范围":
+						showCoverArea(String(cellId),feature.attributes);
+						break;
+					
+					case "集客信息":
+						url = customerURL.replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url+"?custId="+cellId));
+						break;
+					
+					case "影响范围":
+						showDevArea(String(cellId), String(mo_type));
+						break;
+					case "查看下挂退服基站":
+						showOutServiceBts(String(cellId),String(mo_type));
+						break;
+				}
+			}
+			/**
+			 * 
+			 * 查看下挂退服基站
+			 * 
+			**/
+			private function showOutServiceBts(moId:String,moType:String):void{
+				var hasBts:Boolean=false;
+				var featureObj:Object = null;
+				for each (var feature:GisFeature in btsMap)
+				{
+					if (feature != null && feature.attributes != null)
+					{
+						featureObj = feature.attributes;
+						log.info("退服BTS："+featureObj.mo_id+","+featureObj.parent_id);
+						if (moId == featureObj.parent_id)
+						{
+							hasBts=true;
+							log.info(moId+"下挂BTS："+featureObj.mo_id);
+							if (feature.attributes.show == "false")
+							{
+								this.mapWork.map.addGisFeature(feature);
+								feature.attributes.show = "true";
+								//添加菜单
+								addMenuBts(feature);
+							}
+						}
+						else
+						{
+							if (feature.attributes.show == "true")
+							{
+								this.mapWork.map.removeGisFeature(feature);
+								feature.attributes.show = "false";
+							}
+						}
+					}
+				}
+				if(!hasBts){
+					Alert.show("无下挂退服基站","提示");
+				}
+			}
+			
+			private function showCoverArea(moId:String,obj:Object):void
+			{
+				var featureId:String = "";
+				
+				for each (var feature:GisFeature in coverAreaMap)
+				{
+					featureId = feature.attributes.mo_id;
+					if (featureId == moId)
+					{
+						//判断是否已经存在
+						if (feature.attributes.isShow == "true")
+						{
+							layer.removeGisFeature(feature);
+							feature.attributes.isShow = "false";
+						}
+						else
+						{
+							layer.addGisFeature(feature);
+							feature.attributes.isShow = "true";
+						}
+					}
+				}
+			}
+			
+			private function hideCoverArea(moId:Object):void
+			{
+				log.info("hideCoverArea   moId：" + moId);
+				if(coverAreaMap[moId])
+				{
+					if (coverAreaMap[moId].attributes.isShow == "true")
+					{
+						log.info("隐藏网元覆盖范围，网元编号：" + moId);
+						layer.removeGisFeature(coverAreaMap[moId]);
+						coverAreaMap[moId].attributes.isShow = "false";
+					}
+				}
+			}
+			
+			protected function hideWindow():void
+			{
+				lineMsgWindow.visible = false;
+			}
+			
+			//加载当前网元所有相关的管线
+			protected function showAllLines(lines:ArrayCollection,show:Boolean):void
+			{
+				if (show)
+				{
+					for each(var line:String in lines)
+					{
+						drawLineOnMap(line);
+					}
+				}
+				else
+				{
+					for each(var dline:String in lines)
+					{
+						removeLineOnMap(dline);
+					}
+				}
+			}
+			
+			//移除管线
+			private function removeLineOnMap(lineId:String):void
+			{
+				//机楼撒点属性设置
+				for each (var feature:GisFeature in roomMap)
+				{
+					feature.attributes.show = "false";
+					feature.index = -1;
+				}
+				
+				for each(var b:GisFeature in btsMap)
+				{
+					b.attributes.show = "false";
+					b.index = -1;
+				}
+				
+				for each(var n:GisFeature in nodebMap)
+				{
+					n.attributes.show = "false";
+					n.index = -1;
+				}
+				
+				this.mapWork.map.removeAllGisFeature();
+				
+				lineFeatureMap = new Dictionary();
+			}
+			
+			//加载指定的管线信息
+			protected function showLine(lineId:String):void
+			{
+				drawLineOnMap(lineId);
+			}
+			
+			//查询管线数据
+			private function drawLineOnMap(lineId:String):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				log.info("查询管线信息编号　lineId=" + lineId);
+				_lineInfo.devLocate("circuit",lineId,loadLineInfo,null,loadLineInfoErr);
+			}
+			
+			//查询管线数据成功
+			public function loadLineInfo(obj:Object, lineId:String=""):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				if (obj != null)
+				{
+					log.info("查询管线数据成功！");
+					var circName:String = "";
+					var count:int = 0;
+					var pp:GisPoint = null;
+					var routeList:ArrayCollection = new ArrayCollection();
+					
+					for each (var lineMap:Object in obj)
+					{
+						for (var lineName:String in lineMap)
+						{
+							log.info("管线名称：" + lineName);
+							
+							var color:Number = 0x00000;
+							if (colorId < colorMap.length)
+							{
+								color = Number(colorMap[colorId]);
+								colorId ++;
+							}
+							else
+							{
+								color = Number(colorMap[0]);
+								colorId = 1;
+							}
+							
+							var parts:Array = new Array();
+							
+							for each (var line:Object in lineMap[lineName])
+							{
+								if (line.type == "point")
+								{
+									log.info("添加机楼：" + line.id + " name=" + line.name);
+									//找到现有的点并显示
+									count ++;
+									
+									if (roomMap[line.id] != null)
+									{
+										var roomFeature:GisFeature = roomMap[line.id] as GisFeature;
+										if (roomFeature.attributes.show == "false")
+										{
+											this.mapWork.map.addGisFeature(roomFeature);
+											roomFeature.attributes.show = "true";
+											
+											if (pp == null)
+											{
+												pp = roomFeature.gisMetry as GisPoint;
+											}
+										}
+									}
+									else
+									{
+										if (!isNaN(Number(line.longitude)) && !isNaN(Number(line.latitude)) && Number(line.longitude) != 0 && Number(line.latitude) != 0)
+										{
+											//直接添加机楼
+											var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imageFactory.getImage("site","0","",""));
+											var feature:GisFeature = new GisFeature(new GisPoint(Number(line.longitude),Number(line.latitude)),pic);
+											feature.toolTip = line.name;
+											var attr:Object = new Object();
+											attr.mo_id=line.id;
+											attr.mo_name=line.name;
+											attr.obj_type="room";
+											attr.mo_type="room";
+											attr.alarm_target="true";
+											attr.show = "true";
+											feature.attributes = attr;
+											this.mapWork.map.addGisFeature(feature);
+											this.roomMap[line.id] = feature;
+											
+											if (pp == null)
+											{
+												pp = feature.gisMetry as GisPoint;
+											}
+										}
+										else
+										{
+											log.info("机楼的经纬度为空！id=" + line.id);
+										}
+									}
+								}
+								else
+								{
+									if (!isNaN(Number(line.x_1)) && !isNaN(Number(line.x_2)) && Number(line.x_1) != 0 && Number(line.x_2) != 0
+										&& !isNaN(Number(line.y_1)) && !isNaN(Number(line.y_2)) && Number(line.y_1) != 0 && Number(line.y_2) != 0)
+									{
+										//添加管线
+										parts.push(new GisPoint(Number(line.x_1), Number(line.y_1)));
+										parts.push(new GisPoint(Number(line.x_2), Number(line.y_2)));
+										
+										if (pp == null)
+										{
+											pp = new GisPoint(Number(line.x_1), Number(line.y_1));
+										}
+										count ++;
+									}
+									else
+									{
+										log.info("管线经纬度为空！");
+									}
+								}
+								
+								if (line.circName != null)
+								{
+									circName = line.circName;
+								}
+								
+								
+							}
+							
+							//生成管线
+							log.info("管线长度：" + parts.length);
+							if (parts.length > 1)
+							{
+								var lineStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,color,1,8);
+								var geoLine:GisLine = new GisLine(parts);
+								var lineFeature:GisFeature = new GisFeature(geoLine,lineStyle);
+								var att:Object = new Object();
+								att.lineId = lineId;
+								att.mo_type = "ne_line";
+								att.circName = circName;
+								att.lineName = lineName;
+								lineFeature.attributes = att;
+								lineFeature.toolTip = lineName;
+								this.mapWork.map.addGisFeature(lineFeature);
+								
+//								lineFeature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,showRouteBts);
+								lineFeature.onClick = showRouteBts;
+								
+								//记录光路信息
+								if (!routeList.contains(lineName))
+								{
+									routeList.addItem(lineName);
+								}
+								lineFeatureMap[lineName] = lineFeature;
+							}
+						}
+					}
+					
+					
+					if (count > 0)
+					{
+						this.mapWork.map.viewRefresh();
+						if (pp != null)
+						{
+							this.mapWork.map.zoomToScale(64000,pp);
+						}
+						
+						//showRouteList(routeList);
+						//加载光路列表
+						if (_locationType!='routeInfo')
+						{
+							//加载光路列表
+							this.routeListWindow.loadRouteGrid(circName);
+						}
+						
+						//this.routeListWindow.initRouteGrid(routeList);
+					}
+					else
+					{
+						Alert.show("查询管线数据为空！");
+					}
+					obj = null;
+				}
+				else
+				{
+					Alert.show("查询管线数据为空！");
+					log.info("查询管线数据为空！");
+				}
+				
+				loadInfo.hideLoading();
+			}
+			
+			//查询管线数据成功
+			public function loadLineInfo2(obj:Object, colorFlag:Boolean=false, lineId:String=""):void
+			{
+				log.info("----##----  处理数据--开始--->");
+				if (obj != null)
+				{
+					log.info("----##---- 查询管线数据成功！");
+					var count:int = 0;
+					var pp:GisPoint = null;
+					var routeList:ArrayCollection = new ArrayCollection();
+					var feature:GisFeature = null;
+					
+					for each (var lineMap:Object in obj)
+					{
+						for (var lineName:String in lineMap)
+						{
+							log.info("----##---- 管线名称：" + lineName);
+							var circName:String = "";
+							
+							var color:Number = 0x00000;
+							if (colorId < colorMap.length)
+							{
+								color = Number(colorMap[colorId]);
+								colorId ++;
+							}
+							else
+							{
+								color = Number(colorMap[0]);
+								colorId = 1;
+							}
+							
+							if(colorFlag)//如果是点击的显示全部光路。右键的显示光路则设置线的颜色为灰色。
+							{
+								color = 0x808080;
+							}
+							
+							var parts:Array = new Array();
+							
+							for each (var line:Object in lineMap[lineName])
+							{
+								log.info("----##---- 处理光路信息：" + line.type);
+								if(line.type == "aDevType")//光路A端设备
+								{
+									log.info("----##---- 添加光路AZ端设备：" + line.type + " " + line['aType']);
+									
+									if (!isNaN(Number(line.aGeoX)) && !isNaN(Number(line.aGeoY)) 
+										&& Number(line.aGeoX) != 0 && Number(line.aGeoY) != 0)
+									{
+										//直接添加机楼
+										feature = new GisFeature(new GisPoint(Number(line.aGeoX),Number(line.aGeoY)));
+										feature.attributes = line['aType'];									
+										this.mapWork.map.addGisFeature(feature);
+										this.loadMoImage(feature, line['aType']);
+										
+										AZDevMap[line.aPointId] = feature;
+									}
+								}
+								else if(line.type == "zDevType")//光路A端设备
+								{
+									log.info("----##---- 添加光路AZ端设备：" + line.type + " " + line['zType']);
+									
+									if (!isNaN(Number(line.zGeoX)) && !isNaN(Number(line.zGeoY)) 
+										&& Number(line.zGeoX) != 0 && Number(line.zGeoY) != 0)
+									{
+										//直接添加机楼
+										feature = new GisFeature(new GisPoint(Number(line.zGeoX),Number(line.zGeoY)));
+										feature.attributes = line['zType'];	
+										this.mapWork.map.addGisFeature(feature);
+										this.loadMoImage(feature, line['zType']);
+										
+										AZDevMap[line.zPointId] = feature;
+									}
+								}
+									//处理点和机楼
+								else if (line.type == "point")
+								{
+									log.info("----##---- 添加机楼：" + line.id + " name=" + line.name);
+									//找到现有的点并显示
+									if (roomMap[line.id] != null)
+									{
+										var roomFeature:GisFeature = roomMap[line.id] as GisFeature;
+										if (roomFeature.attributes.show == "false")
+										{
+											this.mapWork.map.addGisFeature(roomFeature);
+											roomFeature.attributes.show = "true";
+											
+											if (pp == null)
+											{
+												pp = roomFeature.gisMetry as GisPoint;
+											}
+										}
+									}
+									else
+									{
+										if (!isNaN(Number(line.longitude)) && !isNaN(Number(line.latitude)) && Number(line.longitude) != 0 && Number(line.latitude) != 0)
+										{
+											//直接添加机楼
+											var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imageFactory.getImage("site","0","",""));
+											feature = new GisFeature(new GisPoint(Number(line.longitude),Number(line.latitude)),pic);
+											feature.toolTip = line.name;
+											var attr:Object = new Object();
+											attr.mo_id=line.id;
+											attr.mo_name=line.name;
+											attr.obj_type="room";
+											attr.mo_type="room";
+											attr.alarm_target="true";
+											attr.show = "true";
+											feature.attributes = attr;
+											this.mapWork.map.addGisFeature(feature);
+											
+											
+											this.roomMap[line.id] = feature;
+											
+											if (pp == null)
+											{
+												pp = feature.gisMetry as GisPoint;
+											}
+											count ++;
+										}
+										else
+										{
+											log.info("----##---- 机楼的经纬度为空！id=" + line.id);
+										}
+									}
+								}
+								else
+								{
+									if (!isNaN(Number(line.x_1)) && !isNaN(Number(line.x_2)) && Number(line.x_1) != 0 && Number(line.x_2) != 0
+										&& !isNaN(Number(line.y_1)) && !isNaN(Number(line.y_2)) && Number(line.y_1) != 0 && Number(line.y_2) != 0)
+									{
+										//添加管线
+										parts.push(new GisPoint(Number(line.x_1), Number(line.y_1)));
+										parts.push(new GisPoint(Number(line.x_2), Number(line.y_2)));
+										
+										if (pp == null)
+										{
+											pp = new GisPoint(Number(line.x_1), Number(line.y_1));
+										}
+										count ++;
+									}
+									else
+									{
+										log.info("----##---- 管线经纬度为空！");
+									}
+								}
+								
+								if (line.circName != null)
+								{
+									circName = line.circName;
+								}
+								
+								
+							}
+							
+							//生成管线
+							log.info("----##---- 管线长度：" + parts.length);
+							if (parts.length > 1)
+							{
+								var lineStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,color,1,8);
+								var geoLine:GisLine = new GisLine(parts);
+								var lineFeature:GisFeature = new GisFeature(geoLine,lineStyle);
+								var att:Object = new Object();
+								att.lineId = lineId;
+								att.mo_type = "ne_line";
+								att.circName = circName;
+								att.lineName = lineName;
+								lineFeature.attributes = att;
+								lineFeature.toolTip = lineName;
+//								lineFeature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,showRouteBts);
+								lineFeature.onClick = showRouteBts;
+								
+								this.mapWork.map.addGisFeature(lineFeature, colorFlag);
+								
+								//记录光路信息
+								if (!routeList.contains(lineName))
+								{
+									routeList.addItem(lineName);
+								}
+								lineFeatureMap[lineName] = lineFeature;
+								
+								//缓存后来加上去的光路
+								if(colorFlag)
+								{
+									lineCache.addItem(lineFeature);
+								}
+							}
+						}
+					}
+					
+					if (count > 0)
+					{
+						this.mapWork.map.viewRefresh();
+						if (pp != null)
+						{
+							this.mapWork.map.zoomToScale(64000,pp);
+						}
+						//showRouteList(routeList);
+					}
+					else
+					{
+						//Alert.show("查询管线数据为空！");
+					}
+					obj = null;
+				}
+				else
+				{
+					//Alert.show("查询管线数据为空！");
+					log.info("----##---- 查询管线数据为空！");
+				}
+				
+				log.info("----##----  处理数据--结束--->");
+				loadInfo.hideLoading();
+			}
+			
+			public function loadLineInfoErr(obj:Object):void
+			{
+				Alert.show("查询管线数据失败！");
+				log.info("查询管线数据失败！");
+				
+				loadInfo.hideLoading();
+			}
+			
+			private function loadCellMsg(gisFeature:GisFeature,event:MouseEvent):void
+			{
+				var cell:Object = gisFeature.attributes;
+				var x:Number = event.stageX;
+				var y:Number = event.stageY;
+				
+				tmpX = x;
+				tmpY = y;
+				tmpCell = new Object();
+				tmpCell.mo_id = cell['mo_id'];
+				tmpCell.mo_type = cell['mo_type'];
+				tmpCell.mo_name = cell['mo_name'];
+				
+				//延时后判断，如果坐标一样，则显示悬浮窗口
+				setTimeout(loadCellMsgTimeOut,500,x,y);
+			}
+			
+			private function loadCellMsgTimeOut(x:Number,y:Number):void
+			{
+				if (tmpX == x && tmpY == y)
+				{
+					log.info("显示悬浮窗口！");
+					moveMsgDiv(x,y);
+					
+					var param:Object = new Object();
+					param.mo_id = tmpCell['mo_id'];
+					param.mo_type = tmpCell['mo_type'];
+					param.mo_name = tmpCell['mo_name'];
+					log.info("加载网元数据参数  mo_id:" + param.mo_id + " mo_type：" + param.mo_type + " mo_name：" + param.mo_name);
+					_dataService.getSingleBtsInfo(param,loadSingleBtsInfo,null,loadSingleBtsInfoErr);
+				}
+			}
+			
+			
+			private function removeCellMsg(gisFeature:GisFeature,event:MouseEvent):void
+			{
+				tmpX = 0;
+				tmpY = 0;
+				flowMsgDiv.visible = false;
+			}
+			
+			private function loadSingleBtsInfo(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载网元数据成功！");
+					var msg:String = "告警\n";
+					if (obj['alarm'] != null && obj['alarm']['reason'] != null)
+					{
+						msg += "原因:" + obj['alarm']['reason'] + "\n";
+					}
+					else
+					{
+						msg += "原因:\n";
+					}
+					msg += "------------------\n";
+					msg += "性能\n";
+					if (obj['perf'] != null && obj['perf']['stat_time'] != null)
+					{
+						msg += "指标统计时间：" + obj['perf']['stat_time'] + "\n";
+						msg +=  obj['perf']['perf_info'] + "\n";
+					}
+					else
+					{
+						msg += "指标统计时间：\n";
+					}
+					msg += "------------------\n";
+					msg += "资源\n";
+					if (obj['res'] != null)
+					{
+						msg += "网元名：" + obj['res']['mo_name'] + "\n";
+						if (obj['res']['belong_desc'] != null && obj['res']['belong_mo'] != null)
+						{
+							msg += obj['res']['belong_desc'] + "：" + obj['res']['belong_mo'] + "\n";
+						}
+						if (obj['res']['down_desc'] != null && obj['res']['down_mo'] != null)
+						{
+							msg += obj['res']['down_desc'] + "：" + obj['res']['down_mo'] + "\n";
+						}
+					}
+					else
+					{
+						msg += "网元名：\n";
+						msg += "归属网元：\n";
+						msg += "描述：\n";
+					}
+					flowMsgDiv.setMsg(msg);
+					flowMsgDiv.visible = true;
+					
+					obj = null;
+				}
+				else
+				{
+					log.info("加载网元数据为空！");
+					flowMsgDiv.visible = true;
+				}
+			}
+			
+			private function loadSingleBtsInfoErr(obj:Object):void
+			{
+				log.info("加载网元数据失败！");
+				flowMsgDiv.visible = true;
+			}
+			
+			private function moveMsgDiv(lx:Number, ly:Number):void
+			{
+				var x:Number = lx + 10;
+				var y:Number = ly - flowMsgDiv.height/2;
+				
+				if(x > this.width - flowMsgDiv.width)
+					x = lx - flowMsgDiv.width - 10;
+				
+				if(y < 0)
+					y = 5;
+				
+				if(y + flowMsgDiv.height + 30 > this.height)
+					y = this.height - flowMsgDiv.height - 30;
+				
+				flowMsgDiv.x = x;
+				flowMsgDiv.y = y;
+			}
+			
+			private function showLineMsg(cell:Object, lx:Number, ly:Number):void
+			{
+				var cellId:Object = cell['mo_id'];
+				lineMsgWindow.visible = true;
+				
+				//TODO 加载网元链路相关信息再展示。
+				log.info("查询管线信息　网元编号：" + cellId);
+				_dataService.getTransferInfo({'mo_id':cellId},loadTransferInfo,null,loadTransferInfoErr);
+			}
+			
+			public function loadTransferInfo(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载管线信息成功！");
+					lineMsgWindow.initData(obj);
+					
+					obj = null;
+				}
+				else
+				{
+					log.info("加载管线信息为空！");
+				}
+			}
+			
+			public function loadTransferInfoErr(obj:Object):void
+			{
+				log.info("加载管线信息失败！");
+			}
+			
+			//定位到网元
+			public function locationMo(moId:String, type:String):void
+			{
+				//查找定位网元信息
+				log.info("查找定位网元参数 type=" + type + " moId=" + moId);
+				//mapWork.map.gisExtent.xmin
+				locationServ.devLocate(type,moId,loadLocationMoSucc,null,loadLocationMoErr);
+			}
+			
+			private function loadLocationMoSucc(obj:Object, type:String):void
+			{
+				if (obj != null)
+				{
+					log.info("查询网元定位信息成功！");
+					if (type == "BTS")
+					{
+						locationBts(obj);
+					}
+					else if (type == "TOBTS")
+					{
+						locationBts(obj);
+					}
+					else if (type == "AP")
+					{
+						locationBts(obj);
+					}
+					else if (type == "HOT")
+					{
+						locationWlan(obj);
+					}
+					else if (type == "TOHOT")
+					{
+						locationWlan(obj);
+					}
+					else if (type == "UPHOT")
+					{
+						locationWlan(obj);
+					}
+					else if (type == "self")
+					{
+						locationSelfMo(obj);
+					}
+					else if (type == "circuit")
+					{
+						loadLineInfo(obj,"");
+					}
+					else if (type == "CELL")
+					{
+						locationSelfMo(obj);
+					}
+					else if (type == "nebuilding")
+					{
+						locationBuilding(obj);
+					}
+					else if (type == "customer")
+					{
+						locationCustomer(obj);
+					}
+					else if (type == "BTSLIST")
+					{
+						locationQuitBts(obj);
+					}
+					else if (type == "routeInfo")
+					{
+						btsRouteListWindow.visible = true;
+						btsRouteListWindow.includeInLayout = true;
+						
+						showBtsRouteList(obj);
+						
+						
+					}
+					else if (type == "alarmBts")
+					{
+						locationBts(obj);
+					}
+				}
+				else
+				{
+					log.info("查询网元定位信息为空！");
+					Alert.show("网元定位信息为空！");
+				}
+				
+				//updateCoverAreaColor();
+				//结束等待提示
+				loadInfo.hideLoading();
+				
+				isFirst=false;
+			}
+			
+			private function locationQuitBts(obj:Object):void
+			{
+				var count:int = 0;
+				var featureLocation:GisFeature = null;
+				
+				//查找基站
+				for each (var bts:Object in obj)
+				{
+					var feature:GisFeature = null;
+					
+					if (btsMap[bts.moId] != null)
+					{
+						feature = btsMap[bts.moId] as GisFeature;
+						if (feature.attributes.show == "false")
+						{
+							//添加到GIS
+							this.mapWork.map.addGisFeature(feature);
+							//添加菜单
+							addMenuBts(feature);
+						}
+						
+						count ++;
+					}
+					if (nodebMap[bts.moId] != null)
+					{
+						feature = nodebMap[bts.moId] as GisFeature;
+						if (feature.attributes.show == "false")
+						{
+							//添加到GIS
+							this.mapWork.map.addGisFeature(feature);
+							//添加菜单
+							addMenuBts(feature);
+						}
+						
+						count ++;
+					}
+					
+					if (feature != null)
+					{
+						//显示覆盖范围
+						showCoverArea(bts.moId,bts);
+						
+						featureLocation = feature;
+					}
+				}
+				
+				if (count > 0)
+				{
+					//定位
+					if (featureLocation != null && featureLocation.gisMetry != null)
+					{
+						var p:GisPoint = featureLocation.gisMetry as GisPoint;
+						this.mapWork.map.zoomToScale(32000,p);
+					}
+				}
+				else
+				{
+					Alert.show("没有相关的资源！");
+				}
+			}
+			
+			//定位基站
+			private function locationBts(obj:Object, showCover:Boolean=true):void
+			{
+				var count:int = 0;
+				var featureLocation:GisFeature = null;
+				
+				//查找基站
+				for each (var bts:Object in obj)
+				{
+					log.info("添加基站：" + bts.moName + "   " + bts.moId);
+					
+					var feature:GisFeature = null;
+					count ++;
+					
+					if (btsMap[bts.moId] != null)
+					{
+						log.info("存在btsMap中！");
+						feature = btsMap[bts.moId] as GisFeature;
+						if (feature.attributes.show == "false")
+						{
+							//添加到GIS
+							this.mapWork.map.addGisFeature(feature);
+							feature.attributes.show = "true";
+							//添加菜单
+							addMenuBts(feature);
+						}
+					}
+					
+					if (nodebMap[bts.moId] != null)
+					{
+						log.info("存在nodebMap中！");
+						feature = nodebMap[bts.moId] as GisFeature;
+						if (feature.attributes.show == "false")
+						{
+							//添加到GIS
+							this.mapWork.map.addGisFeature(feature);
+							feature.attributes.show = "true";
+							//添加菜单
+							addMenuBts(feature);
+						}
+					}
+					
+					
+					//添加基站
+					if (feature == null)
+					{
+						log.info("新增gis对象！");
+						log.info(bts);
+						var cellType:String = "2g";
+						var objType:String = "bts";
+						
+						if (bts.moTypeId == "28")
+						{
+							cellType = "3g";
+							objType = "nodeb";
+						}
+						else if(bts.moTypeId == "320")
+						{
+							cellType = "39g";
+							objType = "enodeb";
+						}
+						
+						var alarmLevel:String = "0";
+						if (bts.severity != null)
+						{
+							alarmLevel = bts.severity;
+						}
+						
+						if(!Number(bts.longitude) || !Number(bts.latitude))
+						{
+							Alert.show("网元:" + bts.moName + '(' + 　bts.moId + ") 的经纬度信息有误！");
+							continue;
+						}
+						
+						var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imageFactory.getImage("bts",alarmLevel,cellType,""));
+						feature = new GisFeature(new GisPoint(Number(bts.longitude),Number(bts.latitude)),pic);
+						feature.attributes = bts;
+						feature.attributes.alarm_target = "true";
+						feature.attributes.show = "true";
+						feature.attributes.obj_type = objType;
+						feature.attributes.mo_id = bts.moId;
+						feature.attributes.mo_type = bts.moTypeId;
+						
+						//鼠标悬浮事件
+//						feature.addEventListener(GisFeatureEvent.GISFEATURE_OVER,loadCellMsg);
+//						feature.addEventListener(GisFeatureEvent.GISFEATURE_OUT,removeCellMsg);
+						feature.onMouseOver = loadCellMsg;
+						feature.onMouseOut = removeCellMsg;
+						
+						log.info("添加gis对象到地图。");
+						this.mapWork.map.addGisFeature(feature);
+						
+						//this.gisFeatureArr.addItem(feature);
+						if (cellType == "2g")
+						{
+							this.btsMap[bts.moId] = feature;
+						}
+						else if (cellType == "3g")
+						{
+							this.nodebMap[bts.moId] = feature;
+						}
+						
+						log.info("添加gis菜单！");
+						//添加菜单
+						addMenuBts(feature);
+						
+						//创建覆盖范围
+						bts.mo_id = bts.moId;
+						log.info("创建覆盖范围！");
+						//显示覆盖范围
+						if (_locationType == 'TOBTS')
+							createCoverArea(this.mapWork,Number(bts.longitude),Number(bts.latitude),objType,bts);
+						else if (showCover)
+							showCoverArea(bts.moId,bts);
+					}
+					
+					if (feature != null)
+					{
+						//显示覆盖范围
+						if (showCover && _locationType != 'TOBTS')
+						{
+							showCoverArea(bts.moId,bts);
+						}
+						
+						featureLocation = feature;
+					}
+				}
+				
+				//显示覆盖范围
+				if (showCover && _locationType == 'TOBTS')
+				{
+					locationServ.devLocate('self', _locationNeId,
+						function(obj:Object, type:String):void
+						{
+							var mo:Object = null
+							for each (var tmp:Object in obj)
+							{
+								mo = tmp;
+							}
+							
+							log.info('加载 TOBTS网元信息成功！');
+							log.info('mo');
+							
+							log.info('加载 TOBTS 覆盖范围#############');
+							showDevArea(mo.moId, mo.moTypeId);
+							log.info('加载 TOBTS 覆盖范围成功！###########');
+						}
+						,null,
+						loadLocationMoErr);
+				}
+				
+				if (count > 0)
+				{
+					log.info("定位GIS！");
+					//定位
+					if (featureLocation != null && featureLocation.gisMetry != null)
+					{
+						log.info("开始定位。");
+						var p:GisPoint = featureLocation.gisMetry as GisPoint;
+						log.info("经纬度信息  p:" + p.x + ", " + p.y);
+						this.mapWork.map.zoomToScale(32000,p);
+					}
+				}
+				else
+				{
+					Alert.show("没有相关的资源！");
+				}
+			}
+			
+			//定位热点
+			private function locationWlan(obj:Object):void
+			{
+				var count:int = 0;
+				for each (var wlan:Object in obj)
+				{
+					var feature:GisFeature = null;
+					
+					if (wlanMap[wlan.moId] != null)
+					{
+						feature = wlanMap[wlan.moId] as GisFeature;
+						//添加到GIS
+						this.mapWork.map.addGisFeature(feature);
+						//添加菜单
+						addMenuWlan(feature);
+						count ++;
+					}
+					else
+					{
+						if (!isNaN(Number(wlan.longitude)) && !isNaN(Number(wlan.latitude)) && Number(wlan.longitude) != 0 && Number(wlan.latitude) != 0)
+						{
+							var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imageFactory.getImage("wlan",wlan.alarm_level,"",""));
+							feature = new GisFeature(new GisPoint(Number(wlan.longitude),Number(wlan.latitude)),pic);
+							feature.toolTip = wlan.moName;
+							var attr:Object = new Object();
+							attr.mo_id=wlan.moId;
+							attr.mo_name=wlan.moName;
+							attr.obj_type="wlan";
+							attr.alarm_target="true";
+							attr.show="true";
+							feature.attributes = attr;
+							this.mapWork.map.addGisFeature(feature);
+							
+							//添加右键菜单
+							addMenuWlan(feature);
+							//添加点击事件
+//							feature.addEventListener(GisFeatureEvent.GISFEATURE_CLICK,showWlanInfo);
+							feature.onClick = showWlanInfo;
+							this.wlanMap[wlan.mo_id] = feature;
+							count ++;
+						}
+						else
+						{
+							log.info("WLAN热点经纬度为空！");
+						}
+					}
+				}
+				
+				if (count > 0)
+				{
+					this.mapWork.map.viewRefresh();
+				}
+				else
+				{
+					Alert.show("没有相关的资源！");
+				}
+			}
+			
+			//定位指定的网元
+			private function locationSelfMo(obj:Object):void
+			{
+				//取得网元
+				var mo:Object = null
+				for each (var tmp:Object in obj)
+				{
+					mo = tmp;
+				}
+				
+				if (mo != null)
+				{
+					var feature:GisFeature = null;
+					var add:Boolean = true;
+					mo.mo_id = mo.moId;
+					
+					//查找基站
+					if (btsMap[mo.moId] != null)
+					{
+						feature = btsMap[mo.moId] as GisFeature;
+					}
+					if (nodebMap[mo.moId] != null)
+					{
+						feature = nodebMap[mo.moId] as GisFeature;
+					}
+					
+					//如果不是基站，则直接添加
+					if (feature == null)
+					{
+						if (!isNaN(Number(mo.longitude)) && !isNaN(Number(mo.latitude)))
+						{
+							feature = new GisFeature(new GisPoint(Number(mo.longitude),Number(mo.latitude)));
+							feature.toolTip = mo.moName;
+							var attr:Object = new Object();
+							attr.mo_id=mo.moId;
+							attr.mo_type=mo.moTypeId;
+							feature.attributes = attr;
+							
+							log.info(" >>.<<   >>.<<  加载网元图标：moTypeId：" + mo.moTypeId + "severity:" + mo.severity);
+							this.mapWork.map.addGisFeature(feature);
+							//加载图片
+							loadMoImage(feature,mo.moTypeId, mo.severity);
+							
+							
+							if(mo.moTypeId == '101' || mo.moTypeId == '102'|| mo.moTypeId == '321')//101->CELL,102->UCELL,321->EUCELL
+							{
+								addMenuCell(feature);
+							}
+							else if(mo.moTypeId == '16' || mo.moTypeId == '28' || mo.moTypeId == '320')//16->BTS,28->NODEB,320->ENODEB
+							{
+								addMenuBts(feature);
+								//创建覆盖范围
+								if(mo.moTypeId == '16'){
+									createCoverArea(this.mapWork,Number(mo.longitude),Number(mo.latitude),"bts",mo);
+								}else if(mo.moTypeId == '28'){
+									createCoverArea(this.mapWork,Number(mo.longitude),Number(mo.latitude),"nodeb",mo);
+								}else if(mo.moTypeId == '320'){
+									createCoverArea(this.mapWork,Number(mo.longitude),Number(mo.latitude),"enodeb",mo);
+								}
+							}
+							else
+							{
+								addMenuOther(feature);
+								
+								if (mo.moTypeId == "15" || mo.moTypeId == "27")//15->BSC,27->RNC
+								{
+									this.mapWork.map.addGisFeatureMenu(feature,"查看下挂退服基站",popupDealer);
+								}
+								
+							}
+						}
+						else
+						{
+							Alert.show("指定网元的经纬度不正确！");
+							return;
+						}
+					}
+					else
+					{
+						feature.attributes.show = "true";
+						this.mapWork.map.addGisFeature(feature);
+						//添加菜单
+						addMenuBts(feature);
+					}
+					
+					//定位
+					if (feature != null && feature.gisMetry != null)
+					{
+						var p:GisPoint = feature.gisMetry as GisPoint;
+						this.mapWork.map.zoomToScale(32000,p);
+					}
+					
+					//保存属地信息
+					this.moCity = mo.county_id;
+					
+					//如果是MSC、MGW、BSC、RNC，则默认显示影响范围
+					if (mo.moTypeId == '5' || mo.moTypeId == '7' || mo.moTypeId == '15' || mo.moTypeId == '27' || mo.moTypeId == '10')
+					{
+						showDevArea(mo.moId, mo.moTypeId);
+					}
+					else if (mo.moTypeId == '16' || mo.moTypeId == '28')
+					{
+						showCoverArea(mo.moId,mo);
+					}
+					
+					locationNeType = mo.moTypeId;
+				}
+				else
+				{
+					Alert.show("没有找到指定网元或机楼信息！");
+					return;
+				}
+			}
+			
+			private function locationBuilding(obj:Object):void
+			{
+				//取得网元
+				var mo:Object = null
+				for each (var tmp:Object in obj)
+				{
+					mo = tmp;
+				}
+				
+				if (mo != null)
+				{
+					var feature:GisFeature = null;
+					if (!isNaN(Number(mo.longitude)) && !isNaN(Number(mo.latitude)))
+					{
+						feature = new GisFeature(new GisPoint(Number(mo.longitude),Number(mo.latitude)));
+						feature.toolTip = mo.moName;
+						var attr:Object = new Object();
+						attr.mo_id=mo.moId;
+						attr.mo_type=mo.moTypeId;
+						feature.attributes = attr;
+						//加载图片
+						loadMoImage(feature,mo.moTypeId);
+						
+						this.mapWork.map.addGisFeature(feature);
+					}
+					else
+					{
+						Alert.show("指定网元的经纬度不正确！");
+						return;
+					}
+					
+					//定位
+					if (feature != null && feature.gisMetry != null)
+					{
+						var p:GisPoint = feature.gisMetry as GisPoint;
+						this.mapWork.map.zoomToScale(32000,p);
+					}
+				}
+				else
+				{
+					Alert.show("没有找到指定网元或机楼信息！");
+					return;
+				}
+			}
+			
+			private function locationCustomer(obj:Object):void
+			{
+				//取得网元
+				var mo:Object = null
+				for each (var tmp:Object in obj)
+				{
+					mo = tmp;
+				}
+				
+				if (mo != null)
+				{
+					var feature:GisFeature = null;
+					if (!isNaN(Number(mo.longitude)) && !isNaN(Number(mo.latitude)))
+					{
+						feature = new GisFeature(new GisPoint(Number(mo.longitude),Number(mo.latitude)));
+						feature.toolTip = mo.name;
+						var attr:Object = new Object();
+						attr.mo_id=mo.id;
+						attr.mo_type="customer";
+						feature.attributes = attr;
+						//加载图片
+						loadMoImage(feature,"cust_serv_level_"+mo.serv_level);
+						
+						this.mapWork.map.addGisFeature(feature);
+						addMenuCustomer(feature);
+					}
+					else
+					{
+						Alert.show("指定网元的经纬度不正确！");
+						return;
+					}
+					
+					//定位
+					if (feature != null && feature.gisMetry != null)
+					{
+						var p:GisPoint = feature.gisMetry as GisPoint;
+						this.mapWork.map.zoomToScale(32000,p);
+					}
+				}
+				else
+				{
+					Alert.show("查询集客信息为空！");
+					return;
+				}
+			}
+			
+			private var arrTypes:ArrayCollection = new ArrayCollection(['101','102','16','28','15','27','9','10','320','321']);
+			//加载GIS图片
+			private function loadMoImage(feature:GisFeature, type:String, level:String="0"):void
+			{
+				if (_general.imageUrlMap != null && _general.imageUrlMap[type] != null)
+				{
+					if(!arrTypes.contains(type))
+					{
+						log.info(" >>.<<   >>.<<  加载网元图标111：url：" + _iconUrl + _general.imageUrlMap[type] + "  severity:" + level);
+						imageBuffer.loadBitmapData(_iconUrl + _general.imageUrlMap[type],function(bitmapData:BitmapData, width:Number, height:Number):void{
+							var bm:Bitmap = new Bitmap(bitmapData);
+							
+							var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(bm);
+							feature.gisStyle = pic;
+
+							switch(level)
+							{
+								case "1":
+									feature.filters = [LEVEL1_COLOR_FILTER];
+									break;
+								case "2":
+									feature.filters = [LEVEL2_COLOR_FILTER];
+									break;
+								case "3":
+									feature.filters = [LEVEL3_COLOR_FILTER];
+									break;
+								case "4":
+									feature.filters = [LEVEL4_COLOR_FILTER];
+									break;
+								case "0":
+								default:
+									break;
+							}
+							
+							mapWork.map.updateFeature(feature);
+						});
+					}
+					else
+					{
+						var imgUrl:String = "";
+						switch(type)
+						{
+							case "101":
+								imgUrl = imageFactory.getImage("cell",level,"2g","");
+								break;
+							case "102":
+								imgUrl = imageFactory.getImage("cell",level,"3g","");
+								break;
+							case "321":
+								imgUrl = imageFactory.getImage("cell",level,"39g","");
+								break;
+							case "16":
+								imgUrl = imageFactory.getImage("bts",level,"2g","");
+								break;
+							case "28":
+								imgUrl = imageFactory.getImage("bts",level,"3g","");
+								break;
+							case "320":
+								imgUrl = imageFactory.getImage("bts",level,"39g","");
+								break;
+							case "15":
+								imgUrl = imageFactory.getImage("bsc",level,"","");
+								break;
+							case "27":
+								imgUrl = imageFactory.getImage("rnc",level,"","");
+								break;
+							case "9":
+								imgUrl = imageFactory.getImage("ggsn",level,"","");
+								break;
+							case "10":
+								imgUrl = imageFactory.getImage("sgsn",level,"","");
+								break;
+							default:
+								imgUrl = imageFactory.getImage("bts",level,"2g","");
+								break;
+						}
+						log.info(" >>.<<   >>.<<  加载网元图标222：url：" + imgUrl + "  severity:" + level);
+						var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(imgUrl);
+						feature.gisStyle = pic;
+						mapWork.map.updateFeature(feature);
+					}
+				}
+			}
+			
+			private function loadLocationMoErr(obj:Object):void
+			{
+				log.info("查询网元定位信息失败！" + obj);
+				Alert.show("查询网元定位信息失败！");
+				
+				//结束等待提示
+				loadInfo.hideLoading();
+			}
+			
+			//切换快速检索窗口
+			protected function mapWork_toolbar_gotoHandler(event:MapEvent):void
+			{
+				_general.switchSearch();
+			}
+			
+			//查询网元覆盖范围
+			private function loadTSArea(name:String):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				//查询
+				var param:Object = new Object();
+				param.city_id = moCity;
+				param.type_name = name;
+				if (name == "bsc")
+				{
+					param.mo_type_id = "15";
+					if (this.locationNeId != null)
+					{
+						param.mo_id = this.locationNeId;
+					}
+				}
+				else if (name == "rnc")
+				{
+					param.mo_type_id = "27";
+					if (this.locationNeId != null)
+					{
+						param.mo_id = this.locationNeId;
+					}
+				}
+				else if (name == "mss")
+				{
+					param.mo_type_id = "5";
+					if (this.locationNeId != null)
+					{
+						param.mo_id = this.locationNeId;
+					}
+				}
+				else if (name == "bts")
+				{
+					param.mo_type_id = "16";
+				}
+				else if (name == "nodeb")
+				{
+					param.mo_type_id = "28";
+				}
+				else
+				{
+					param.mo_type_id = "16";
+				}
+				
+				log.info("查询网元覆盖范围参数　city_id="+param.city_id+" mo_type_id="+param.mo_type_id + " param.mo_id=" + param.mo_id);
+				_dataService.getCoverData(param,loadTSAreaSucc,null,loadTSAreaErr);
+			}
+			
+			private function loadTSAreaSucc(obj:Object, name:String):void
+			{
+				if (obj != null)
+				{
+					log.info("查询网元覆盖范围成功！" + obj);
+					for each (var data:Object in obj)
+					{
+						addTSAreaToMap(data, name);
+					}
+				}
+				else
+				{
+					log.info("查询网元覆盖范围为空！");
+				}
+				
+				loadInfo.hideLoading();
+			}
+			
+			private function loadTSAreaErr(obj:Object):void
+			{
+				log.info("查询网元覆盖范围失败！");
+				loadInfo.hideLoading();
+			}
+			
+			private function addTSAreaToMap(idList:Object,name:String):void
+			{
+				if (idList != null)
+				{
+					//添加
+					var arr:Array = new Array();
+					for each (var id:String in idList)
+					{
+						arr.push(id);
+					}
+					log.info("查找到覆盖范围对象：" + arr.length + "，覆盖类型：" + name);
+					
+					if (arr != null && arr.length > 0)
+					{
+						var color:Number = 0x00000;
+						if (colorId < colorMap.length)
+						{
+							color = Number(colorMap[colorId]);
+							colorId ++;
+						}
+						else
+						{
+							color = Number(colorMap[0]);
+							colorId = 1;
+						}
+						
+						if (name == "bts")
+						{
+							if (arr.length > 1000)
+							{
+								var tmpArr:Array = null;
+								var start:int = 0;
+								while (start<arr.length)
+								{
+									tmpArr = arr.slice(start,start+999);
+									this.mapWork.map.queryBTSGisFeaturesByAreaIds(tmpArr,function(gisFeatures:Array):void{
+										log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+										for each(var gisFeature:GisFeature in gisFeatures){
+											var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+											var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 0, borderStyle);
+//											var obj:Object = new Object();
+											gisFeature.attributes.mo_type = "tsArea";
+											gisFeature.attributes.area_type = name;
+//											gisFeature.attributes = obj;
+											gisFeature.gisStyle = polygonStyle;
+											tsLayer.addGisFeature(gisFeature);
+										}
+									});
+									
+									start = start + 1000;
+								}
+								
+								if (arr.length > start)
+								{
+									tmpArr = arr.slice(start,arr.length -1);
+									this.mapWork.map.queryBTSGisFeaturesByAreaIds(tmpArr,function(gisFeatures:Array):void{
+										log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+										for each(var gisFeature:GisFeature in gisFeatures){
+											var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+											var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 0, borderStyle);
+//											var obj:Object = new Object();
+											gisFeature.attributes.mo_type = "tsArea";
+											gisFeature.attributes.area_type = name;
+//											gisFeature.attributes = obj;
+											gisFeature.gisStyle = polygonStyle;
+											tsLayer.addGisFeature(gisFeature);
+										}
+									});
+								}
+							}
+							else
+							{
+								this.mapWork.map.queryBTSGisFeaturesByAreaIds(arr,function(gisFeatures:Array):void{
+									log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+									for each(var gisFeature:GisFeature in gisFeatures){
+										var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+										var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 0, borderStyle);
+//										var obj:Object = new Object();
+										gisFeature.attributes.mo_type = "tsArea";
+										gisFeature.attributes.area_type = name;
+//										gisFeature.attributes = obj;
+										gisFeature.gisStyle = polygonStyle;
+										tsLayer.addGisFeature(gisFeature);
+									}
+								});
+							}
+						}
+						else if (name == "nodeb")
+						{
+							this.mapWork.map.queryNodeBGisFeaturesByAreaIds(arr,function(gisFeatures:Array):void{
+								log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+								for each(var gisFeature:GisFeature in gisFeatures){
+									var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+									var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 0, borderStyle);
+//									var obj:Object = new Object();
+									gisFeature.attributes.mo_type = "tsArea";
+									gisFeature.attributes.area_type = name;
+//									gisFeature.attributes = obj;
+									gisFeature.gisStyle = polygonStyle;
+									nodeBLayer.addGisFeature(gisFeature);
+								}
+							});
+						}
+						else if (name == "bsc")
+						{
+							this.mapWork.map.queryBTSGisFeaturesByAreaIds(arr,function(gisFeatures:Array):void{
+								log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+								for each(var gisFeature:GisFeature in gisFeatures){
+									var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+									var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, color, 0.3, borderStyle);
+//									var obj:Object = new Object();
+									gisFeature.attributes.mo_type = "tsArea";
+									gisFeature.attributes.area_type = name;
+//									gisFeature.attributes = obj;
+									gisFeature.gisStyle = polygonStyle;
+									tsLayer.addGisFeature(gisFeature);
+								}
+							});
+						}
+						else if (name == "rnc")
+						{
+							this.mapWork.map.queryNodeBGisFeaturesByAreaIds(arr,function(gisFeatures:Array):void{
+								log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+								for each(var gisFeature:GisFeature in gisFeatures){
+									var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+									var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, color, 0.3, borderStyle);
+//									var obj:Object = new Object();
+									gisFeature.attributes.mo_type = "tsArea";
+									gisFeature.attributes.area_type = name;
+//									gisFeature.attributes = obj;
+									gisFeature.gisStyle = polygonStyle;
+									tsLayer.addGisFeature(gisFeature);
+								}
+							});
+						}
+						else if (name == "mss")
+						{
+							this.mapWork.map.queryBTSGisFeaturesByAreaIds(arr,function(gisFeatures:Array):void{
+								log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+								for each(var gisFeature:GisFeature in gisFeatures){
+									var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+									var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, color, 0.3, borderStyle);
+//									var obj:Object = new Object();
+									gisFeature.attributes.mo_type = "tsArea";
+									gisFeature.attributes.area_type = name;
+//									gisFeature.attributes = obj;
+									gisFeature.gisStyle = polygonStyle;
+									tsLayer.addGisFeature(gisFeature);
+								}
+							});
+						}
+					}
+				}
+			}
+			
+			private function removeTSArea(name:String):void
+			{
+				for each (var feature:GisFeature in tsLayer.gisFeatures)
+				{
+					tsLayer.removeGisFeature(feature);
+				}
+				for each (var f:GisFeature in nodeBLayer.gisFeatures)
+				{
+					nodeBLayer.removeGisFeature(f);
+				}
+			}
+			
+			//显示机房信息
+			private function showSiteInfo(event:GisFeatureEvent):void
+			{
+				if(!event.gisFeature.attributes.mo_id)
+					return;
+				
+				var context:String = _param["context"];
+				var siteId:String = String(event.gisFeature.attributes.mo_id);
+				
+				
+				var url:String = context + "cms/general/monitor/RoomMonitor.action?siteId=" + siteId;
+				navigateToURL(new URLRequest(url));
+			}
+			
+			//显示热点信息
+			private function showWlanInfo(gisFeature:GisFeature,event:MouseEvent):void
+			{
+				var context:String = _param["context"];
+				var cellId:String = gisFeature.attributes.mo_id;
+				var url:String = (cellDetailURL + cellId).replace(/\$/g, "&");
+				navigateToURL(new URLRequest(context + url));
+			}
+			
+			//添加基站的右键菜单
+			private function addMenuBts(feature:GisFeature):void
+			{
+				this.mapWork.map.addGisFeatureMenu(feature,"资源信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"告警信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"性能信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"关联拓扑-传输拓扑",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"关联拓扑-软交换拓扑",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"传输管线",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"覆盖范围",popupDealer);
+			}
+			
+			//添加小区的右键菜单
+			private function addMenuCell(feature:GisFeature):void
+			{
+				this.mapWork.map.addGisFeatureMenu(feature,"资源信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"告警信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"性能信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"关联拓扑-无线拓扑",popupDealer);
+			}
+			
+			//添加WLAN的右键菜单
+			private function addMenuWlan(feature:GisFeature):void
+			{
+				this.mapWork.map.addGisFeatureMenu(feature,"资源信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"告警信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"性能信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"关联拓扑",popupDealer);
+			}
+			
+			//添加其他网元的右键菜单
+			private function addMenuOther(feature:GisFeature):void
+			{
+				this.mapWork.map.addGisFeatureMenu(feature,"资源信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"告警信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"性能信息",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"关联拓扑",popupDealer);
+				this.mapWork.map.addGisFeatureMenu(feature,"影响范围",popupDealer);
+			}
+			
+			//添加集客的右键
+			private function addMenuCustomer(feature:GisFeature):void
+			{
+				this.mapWork.map.addGisFeatureMenu(feature,"集客信息",popupDealer);
+			}
+			
+			//隐藏小窗口
+			private function hideDataWindow():void
+			{
+				this.ofstable.visible = false;
+				this.pdtable.visible = false;
+			}
+			
+			//选择劣化小区
+			private function selectCell(e:ListEvent):void
+			{
+				//取当前的CELL
+				var moId:String = e.target.dataProvider[e.rowIndex].mo_id;
+				var feature:GisFeature = null;
+				var point:GisPoint = null;
+				
+				//查找小区
+				if (cellMap[moId] != null)
+				{
+					feature = cellMap[moId] as GisFeature;
+				}
+				if (ucellMap[moId] != null)
+				{
+					feature = ucellMap[moId] as GisFeature;
+				}
+				
+				if (feature  != null)
+				{
+					point = feature.gisMetry as GisPoint;
+					if (point != null)
+					{
+						this.mapWork.map.zoomToScale(16000,point);
+					}
+				}
+				else
+				{
+					Alert.show("找不到该小区！");
+				}
+			}
+			
+			//选中表格
+			private function checkTableCell(event:GisFeatureEvent):void
+			{
+				if (event.gisFeature != null && event.gisFeature.attributes != null)
+				{
+					//选中表格
+					pdtable.selectRow(event.gisFeature.attributes.mo_id);
+				}
+			}
+			
+			//查询设备的影响范围
+			private function showDevArea(moId:String, moTypeId:String):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				//查询
+				var param:Object = new Object();
+				param.mo_id = moId;
+				param.mo_type_id = moTypeId;
+				
+				log.info("查询指定网元覆盖范围参数　mo_id=" + param.mo_id + " mo_type_id=" + param.mo_type_id);
+				_dataService.queryCoverAreaByMo(param,loadDevAreaSucc,null,loadDevAreaErr);
+				_dataService.getBtsTypeStat(param,getBtsTypeStatSucc,null,getBtsTypeStatErr);
+			}
+			
+			private function loadDevAreaSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询指定网元的覆盖范围成功");
+					devAreaInfo = obj;
+					loadAreaColorData();
+				}
+				else
+				{
+					log.info("查询指定网元的覆盖范围为空");
+					loadInfo.hideLoading();
+				}
+			}
+			
+			private function loadDevAreaErr(obj:Object):void
+			{
+				log.error("查询指定网元的覆盖范围失败！");
+				loadInfo.hideLoading();
+			}
+			
+			private function loadAreaColorData():void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				var param:Object = new Object();
+				param.mo_id = this.locationNeId;
+				param.mo_type_id = this.locationNeType;
+				log.info("查询指定网元覆盖范围用户数量　mo_id=" + param.mo_id + " mo_type_id=" + param.mo_type_id);
+				_dataService.getBtsUserPerf(param,loadAreaColorDataSucc,null,loadAreaColorDataErr);
+			}
+			
+			private function loadAreaColorDataSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询指定网元覆盖范围用户数量成功！");
+					
+					for each (var perf:Object in obj)
+					{
+						devAreaPerfMap[perf.mo_id] = perf.perf_value;
+					}
+				}
+				else
+				{
+					log.info("查询指定网元覆盖范围用户数量为空！");
+				}
+				
+				createDevArea();
+			}
+			
+			private function loadAreaColorDataErr(obj:Object):void
+			{
+				log.error("查询指定网元覆盖范围用户数量失败！");
+				createDevArea();
+			}
+			
+			private function createDevArea():void
+			{
+				//取基站编号
+				var btsList:Array = new Array();
+				var nodebList:Array = new Array();
+				for each (var dev:Object in devAreaInfo)
+				{
+					if (dev.mo_type_id == "16")
+					{
+						btsList.push(dev.int_id);
+					}
+					else if (dev.mo_type_id == "28")
+					{
+						nodebList.push(dev.int_id);
+					}
+					
+					if (devAreaPerfMap[dev.mo_id1] != null)
+					{
+						var perfValue:Number = Number(devAreaPerfMap[dev.mo_id1]);
+						
+						if (perfValue > 1000)
+						{
+							gisColorMap[dev.int_id] = 0xFF0000;
+						}
+						else if (perfValue > 100)
+						{
+							gisColorMap[dev.int_id] = 0xFFFF00;
+						}
+						else if (perfValue > 0)
+						{
+							gisColorMap[dev.int_id] = 0x00FF00;
+						}
+						
+						gisAreaPerfMap[dev.int_id] = "影响用户数：" + perfValue.toFixed(0);
+					}
+					else
+					{
+						gisColorMap[dev.int_id] = 0x00FF00;
+						gisAreaPerfMap[dev.int_id] = "影响用户数：0";
+					}
+				}
+				
+				log.info("BTS数量：" + btsList.length);
+				log.info("NODEB数量：" + nodebList.length);
+				
+				//加载基站的泰森多边形
+				this.mapWork.map.queryNodeBGisFeaturesByAreaIds(nodebList,function(gisFeatures:Array):void{
+					log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+					var point:GisPoint = null;
+					
+					for each(var gisFeature:GisFeature in gisFeatures){
+						var color:Number = 0x00FF00;
+						log.info("gisFeature.attributes.gis_id==" + gisFeature.attributes.gis_id);
+						if (gisColorMap[gisFeature.attributes.gis_id] != null)
+						{
+							color = gisColorMap[gisFeature.attributes.gis_id];
+						}
+						gisFeature.toolTip = gisAreaPerfMap[gisFeature.attributes.gis_id];
+						
+						var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+						var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, color, 0.3, borderStyle);
+//						var obj:Object = new Object();
+						gisFeature.attributes.mo_type = "tsArea";
+						gisFeature.attributes.area_type = name;
+//						gisFeature.attributes = obj;
+						gisFeature.gisStyle = polygonStyle;
+						nodeBLayer.addGisFeature(gisFeature);
+						point = gisFeature.gisMetry.gisExtent.center;
+						//mapWork.map.addGisFeature(gisFeature);
+					}
+					
+					if (point != null)
+					{
+						mapWork.map.zoomToScale(320000,point);
+					}
+				});
+				
+				//加载基站的泰森多边形
+				mapWork.map.queryBTSGisFeaturesByAreaIds(btsList,function(gisFeatures:Array):void{
+					log.info("开始往地图上放置覆盖范围：" + gisFeatures.length);
+					var point:GisPoint = null;
+					
+					for each(var gisFeature:GisFeature in gisFeatures){
+						var color:Number = 0x00FF00;
+						if (gisColorMap[gisFeature.attributes.gis_id] != null)
+						{
+							color = gisColorMap[gisFeature.attributes.gis_id];
+						}
+						gisFeature.toolTip = gisAreaPerfMap[gisFeature.attributes.gis_id];
+						
+						var borderStyle:GisLinePredefinedStyle=new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, 1, 1);
+						var polygonStyle:GisFillPredefinedStyle=new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, color, 0.3, borderStyle);
+//						var obj:Object = new Object();
+						gisFeature.attributes.mo_type = "tsArea";
+						gisFeature.attributes.area_type = name;
+//						gisFeature.attributes = obj;
+						gisFeature.gisStyle = polygonStyle;
+						tsLayer.addGisFeature(gisFeature);
+						point = gisFeature.gisMetry.gisExtent.center;
+						//mapWork.map.addGisFeature(gisFeature);
+					}
+					
+					if (point != null)
+					{
+						mapWork.map.zoomToScale(320000,point);
+					}
+				});
+				
+				
+				
+				loadInfo.hideLoading();
+			}
+			
+			private function showRouteBts(gisFeature:GisFeature,event:MouseEvent):void
+			{
+				var lineName:String = gisFeature.attributes.lineName;
+				
+				var paramMap:Object = new Object();
+				paramMap.lineName = lineName;
+				
+				log.info("查询电路对应的基站参数 lineName==" + lineName);
+				_dataService.getDevByRoute(paramMap,getDevByRouteSucc,null,getDevByRouteErr);
+			}
+			
+			private function getDevByRouteSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					//处理数据
+					for each (var bts:Object in obj)
+					{
+						bts.mo_id = bts.moId;
+					}
+					
+					log.info("查询基站信息成功！");
+					this.btsGrid.dataProvider = obj;
+					
+					//在GIS上显示
+					locationBts(obj,false);
+				}
+				else
+				{
+					log.info("查询基站信息为空！");
+				}
+				
+				this.btsGridWindow.visible = true;
+				this.btsGridWindow.includeInLayout = true;
+			}
+			
+			private function getDevByRouteErr(obj:Object):void
+			{
+				log.info("查询基站信息失败！");
+				
+				this.btsGridWindow.visible = true;
+				this.btsGridWindow.includeInLayout = true;
+			}
+			
+
+			protected function btsGridWindow_closeHandler(event:WindowEvent):void
+			{
+				this.btsGridWindow.visible = false;
+				this.btsGridWindow.includeInLayout = false;
+			}
+			
+			private function selectMo(e:ListEvent):void
+			{
+				//取当前的网元
+				var moId:String = e.target.dataProvider[e.rowIndex].mo_id;
+				var feature:GisFeature = null;
+				var point:GisPoint = null;
+				
+				//查找网元
+				if (btsMap[moId] != null)
+				{
+					feature = btsMap[moId] as GisFeature;
+				}
+				else if (nodebMap[moId] != null)
+				{
+					feature = nodebMap[moId] as GisFeature;
+				}
+				else if (wlanMap[moId] != null)
+				{
+					feature = wlanMap[moId] as GisFeature;
+				}
+				else if (roomMap[moId] != null)
+				{
+					feature = roomMap[moId] as GisFeature;
+				}
+				else if (cellMap[moId] != null)
+				{
+					feature = cellMap[moId] as GisFeature;
+				}
+				else if (ucellMap[moId] != null)
+				{
+					feature = ucellMap[moId] as GisFeature;
+				}
+				
+				if (feature  != null)
+				{
+					point = feature.gisMetry as GisPoint;
+					if (point != null)
+					{
+						this.mapWork.map.zoomToScale(16000,point);
+					}
+				}
+				else
+				{
+					Alert.show("找不到该网元！");
+				}
+			}
+
+			private function locationLineName(lineName:String):void
+			{
+				if (lineFeatureMap[lineName] != null)
+				{
+					var feature:GisFeature = lineFeatureMap[lineName] as GisFeature;
+					var point:GisPoint = feature.gisMetry.gisExtent.center;
+					if (point != null)
+					{
+						mapWork.map.zoomToScale(16000,point);
+					}
+				}
+			}
+			
+			//显示关联的光路信息			private function showBtsRouteList(obj:Object):void
+			{
+				log.info("查询基站的公用光路资源,结果：" + obj.length);
+//				try{
+//					var sort:Sort=new Sort();
+//					sort.compareFunction = btsSortCompareFunction;
+//					obj.sort = sort;
+//				}catch(e:Error){log.error(e.message);}
+				
+				sortList(obj);
+				this.btsRouteList.dataProvider = obj;
+				this.btsRouteListWindow.visible = true;
+				this.btsRouteListWindow.includeInLayout = true;
+				//查询大面积退服基站的电路资源
+				getQuitBtsTransRes();
+				
+				
+				//显示带告警的光路
+				if (obj != null && obj[0] != null)
+				{
+					var data:Object = obj[0];
+					
+					//取当前的管线
+					var circName:String = data.circName;
+					var opticId:String = data.opticId;
+					
+					//生成信息的管线
+					var circNameInfo:String = "{'model':'1','circName':'" + circName + "','opticId':'" + opticId + "','device':'1'}";
+					log.info("查询管线信息编号　circNameInfo=" + circNameInfo);
+					loadInfo.showLoading();
+					_lineInfo.devLocate2("circuit",circNameInfo,loadLineInfo2,null,loadLineInfoErr);
+				}
+			}
+			
+			private function sortList(arr:Object):void
+			{
+				var len:Number = arr.length;
+				var o1:Object = null;
+				var o2:Object = null;
+				var tmp:Object = null;
+				
+				for (var i:Number=0;i<(len-1);i++)
+				{
+					for (var j:Number=i+1;j<(len-1);j++)
+					{
+						o1 = arr[i];
+						o2 = arr[j];
+						
+						if (compare(o2,o1))
+						{
+							tmp = o2;
+							arr[j] = o1;
+							arr[i] = tmp;
+						}
+					}
+				}
+				
+			}
+			
+			private function compare(obj1:Object,obj2:Object):Boolean
+			{
+				if (obj1 != null && obj2 != null)
+				{
+					if (obj1["rate"] != null && obj2["rate"] != null)
+					{
+						if(Number(String(obj1['rate']).substr(0,String(obj1['rate']).indexOf("%")))< Number(String(obj2['rate']).substr(0,String(obj2['rate']).indexOf("%"))))
+						{
+							return false;
+						}
+					}
+				}
+				
+				return true;
+			}
+			
+			//查询大面积退服基站的电路资源
+			private function getQuitBtsTransRes():void{
+				log.info("查询基站的传输资源,参数：" + _locationNeId);
+				try
+				{
+					lineInfo.getQuitBtsTransRes({'alarmId':_locationNeId},
+						function(data:Object):void
+						{
+							log.info("查询基站的传输资源成功：" + data.length);
+							transResDG.dataProvider = data;
+							//查询大面积退服基站的共用光缆段信息
+							getQuitBtsCableRes();
+						},
+						null,
+						function(e:FaultEvent):void
+						{
+							log.info("查询基站的传输资源失败：" + e.message.toString() + " " + e.fault.faultDetail);
+						});
+				}
+				catch(e:Error)
+				{
+					log.info("查询基站的传输资源异常：" + e.message);
+				}
+			}
+			
+			//查询大面积退服基站的共用光缆段信息
+			private function getQuitBtsCableRes():void{
+				log.info("查询大面积退服基站的共用光缆段信息,参数：" + _locationNeId);
+				try
+				{
+					lineInfo.devLocate2("cableCount",_locationNeId,
+						function(data:Object):void
+						{
+							log.info("查询大面积退服基站的共用光缆段信息成功：" + data.length);
+							cableResDG.dataProvider = data;
+							//查询大面积退服基站的共用物理管线信息
+							getQuitBtsPhysictranRes();
+						},
+						null,
+						function(e:FaultEvent):void
+						{
+							log.info("查询大面积退服基站的共用光缆段信息失败：" + e.message.toString() + " " + e.fault.faultDetail);
+						});
+				}
+				catch(e:Error)
+				{
+					log.info("查询大面积退服基站的共用光缆段信息异常：" + e.message);
+				}
+			}
+			
+			//查询大面积退服基站的共用物理管线信息
+			private function getQuitBtsPhysictranRes():void{
+				log.info("查询大面积退服基站的共用物理管线信息,参数：" + _locationNeId);
+				try
+				{
+					lineInfo.devLocate2("physictranCount",_locationNeId,
+						function(data:Object):void
+						{
+							log.info("查询大面积退服基站的共用物理管线信息成功：" + data.length);
+							physictranResDG.dataProvider = data;
+							//查询大面积退服基站的共用传输网元
+							getQuitBtsTrandevRes();
+						},
+						null,
+						function(e:FaultEvent):void
+						{
+							log.info("查询大面积退服基站的共用物理管线信息失败：" + e.message.toString() + " " + e.fault.faultDetail);
+						});
+				}
+				catch(e:Error)
+				{
+					log.info("查询大面积退服基站的共用物理管线信息异常：" + e.message);
+				}
+			}
+			
+			//查询大面积退服基站的共用传输网元
+			private function getQuitBtsTrandevRes():void{
+				
+				log.info("查询大面积退服基站的共用传输网元,参数：" + _locationNeId);
+				try
+				{
+					lineInfo.devLocate2("trandevCount",_locationNeId,
+						function(data:Object):void
+						{
+							log.info("查询大面积退服基站的共用传输网元成功：" + data.length);
+							trandevResDG.dataProvider = data;
+						},
+						null,
+						function(e:FaultEvent):void
+						{
+							log.info("查询大面积退服基站的共用传输网元失败：" + e.message.toString() + " " + e.fault.faultDetail);
+						});
+				}
+				catch(e:Error)
+				{
+					log.info("查询大面积退服基站的共用传输网元异常：" + e.message);
+				}
+			}
+
+			protected function btsRouteListWindow_closeHandler(event:WindowEvent):void
+			{
+				this.btsRouteListWindow.visible = false;
+				this.btsRouteListWindow.includeInLayout = false;
+			}
+			
+			private function showRoute(e:ListEvent):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				//取当前的管线
+				var circName:String = e.target.dataProvider[e.rowIndex].circName;
+				var opticId:String = e.target.dataProvider[e.rowIndex].opticId;
+				
+				if (e.columnIndex == 3)
+				{
+					//显示电路列表
+					var paramMap:Object = new Object();
+					paramMap.opticIds = opticId;
+					paramMap.alarmId = _locationNeId;
+					log.info("查询光路对应的电路列表 opticIds=" + paramMap.opticIds + " 告警id： " + paramMap.alarmId);
+					_lineInfo.getCircuitByOptic(paramMap,getCircuitByOpticSucc,null,getCircuitByOpticErr);
+				}
+				else
+				{
+					
+					//先删除已有的管线
+					removeLineOnMap('');
+					
+					var circNameInfo:String = "{'model':'1','circName':'" + circName + "','opticId':'" + opticId + "','device':'1'}";
+					log.info("查询管线信息编号　circNameInfo=" + circNameInfo);
+					_lineInfo.devLocate2("circuit",circNameInfo,loadLineInfo,null,loadLineInfoErr);
+				}
+			}
+			
+			//根据光缆段查看光路列表  点击光路处理
+			private function showOptic(e:ListEvent):void
+			{
+				//取当前的管线
+				var circName:String = e.target.dataProvider[e.rowIndex].circName;
+				var opticId:String = e.target.dataProvider[e.rowIndex].id;
+					
+				//先删除已有的管线
+				removeLineOnMap('');
+				
+				var circNameInfo:String = "{'model':'1','circName':'" + circName + "','opticId':'" + opticId + "','device':'1'}";
+				log.info("查询管线信息2 编号　circNameInfo=" + circNameInfo);
+				_lineInfo.devLocate2("circuit",circNameInfo,loadLineInfo,null,loadLineInfoErr);
+			}
+			
+			private function showRoute2(e:ListEvent):void
+			{
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				//取当前的管线
+				var circName:String = e.target.dataProvider[e.rowIndex].label_cn;
+				var opticId:String = e.target.dataProvider[e.rowIndex].optic_id;
+				
+				//显示电路列表
+				var paramMap:Object = new Object();
+				paramMap.opticIds = opticId;
+				log.info("查询光路对应的电路列表 opticIds=" + paramMap.opticIds);
+				_lineInfo.getCircuitByOptic(paramMap,getCircuitByOpticSucc,null,getCircuitByOpticErr);
+			}
+			
+			private function updateCoverAreaColor():void
+			{
+				var moIds:Array = new Array();
+				//取出所有基站的编号
+				for (var id:String in coverAreaMap)
+				{
+					moIds.push(id);
+				}
+				
+				log.info("查询基站用户数性能信息！");
+				_dataService.getUserPerfByBts(moIds,updateCoverAreaColorSucc,null,updateCoverAreaColorErr);
+			}
+			
+			private function updateCoverAreaColorSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询基站用户数性能信息成功！");
+					
+					for each (var btsData:Object in obj)
+					{
+						if (coverAreaMap[btsData.mo_id] != null)
+						{
+							var feature:GisFeature = coverAreaMap[btsData.mo_id] as GisFeature;
+							
+							if (feature != null)
+							{
+								if (feature.attributes.isShow == "true")
+								{
+									log.info("移除网元：" + btsData.mo_id);
+									layer.removeGisFeature(feature);
+								}
+								
+								var perfValue:Number = Number(btsData.perf_value);
+								var color:Number = 0x00FF00;
+								if (perfValue > 1000)
+								{
+									color = 0xFF0000;
+								}
+								else if (perfValue > 100)
+								{
+									color = 0xFFFF00;
+								}
+								else if (perfValue > 0)
+								{
+									color = 0x00FF00;
+								}
+								
+								var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, color,0.3,null);
+								feature.gisStyle = polygonStyle;
+								feature.toolTip = "影响用户数：" + perfValue.toFixed(0);
+								
+								if (feature.attributes.isShow == "true")
+								{
+									log.info("更新网元：" + btsData.mo_id);
+									layer.addGisFeature(feature);
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+					log.info("查询基站用户数性能信息为空！");
+				}
+			}
+			
+			private function updateCoverAreaColorErr(obj:Object):void
+			{
+				log.error("查询基站用户数性能信息失败！" + obj);
+			}
+			
+			private function getCircuitByOpticSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询光路对应的电路信息成功！");
+					var array:ArrayCollection = new ArrayCollection();
+					var array2:ArrayCollection = new ArrayCollection();
+					for each(var data:Object in obj)
+					{
+						if(data['is_quit'] == '是')
+							array.addItem(data);
+						else
+							array2.addItem(data);
+					}
+					array.addAll(array2);
+					this.circuitList.dataProvider = array;
+				}
+				else
+				{
+					log.info("查询光路对应的电路信息为空！");
+				}
+				this.circuitListWindow.visible = true;
+				this.circuitListWindow.includeInLayout = true;
+				loadInfo.hideLoading();
+			}
+			
+			private function getCircuitByOpticErr(obj:Object):void
+			{
+				log.info("查询光路对应的电路信息失败!" + obj);
+				this.circuitListWindow.visible = true;
+				this.circuitListWindow.includeInLayout = true;
+				loadInfo.hideLoading();
+			}
+
+			protected function circuitListWindow_closeHandler(event:WindowEvent):void
+			{
+				this.circuitListWindow.visible = false;
+				this.circuitListWindow.includeInLayout = false;
+			}
+
+			//通过电路定位到TOPO
+			protected function circuitList_itemClickHandler(e:ListEvent):void
+			{
+				var opticId:String = e.target.dataProvider[e.rowIndex].optic_id;
+				var opticName:String = e.target.dataProvider[e.rowIndex].optic_name;
+				var circuitName:String = e.target.dataProvider[e.rowIndex].label_cn;
+				var cuid:String = e.target.dataProvider[e.rowIndex].cuid;
+				
+				log.info("跳转到拓扑，电路路ID："+cuid+",电路名称："+circuitName);
+				var url:String = logicTopoURLCirc.replace(/\$/g, "&");
+				var context:String = _param["context"];
+				navigateToURL(new URLRequest(context + url + "?circId=" + cuid + "&circCode=" + circuitName));
+			}
+
+			//基站所有光路 ##############################################################
+			protected function commongroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				loadInfo = new LoadManager(_general,"blue");
+				loadInfo.showLoading("正在加载数据，请稍候");
+				
+				btsGrid.contextMenu = cm;
+				cm.hideBuiltInItems();
+				cm.addEventListener(ContextMenuEvent.MENU_SELECT, initMenu);
+				
+				showOpticMI.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, showMoLines);
+				
+				this.routeListWindow.routeList.addEventListener(ListEvent.ITEM_CLICK,showRoute2);
+			}
+			
+			private function initMenu(e:ContextMenuEvent):void
+			{
+				cm.customItems = [];
+				if(e.mouseTarget.hasOwnProperty('listData'))
+				{
+					cm.customItems.push(showOpticMI);
+				}
+			}
+			
+			private function showMoLines(e:ContextMenuEvent):void
+			{
+				lm.showLoading();
+				
+				log.info("----##----  加载数据--开始---> cuid:" + e.mouseTarget['data']['cuid']);
+				_lineInfo.getDevLocateByCuId(e.mouseTarget['data']['cuid'],
+					function(result:Object):void
+					{
+						log.info("----##----  加载数据--结束---> " + result.length);
+						lm.hideLoading();
+						//基站 --> 电路  -->多个光路 --> 光路对应管线信息
+						//处理管线信息
+						for each(var data:Object in result)
+						{
+							loadLineInfo2(data, true);
+						}
+					},
+					null,
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+						log.info("----##----  加载数据--失败---> " + e.fault.faultDetail);
+					}
+				);
+			}
+			//基站所有光路 ##############################################################
+				
+				
+			//按类型统计基站信息
+			private function getBtsTypeStatSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询基站类型统计数据成功！");
+					
+					this.btsStatGrid.dataProvider = obj;
+					this.btsStatWindow.visible = true;
+					this.btsStatWindow.includeInLayout = true;
+				}
+				else
+				{
+					log.info("查询基站类型统计数据为空！");
+				}
+			}
+			
+			private function getBtsTypeStatErr(obj:Object):void
+			{
+				log.info("查询基站类型统计数据失败！"+obj);
+			}
+
+			protected function btsStatWindow_closeHandler(event:WindowEvent):void
+			{
+				this.btsStatWindow.visible = false;
+				this.btsStatWindow.includeInLayout = false;
+			}
+
+
+			protected function showHideOpticLines(flag:Boolean):void
+			{
+				if(flag)
+				{
+					lm.showLoading();
+					log.info("----##---- 移除所有光路. ");
+					for each(var lineFeature:GisFeature in lineFeatureMap)
+					{
+						this.mapWork.map.removeGisFeature(lineFeature);
+					}
+					
+					log.info("----##---- 显示所有光路. 基站数量：" + btsGrid.dataProvider.length);
+					var index:uint = 0;
+					for each(var data:Object in btsGrid.dataProvider)
+					{
+						log.info("----##----  加载数据--开始---> cuid:" + data['cuid']);
+						_lineInfo.getDevLocateByCuId(data['cuid'],
+							function(result:Object):void
+							{
+								log.info("----##----  加载数据--结束---> " + result.length);
+								//基站 --> 电路  -->多个光路 --> 光路对应管线信息
+								index++;
+									
+								//处理管线信息
+								for each(var data:Object in result)
+								{
+									loadLineInfo2(data, true);
+								}
+								
+								//如果所以基站的信息都加载完成则隐藏loading
+								if(index >= btsGrid.dataProvider.length)
+									lm.hideLoading();
+							},
+							null,
+							function(e:FaultEvent):void
+							{
+								index++;
+								//如果所以基站的信息都加载完成则隐藏loading
+								if(index >= btsGrid.dataProvider.length)
+									lm.hideLoading();
+								
+								log.info("----##----  加载数据--失败---> " + e.message.body + e.fault.faultDetail);
+							}
+						);
+					}
+				}
+				else
+				{
+					lm.showLoading();
+					log.info("----##---- 移除所有光路. ");
+					for each(var lf:GisFeature in lineCache)
+					{
+						mapWork.map.removeGisFeature(lf);
+					}
+					lineCache.removeAll();
+					
+					setTimeout(function():void
+					{
+						lm.hideLoading();
+					}, 300);
+				}
+			}
+
+			protected function tabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				nowIndex = event.newIndex;
+			}
+			
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				var headArr:Array = [];
+				var title:String = "共用光路信息";
+				var dg:AdvancedDataGrid = btsRouteList;
+				var type:String = "3";
+				var param:Object = {"locateType":_locationType, "devId":_locationNeId, "sheetName":title};
+				var url:String = GeneralMonitorModule.exportLocateUrl + "!exportOptic.action";
+				
+				if(nowIndex == 1)
+				{
+					title = "故障基站的传输资源";
+					dg = transResDG;
+					
+					url = GeneralMonitorModule.exportLocateUrl + "!exportTransRes.action";
+					param = {'alarmId':_locationNeId, "sheetName":title};
+					type = "4";
+				}else if(nowIndex == 2){
+					title = "大面积退服基站共用光缆段";
+					dg = cableResDG;
+					url = GeneralMonitorModule.exportLocateUrl + "!exportCable.action?sheetName="+title+"&locateType=cableCount&devId="+_locationNeId;
+					type = "100";
+				}
+				else if(nowIndex == 3){
+					title = "大面积退服基站共用物理管线";
+					dg = physictranResDG;
+					url = GeneralMonitorModule.exportLocateUrl + "!exportPhysictran.action?sheetName="+title+"&locateType=physictranCount&devId="+_locationNeId;
+					type = "100";
+				}
+				else if(nowIndex == 4){
+					title = "大面积退服基站共用传输网元";
+					dg = trandevResDG;
+					url = GeneralMonitorModule.exportLocateUrl + "!exportTrandev.action?sheetName="+title+"&locateType=trandevCount&devId="+_locationNeId;
+					type = "100";
+				}
+				
+//				for each(var col:AdvancedDataGridColumn in dg.columns)
+//				{
+//					headArr.push({id:col.dataField, name:col.headerText});
+//				}
+				
+				
+				ExternalInterface.call("export2Excel", url, param, type);
+				
+//				ExcelUtil.exportSimpleExcel(title, headArr, dg.dataProvider as ArrayCollection);
+			}
+
+			protected function transResDG_itemClickHandler(e:ListEvent):void
+			{
+				var circName:String = e.target.dataProvider[e.rowIndex].circName;
+				//取当前的管线
+				if (e.columnIndex == 3)
+				{
+					var cuId:String = e.target.dataProvider[e.rowIndex].cuId;
+					var opticId:String = e.target.dataProvider[e.rowIndex].opticId;
+					log.info("资源列表跳转到拓扑，电路路ID："+cuId+",电路名称："+circName);
+					var url:String = logicTopoURLCirc.replace(/\$/g, "&");
+					var context:String = _param["context"];
+					navigateToURL(new URLRequest(context + url + "?circId=" + cuId + "&circCode=" + circName));
+				}else{
+					//TODO
+					//先删除已有的管线
+					removeLineOnMap('');
+					loadInfo.showLoading();
+					_lineInfo.devLocate("circuit",circName,loadLineInfo,null,loadLineInfoErr);
+					var moId:String = e.target.dataProvider[e.rowIndex].moId;
+					locationServ.getBscInfo(moId,getBscHandler);
+				}
+			}
+			
+			private function getBscHandler(result:Object):void{
+				//TODO
+				for each (var obj:Object in result)
+				{
+					if(obj.mo_type_id=="15" || obj.mo_type_id=="27"){//BSC
+						if(obj.mo_type_id=="15"){
+							addOtherMo(mapWork,"bsc",obj);
+						}else{
+							addOtherMo(mapWork,"rnc",obj);
+						}
+					}else if(obj.mo_type_id == "16" || obj.mo_type_id == "28"){//基站
+						//如果是属地定位，则过滤属地
+						if (obj.mo_type_id == "28")
+						{
+							addBts(mapWork,"nodeb","3g",obj);
+						}
+						else
+						{
+							addBts(mapWork,"bts","2g",obj);
+						}
+					}
+				}
+			}
+
+			private function mySortCompareFunction(obj1:Object, obj2:Object):int
+			{
+				if(obj1['is_quit'] == '是' && obj2['is_quit'] == '否')
+					return -1;
+				if(obj1['is_quit'] == '否' && obj2['is_quit'] == '是')
+					return 1;
+				return 0;
+			}
+			
+			//光缆段信息
+			protected function cableResDG_itemClickHandler(event:ListEvent):void
+			{
+				//cableGis
+				hideAllLineFeatures();
+				
+				var data:Object = event.target.dataProvider[event.rowIndex];
+				
+				if(linePointCache[data.cable_id])
+				{
+					log.info('光缆段已撒点，定位过去！' + data.show_name
+						+ " x:" + (linePointCache[data.cable_id] as GisPoint).x
+						+ " y:" + (linePointCache[data.cable_id] as GisPoint).y);
+					
+					this.mapWork.map.addGisFeature(lineFeatureCache[data.cable_id]);
+					addFeatureMenu("cableGis", lineFeatureCache[data.cable_id]);
+					this.mapWork.map.zoomToScale(16000, linePointCache[data.cable_id] as GisPoint);
+				}
+				else
+				{
+					log.info('光缆段未撒点，加载数据！name:' + data.show_name + " id:" + data.cable_id);
+					loadPointsData("cableGis", String(data.cable_id), String(data.show_name), 16000);
+				}
+			}
+			//物理管线信息
+			protected function physictranDG_itemClickHandler(event:ListEvent):void
+			{
+				//physictranGis
+				hideAllLineFeatures()
+				var data:Object = physictranResDG.dataProvider[event.rowIndex];
+				if(linePointCache[data.show_id])
+				{
+					log.info('物理管线已撒点，定位过去！' + data.show_name 
+						+ " x:" + (linePointCache[data.show_id] as GisPoint).x
+						+ " y:" + (linePointCache[data.show_id] as GisPoint).y);
+					
+					this.mapWork.map.addGisFeature(lineFeatureCache[data.show_id]);
+					addFeatureMenu("physictranGis", lineFeatureCache[data.show_id]);
+					this.mapWork.map.zoomToScale(8000, linePointCache[data.show_id] as GisPoint);
+				}
+				else
+				{
+					log.info('物理管线未撒点，加载数据！name:' + data.show_name + " id:" + data.show_id);
+					loadPointsData("physictranGis", String(data.show_id), String(data.show_name), 8000);
+				}
+			}
+			
+			private function hideAllLineFeatures():void
+			{
+//				for each(var f:* in lineFeatureCache)
+//					this.mapWork.map.removeGisFeature(f);
+				
+				this.mapWork.map.removeAllGisFeature();
+			}
+			
+			private function loadPointsData(type:String, param:String, name:String, scale:Number = 4000):void
+			{
+				var color:Number = 0x00000;
+				if (colorId < colorMap.length)
+				{
+					color = Number(colorMap[colorId]);
+					colorId ++;
+				}
+				else
+				{
+					color = Number(colorMap[0]);
+					colorId = 1;
+				}
+				
+				log.info('查询线路信息(共用光缆段、共用物理管线)！');
+				_lineInfo.devLocate2(type, param, 
+					function(data:Object):void
+					{
+						log.info('查询线路信息(共用光缆段、共用物理管线)成功！' + data.length + " color:" + color);
+						if(!data || data.length == 0)
+							return;
+						
+						var arr:Array = [];
+						for each(var p:Object in data)
+						{
+							arr.push(new GisPoint(Number(p['longitude']), Number(p['latitude'])));
+						}
+						
+						linePointCache[param] = arr[0];
+						
+						var lineStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, color, 1, 8);
+						var geoLine:GisLine = new GisLine(arr);
+						var lineFeature:GisFeature = new GisFeature(geoLine,lineStyle);
+						lineFeature.toolTip = name;
+						lineFeature.attributes = {'id':param};
+						
+						mapWork.map.addGisFeature(lineFeature);
+						
+						lineFeatureCache[param] = lineFeature;
+						
+						addFeatureMenu(type, lineFeature);
+						
+						mapWork.map.zoomToScale(scale, linePointCache[param] as GisPoint);
+					}, 
+					null, 
+					function(error:FaultEvent):void
+					{
+						log.info('查询线路信息(共用光缆段、共用物理管线)失败：' + error.fault.faultString);
+					});
+			}
+			
+			private function addFeatureMenu(type:String, f:GisFeature):void
+			{
+				if(type == 'cableGis')
+				{
+					//查看光路信息
+					f.attributes['type'] = 'cable';
+					this.mapWork.map.addGisFeatureMenu(f, '查看光路', viewOpticOrCable);
+				}
+				else if(type == 'physictranGis')
+				{
+					//查看光缆段
+					f.attributes['type'] = 'physictran';
+					this.mapWork.map.addGisFeatureMenu(f, '查看光缆段', viewOpticOrCable);
+				}
+			}
+			
+			private function viewOpticOrCable(f:GisFeature):void
+			{
+				if(f.attributes['type'].toString() == 'cable')
+				{
+					cableWindow.visible = false;
+					cableWindow.includeInLayout = false;
+					opticWindow.visible = true;
+					opticWindow.includeInLayout = true;
+				}
+				else if(f.attributes['type'].toString() == 'physictran')
+				{
+					opticWindow.visible = false;
+					opticWindow.includeInLayout = false;
+					cableWindow.visible = true;
+					cableWindow.includeInLayout = true;
+				}
+				
+				log.info('查询光路、光缆段信息！');
+				_lineInfo.queryRouteInfo(f.attributes['type'].toString(), f.attributes['id'].toString(),
+					function(data:Object, type:String):void
+					{
+						log.info('查询光路、光缆段信息成功！');
+						if(type == 'cable')
+						{
+							opticList.dataProvider = data;
+						}
+						else if(type == 'physictran')
+						{
+							cableList.dataProvider = data;
+						}
+					},
+					null, 
+					function(error:FaultEvent):void
+					{
+						log.error('查询光路、光缆段信息失败！' + error.fault.faultString);
+					}
+				);
+			}
+			
+			
+			//传输网元信息
+			protected function trandevResDG_itemClickHandler(event:ListEvent):void{
+				var data:Object = trandevResDG.dataProvider[event.rowIndex];
+				log.info("选择传输网元:"+data.mo_id);
+				var url:String = (alarmDetailURL + "?alarmStatus=1&neId=" + String(data.mo_id)).replace(/\$/g, "&");
+				var context:String = _param["context"];
+				navigateToURL(new URLRequest(context + url));
+			}
+			
+
+			protected function dgResizeHandler(event:ResizeEvent):void
+			{
+				setTimeout(function():void{
+					dgResize(event);
+				},50);
+			}
+
+
+			protected function dgCreationCompleteHandler(event:FlexEvent):void
+			{
+				setTimeout(function():void{
+					dgResize(event);
+				},50);
+			}
+
+			private var widthper:Array = [0.5,0.25,0.25];
+			private var widthper1:Array = [0.4,0.15,0.15,0.3];
+			private function dgResize(event:Event):void{
+				var dataGrid:AdvancedDataGrid = AdvancedDataGrid(event.target);
+				var columns:Array = dataGrid.columns;
+				var widthp:Array = columns.length==widthper.length?widthper:widthper1;
+				for(var i:uint=0;i<columns.length;i++){
+					columns[i].width = int(dataGrid.width*widthp[i]);
+				}
+			}
+			
+			
+			private function numSortCompareFunction(obj1:Object, obj2:Object):int{
+				if(Number(obj1['num'])<Number(obj2['num']))
+					return -1;
+				if(Number(obj1['num'])>Number(obj2['num']))
+					return 1;
+				return 0;
+			}
+			
+			private function btsSortCompareFunction(obj1:Object, obj2:Object,fields:Array = null):int{
+				if(Number(String(obj1['rate']).substr(0,String(obj1['rate']).indexOf("%")))< Number(String(obj2['rate']).substr(0,String(obj2['rate']).indexOf("%"))))
+					return -1;
+				if(Number(String(obj1['rate']).substr(0,String(obj1['rate']).indexOf("%")))> Number(String(obj2['rate']).substr(0,String(obj2['rate']).indexOf("%"))))
+					return 1;
+				return 0;
+			}
+			private function percentSortCompareFunction(obj1:Object, obj2:Object):int
+			{
+				if(Number(String(obj1['rate']).substr(0,String(obj1['rate']).indexOf("%")))< Number(String(obj2['rate']).substr(0,String(obj2['rate']).indexOf("%"))))
+					return -1;
+				if(Number(String(obj1['rate']).substr(0,String(obj1['rate']).indexOf("%")))> Number(String(obj2['rate']).substr(0,String(obj2['rate']).indexOf("%"))))
+					return 1;
+				return 0;
+			}
+			
+			private function alarmSortCompareFunction(obj1:Object, obj2:Object):int
+			{
+				if(Number(obj1['alarmLevel']) < Number(obj2['alarmLevel']))
+					return -1;
+				if(Number(obj1['alarmLevel']) > Number(obj2['alarmLevel']))
+					return 1;
+				return 0;
+			}
+
+
+			protected function cableWindow_closeHandler(event:WindowEvent):void
+			{
+				cableWindow.visible = false;
+				cableWindow.includeInLayout = false;
+			}
+
+
+			protected function opticWindow_closeHandler(event:WindowEvent):void
+			{
+				opticWindow.visible = false;
+				opticWindow.includeInLayout = false;
+			}
+
+
+			private var showMoinfoParams:Object = {};
+			private var _timer:Timer;
+			protected function mapWork_extent_changeHandler():void
+			{
+				if(isFirst){
+					return;
+				}
+				if(!_timer){
+					_timer = new Timer(1000);
+					_timer.addEventListener(TimerEvent.TIMER,onExtendChangeTimerHandler);
+				}
+				_timer.reset();
+				_timer.start();
+			}
+			
+			private function onExtendChangeTimerHandler(event:TimerEvent):void{
+				if(this.mapWork.map.scale > 32000){
+					_layer.clear();
+					return;
+				}
+				showMoinfoParams.loadNodeBType = "2";
+				showMoinfoParams.warnLevelFlag = "3";
+				showMoinfoParams.moTypeId = "28";
+				showMoinfoParams.minX = this.mapWork.map.gisExtent.xmin;
+				showMoinfoParams.minY = this.mapWork.map.gisExtent.ymin;
+				showMoinfoParams.maxX = this.mapWork.map.gisExtent.xmax;
+				showMoinfoParams.maxY = this.mapWork.map.gisExtent.ymax;
+				//增加地市场景信息。
+				showMoinfoParams.level = "1";
+				showMoinfoParams.sceneId = "1006";
+				log.info(showMoinfoParams);
+				// TODO Auto-generated method stub
+				var ro:RemoteObject = null;
+				ro = BlazeDSUtil.newService(
+					"flexdestination_cms_gsscene_panels", "", _param["context"] +"/messagebroker/amf",
+					doAddGisPointinfo_resultHandler,errorHandler);
+				ro.queryNeInfoByXY(showMoinfoParams);
+			}
+				
+			
+			private function errorHandler(e:FaultEvent):void
+			{
+				log.error(e.fault.content);
+			}
+			
+			private function doAddGisPointinfo_resultHandler(data:Object):void
+			{
+				log.info("基站查询结果：++++++++++++++++++++++++++");
+				log.info(data);
+				initMapGisSaDian(this.mapWork,data)
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:HGroup id="group" width="100%" height="100%" paddingLeft="5" paddingRight="5">
+		<s:BorderContainer id="nowGroup" borderVisible="true" width="100%" height="100%">
+			<gis:MapWork id="mapWork" width="100%" height="100%" showOverView="false" 
+						 mapCreationComplete="mapWork_mapCreationCompleteHandler(event)" 
+						 toolbar_picLayer="mapWork_toolbar_picLayerHandler(event)" extent_change="mapWork_extent_changeHandler()"
+						 toolbar_legend="showLegend(event)" toolbar_goto="mapWork_toolbar_gotoHandler(event)">
+			</gis:MapWork>
+		</s:BorderContainer>
+	</s:HGroup>
+	
+	<!--图例侧边框	<district:LegendDiv id="legendDiv" top="200"/>-->
+	
+	<!--基站统计信息，悬浮DIV显示-->
+	<s:VGroup id="msgVg" right="20" bottom="50" alpha="1"/>
+	
+	<!-- 退服统计、劣化小区列表-->
+	<tools:ShrinkTablePerf id="ofstable" x="{this.width-505}" y="20" hideWindow="{pdtable}" visible="false"/>
+	<tools:ShrinkTableBadCell id="pdtable" x="{this.width-505}" y="170" visible="false"/>
+	
+	<!--网元信息展示框-->
+	<district:FlowMessageDiv id="flowMsgDiv" visible="false"/>
+	
+	<!-- 光路列表 -->
+	<tools:RouteList id="routeListWindow" x="50" y="350" visible="false" includeInLayout="false" fun="locationLineName"/>
+	
+	<!-- 关联的光路列表 -->
+	<panel:Window id="btsRouteListWindow" x="50" y="50" title="共用光路查询信息" width="545" height="300" visible="false" 
+				  includeInLayout="false" dragable="true" closable="false" close="btsRouteListWindow_closeHandler(event)" 
+				  maximizable="true" minimizable="true" resizable="true" minWidth="350">
+		<mx:Image id="export" source="{iconExport}" autoLoad="true" toolTip="导出" buttonMode="true" top="-23" right="50"  
+				  click="export_clickHandler(event)"/>
+		<s:VGroup width="100%" height="100%" gap="0">
+			<s:TabBar id="opticTabBar" dataProvider="{opticViewStack}"  change="tabBar_changeHandler(event)" 
+					  styleName="commonTabBar" />
+			<mx:ViewStack id="opticViewStack" borderStyle="solid" width="100%" height="100%" creationPolicy="all"> 
+				
+				<s:NavigatorContent id="opticRes" label="共用光路信息" creationPolicy="all"> 
+					<mx:AdvancedDataGrid id="btsRouteList" width="100%" height="100%" verticalScrollPolicy="auto" 
+										 itemClick="showRoute(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="光路名称" dataField="opticName" width="190" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="基站名称" dataField="btsNames" width="125" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="占用比率" dataField="rate" width="100" sortCompareFunction="percentSortCompareFunction"/>
+							<mx:AdvancedDataGridColumn headerText="是否有告警" dataField="hasAlarm" width="130" 
+													   itemRenderer="{routeAlarmItemRender}"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</s:NavigatorContent> 
+				
+				<s:NavigatorContent id="transRes" label="故障基站的传输资源" creationPolicy="all"> 
+					<mx:AdvancedDataGrid id="transResDG" width="100%" height="100%" verticalScrollPolicy="auto" 
+										 itemClick="transResDG_itemClickHandler(event)"
+										 horizontalScrollPolicy="auto">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="基站" dataField="moName" width="130" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="电路" dataField="circName" width="245" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="光路资源" dataField="opticName" width="345" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="是否有电路告警" dataField="hasAlarm" width="70" 
+													   itemRenderer="{routeAlarmItemRender}"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</s:NavigatorContent> 
+				
+				<!-- 共用光缆段信息 -->
+				<s:NavigatorContent id="cableRes" label="共用光缆段信息" creationPolicy="all"> 
+					<mx:AdvancedDataGrid id="cableResDG" width="100%" height="100%" verticalScrollPolicy="auto" 
+										 itemClick="cableResDG_itemClickHandler(event)"
+										 horizontalScrollPolicy="off" resize="dgResizeHandler(event)" creationComplete="dgCreationCompleteHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="光缆段名称" dataField="show_name" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="基站数" dataField="num" sortCompareFunction="numSortCompareFunction"/>
+							<mx:AdvancedDataGridColumn headerText="占用比" dataField="rate" sortCompareFunction="percentSortCompareFunction"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</s:NavigatorContent> 
+				
+				<!-- 共用物理管线信息 -->
+				<s:NavigatorContent id="physictranRes" label="共用物理管线信息" creationPolicy="all"> 
+					<mx:AdvancedDataGrid id="physictranResDG" width="100%" height="100%" verticalScrollPolicy="auto" 
+										 itemClick="physictranDG_itemClickHandler(event)"
+										 horizontalScrollPolicy="off" resize="dgResizeHandler(event)" creationComplete="dgCreationCompleteHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="物理管线名称" dataField="show_name" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="基站数" dataField="num" sortCompareFunction="numSortCompareFunction"/>
+							<mx:AdvancedDataGridColumn headerText="百分比" dataField="rate" sortCompareFunction="percentSortCompareFunction"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</s:NavigatorContent> 
+				
+				<!-- 共用传输网元 -->
+				<s:NavigatorContent id="trandevRes" label="共用传输网元" creationPolicy="all"> 
+					<mx:AdvancedDataGrid id="trandevResDG" width="100%" height="100%" verticalScrollPolicy="auto" 
+										 itemClick="trandevResDG_itemClickHandler(event)"
+										 horizontalScrollPolicy="auto" resize="dgResizeHandler(event)" creationComplete="dgCreationCompleteHandler(event)">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="传输网元" dataField="show_name" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="机楼名称" dataField="site_name" textAlign="left"/>
+							<mx:AdvancedDataGridColumn headerText="基站数" dataField="num" sortCompareFunction="numSortCompareFunction"/>
+							<mx:AdvancedDataGridColumn headerText="百分比" dataField="rate" sortCompareFunction="percentSortCompareFunction"/>
+							<mx:AdvancedDataGridColumn headerText="是否有告警" dataField="alarmLevel" sortCompareFunction="alarmSortCompareFunction" itemRenderer="com.linkage.module.cms.general.monitor.district.tools.renderer.QuitTransdevAlarmItemRenderer"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</s:NavigatorContent> 
+				
+			</mx:ViewStack> 
+		</s:VGroup>
+	</panel:Window>
+	
+	<!-- 电路列表 -->
+	<panel:Window id="circuitListWindow" x="350" y="100" title="电路列表" width="600" height="400" visible="false" 
+				  includeInLayout="false" dragable="true" closable="true" maximizable="true" minimizable="true" 
+				  resizable="true" close="circuitListWindow_closeHandler(event)">
+		<mx:AdvancedDataGrid id="circuitList" width="100%" height="100%" verticalScrollPolicy="auto" 
+							 itemClick="circuitList_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="电路名称" dataField="label_cn" width="400" sortCompareFunction="mySortCompareFunction"
+										   itemRenderer="{quitItemRender}"/>
+				<mx:AdvancedDataGridColumn headerText="电路类型" dataField="circuit_type" width="100"/>
+				<mx:AdvancedDataGridColumn headerText="是否有告警" dataField="citcuitAlarm" width="100" 
+										   itemRenderer="{routeAlarmItemRender}"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</panel:Window>
+	
+	<!-- 根据物理管线查看光缆段列表 -->
+	<panel:Window id="cableWindow" x="50" y="370" title="光缆段列表" width="600" height="200" visible="false" 
+				  includeInLayout="false" dragable="true" closable="true" maximizable="true" minimizable="true" 
+				  resizable="true" close="cableWindow_closeHandler(event)">
+		<mx:AdvancedDataGrid id="cableList" width="100%" height="100%" verticalScrollPolicy="auto" 
+							 itemClick="cableResDG_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="光缆段ID" dataField="cable_id" width="100"/>
+				<mx:AdvancedDataGridColumn headerText="光缆段名称" dataField="show_name" width="400" textAlign="left"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</panel:Window>
+	
+	<!-- 根据光缆段查看光路列表 -->
+	<panel:Window id="opticWindow" x="50" y="370" title="光路列表" width="600" height="200" visible="false" 
+				  includeInLayout="false" dragable="true" closable="true" maximizable="true" minimizable="true" 
+				  resizable="true" close="opticWindow_closeHandler(event)">
+		<mx:AdvancedDataGrid id="opticList" width="100%" height="100%" verticalScrollPolicy="auto" 
+							 itemClick="showOptic(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="光路ID" dataField="id" width="100"/>
+				<mx:AdvancedDataGridColumn headerText="光路名称" dataField="name" width="400" textAlign="left"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</panel:Window>
+	
+	<!-- 保障信息-->
+	<tools:GeneralInfo id="generalInfo" visible="false" x="20" y="40"/>
+	<tools:EsureInfo id="esureInfo" visible="false" x="20" y="240"/>
+	<tools:AlarmTime id="alarmTime" visible="false" x="250" y="240"/>
+	<tools:HistoryView id="historyView" visible="false" x="380" y="240"/>
+	
+	<!-- 图层 -->
+	<tools:ViewLevelDiv id="viewLevel" visible="false" callBack="{filterObject}"/>
+	<tools:LegendDiv id="legendDiv" visible="false"/>
+	
+	<!-- 基站列表 -->
+	<panel:Window title="关联的基站" x="50" y="50" id="btsGridWindow" dragable="true" visible="false" 
+				  includeInLayout="false" width="400" height="300" close="btsGridWindow_closeHandler(event)"
+				  resizable="true">
+		<mx:AdvancedDataGrid id="btsGrid" width="100%" height="100%" itemClick="selectMo(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="电路编码" dataField="label_cn" width="250"/>
+				<mx:AdvancedDataGridColumn headerText="基站名称" dataField="moName" width="150"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:Button label="显示所有光路" click="showHideOpticLines(true)" left="100" top="-25"/>
+		<s:Button label="清除所有光路" click="showHideOpticLines(false)" left="200" top="-25"/>
+	</panel:Window>
+	
+	<!-- 基站类型统计列表-->
+	<panel:Window title="基站类型统计" x="50" y="50" id="btsStatWindow" dragable="true" 
+				  visible="false" includeInLayout="false" width="200" height="300" 
+				  close="btsStatWindow_closeHandler(event)" resizable="true">
+		<mx:AdvancedDataGrid id="btsStatGrid" width="100%" height="100%">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="基站类型" dataField="bts_type"/>
+				<mx:AdvancedDataGridColumn headerText="数量" dataField="num"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</panel:Window>
+	
+	<!--网元链路信息展示框-->
+	<district:NeLineWindow id="lineMsgWindow" visible="false" showAll="{showAllLines}" showLine="{showLine}" x="50" y="50"/>
+</monitor:CommonGroup>

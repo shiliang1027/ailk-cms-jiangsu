@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 xmlns:resource="com.linkage.module.cms.perfmonitor.subject.flow.resource.*"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 xmlns:perf="com.linkage.module.cms.perfmonitor.subject.flow.perf.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectHotSpotService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			private var _commonService:SubjectInterfaceCommService;
+
+			private var _hotspotService:SubjectHotSpotService;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.flow.HotspotDataFlow");
+
+			//参数对象
+			private var _param:Object = null;
+
+			private var isInit:Boolean = false;
+
+			private var _isDebug:Boolean = false;
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+
+			public function get hotspotService():SubjectHotSpotService
+			{
+				return _hotspotService;
+			}
+
+			public function set hotspotService(value:SubjectHotSpotService):void
+			{
+				_hotspotService = value;
+			}
+
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+			}
+
+			public function initData(hotspotId:String, parentCityName:String):void
+			{
+				//初始化告警
+				_param.defaultDisplay = "alarmneid";
+				this.alarmFlow.params = _param;
+				var ruleStr:String = "(((nmsalarmtype=3)&(alarmnetype=\"CELL\"|alarmnetype=\"UTRANCELL\"|alarmnetype=\"BTS\"|alarmnetype=\"NodeB\"))|(alarmsubtype=\"68\"|alarmsubtype=\"69\"|alarmsubtype=\"70\"|alarmsubtype=\"71\"))";
+				if(parentCityName != null && parentCityName != "")
+				{
+					ruleStr += "&(alarmcounty=\"" + parentCityName + "\")";
+				}
+
+				if(!isInit)
+				{
+					this.alarmFlow.ruleContent = ruleStr;
+					this.alarmFlow.initInfo();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(alarmFlow);
+						//-------------------------------------历史回退修改------------------------------------
+
+				}
+				else
+				{
+					this.alarmFlow.reload(ruleStr);
+				}
+
+				var paramMap:Object = new Object();
+				paramMap.hotspot_id = hotspotId;
+
+				_hotspotService.hotspotCellInfoList(paramMap, loadResDataSucc, null, loadResDataErr);
+				_hotspotService.hotspotPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+			}
+
+			private function loadResDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载资源列表成功！");
+					this.resourceFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载资源列表为空！");
+					if(_isDebug)
+					{
+						this.resourceFlow.initData(null);
+					}
+				}
+			}
+
+			private function loadResDataErr(obj:Object):void
+			{
+				log.info("加载资源列表失败！" + obj);
+				if(_isDebug)
+				{
+					this.resourceFlow.initData(null);
+				}
+			}
+
+			private function loadPerfDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载性能列表成功！");
+					this.perfFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载性能列表为空！");
+					if(_isDebug)
+					{
+						this.perfFlow.initData(null);
+					}
+				}
+			}
+
+			private function loadPerfDataErr(obj:Object):void
+			{
+				log.info("加载性能列表失败！" + obj);
+				if(_isDebug)
+				{
+					this.perfFlow.initData(null);
+				}
+			}
+
+			public function reloadData(moList:ArrayCollection):void
+			{
+				this.resourceFlow.reloadData(moList);
+				this.perfFlow.reloadData(moList);
+
+				//设置告警
+				if(moList != null && moList.length > 0)
+				{
+					var moIdStr:String = "";
+					for each(var moId:String in moList)
+					{
+						if(moIdStr != "")
+						{
+							moIdStr += ",";
+						}
+
+						moIdStr += moId;
+					}
+
+					this.alarmFlow.filterAlarm = "alarmneid in(" + moIdStr + ")";
+				}
+				else
+				{
+					this.alarmFlow.filterAlarm = "";
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:ViewStack id="flowViewStack"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2"
+				  creationPolicy="all">
+		<s:NavigatorContent id="alarmNav"
+							label="资源信息">
+			<resource:MoResourceStat id="resourceFlow"
+									 width="100%"
+									 height="100%">
+			</resource:MoResourceStat>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="sheetNav"
+							label="性能告警">
+			<pubflow:alarm id="alarmFlow"
+						   moduleKey="categoriesflowalarm"
+						   width="100%"
+						   height="100%">
+			</pubflow:alarm>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="workStateNav"
+							label="性能信息">
+			<perf:MoPerfStat id="perfFlow"
+							 width="100%"
+							 height="100%">
+			</perf:MoPerfStat>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar dataProvider="{flowViewStack}"
+			  id="tabBar1"
+			  styleName="commonTabBar">
+	</s:TabBar>
+</s:Group>

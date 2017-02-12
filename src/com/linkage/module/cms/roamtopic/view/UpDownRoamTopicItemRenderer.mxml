@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                                  xmlns:s="library://ns.adobe.com/flex/spark"
+                                  xmlns:mx="library://ns.adobe.com/flex/mx"
+                                  dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)"
+                                  focusEnabled="true">
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+
+            [Embed(source = "../img/up.png")]
+            private var up:Class;
+
+            [Embed(source = "../img/ping.png")]
+            private var ping:Class;
+
+            [Embed(source = "../img/down.png")]
+            private var down:Class;
+
+            protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+            {
+                if (data == null || data.huanbi == null || img == null || la == null)
+                    return;
+
+				var huanbiStr:String = new String(data.huanbi);
+				huanbiStr = huanbiStr.substr(0,huanbiStr.length -1);
+                var huanbi:Number = Number(huanbiStr);
+
+                if (isNaN(huanbi))
+                    huanbi = 0;
+
+                if (huanbi > 0)
+                    img.source = up;
+                else if (huanbi == 0)
+                    img.source = ping;
+                else
+                    img.source = down;
+
+                la.text = Math.abs(huanbi) + "%";
+            }
+        ]]>
+    </fx:Script>
+    <s:HGroup top="0"
+              left="0"
+              right="0"
+              bottom="0"
+              horizontalAlign="center"
+              verticalAlign="middle">
+        <mx:Image id="img"/>
+        <s:Label id="la" textAlign="left"/>
+    </s:HGroup>
+</s:MXAdvancedDataGridItemRenderer>

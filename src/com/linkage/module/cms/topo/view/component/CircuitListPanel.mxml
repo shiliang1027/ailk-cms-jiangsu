@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+			  title="电路信息表"
+			  minHeight="24"
+			  minWidth="180"
+			  width="600"
+			  close="closePanel()"
+			  mouseEnabled="true"
+			  dragable="true">
+	<panel:layout>
+		<s:VerticalLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.cms.topo.event.TopoEventTypes;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.XMLListCollection;
+			import mx.controls.listClasses.IListItemRenderer;
+			// log
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.view.component.CircuitListPanel");
+
+			// CMS数据源
+			private var _cmsDataSource:ICmsDataSource = null;
+			// 数据源
+			private var _dataSource:IDataSource = null;
+			// loading
+			private var _loading:ILoadingInfo = null;
+			// 是否装载过数据的标志
+			private var _creationComplete:Boolean = false;
+			// 远程请求url的上下文
+			private var _urlContext:String = null;
+			// 数据列表
+			[Bindable]
+			private var _dataList:XMLListCollection = new XMLListCollection();
+			// 右键菜单
+			[Bindable]
+			private var _myMenu:ContextMenu = new ContextMenu();
+			// 关联到传输电路的菜单
+			private var _menuItem_toTopo:ContextMenuItem = new ContextMenuItem("关联到传输电路拓扑");
+			// 关联到传输光缆GIS
+			private var _menuItem_toGis:ContextMenuItem = new ContextMenuItem("关联到传输光缆");
+			// 调试菜单
+			private var _debugMenuItem:ContextMenuItem = new ContextMenuItem("[DEBUG]");
+
+			// 电路id和电路名称的key
+			private static const KEY_CIRCUIT_ID:String = "circuit_id";
+			private static const KEY_CIRCUIT_NAME:String = "circuit_code";
+
+			// 数据稽核面板
+			private var _dataCheckPanel:DataCheckPanel = null;
+			// A端网元id
+			private var _moId1:String = null;
+			// Z端网元id
+			private var _moId2:String = null;
+			// A端网元名称
+			private var _moName1:String = null;
+			// Z端网元名称
+			private var _moName2:String = null;
+
+
+			// 关闭面板
+			private function closePanel():void
+			{
+				hide();
+			}
+
+			/**
+			 * 注入URL上下文
+			 */
+			public function set urlContext(value:String):void
+			{
+				_urlContext = value;
+			}
+
+			/**
+			 * 注入CMS数据源
+			 */
+			public function set dataSourceCms(value:ICmsDataSource):void
+			{
+				_cmsDataSource = value;
+			}
+
+			/**
+			 * 注入数据源
+			 */
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				_topoCanvas = value;
+				_loading = LoadingManager.getInstance().loadingInfo;
+
+				// 根据两端网元查看电路列表面板
+				_topoCanvas.addEventListener(TopoEventTypes.SHOW_CIRCUIT, function(event:TopoEvent):void
+					{
+						showPanelByDblMo(event.getProperty("moId1"), event.getProperty("moId2"), event.getProperty("moName1"), event.getProperty("moName2"));
+					});
+				// 根据电路id(可为空)和电路名称查看电路列表面板
+				_topoCanvas.addEventListener(TopoEventTypes.SHOW_CIRCUIT_BY_CIRCCODE, function(event:TopoEvent):void
+					{
+						showPanelByCircCode(event.getProperty("circId"), event.getProperty("circCode"), event.getProperty("topoName"));
+					});
+
+				// 直接根据电路id和电路名称定为到传输通道拓扑视图
+				_topoCanvas.addEventListener(TopoEventTypes.LOADTOPO_CIRCUIT, function(event:TopoEvent):void
+					{
+						loadCircuitTopo(event.getProperty("circId"), event.getProperty("circCode"), event.getProperty("topoName"));
+					});
+
+			}
+
+			private function initFirstShow():void
+			{
+				if (_creationComplete == false)
+				{
+					_creationComplete = true;
+					log.debug("首次打开传输电路面板,开始初始化...");
+
+					// 初始化菜单
+					_myMenu.hideBuiltInItems();
+					_myMenu.addEventListener(ContextMenuEvent.MENU_SELECT, cMenuSelectHandler, false);
+					_menuItem_toTopo.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, customCMenuItemHandler_toTopo);
+					_menuItem_toGis.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, customCMenuItemHandler_toGis);
+					_debugMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, debugCMenuItemHandler);
+
+					// 初始化数据稽查面板
+					_dataCheckPanel = new DataCheckPanel();
+					_dataCheckPanel.dataSourceCms = _cmsDataSource;
+					_dataCheckPanel.topoCanvas = _topoCanvas;
+					_dataCheckPanel.urlContext = _urlContext;
+
+				}
+			}
+
+			// 根据两端网元展示电路的信息
+			private function showPanelByDblMo(moId1:String, moId2:String, moName1:String, moName2:String):void
+			{
+				show();
+				initFirstShow();
+				// 先清空,再去加载电路列表
+				_dataList.removeAll();
+				_loading.loadingStart();
+				_moId1 = moId1;
+				_moId2 = moId2;
+				_moName1 = moName1;
+				_moName2 = moName2;
+				_cmsDataSource.queryCircuits(_moId1, _moId2, function(data:XML):void
+					{
+						_dataList.source = data.child("Circuit");
+						_dataList.refresh();
+						checkData();
+						switchFirst();
+					}, function():void
+					{
+						_loading.loadingEnd();
+					});
+
+
+				dataCheck.visible = false;
+				dataCheck.includeInLayout = false;
+			}
+
+			// 根据电路id(可为空)和电路名称展示电路信息
+			private function showPanelByCircCode(circId:String, circCode:String, topoName:String = null):void
+			{
+				show();
+				initFirstShow();
+				// 先清空,再去加载电路列表
+				_dataList.removeAll();
+				_loading.loadingStart();
+
+				_cmsDataSource.queryCircuitsByIdOrCode(circId, circCode, function(data:XML):void
+					{
+						_dataList.source = data.child("Circuit");
+						_dataList.refresh();
+						switchFirst();
+					}, function():void
+					{
+						_loading.loadingEnd();
+					});
+
+
+				dataCheck.visible = false;
+				dataCheck.includeInLayout = false;
+			}
+
+			/**
+			 * 右键菜单被触发
+			 * @param event
+			 *
+			 */
+			private function cMenuSelectHandler(event:ContextMenuEvent):void
+			{
+				var renderer:IListItemRenderer = event.mouseTarget as IListItemRenderer;
+				var menuItems:Array = _myMenu.customItems;
+				menuItems.length = 0;
+				if (renderer != null && renderer.data.hasOwnProperty("@" + KEY_CIRCUIT_ID))
+				{
+					menuItems.push(_menuItem_toTopo);
+					menuItems.push(_menuItem_toGis);
+//					menuItems.push(_debugMenuItem);
+				}
+			}
+
+			/**
+			 * 定制右键菜单item选中的捕获逻辑 关联到拓扑(新)
+			 * @param event
+			 *
+			 */
+			private function customCMenuItemHandler_toTopo(event:ContextMenuEvent):void
+			{
+				var renderer:IListItemRenderer = event.mouseTarget as IListItemRenderer;
+				if (renderer)
+				{
+					var circId:String = renderer.data["@" + KEY_CIRCUIT_ID];
+					var circCode:String = renderer.data["@" + KEY_CIRCUIT_NAME];
+					loadCircuitTopo(circId, circCode);
+				}
+			}
+
+			/**
+			 * 定制右键菜单item选中的捕获逻辑  关联到gis
+			 * @param event
+			 *
+			 */
+			private function customCMenuItemHandler_toGis(event:ContextMenuEvent):void
+			{
+				var renderer:IListItemRenderer = event.mouseTarget as IListItemRenderer;
+				if (renderer)
+				{
+					var circId:String = renderer.data["@" + KEY_CIRCUIT_ID];
+					var circCode:String = renderer.data["@" + KEY_CIRCUIT_NAME];
+
+					loadOpticGis(circCode);
+				}
+			}
+
+			/**
+			 * 加载具体的电路id对应的电路拓扑
+			 */
+			private function loadCircuitTopo(circId:String, circCode:String, topoName:String = null):void
+			{
+				if (StringUtils.isNullStr(topoName))
+				{
+					topoName = StringUtils.isNullStr(_topoCanvas.topoName) ? Constants.DEFAULT_TOPONAME : _topoCanvas.topoName;
+				}
+				log.debug("加载具体的电路拓扑 topoName={0} circId={1} circCode", topoName, circId, circCode);
+				_topoCanvas.loadViewModelTopo("tranCircuitChannelTopoViewModel", "circuit_id:" + circId + "#circuit_code:" + circCode + "#name:" + circCode + "传输通道视图", topoName); //+ "#saveEnable:true"
+			}
+
+			/**
+			 * 加载管线GIS
+			 */
+			private function loadOpticGis(circName:String):void
+			{
+				var openUrl:String = _urlContext + "/cms/general/monitor/GeneralMonitorMo.action?type=circuit&moId={'model':'2','circName':'" + circName + "','device':'1'}";
+				log.debug("关联到传输光缆GIS URL: {0}", openUrl);
+				ExternalInterface.call("openUrl(\"" + openUrl + "\")");
+			}
+
+			/**
+			 * DEBUG右键菜单item选中的捕获逻辑
+			 * @param event
+			 *
+			 */
+			private function debugCMenuItemHandler(event:ContextMenuEvent):void
+			{
+				log.debug("触发DEBUG");
+				var renderer:IListItemRenderer = event.mouseTarget as IListItemRenderer;
+				if (renderer)
+				{
+					var data:XML = renderer.data as XML;
+					var dataStr:String = "<?xml version=\"1.0\" encoding=\"GBK\" ?>" + data.toString();
+					System.setClipboard(dataStr);
+
+				}
+			}
+
+			// 选择第一条记录默认加载
+			private function switchFirst():void
+			{
+				if (_dataList.length > 0)
+				{
+					var obj:Object = _dataList.getItemAt(0);
+
+					var circId:String = obj["@" + KEY_CIRCUIT_ID];
+					var circCode:String = obj["@" + KEY_CIRCUIT_NAME];
+					loadCircuitTopo(circId, circCode);
+				}
+			}
+
+			// 数据稽核
+			private function checkData():void
+			{
+				if (_dataList.length == 0)
+				{
+					dataCheck.visible = true;
+					dataCheck.includeInLayout = true;
+				}
+				else
+				{
+					dataCheck.visible = false;
+					dataCheck.includeInLayout = false;
+				}
+			}
+
+			// 弹出数据稽核的面板
+			protected function dataCheck_clickHandler(event:MouseEvent):void
+			{
+				_dataCheckPanel.initPanel(_moId1, _moId2, _moName1, _moName2);
+				_dataCheckPanel.show(_topoCanvas);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:AdvancedDataGrid id="cricuits"
+						 width="100%"
+						 height="100%"
+						 dataProvider="{_dataList}"
+						 contextMenu="{_myMenu}"
+						 horizontalScrollPolicy="auto">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn headerText="设备名称"
+									   dataField="@a_tran_mo_name"/>
+			<mx:AdvancedDataGridColumn headerText="设备端口"
+									   dataField="@a_tran_mo_port"/>
+			<mx:AdvancedDataGridColumn headerText="槽-板"
+									   dataField="@a_tran_attr_card"/>
+			<mx:AdvancedDataGridColumn headerText="状态"
+									   dataField="@a_tran_port_status_desc"/>
+			<mx:AdvancedDataGridColumn headerText="电路名称"
+									   dataField="@circuit_code"/>
+			<!-- 电路代码=电路名称 -->
+			<mx:AdvancedDataGridColumn headerText="电路代号"
+									   dataField="@circuit_code"/>
+			<mx:AdvancedDataGridColumn headerText="电路级别"
+									   dataField="@traph_level_desc"/>
+			<mx:AdvancedDataGridColumn headerText="电路类型"
+									   dataField="@service_type"/>
+			<mx:AdvancedDataGridColumn headerText="本端业务侧设备"
+									   dataField="@a_serv_mo_name"/>
+			<mx:AdvancedDataGridColumn headerText="本端业务侧配线架位置"
+									   dataField="@end_switch_df_port_a"/>
+			<mx:AdvancedDataGridColumn headerText="对端传输设备名称"
+									   dataField="@z_tran_mo_name"/>
+			<mx:AdvancedDataGridColumn headerText="对端传输设备端口"
+									   dataField="@z_tran_mo_port"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	<s:HGroup id="dataCheck"
+			  width="100%"
+			  visible="false"
+			  includeInLayout="false">
+		<s:Button label="数据稽核"
+				  click="dataCheck_clickHandler(event)"/>
+	</s:HGroup>
+</panel:AbstractCEPWindow>

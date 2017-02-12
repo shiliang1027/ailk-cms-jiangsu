@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%"
+		 creationComplete="init();">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			
+			public function init():void
+			{
+				
+			}
+			
+			public function initData(obj:Object):void
+			{
+				var index:String = null;
+				var columnObj:Object = null;
+				var nameObj:Object = null;
+				var col:AdvancedDataGridColumn = null;
+				
+				if (obj.cell != null)
+				{
+					columnObj = obj.cell.column;
+					nameObj = obj.cell.name;
+					var cellarr:Array = new Array();
+					//生成列
+					for (index in columnObj)
+					{
+						col = new AdvancedDataGridColumn();
+						col.headerText = nameObj[index];
+						col.dataField = columnObj[index];
+						cellarr = cellarr.concat(col);
+						//this.cellGrid.columns = this.cellGrid.columns.concat(col);
+					}
+					this.cellGrid.columns = cellarr;
+					this.cellGrid.dataProvider = obj.cell.datalist;
+				}
+				if (obj.ucell != null)
+				{
+					columnObj = obj.ucell.column;
+					nameObj = obj.ucell.name;
+					var ucellarr:Array = new Array();
+					//生成列
+					for (index in columnObj)
+					{
+						col = new AdvancedDataGridColumn();
+						col.headerText = nameObj[index];
+						col.dataField = columnObj[index];
+						//this.ucellGrid.columns = this.ucellGrid.columns.concat(col);
+						ucellarr = ucellarr.concat(col);
+					}
+					
+					this.ucellGrid.columns = ucellarr;
+					
+					
+					for each (var dd:Object in obj.ucell.datalist)
+					{
+						dd["102"] = "100%";
+						dd["10000"] = "0%";
+						dd["10001"] = "100%";
+						dd["10006"] = "-";
+						dd["10007"] = "-";
+						dd["104"] = "0%";
+						dd["10008"] = "100%";
+					}
+					
+					this.ucellGrid.dataProvider = obj.ucell.datalist;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Scroller width="100%" height="100%" verticalScrollPolicy="auto">
+		<s:VGroup width="100%">
+			<mx:AdvancedDataGrid id="cellGrid" width="100%" horizontalScrollPolicy="auto">
+			</mx:AdvancedDataGrid>
+			<mx:AdvancedDataGrid id="ucellGrid" width="100%" horizontalScrollPolicy="auto">
+			</mx:AdvancedDataGrid>
+		</s:VGroup>
+	</s:Scroller>
+</s:Group>

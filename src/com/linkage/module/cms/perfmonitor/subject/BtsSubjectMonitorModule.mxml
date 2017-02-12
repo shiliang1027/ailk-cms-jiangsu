@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:mapview="com.linkage.module.cms.perfmonitor.subject.mapview.*"
+		   xmlns:datashow="com.linkage.module.cms.perfmonitor.subject.datashow.*"
+		   xmlns:flow="com.linkage.module.cms.perfmonitor.subject.flow.*"
+		   xmlns:tree="com.linkage.module.cms.perfmonitor.subject.tree.*"
+		   xmlns:common="com.linkage.module.cms.perfmonitor.subject.common.*"
+		   creationComplete="module_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectCellServiceImp;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommServiceImp;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectPowerService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectPowerServiceImp;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanServiceImp;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+
+			import flash.utils.setTimeout;
+
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			private var commonService:SubjectInterfaceCommService;
+
+			[Bindable]
+			private var cellService:SubjectCellService;
+
+			[Bindable]
+			private var btsService:SubjectPowerService;
+
+			[Bindable]
+			private var wlanService:SubjectWlanService;
+
+			//日志
+			public var log:ILogger = null;
+
+			private var _cityId:String = "00";
+			private var _cityName:String;
+			//是否调试
+			[Bindable]
+			private var isDebug:Boolean = false;
+
+			public function showCityMap(cityId:String = null, cityName:String = null):void
+			{
+				log.info("进入地市视图　cityId=" + cityId + "  cityName=" + cityName + "  level=2");
+				_cityId = cityId;
+				_cityName = cityName;
+				this.provinceMap.visible = false;
+				this.provinceMap.includeInLayout = false;
+				this.cityMap.visible = true;
+				this.cityMap.includeInLayout = true;
+
+				log.info('加载cityMap数据。');
+				this.cityMap.initData(cityId, "2");
+				var cityObj:Object = this.treeDiv.cityObjMap[cityId];
+
+				this.provinceDataFlow.initData(cityId, "2", cityName);
+
+				setTimeout(this.cityMap.mapDirection, 1000, cityObj.longitude, cityObj.latitude, cityObj.scale);
+			}
+
+			private function loadCityData():void
+			{
+				log.info('加载cityDataShow数据。');
+//				cityDataShow.resizeView(this.height*0.7);
+//				cityDataShow.initData(_cityId,"2");
+				provinceDataShow.initData(_cityId, "2");
+			}
+
+			private function loadCityFlowData():void
+			{
+				log.info('加载cityDataFlow数据。');
+//				provinceDataFlow.alarmFlow.stopLoad();
+//				cityDataFlow.initData(_cityId,"2",_cityName);
+//				provinceDataFlow.initData(_cityId,"2",_cityName);
+			}
+
+			[Bindable]
+			public var parameters:Object;
+
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.DEBUG;
+				target.filters = ["com.linkage.module.cms.perfmonitor.subject*", "com.linkage.gis.*"];
+				Log.addTarget(target);
+				log = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.BtsSubjectMonitor");
+
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+
+				if(this.parameters.debug != null && this.parameters.debug == "true")
+				{
+					isDebug = true;
+				}
+
+				commonService = new SubjectInterfaceCommServiceImp(this.parameters.context);
+				cellService = new SubjectCellServiceImp(this.parameters.context);
+				btsService = new SubjectPowerServiceImp(this.parameters.context);
+				wlanService = new SubjectWlanServiceImp(this.parameters.context);
+
+				this.treeDiv.initTree("00", "属地树", changeCity);
+				this.provinceDataShow.initData();
+				this.provinceDataFlow.initData("", "", "");
+
+				//添加网元点击事件
+//				this.cityDataFlow.resourceFlow.addMoClickEvent(this.cityMap.locationMo);
+				this.provinceDataFlow.resourceFlow.addMoClickEvent(this.cityMap.locationMo);
+			}
+
+			private function loadProvinceDataFlow():void
+			{
+				log.info('加载provinceDataFlow数据。');
+//				provinceDataFlow.initData("","","");
+			}
+
+			public function changeGisVisiable(type:int, show:Boolean):void
+			{
+				if(_cityId == "00")
+				{
+					this.provinceMap.changeGisVisiable(type, show);
+				}
+				else
+				{
+					this.cityMap.changeGisVisiable(type, show);
+				}
+
+			}
+
+			public function changeCity(id:String, cityName:String, cityFullName:String, level:String, pid:String):void
+			{
+				log.info("进入地市视图　cityId=" + id + "  cityName=" + cityName + "  level=" + level);
+
+				_cityId = id;
+				_cityName = cityName;
+
+				if(level == "1")
+				{
+					this.provinceMap.visible = true;
+					this.provinceMap.includeInLayout = true;
+					this.cityMap.visible = false;
+					this.cityMap.includeInLayout = false;
+//					this.cityDataFlow.alarmFlow.stopLoad();
+//					this.provinceDataFlow.alarmFlow.reload(this.provinceDataFlow.alarmRule);
+					this.provinceDataShow.initData();
+					this.provinceDataFlow.initData("", "", "");
+				}
+				else
+				{
+					this.provinceMap.visible = false;
+					this.provinceMap.includeInLayout = false;
+					this.cityMap.visible = true;
+					this.cityMap.includeInLayout = true;
+
+					this.cityMap.initData(id, level);
+					var cityObj:Object = this.treeDiv.cityObjMap[id];
+					setTimeout(this.cityMap.mapDirection, 1000, cityObj.longitude, cityObj.latitude, cityObj.scale);
+//					this.cityDataShow.resizeView(this.height*0.7);
+//					this.provinceDataFlow.initData(id,level);
+
+//					this.provinceDataFlow.alarmFlow.stopLoad();
+					this.provinceDataFlow.initData(id, level, cityName);
+				}
+			}
+
+			public function showChart(cityName:String):void
+			{
+				log.info("显示趋势图    属地：" + cityName);
+				var cityId:String = this.treeDiv.cityNameMap[cityName];
+
+				this.chartDetail.showChart(cityId, cityName, 6);
+				this.chartDetail.visible = true;
+				this.chartDetail.includeInLayout = true;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:VDividedBox width="100%"
+					height="100%"
+					id="provinceGroup">
+		<mx:HDividedBox width="100%"
+						height="100%">
+			<mapview:BtsProvinceMap id="provinceMap"
+									width="100%"
+									height="100%"
+									btsService="{btsService}"
+									commonService="{commonService}"
+									isDebug="{isDebug}"
+									context="{this.parameters.context}">
+			</mapview:BtsProvinceMap>
+			<mapview:BtsCityMap id="cityMap"
+								visible="false"
+								includeInLayout="false"
+								dataLoaded="loadCityData"
+								width="100%"
+								height="100%"
+								btsMonitor="{this}"
+								btsService="{btsService}"
+								commonService="{commonService}"
+								context="{this.parameters.context}"
+								isDebug="{isDebug}">
+			</mapview:BtsCityMap>
+			<datashow:BtsProvinceDataShow dataLoaded="loadProvinceDataFlow"
+										  id="provinceDataShow"
+										  width="400"
+										  height="100%"
+										  btsMonitor="{this}"
+										  btsService="{btsService}"
+										  commonService="{commonService}"
+										  isDebug="{isDebug}">
+			</datashow:BtsProvinceDataShow>
+		</mx:HDividedBox>
+		<s:Group width="100%"
+				 height="140">
+			<flow:BtsDataFlow id="provinceDataFlow"
+							  width="100%"
+							  height="100%"
+							  btsService="{btsService}"
+							  commonService="{commonService}"
+							  param="{this.parameters}"
+							  isDebug="{isDebug}">
+			</flow:BtsDataFlow>
+		</s:Group>
+	</mx:VDividedBox>
+	<tree:TreeDiv id="treeDiv"
+				  commonService="{commonService}"
+				  isDebug="{isDebug}">
+	</tree:TreeDiv>
+	<common:PerfChartDetail id="chartDetail"
+							wlanService="{wlanService}"
+							cellService="{cellService}"
+							btsService="{btsService}"
+							isDebug="{isDebug}"
+							visible="false"
+							includeInLayout="false">
+	</common:PerfChartDetail>
+</mx:Module>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 xmlns:component="com.linkage.module.cms.general.regional.important.venue.view.component.*"
+		 width="100%"
+		 height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.regional.important.venue.controller.VenueAction;
+
+			import mx.events.FlexEvent;
+
+			/**
+			 * 场景监控Action
+			 */
+			private var venueAction:VenueAction = null;
+			/**
+			 * 列表和图片切换标志位
+			 */
+			private var listImageFlag:Boolean = false;
+			/**
+			 * 加载管理
+			 */
+			private var loadManager:LoadManager = null;
+
+
+			//初始化舞台
+			public function initView(params:Object, regionalView:Object):void
+			{
+				//1.初始化控制器
+				venueAction = new VenueAction(params);
+				loadManager = new LoadManager(regionalView);
+
+				//2.初始化图形模式
+				imageGroup.venueAction = venueAction;
+				imageGroup.initVenueInfo(regionalView, loadManager);
+
+				//3.初始化列表模式
+				listGroup.venueAction = venueAction;
+				listGroup.initListGroup(loadManager);
+
+				// 4.注册显示/隐藏的事件
+				this.addEventListener(FlexEvent.HIDE, function(event:FlexEvent):void
+					{
+						imageGroup.stopScollEffect();
+					});
+				this.addEventListener(FlexEvent.SHOW, function(event:FlexEvent):void
+					{
+						imageGroup.playScollEffect();
+					});
+			}
+
+			//图形-列表切换
+			protected function switchButton_clickHandler(event:MouseEvent):void
+			{
+				if (listImageFlag)
+				{
+					listImageFlag = false;
+					switchButton.label = "列表模式";
+					listGroup.visible = false;
+					imageGroup.visible = true;
+					listGroup.includeInLayout = false;
+					imageGroup.includeInLayout = true;
+					
+					imageGroup.playScollEffect();
+				}
+				else
+				{
+					listImageFlag = true;
+					switchButton.label = "图片模式";
+					listGroup.visible = true;
+					imageGroup.visible = false;
+					listGroup.includeInLayout = true;
+					imageGroup.includeInLayout = false;
+					
+					imageGroup.stopScollEffect();
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%"
+			  height="30"
+			  top="-25"
+			  horizontalAlign="right">
+		<s:Button id="switchButton"
+				  label="列表模式"
+				  click="switchButton_clickHandler(event)"/>
+	</s:HGroup>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:Group width="100%"
+				 height="100%">
+			<component:ImageGroup id="imageGroup"
+								  width="100%"
+								  height="100%"/>
+			<component:ListGroup id="listGroup"
+								 width="100%"
+								 height="100%"
+								 visible="false"
+								 includeInLayout="false"/>
+		</s:Group>
+	</s:Scroller>
+</s:Group>

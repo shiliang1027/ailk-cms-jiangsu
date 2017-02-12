@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+           xmlns:s="library://ns.adobe.com/flex/spark"
+           xmlns:mx="library://ns.adobe.com/flex/mx"
+           creationComplete="module1_creationCompleteHandler(event)"
+           layout="absolute"
+           width="100%"
+           height="100%"
+           xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+           xmlns:alarm="com.linkage.module.cms.perfmonitornew.alarm.*"
+           xmlns:common="com.linkage.module.cms.perfmonitornew.common.*">
+
+    <mx:states>
+        <s:State name="monitor"/>
+        <s:State name="config"/>
+    </mx:states>
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.perfmonitornew.dao.AlarmMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.alarm.AlarmMonitor");
+
+            private var parameters:Object;
+
+            private var initFlag:Boolean = true;
+
+            private var schemeListAC:ArrayCollection = new ArrayCollection;
+
+            protected function module1_creationCompleteHandler(event:FlexEvent):void
+            {
+                parameters = this.parentApplication.parameters;
+
+                AlarmMonitorDAO.context = parameters['context'];
+
+                loadSchemeByUser();
+            }
+
+            private function loadSchemeByUser(schemeName:String = null, monitorFlag:Boolean = false):void
+            {
+                if (monitorFlag)
+                {
+                    this.currentState = "monitor";
+                }
+
+                //加载当前用户的监控方案
+                PerfMonitorDAO.getInstance().getSchemeByUser(
+                    {"acc_oid": parameters['acc_oid'], "type": "ALARM"},
+                    function(result:Object):void
+                    {
+						log.info("resul");
+						log.info(result);
+                        schemeListAC.removeAll();
+                        schemeListAC.addAll(result as IList);
+                        schemeList.dataProvider(schemeListAC);
+
+                        schemeList.callLater(function():void
+                        {
+                            setTimeout(function():void
+                            {
+                                for each (var scheme:Object in schemeListAC)
+                                {
+                                    if (initFlag)
+                                    {
+                                        initFlag = false;
+                                        schemeList.selectedIndex(0);
+                                        changeMonitor();
+                                    }
+
+                                    //保存、修改后 选择
+                                    if (schemeName != null)
+                                    {
+                                        if (scheme.scheme_name == schemeName)
+                                        {
+                                            schemeList.selectedItem = scheme;
+
+                                            if (monitorFlag)
+                                            {
+                                                changeMonitor();
+                                            }
+                                        }
+                                    }
+                                }
+                            }, 500);
+                        });
+                    });
+            }
+
+            protected function changeMonitor():void
+            {
+                var schemeId:String = schemeList.selectedItem.scheme_id;
+                var schemeName:String = schemeList.selectedItem.scheme_name;
+
+                if (currentState == "config")
+                {
+                    schemeConfig.loadEditData(schemeId, schemeName);
+                }
+                else if (currentState == "monitor")
+                {
+                    monitorWindow.title = schemeName;
+					schemeMonitor.changeScheme(schemeId, schemeName);
+					
+                }
+            }
+
+            protected function hideSideBar():void
+            {
+                cfgWindow.visible = false;
+                monitorWindow.left = 29;
+            }
+
+            protected function showSideBar():void
+            {
+                cfgWindow.visible = true;
+                monitorWindow.left = 200;
+            }
+
+            protected function button1_clickHandler(event:MouseEvent):void
+            {
+                if (this.currentState == "monitor")
+                {
+                    this.currentState = "config";
+                    monitorWindow.title = "方案配置";
+                    schemeConfig.reset();
+                }
+                else
+                {
+                    this.currentState = "monitor";
+
+                    monitorWindow.title = schemeList.selectedItem.scheme_name;
+                }
+            }
+
+            protected function fullScreen():void
+            {
+                if (this.stage.displayState == StageDisplayState.NORMAL)
+                    this.stage.displayState = StageDisplayState.FULL_SCREEN;
+                else
+                    this.stage.displayState = StageDisplayState.NORMAL;
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <ailk_compts:Window title="监控方案"
+                        id="cfgWindow"
+                        height="100%"
+                        width="190"
+                        left="6"
+                        top="6"
+                        bottom="6"
+                        closable="false"
+                        maximizable="false"
+                        minimizable="false"
+                        styleName="windowPerf">
+        <mx:Image source="@Embed('../img/pin.png')"
+                  right="10"
+                  toolTip="隐藏侧边栏"
+                  buttonMode="true"
+                  click="hideSideBar()"
+                  top="-20"/>
+        <s:VGroup width="100%"
+                  height="100%"
+                  paddingBottom="6"
+                  paddingLeft="6"
+                  paddingRight="6"
+                  horizontalAlign="center"
+                  paddingTop="8">
+            <s:Button label.monitor="新建方案"
+                      label.config="返回监控"
+                      skinClass="com.linkage.module.cms.perfmonitornew.common.PerfButtonSkin"
+                      click="button1_clickHandler(event)"
+                      width="75"/>
+            <common:RadioList id="schemeList"
+                              labelField="scheme_name"
+                              click="changeMonitor()"
+                              width="100%"
+                              height="100%"/>
+        </s:VGroup>
+    </ailk_compts:Window>
+
+    <common:VButton id="cfgMiniBtn"
+                    label="监控方案"
+                    left="0"
+                    top="10"
+                    visible="{!cfgWindow.visible}"
+                    click="showSideBar()"
+                    width="25"
+                    height="100"/>
+
+    <ailk_compts:Window id="monitorWindow"
+                        left="200"
+                        right="6"
+                        top="6"
+                        bottom="6"
+                        styleName="windowPerf"
+                        closable="false"
+                        minimizable="false"
+                        width="100%"
+                        height="100%">
+        <alarm:MatrixMonitor id="schemeMonitor"
+                             includeInLayout.config="false"
+                             visible.config="false"
+                             width="100%"
+                             height="100%"/>
+        <alarm:SchemeConfigAlarm id="schemeConfig"
+                                 refreshSchemeCallBack="{loadSchemeByUser}"
+                                 includeInLayout.monitor="false"
+                                 visible.monitor="false"
+                                 currentState="add"
+                                 width="100%"
+                                 height="100%"/>
+        <mx:Image top="-22"
+                  right="35"
+                  buttonMode="true"
+                  click="fullScreen()"
+                  source="@Embed('../img/full_screen.png')"/>
+    </ailk_compts:Window>
+</mx:Module>

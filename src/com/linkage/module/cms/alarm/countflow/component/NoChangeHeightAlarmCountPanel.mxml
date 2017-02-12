@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:AlarmCountPanelNew xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:component="com.linkage.module.cms.alarm.countflow.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.linkage.module.cms.alarm.countflow.core.CountManagerNew;
+			import com.linkage.module.cms.alarm.countflow.event.AlarmListWindowEvent;
+			import com.linkage.module.cms.alarm.countflow.param.StatContainer;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			//统计管理类
+			private var _countManager:CountManagerNew = null;
+			
+			[Bindable]
+			public var parameters:Object;
+			
+			//设置数据源
+			override public function set dataSource(source:Object):void
+			{
+				count.dataProvider = source;
+				count.rowCount = 7;
+				//rowheight
+				var offset:Number = 3;
+				count.height = count.rowCount * count.rowHeight + offset + count.headerHeight;
+				this.height = count.height + 43;
+			}
+			override protected function alarms_itemClickHandler(e:ListEvent):void
+			{
+				log.info("NoChangeHeightAlarmCountPanel列触发事件-->");
+				
+				var rule:String = null;
+				var moduleKey:String = null;
+				var rowObj:Object = e.target.selectedItem;
+				var columnKey:String = e.target.columns[e.columnIndex].dataField;
+				
+//				Alert.show("rowObj~~~~"+JSON.encode(rowObj));
+				var specId1:String = columnKey.substr(5,columnKey.length);
+				var cityName1:String = rowObj["city_name"];
+//				var city_id:String = rowObj["city_id"];
+				var columnName1:String = e.target.columns[e.columnIndex].headerText;
+			
+				var title:String = "";
+				if(cityName1 == "全省")
+				{
+					title = cityName1 + columnName1;
+				}else
+				{
+					 title = cityName1 + "市" + columnName1;
+				}
+				
+				var evt:AlarmListWindowEvent = new AlarmListWindowEvent(AlarmListWindowEvent.ALARMCHANGE);
+				var param:Object = new Object();
+				param.specId = specId1;
+				param.columnName = columnName1;
+				param.columnKey = columnKey;
+				param.title = title;
+				param.value = rowObj[columnKey];
+				param.alarmregion = cityName1;
+				param.isCityAlarm = "isCityAlarm";
+				
+//				Alert.show(JSON.encode(param));	
+				evt.param = param;
+				dispatchEvent(evt); 
+				
+			}
+			
+		]]>
+	</fx:Script>
+</component:AlarmCountPanelNew>

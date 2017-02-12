@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Scroller xmlns:fx="http://ns.adobe.com/mxml/2009"
+			xmlns:s="library://ns.adobe.com/flex/spark"
+			xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" verticalScrollPolicy="off" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.DegradationTOPN;
+			import com.linkage.module.cms.gsscene.view.components.EmgyResource;
+			import com.linkage.module.cms.gsscene.view.components.KPISituation;
+			import com.linkage.module.cms.gsscene.view.components.QuitService;
+			import com.linkage.module.cms.gsscene.view.components.RaceInfoComp;
+			import com.linkage.module.cms.gsscene.view.components.Roam;
+			import com.linkage.module.cms.gsscene.view.components.SheetStat;
+			import com.linkage.module.cms.gsscene.view.components.TrainTimeTable;
+			import com.linkage.module.cms.gsscene.view.components.WeatherSituation;
+			import com.linkage.module.cms.gsscene.view.components.WorstCellPanel;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneview.SceneConfigDM;
+			
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CollectionEvent;
+			import mx.events.CollectionEventKind;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Group;
+			
+			private var log:ILogger = Log.getLoggerByClass(CompsContainer);
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			private var _dataProvider:IList;
+//			[Inject("user")]
+//			public var user:IUser;
+			[Bindable]
+			public function get dataProvider():IList
+			{
+				return _dataProvider;
+			}
+
+			public function set dataProvider(value:IList):void
+			{
+				_dataProvider = value;
+				_dataProvider.addEventListener(CollectionEvent.COLLECTION_CHANGE,onCollectionChange);
+			}
+			
+			private function onCollectionChange(event:CollectionEvent):void{
+				
+				log.info("[onCollectionChange]{0}",event.kind);
+//				log.info(event.items);
+				switch (event.kind)
+				{
+					case CollectionEventKind.ADD:
+						//TODO创建面板
+						buildItem(event.items[0]);
+						break;
+					case CollectionEventKind.REMOVE:
+						removeItem(event.items[0]);
+						break;
+					case CollectionEventKind.REFRESH:
+					case CollectionEventKind.RESET:
+						group.removeAllElements();
+						break;
+				}
+			}
+			
+//			private var sceneIntroNew:SceneIntroNew = new SceneIntroNew();
+//			private var raceInfoCompNew:RaceInfoCompNew = new RaceInfoCompNew();
+//			private var emgyResourceNew:EmgyResourceNew = new EmgyResourceNew();
+//			private var quitServiceNew:QuitServiceNew = new QuitServiceNew();
+//			private var sheetStatNew:SheetStatNew = new SheetStatNew();
+//			private var worstCellPanelNew:WorstCellPanelNew = new WorstCellPanelNew();
+//			private var kPISituationNew:KPISituationNew = new KPISituationNew();
+//			private var degradationTOPNNew:DegradationTOPNNew = new DegradationTOPNNew();
+//			private var roamNew:RoamNew = new RoamNew();
+//			private var weatherSituationNew:WeatherSituationNew = new WeatherSituationNew();
+//			private var trainTimeTableNew:TrainTimeTableNew = new TrainTimeTableNew();
+			
+			
+			private function buildItem(item:*):void{
+				if(item.isShow!="1"){
+					return ;
+				}
+				if(item.comp){
+					group.addElementAt(item.comp,Math.min(group.numElements,int(item.realindex)));
+					return;
+				}
+				var index:int = Math.min(group.numElements,int(item.showindex)-1);
+				var comp:CompWindow;
+				var h:Number = 200;
+				switch (item.panelName)
+				{
+					case "场景介绍":
+					case "区域介绍":
+//						switch(user.logicalType){
+//							case "2"://LTE场景
+//								h = 300;
+//								break;
+//							default:
+//								h = 250;
+//								break;
+//						}
+						comp = new SceneIntroNew();
+						break;
+					case "场景赛事":
+					case "区域赛事":
+						h = 250;
+							comp = new RaceInfoCompNew();
+						break;
+					case "场景重点关注网元":
+					case "区域重点关注网元":
+						//				if (!sceneConfigDM.panelIdUIMap.hasOwnProperty(panel['panelName']))
+						//					comp = new ResMatrixComp();
+						//				(comp as ResMatrixComp).location = panel['location'];
+						//							(comp as ResMatrixComp).index = panel['showindex'];
+//						comp = new ResMatrixCompNew();
+						break;
+					case "场景资源矩阵":
+					case "区域资源矩阵":
+							comp = new EmgyResourceNew();
+						break;
+					case "场景基站退服":
+					case "区域基站退服":
+							comp = new QuitServiceNew();
+						break;
+					
+					case "场景工单统计":
+					case "区域工单统计":
+							comp = new SheetStatNew();
+						break;
+					
+					case "场景最差小区统计":
+					case "区域最差小区统计":
+							comp = new WorstCellPanelNew();
+						break;
+					
+					case "场景指标概况":
+					case "区域指标概况":
+						h = 300;
+							comp = new KPISituationNew();
+							
+						break;
+					
+					case "场景指标TOPN":
+					case "区域指标TOPN":
+							comp = new DegradationTOPNNew();
+						break;
+					case "场景漫游数据":
+					case "区域漫游数据":
+							comp = new RoamNew();
+						break;
+					case "场景天气预报":
+					case "区域天气预报":
+							comp = new WeatherSituationNew();
+						break;
+					//						case "场景性能趋势图":
+					//						case "区域性能趋势图":
+					//							comp = new ImportantKPI();
+					//							(comp as ImportantKPI).location = panel['location'];
+					//							(comp as ImportantKPI).index = panel['showindex'];
+					//							break;
+					
+					case "场景火车时刻表":
+					case "区域火车时刻表":
+						comp = new TrainTimeTableNew();
+						break;
+				}
+				if(comp){
+					item.comp=comp;
+					comp.item=item;
+					comp.minHeight = h;
+					comp.percentWidth=100;
+//					comp.percentHeight=100;
+					comp.addEventListener(WindowEvent.CLOSE,closeHandler);
+					comp.addEventListener(WindowEvent.MAXIMIZE,maxHandler);
+					comp.addEventListener(WindowEvent.RESTORE,restoreHandler);
+					group.addElementAt(comp,index);
+					item.realindex=index;
+				}
+			}
+			
+			private function removeItem(item:*):void{
+				group.removeElement(item.comp);
+				var e:SceneEvent=new SceneEvent("PANEL_CHANGE");
+				item.change=true;
+				e.param=item;
+				dispatcher(e);
+			}
+			
+			private function closeHandler(event:WindowEvent):void{
+				log.debug("[close]");
+				CompWindow(event.window).item.isShow="0";
+				dataProvider.removeItemAt(dataProvider.getItemIndex(CompWindow(event.window).item));
+
+			}
+			
+			private var popGroup:Group;
+			private function maxHandler(event:WindowEvent):void{
+				log.debug("[max]target:{0}",event.target);
+				log.debug("[max]currentTarget:{0}",event.currentTarget);
+				if(!popGroup){
+					popGroup = new Group();
+					popGroup.width=this.parent.width;
+					popGroup.height=this.parent.height;
+				}
+				dataProvider.removeItemAt(dataProvider.getItemIndex(CompWindow(event.window).item));
+				popGroup.removeAllElements();
+				popGroup.addElement(event.window);
+				PopUpManager.addPopUp(popGroup,this.parent);
+				PopUpManager.centerPopUp(popGroup);
+			}
+			
+			private function restoreHandler(event:WindowEvent):void{
+				popGroup.removeElement(event.window);
+				PopUpManager.removePopUp(popGroup);
+				dataProvider.addItem(CompWindow(event.window).item);
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup id="group" width="100%">
+	</s:VGroup>
+</s:Scroller>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   xmlns:topo="com.linkage.module.cms.topo.*"
+		   xmlns:container="com.linkage.module.cms.topo.container.*"
+		   creationComplete="cmsTopo_applicationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.topo.framework.Constants;
+			
+			import mx.events.FlexEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(CmsTopoModule);
+			// 判断是否集客的正则
+			private var jtkhRegExp:RegExp = new RegExp("jtkh");
+
+			public var parameters:Object;
+
+			protected function cmsTopo_applicationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				System.useCodePage = true;
+//				// 初始化日志Target
+//				var target:MonsterTarget2 = new MonsterTarget2();
+//				target.level = int(this.parameters.logLevel);
+//				target.filters = splitFilters(this.parameters.logFilters);
+//				com.linkage.system.logging.Log.addTarget(target);
+//
+//				var target2:DeMonsterTarget = new DeMonsterTarget();
+//				target2.level = int(this.parameters.logLevel);
+//				target2.filters = splitFilters(this.parameters.logFilters);
+//				mx.logging.Log.addTarget(target2);
+//
+//				log.info(" >>>>> 进入CMS拓扑图  {0}>>>>> ", Version.info);
+
+				try
+				{
+					// 加载样式
+					styleManager.loadStyleDeclarations2(this.parameters.styleUrl);
+					styleManager.loadStyleDeclarations2(this.parameters.topoStyle);
+				}
+				catch (e:Error)
+				{
+					log.error("加载样式时异常 {0}: {1}", e.message, e.getStackTrace());
+				}
+
+				var id:String = parameters[Constants.PARAM_TOPOID];
+				topoContainer.initTopoContainer(this.parameters, jtkhRegExp.test(id));
+			}
+			
+			// 分隔日志过滤器
+			private function splitFilters(filters:String):Array
+			{
+				var array:Array = null;
+				if (filters != null)
+				{
+					array = filters.split(",");
+				}
+				return array;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:SkinnableContainer width="100%"
+						  height="100%">
+		<s:layout>
+			<s:VerticalLayout paddingBottom="5"/>
+		</s:layout>
+		<container:TopoContainer width="100%"
+								 height="100%"
+								 id="topoContainer"/>
+	</s:SkinnableContainer>
+</mx:Module>

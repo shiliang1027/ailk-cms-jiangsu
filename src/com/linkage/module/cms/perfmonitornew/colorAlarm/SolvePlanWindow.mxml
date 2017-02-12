@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  xmlns:local="com.linkage.module.cms.perfmonitornew.colorAlarm.*"
+			  width="100%" height="100%" minHeight="180" close="closeMe();" 
+			  maximizable="false" minimizable="false" 
+			  dragable="true" resizable="true" title="{_title}"
+			  creationComplete="init()">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import mx.controls.Alert; 
+			private var datas:Object;
+			//显示标题
+			[Bindable]
+			private var _title:String = "";
+			[Bindable]
+			private var _data:String = "";
+			private var _planData:Object;
+			private var _defaultSelectColor:String = "red";
+			private var _colorAlarmSolvePlanServ:ColorAlarmSolvePlanServ = new ColorAlarmSolvePlanServ();
+			private var _saveSolvePlans:Function;//保存应急预案
+			private var _reLoadSolvePlans:Function;//重新加载应急预案
+			public var lm:LoadManager = null;
+			public function set reLoadSolvePlans(value:Function):void
+			{
+				_reLoadSolvePlans = value;
+			}
+			public function set saveSolvePlans(value:Function):void
+			{
+				_saveSolvePlans = value;
+			}
+			private var _nowMo:Object;
+			//设置数据源
+			public function set nowMo(value:Object):void{
+				_nowMo = value;
+			}
+			//设置数据源
+			public function set dataProvider(data:Object):void{
+				datas = data;
+				//刷新数据
+				colorBar.selectColor = colorBar.selectColor;
+			}
+			//设置数据源
+			public function set defaultSelectColor(value:String):void{
+				_defaultSelectColor = value;
+			}
+			protected function changeColorBar(colorId:String):void
+			{
+				if(null!=datas){
+					_planData = datas[colorId];
+					viewStack_changeHandler();
+				}else{
+					_planData = null;
+				}
+			}
+			
+			protected function init():void
+			{
+				colorBar.selectColor = _defaultSelectColor;
+			}
+			public function closeMe():void
+			{
+				this.visible = false;
+				this.includeInLayout = false;
+			}
+			protected function viewStack_changeHandler():void
+			{
+//				var nav:NavigatorContent = event.relatedObject as NavigatorContent;
+				var nav:NavigatorContent = viewStack.selectedChild as NavigatorContent;
+				textContext.editable = false;//textContext失去焦点
+				if(null!=nav&&null!=_planData){
+					_data = _planData[nav.id];
+				}
+			}
+			
+			
+			//导入
+			protected function import_clickHandler(event:MouseEvent):void
+			{
+				if(_nowMo['moTypeId']){
+					_colorAlarmSolvePlanServ.importDatas(_nowMo['moTypeId'],onCompleteHandler,onIOErrorHandler);
+					if(null!=lm){
+						lm.showLoading();
+					}
+				}
+			}
+			private function onCompleteHandler(event:Event):void
+			{
+				if(null!=lm){
+					lm.hideLoading();
+				}
+				Alert.show("导入成功", "成功",4,null,function():void
+				{
+					_reLoadSolvePlans();
+				});
+			}
+			
+			private function onIOErrorHandler(event:IOErrorEvent):void
+			{
+				if(null!=lm){
+					lm.hideLoading();
+				}
+				Alert.show("导入失败", "失败");
+			}
+
+			//导出
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+//				if(null!=lm){
+//					lm.showLoading();
+//				}
+				if(_nowMo['moTypeId']){
+					_colorAlarmSolvePlanServ.exportData(_nowMo['moTypeId'],onExportCompleteHandler,onExportIOErrorHandler);
+				}
+			}
+			private function onExportCompleteHandler(event:Event):void
+			{
+				if(null!=lm){
+					lm.hideLoading();
+				}
+			}
+			
+			private function onExportIOErrorHandler(event:IOErrorEvent):void
+			{
+				if(null!=lm){
+					lm.hideLoading();
+				}
+				Alert.show("导出失败", "失败");
+			}
+			//保存
+			protected function save_clickHandler(event:MouseEvent):void
+			{
+				 _saveSolvePlans(datas,_nowMo);
+			}
+			
+			protected function textContext_clickHandler():void
+			{
+				textContext.editable = true;
+			}
+			
+			protected function textContext_changeHandler():void
+			{
+				var nav:NavigatorContent = viewStack.selectedChild as NavigatorContent;
+				if(null!=nav){
+					datas[colorBar.selectColor][nav.id] = textContext.text;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Rect alpha="1" x="0" y="0" width="100%" height="100%">
+		<s:fill>
+			<s:LinearGradient rotation="250">
+				<s:GradientEntry color="0x00424B" ratio="0"/> 
+				<s:GradientEntry color="0x6AAFFF" ratio="0.5"/> 
+				<s:GradientEntry color="0x1173AC" ratio="1"/> 
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect> 
+	<s:HGroup width="100%" height="100%" gap="0" top="10">
+		<s:Group width="30" height="100%">
+			<local:ColorAlarmBar id="colorBar" top="50" height="400" changeTab="{changeColorBar}"/>
+		</s:Group>
+		<s:Group id="historySpotWin" width="100%" height="100%">
+			<s:Group id="tabGroup" width="100%" height="100%">
+				<s:Rect alpha="1" width="100%" left="10" right="10" height="35"
+						topLeftRadiusX="10" topLeftRadiusY="10" 
+						topRightRadiusX="10" topRightRadiusY="10"
+						bottomLeftRadiusX="2" bottomLeftRadiusY="2" 
+						bottomRightRadiusX="2" bottomRightRadiusY="2">
+					<s:fill>
+						<s:LinearGradient rotation="90">
+							<s:GradientEntry color="0xFFBABC" ratio="0"/> 
+							<s:GradientEntry color="0xF28386" ratio="0.1"/> 
+							<s:GradientEntry color="0xEF4C4A" ratio="0.5"/> 
+							<s:GradientEntry color="0xCF171A" ratio="0.9"/> 
+							<s:GradientEntry color="0x520001" alpha="0.3" ratio="1"/> 
+						</s:LinearGradient>
+					</s:fill>
+				</s:Rect> 
+				<s:TabBar id="tabBar" top="8" dataProvider="{viewStack}" skinClass="com.linkage.module.cms.perfmonitornew.colorAlarm.skin.GroupClientTabBarSkin"
+						  useHandCursor="true" buttonMode="true" width="95%" horizontalCenter="0" depth="24"/>
+				<mx:ViewStack id="viewStack" change="viewStack_changeHandler()" selectedIndex="0" creationPolicy="all" width="100%" height="100%" backgroundAlpha="0">
+					<s:NavigatorContent id="triggeringConditions" label="触发条件" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="schedulingProcess" label="调度流程" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="emergencyMeasures" label="应急措施" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="rewindProcess" label="倒回流程" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="actionScript" label="操作脚本" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="contact" label="联系方式" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="reportingTemplate" label="上报信息模板" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="summaryTemplate" label="总结模板" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="warningCases" label="预警处理案例" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+					<s:NavigatorContent id="emergencyPreparedness" label="应急预案信息" width="100%" height="100%" creationPolicy="all">
+					</s:NavigatorContent>
+				</mx:ViewStack>
+			</s:Group>
+			<s:Group left="10" top="38" right="10"  bottom="10" width="100%" height="100%">
+				<s:Rect alpha="1" width="100%" height="100%"
+						bottomLeftRadiusX="10" bottomLeftRadiusY="10" 
+				 		bottomRightRadiusX="10" bottomRightRadiusY="10">
+					<s:fill>
+						<s:LinearGradient rotation="90">
+							<s:GradientEntry color="0xaaaaaa" alpha="0.1" ratio="0"/> 
+							<s:GradientEntry color="0xbbbbbb" alpha="0.1" ratio="0.5"/> 
+							<s:GradientEntry color="0xffffff" alpha="0.1" ratio="1"/> 
+						</s:LinearGradient>
+					</s:fill>
+					<s:stroke>
+						<s:LinearGradientStroke weight="2" >
+							<s:GradientEntry color="0xffffff" alpha="0.5"/>
+						</s:LinearGradientStroke>
+					</s:stroke>
+				</s:Rect> 
+			<s:Scroller width="100%" height="100%" styleName="sceneScroller" bottom="2">
+				<s:Group width="100%" height="100%">
+					<mx:TextArea id="textContext" text="{_data}" fontSize="14" color="0xffffff" 
+								 borderVisible="false" contentBackgroundAlpha="0" borderAlpha="0" focusAlpha="0"
+								 textIndent="30" fontWeight="bold" height="100%" left="20" top="20" right="20"
+							 click="textContext_clickHandler()" change="textContext_changeHandler()"/>
+					<s:HGroup height="30" right="30" bottom="20"
+							  verticalAlign="middle"
+							  horizontalAlign="right">
+						<s:Button label="导入"
+								  click="import_clickHandler(event)"/>
+						<s:Button label="导出"
+								  click="export_clickHandler(event)"/>
+						<s:Button label="保存"
+								  click="save_clickHandler(event)"/>
+					</s:HGroup>
+				</s:Group>
+			</s:Scroller>
+			</s:Group>
+		</s:Group>
+	</s:HGroup>
+	
+</panel:Window>

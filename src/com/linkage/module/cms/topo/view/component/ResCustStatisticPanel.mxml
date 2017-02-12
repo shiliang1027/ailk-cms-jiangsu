@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+						 maximizable="false"
+						 title="集客资源统计"
+						 width="400"
+						 height="154"
+						 minWidth="180"
+						 minHeight="24"
+						 close="closePanel()">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.data.ICmsDataSource;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.CanvasEvent;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.structure.map.IMap;
+			import com.linkage.system.structure.map.Map;
+			
+			import mx.collections.ArrayCollection;
+
+			private var log:ILogger = Log.getLogger("com.linkage.module.topo.framework.view.component.spareparts.ResCustStatisticPanel");
+			// 数据源
+			private var _dataSource:IDataSource = null;
+			// CMS数据源
+			private var _cmsDataSource:ICmsDataSource = null;
+			//资源统计是否启用
+			private var _resStatEnabled:Boolean = false;
+			// 默认是否显示(在启用状态下才有效)
+			private var _defaultShow:Boolean = true;
+			//集客类型映射
+			private var _commTypeObj:Object = null;
+			// 展现的数据列表
+			[Bindable]
+			private var dataList:ArrayCollection = new ArrayCollection();
+
+			// 上次的刷新时间
+			private var _lastRefreshTime:Number = 0;
+
+			// 展示元素的信息
+			private function showPanel():void
+			{
+				show();
+				loadData();
+			}
+
+			// 关闭面板
+			private function closePanel():void
+			{
+				hide();
+			}
+
+			private function startInitParam():void
+			{
+				_commTypeObj = new Object();
+				_cmsDataSource.queryCustCommType(function(data:XML):void
+					{
+						var dataList:XMLList = data.child("commtype");
+						
+						log.info("集客 -startInitParam-- queryCustCommType=");
+						log.info(dataList);
+						for each (var xml:XML in dataList)
+						{
+							_commTypeObj[xml.@serv_level] = xml.@serv_level_name;
+						}
+					});
+			}
+
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+
+			/**
+			 * 资源统计面板是否启用
+			 */
+			public function set resStatEnabled(value:Boolean):void
+			{
+				_resStatEnabled = value;
+			}
+
+			/**
+			 * 默认是否显示
+			 */
+			public function set defaultShow(value:Boolean):void
+			{
+				_defaultShow = value;
+			}
+
+			override public function initPanel():void
+			{
+				if (_resStatEnabled && _defaultShow)
+				{
+					showPanel();
+				}
+			}
+
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				super.topoCanvas = value;
+
+
+				// 层次切换,重新获取数据
+				_topoCanvas.addEventListener(CanvasEvent.LAYER_CHANGED, function(event:CanvasEvent):void
+					{
+						if (showStatus)
+						{
+							_lastRefreshTime = 0;
+							loadData();
+						}
+					});
+				// 告警刷新后,重新获取数据
+				_topoCanvas.addEventListener(CanvasEvent.ALARM_CHANGED, function(event:CanvasEvent):void
+					{
+						if (showStatus)
+						{
+							loadData();
+						}
+					});
+
+				// 面板显隐切换
+				_topoCanvas.addEventListener(TopoEvent.STATISTIC_TOGGLE, function(event:TopoEvent):void
+					{
+						if (_resStatEnabled)
+						{
+							if (showStatus)
+							{
+								closePanel();
+							}
+							else
+							{
+								showPanel();
+							}
+						}
+					});
+
+			}
+
+			// 加载数据
+			private function loadData():void
+			{
+				var param:Object = new Object();
+				var cityId:String = _topoCanvas.getProperty("city_id");
+				var subCityId:String = _topoCanvas.getProperty("sub_city_id");
+				var servLevel:String = _topoCanvas.getProperty("serv_level");
+				var custId:String = _topoCanvas.getProperty("cust_id");
+				
+				log.info("集客  loadData--queryResouceInfo----cityId="+cityId+"---subCityId="+subCityId+"----servLevel="+servLevel+"---custId="+custId);
+				param.cityId = cityId;
+				param.subCityId = subCityId;
+				param.servLevel = servLevel;
+				param.custId = custId;
+				var refreshTime:Number = new Date().getTime();
+				if (refreshTime - _lastRefreshTime < 5000)
+				{
+					// 5s之内不再刷新
+					return;
+				}
+				_lastRefreshTime = refreshTime;
+				var data:String = DataUtil.buildMapXML(Constants.XML_KEY_PID, _topoCanvas.topoId);
+				
+				_cmsDataSource.queryResouceInfo(param,function(result:Object):void{
+//					log.debug("queryResouceInfo==============>");
+//					log.debug(result);
+					dataList = ArrayCollection(result);
+				});
+			}
+
+			//解析数据集
+			private function resolveResultData(data:XML):void
+			{
+				dataList.removeAll();
+				var custXMLList:XMLList = data.child("custs").child("cust");
+				var lineXMLList:XMLList = data.child("lines").child("line");
+				var alarmXMLList:XMLList = data.child("alarms").child("alarm");
+				var len:uint = Math.max(custXMLList.length(), lineXMLList.length(), alarmXMLList.length());
+				for (var index:uint = 0; index < len; index++)
+				{
+					var custXML:XML = custXMLList[index];
+					var lineXML:XML = lineXMLList[index];
+					var alarmXML:XML = alarmXMLList[index];
+					//集客
+					var custName:String = null;
+					var custValue:String = null;
+					if (custXML != null)
+					{
+						custValue = custXML.@value;
+						custName = (custXML.@name != null && custXML.@name != "") ? (custXML.@name) : _commTypeObj[custXML.@comm_type];
+					}
+					//专线
+					var lineName:String = null;
+					var lineValue:String = null;
+					if (lineXML != null)
+					{
+						lineValue = lineXML.@value;
+						lineName = (lineXML.@name != null && lineXML.@name != "") ? (lineXML.@name) : _commTypeObj[lineXML.@comm_type];
+					}
+					//告警
+					var alarmName:String = null;
+					var alarmValue:String = null;
+					if (alarmXML != null)
+					{
+						alarmValue = alarmXML.@value;
+						alarmName = (alarmXML.@name != null && alarmXML.@name != "") ? (alarmXML.@name) : _commTypeObj[alarmXML.@comm_type];
+					}
+					dataList.addItem({cust_name: custName, cust_num: custValue, line_name: lineName, line_num: lineValue, alarm_name: alarmName, alarm_num: alarmValue});
+				}
+				dataList.refresh();
+			}
+
+			//注入CMS数据源
+			public function set dataSourceCms(value:ICmsDataSource):void
+			{
+				_cmsDataSource = value;
+				startInitParam();
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="dataGrid"
+						 width="100%"  
+						 height="100%"
+						 headerHeight="0"
+						 dataProvider="{dataList}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="c1"
+									   headerText="集客名称"
+									   fontWeight="bold"/>
+			<mx:AdvancedDataGridColumn dataField="c2"
+									   headerText="集客数"/>
+			<mx:AdvancedDataGridColumn dataField="c3"
+									   headerText="专线名称"
+									   fontWeight="bold"/>
+			<mx:AdvancedDataGridColumn dataField="c4"
+									   headerText="专线数"/>
+			<mx:AdvancedDataGridColumn dataField="c5"
+									   headerText="告警名称"
+									   fontWeight="bold"/>
+			<mx:AdvancedDataGridColumn dataField="c6"
+									   headerText="告警数"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</panel:AbstractCEPWindow>

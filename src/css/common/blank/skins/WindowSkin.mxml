@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Skin xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark"
+		xmlns:mx="library://ns.adobe.com/flex/mx">
+	<!-- host component -->
+	<fx:Metadata>
+		[HostComponent("com.linkage.system.component.panel.Window")]
+	</fx:Metadata>
+
+	<fx:Script>
+		<![CDATA[
+			/**
+			 *  @private
+			 */
+			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number) : void
+			{
+				var backgroundColor:uint = getStyle("backgroundColor");
+				var backgroundAlpha:Number = getStyle("backgroundAlpha");
+				var borderColor:uint = getStyle("borderColor");
+				var color:uint = getStyle("color");
+				if(backgroundColor){
+					bgFill.color=backgroundColor;
+				}
+				if(backgroundAlpha){
+					bgFill.alpha = backgroundAlpha;
+				}
+				if(borderColor){
+					borderFill.color=borderColor;
+				}
+				if(color){
+					titleDisplay.setStyle("color",color);
+					contentGroup.setStyle("color",color);
+				}
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				
+			}
+		]]>
+	</fx:Script>
+	
+	
+	<!-- states -->
+	<s:states>
+		<s:State name="disabled"/>
+		<s:State name="normal"/>
+	</s:states>
+	<s:Group left="0"
+			 right="0"
+			 top="0"
+			 bottom="0">
+		<s:Rect left="0"
+				right="0"
+				top="0"
+				alpha="1" radiusX="5"
+				bottom="0">
+			<!--<s:filters>
+				<s:DropShadowFilter alpha="0.8"
+									angle="0"
+									blurX="17.0079"
+									blurY="17.0079"
+									distance="0"
+									quality="100"/>
+			</s:filters>-->
+			<s:fill>
+				<s:SolidColor id="bgFill" color="0x003366" alpha="0.8"/>
+			</s:fill>
+			<s:stroke>
+				<s:SolidColorStroke id="borderFill" caps="none"
+									color="#e0e0e0"
+									joints="miter"
+									miterLimit="4"
+									weight="1" alpha="0.6"/>
+			</s:stroke>
+		</s:Rect>
+		<s:Rect left="1"
+				right="1"
+				top="1"
+				alpha="1"
+				radiusX="5"
+				bottom="1">
+			<s:fill>
+				<s:SolidColor color="0xe6e9e6" alpha="0"/>
+			</s:fill>
+			<s:stroke>
+				<s:SolidColorStroke caps="none"
+									joints="miter"
+									miterLimit="4"
+									weight="1" color="0xc6c6c6" alpha="0"/>
+			</s:stroke>
+		</s:Rect>
+		<s:Group top="0"
+				 left="0"
+				 right="0"
+				 height="24" minWidth="100">
+			<s:Label id="titleDisplay"
+					 maxDisplayedLines="1"
+					 doubleClickEnabled="true"
+					 left="10"
+					 right="5"
+					 top="1"
+					 bottom="0"
+					 minHeight="22"
+					 verticalAlign="middle"
+					 fontWeight="bold" fontSize="13" fontFamily="宋体">
+			</s:Label>
+			<s:HGroup right="6" gap="0" verticalCenter="0">
+				<s:Button id="configButton"
+						  toolTip="配置" styleName="window_configBtn" buttonMode="true"/>
+				<s:Button id="minimizeButton"
+						  toolTip="最小化" styleName="window_minimizeBtn" buttonMode="true"/>
+				<s:Button id="restoreButton"
+						  toolTip="还原" styleName="window_restoreBtn" buttonMode="true"/>
+				<s:Button id="maximizeButton"
+						  toolTip="最大化" styleName="window_maximizeBtn" buttonMode="true"/>
+				<s:Button id="closeButton"
+						  toolTip="关闭" styleName="window_closeBtn" buttonMode="true"/>
+				
+			</s:HGroup>
+			
+		</s:Group>
+		<s:Button id="topResizeButton"
+				  left="5"
+				  right="5"
+				  top="-2"
+				  height="4"
+				  alpha="0"/>
+		<s:Button id="bottomResizeButton"
+				  left="5"
+				  right="5"
+				  bottom="-2"
+				  height="4"
+				  alpha="0"/>
+		<s:Button id="leftResizeButton"
+				  left="-2"
+				  top="5"
+				  bottom="5"
+				  width="4"
+				  alpha="0"/>
+		<s:Button id="rightResizeButton"
+				  right="-2"
+				  top="5"
+				  bottom="5"
+				  width="4"
+				  alpha="0"/>
+		<s:Button id="topLeftResizeButton"
+				  left="-2"
+				  top="-2"
+				  width="7"
+				  height="7"
+				  alpha="0"/>
+		<s:Button id="topRightResizeButton"
+				  right="-2"
+				  top="-2"
+				  width="7"
+				  height="7"
+				  alpha="0"/>
+		<s:Button id="bottomLeftResizeButton"
+				  left="-2"
+				  bottom="-2"
+				  width="7"
+				  height="7"
+				  alpha="0"/>
+		<s:Button id="bottomRightResizeButton"
+				  right="-2"
+				  bottom="-2"
+				  width="7"
+				  height="7"
+				  alpha="0"/>
+		<s:Group left="2"
+				 top="24"
+				 right="2"
+				 bottom="2" minHeight="0">
+			<s:Rect width="100%"
+					height="100%" bottomLeftRadiusX="5" bottomRightRadiusX="5">
+				<s:fill>
+					<s:SolidColor color="0xffffff" alpha="0"/>
+				</s:fill>
+			</s:Rect>
+			<s:Group id="contentGroup"
+					 width="100%" left="10" right="10" bottom="10"
+					 height="100%" minHeight="0">
+			</s:Group>
+		</s:Group>
+		<!-- SkinParts
+			 name=maximizeButton, type=spark.components.Button, required=false
+			 name=closeButton, type=spark.components.Button, required=false
+			 name=bottomLeftResizeButton, type=spark.components.Button, required=false
+			 name=minimizeButton, type=spark.components.Button, required=false
+			 name=topRightResizeButton, type=spark.components.Button, required=false
+			 name=rightResizeButton, type=spark.components.Button, required=false
+			 name=bottomResizeButton, type=spark.components.Button, required=false
+			 name=leftResizeButton, type=spark.components.Button, required=false
+			 name=topLeftResizeButton, type=spark.components.Button, required=false
+			 name=bottomRightResizeButton, type=spark.components.Button, required=false
+			 name=restoreButton, type=spark.components.Button, required=false
+			 name=topResizeButton, type=spark.components.Button, required=false
+			 name=titleDisplay, type=spark.components.supportClasses.TextBase, required=false
+			 name=controlBarGroup, type=spark.components.Group, required=false
+			 name=contentGroup, type=spark.components.Group, required=false
+		-->
+	</s:Group>
+</s:Skin>

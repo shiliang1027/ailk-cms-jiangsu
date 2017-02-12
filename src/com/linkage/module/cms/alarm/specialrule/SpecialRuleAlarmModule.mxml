@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:mdi="com.linkage.module.cms.alarm.specialrule.component.mdi.*"
+		   width="100%" height="100%" creationComplete="application_creationCompleteHandler(event)"
+		   layout="absolute">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace mdi "com.linkage.module.cms.alarm.specialrule.component.mdi.*";
+		.titleStyle{
+			font-weight: bold;
+		}
+	</fx:Style>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.AlarmContainer;
+			import com.linkage.module.cms.alarm.framework.common.event.SystemEvent;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.controller.fo.AlarmParamFo;
+			import com.linkage.module.cms.alarm.framework.module.server.source.DefaultCollection;
+			import com.linkage.module.cms.alarm.framework.module.server.source.ICollection;
+			import com.linkage.module.cms.alarm.framework.view.resource.imagesclass.IconParam;
+			import com.linkage.module.cms.alarm.specialrule.core.AlarmViewManager;
+			import com.linkage.module.cms.alarm.specialrule.source.action.SpecialAction;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.ILoggingTarget;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.alarm.specialrule.SpecialRuleAlarmModule");
+
+			/**
+			 * 加载管理器
+			 */
+			private var _loadManager:LoadManager = null;
+			/**
+			 *告警数据控制类
+			 */
+			private var _alarmAction:AlarmAction = null;
+			/**
+			 *告警视图管理类
+			 */
+			private var _alarmViewManager:AlarmViewManager = null;
+			[Bindable]
+			private var _title:String = "自定义窗口";
+
+			public var parameters:Object;
+			
+			public var _viewId:String = null;
+
+			private var _running:Boolean = true;
+
+			//初始化告警信息
+			protected function application_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				//1.初始化logger
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = this.parameters.logLevel;
+				target.filters = [this.parameters.filters];
+				Log.addTarget(target);
+				//2.初始化样式信息
+				if (this.parameters.local == "true")
+				{
+					styleManager.loadStyleDeclarations2("./css/common/produce/ui.swf");
+				}
+				else
+				{
+					styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				}
+
+				System.useCodePage = true;
+
+				//1.初始化加载管理器
+				_loadManager = new LoadManager(this);
+
+				//2.设置窗口管理类
+				_alarmViewManager = new AlarmViewManager(this.parameters, mdiCanvas);
+				_title = (parameters.moduleKey == 'dutyalarm') ? "各专业值班窗口" : "自定义窗口";
+				
+				//3.初始化告警信息
+				if (this.parameters.local == "true")
+				{
+					localTest();
+				}
+				else
+				{
+					if (this.parameters.isScan == "true")
+					{
+						scanView();
+					}
+					else
+					{
+						serversRun();
+					}
+				}
+
+				parentApplication.add(this);
+			}
+
+			private var windowNumMap:Dictionary = new Dictionary();
+			
+			private var _t:String;
+			private function alarmStatNumALLChange(event:SystemEvent):void
+			{
+//				_alarmAction = new SpecialAction(this.parameters, DefaultCollection);
+//				var num:Number=0;
+//				for each(var win:Array in _alarmAction.alarmParamMo.winJsons)
+//				{
+//					var viewKeyArray:Array=win.childViewKey.split(",");
+//					var viewNameArray:Array=win.childViewName.split(",");
+//					var keyLen:int=viewKeyArray.length;
+//					if (keyLen == viewNameArray.length)
+//					{
+//						for (var index:int; index  < keyLen; index++)
+//						{
+//							var _alarmsAC:ICollection = _alarmAction.alarmSource(win.windowId, viewKeyArray[index]);
+//							num+=_alarmsAC.level1Num+_alarmsAC.level2Num+_alarmsAC.level3Num+_alarmsAC.level4Num;
+//						}
+//					}
+//				}
+				if(!_t){
+					_t=_title;
+				}
+				var num:Number=0;
+				var msg:Array = String(event.message).split("_");
+				windowNumMap[msg[0]]=Number(msg[1]);
+				for(var k:String in windowNumMap){
+					var n:Number = windowNumMap[k];
+					num+=n;
+				}
+				_title = _t + " " +num;
+			}
+			// 启动
+			public function start():void
+			{
+				_running = true;
+				if (_alarmAction != null)
+				{
+					_alarmAction.reload(null, false);
+				}
+			}
+
+			// 停止
+			public function stop():void
+			{
+				_running = false;
+				if (_alarmAction != null)
+				{
+					_alarmAction.stopLoad();
+				}
+			}
+
+			//浏览视图
+			protected function scanView():void
+			{
+				_loadManager.showLoading();
+				//初始化告警控制类
+				var ruleList:ArrayList = new ArrayList();
+				var ruleObject:Object = new Object();
+				//设置过滤器为查询不到告警
+				ruleObject[AlarmContainer.PARAMKEY_RULECONTENT] = "";
+				ruleList.addItem(ruleObject);
+				_alarmAction = new SpecialAction(this.parameters, DefaultCollection);
+				_alarmAction.addEventListener("alarmStatNumALLChange",alarmStatNumALLChange);
+				_alarmAction.regListener(ruleList, function():void
+					{
+						_alarmViewManager.initView(_alarmAction, function():void
+							{
+								_loadManager.hideLoading();
+							});
+					}, 0);
+			}
+
+			//服务器上运行
+			protected function serversRun():void
+			{
+				_alarmViewManager.checkViewChoose(function(viewId:String):void{
+					//如果有视图ID，设置视图ID
+					if(viewId != null)
+					{
+						_viewId = viewId;
+						parameters.viewId = viewId;
+					}
+					_loadManager.showLoading();
+					//如果控制中心不为空，删除用户
+					if(_alarmAction != null)
+					{
+						_alarmAction.stopAction();
+						_alarmAction.clearWindowSource();
+					}
+					mdiCanvas.clear();
+					//初始化告警控制类
+					var ruleList:ArrayList = new ArrayList();
+					_alarmAction = new SpecialAction(parameters, DefaultCollection);
+					_alarmAction.addEventListener("alarmStatNumALLChange",alarmStatNumALLChange);
+					_alarmAction.regListener(ruleList, function():void
+					{
+						_alarmViewManager.initView(_alarmAction, function():void
+						{
+							_loadManager.hideLoading();
+						});
+					});
+				});
+			}
+
+			//本地测试
+			protected function localTest():void
+			{
+				_alarmViewManager.checkViewChoose(function(viewId:String):void{
+					if(viewId != null)
+					{
+						parameters.viewId = viewId;
+					}
+					_loadManager.showLoading();
+					//初始化告警控制类并把数据注入视图
+					_alarmAction = new SpecialAction(parameters, DefaultCollection);
+					_alarmAction.regSpecialDefaultTest();
+					_alarmViewManager.initView(_alarmAction, function():void
+					{
+						_loadManager.hideLoading();
+					});
+					_alarmAction.sendSpAlarmTest();
+				});
+			}
+
+			//规则配置
+			private function ruleConfig():void
+			{
+				var alarmParams:AlarmParamFo = _alarmAction.alarmParamFo;
+				var baseUrl:String = alarmParams.baseURL;
+				var moduleKey:String = alarmParams.moduleKey;
+				//var url:String = baseUrl + "/warn/view/config/warnViewConfAction!initWarnView.action?hangToolBar=yes&viewKind=" + moduleKey + "&permitPublic=true";
+				
+				var url:String = null;
+				if(_viewId != null)
+				{
+					url = baseUrl + "/warn/view/set/alarmSetAction!initWarnView.action?tab=" + moduleKey + "&view_id=" + _viewId;
+				}else{
+					url = baseUrl + "/warn/view/set/alarmSetAction!initWarnView.action?tab=" + moduleKey;
+				}
+
+				ExternalInterface.call("function(){window.open('" + url + "','','resizable=yes,toolbar=no')}");
+			}
+
+			//视图选择
+			private function viewChoose():void
+			{
+				_alarmViewManager.showViewChoose();
+			}
+			
+			//垂直布局
+			private function verticalTile():void
+			{
+				mdiCanvas.vertical();
+			}
+
+			//水平布局
+			private function horizontalTile():void
+			{
+				mdiCanvas.horizontal();
+			}
+
+			//平铺布局
+			private function layoutTile():void
+			{
+				mdiCanvas.tile();
+			}
+
+			//tab布局
+			private function layoutTab():void
+			{
+				mdiCanvas.tabWindow();
+			}
+
+			//保存窗口
+			private function saveWindow():void
+			{
+				_alarmViewManager.saveWindow();
+			}
+
+			//全频
+			private function fullWindow():void
+			{
+				if (this.stage.displayState == StageDisplayState.FULL_SCREEN)
+				{
+					fullScreen.toolTip = "全屏";
+					this.stage.displayState = StageDisplayState.NORMAL;
+				}
+				else
+				{
+					fullScreen.toolTip = "退出全屏";
+					this.stage.displayState = StageDisplayState.FULL_SCREEN;
+				}
+			}
+
+			public function get running():Boolean
+			{
+				return _running;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:VBox width="100%" height="100%" verticalGap="0">
+		<mx:HBox width="100%" height="25" borderStyle="solid" verticalAlign="middle">
+			<mx:HBox width="50%" horizontalAlign="left" textAlign="left">
+				<mx:Label styleName="titleStyle" text="{_title}"/>
+			</mx:HBox>
+			<mx:HBox width="50%" horizontalAlign="right" textAlign="right">
+				<mx:Image buttonMode="true" click="viewChoose()" source="{IconParam.ruleConfigIcon}"
+						  toolTip="视图选择" visible="false"/>
+				<mx:Image buttonMode="true" click="ruleConfig()" source="{IconParam.ruleConfigIcon}"
+						  toolTip="视图配置"/>
+				<mx:Image buttonMode="true" click="verticalTile()"
+						  source="{IconParam.verticalTileIcon}" toolTip="垂直布局"/>
+				<mx:Image buttonMode="true" click="horizontalTile()"
+						  source="{IconParam.horizontalTileIcon}" toolTip="水平布局"/>
+				<mx:Image buttonMode="true" click="layoutTile()" source="{IconParam.layoutTileIcon}"
+						  toolTip="平铺布局"/>
+				<!--	<mx:Image buttonMode="true"
+					 click="layoutTab()"
+					 source="{IconParam.layoutTileIcon}"
+					 toolTip="tab布局"/>-->
+				<mx:Image buttonMode="true" click="saveWindow()" source="{IconParam.saveIcon}"
+						  toolTip="保存位置"/>
+				<mx:Image id="fullScreen" buttonMode="true" click="fullWindow()"
+						  source="{IconParam.fullScreenIcon}" toolTip="全屏"/>
+			</mx:HBox>
+		</mx:HBox>
+		<s:Scroller width="100%" height="100%" horizontalScrollPolicy="off"
+					verticalScrollPolicy="off">
+			<mdi:WindowManager id="mdiCanvas" width="100%" height="100%"/>
+		</s:Scroller>
+	</mx:VBox>
+</mx:Module>

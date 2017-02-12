@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					styleName="windowScene"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:subtab="com.linkage.module.cms.viewroam.view.*"
+					maximizable="true" closable="true" resizable="true"
+					close="window1_closeHandler(event)"
+					creationComplete="module_creationCompleteHandler(event)"
+					maximize="window_maximizeHandler();"
+					restore="window_restoreHandler();"
+					dragable="true"
+					height="500"
+					width="800"
+					minimizable="true" title="性能查看" visible="false" includeInLayout="false">
+	<ailk_compts:layout>
+		<s:VerticalLayout paddingBottom="10"
+						  paddingLeft="10"
+						  paddingRight="10"
+						  paddingTop="5"/>
+	</ailk_compts:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.viewroam.ViewRoamModuleContext;
+			import com.linkage.module.cms.viewroam.event.ViewRoamEvent;
+			
+			import mx.events.FlexEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.PopUpManager;
+			[Inject("viewRoamPM")]
+			[Bindable]
+			public var pm:ViewRoamPM;
+			
+			public var loadManager:LoadManager;
+			
+			public function get sceneid():String
+			{
+				return _sceneid;
+			}
+			
+			public function set sceneid(value:String):void
+			{
+				_sceneid = value;
+			}
+			
+			public function get neid():String
+			{
+				return _neid;
+			}
+			
+			public function set neid(value:String):void
+			{
+				_neid = value;
+			}
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			private var _neid:String;
+			private var _sceneid:String;
+			
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				loadManager=this.parentApplication.loadManager;
+//				loadManager.showLoading();
+//				//pm.dm.parameters = this.parentApplication.parameters;
+//				pm.dm.parameters.neid = _neid;
+//				pm.dm.parameters.sceneid = _sceneid;
+//				dispatchMsg(new ViewRoamEvent(ViewRoamEvent.LOAD_DATA));
+			}
+			
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				loadManager.hideLoading();
+//				PopUpManager.removePopUp(this);
+				this.visible=this.includeInLayout=false;
+			}
+			
+			private var windowWidth:Number;
+			private var windowHeight:Number;
+			protected function window_maximizeHandler():void
+			{
+				windowWidth = this.width;
+				windowHeight = this.height;
+				this.width = this.parent.width;
+				this.height = this.parent.height;
+				this.closeButton.visible = false;
+				this.closeButton.includeInLayout = false;
+			}
+			
+			protected function window_restoreHandler():void
+			{
+				this.width = windowWidth;
+				this.height = windowHeight;
+				this.closeButton.visible = true;
+				this.closeButton.includeInLayout = true;
+			}
+			
+			[MessageHandler(selector="VIEWROAM_HIDE")]
+			public function hide_loading(event:ViewRoamEvent):void{
+				loadManager.hideLoading();
+			}
+			
+			[MessageHandler(selector="VIEWROAM_SHOW")]
+			public function show(event:ViewRoamEvent):void{
+				this.visible=this.includeInLayout=true;
+				this.x = (this.parent.width-this.width)/2;
+				this.y = (this.parent.height-this.height)/2;
+				loadManager.showLoading();
+				//pm.dm.parameters = this.parentApplication.parameters;
+				pm.dm.parameters.neid = event.param.neid;
+				pm.dm.parameters.sceneid = event.param.sceneid;
+//				dispatchMsg(new ViewRoamEvent(ViewRoamEvent.LOAD_DATA));
+				dispatchMsg(new ViewRoamEvent(ViewRoamEvent.LOAD_DATA_WORKSTAT));
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{ViewRoamModuleContext}"/>
+		</parsley:ContextBuilder>
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" gap="0">
+		<s:TabBar buttonMode="true" id="tabs" dataProvider="{tabsList}" styleName="sceneTabBar1"/>
+		<mx:ViewStack width="100%" height="100%" styleName="sceneViewStack"
+					  id="tabsList" creationPolicy="all">
+			<s:NavigatorContent width="100%" height="100%" label="性能列表">
+				<subtab:ViewRoamGrid/>
+			</s:NavigatorContent>
+			<s:NavigatorContent width="100%" height="100%" label="性能图表">
+				<subtab:ViewRoamChart/>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:VGroup>
+</ailk_compts:Window>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:panel="com.linkage.system.component.panel.*"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					title="事件查询设置"
+					width="360"
+					height="200"
+					styleName="windowScene"
+					visible="false"
+					minimizable="false"
+					maximizable="false"
+					resizable="false"
+					dragable="true"
+					close="closeWindow()"
+					creationComplete="window_creationCompleteHandler(event)"
+					xmlns:view="com.linkage.module.cms.gsscene.view.components.kpicustom.view.*">
+	<!--
+	***************************************
+	This is Content
+	@author shiliang (66614)
+	@version 1.0
+	@date 2012-11-14
+	@langversion 3.0
+	@playerversion Flash 11
+	@productversion Flex 4
+	@copyright Ailk NBS-Network Mgt. RD Dept.
+	***************************************
+	-->
+	
+	<panel:layout>
+		<s:VerticalLayout paddingBottom="10"
+						  paddingLeft="10"
+						  paddingRight="10"
+						  paddingTop="5"/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[			
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.alarm.eventwindow.EventWindowContext;
+			import com.linkage.module.cms.alarm.eventwindow.domain.EventWindowDM;
+			import com.linkage.module.cms.alarm.eventwindow.event.EventwindowEvent;
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			[Bindable]
+			[Inject]
+			public var dm:EventWindowDM;
+			
+			
+			private var loadManager:LoadManager;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.alarm.eventwindow.view.EventFilterWindow");
+			protected function window_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("过滤条件");
+				//查询过滤条件 
+				dispatchMsg(new Event("SELECT_FILER_DATAS"));
+			}
+			
+			private function closeWindow():void
+			{
+				this.visible=false;
+			}
+			
+			private function dulSelFilter():void
+			{
+				var cityArray:ArrayCollection = cityField.selectedItemArray;
+				var specArray:ArrayCollection = specField.selectedItemArray;
+				var operatorArray:ArrayCollection = operatorField.selectedItemArray;
+				log.debug("cityArray="+cityArray+",specArray="+specArray+",operatorArray="+operatorArray);
+//				if ( cityArray.length == 0 &&  specArray.length == 0 &&  operatorArray.length == 0)
+//				{
+//					AlarmUtil.showMessage("请选择要过滤的内容！");
+//					return;
+//				}
+				var cityValue:String = null;
+				for each (var obj:Object in cityArray)
+				{
+					if (cityValue == null)
+					{
+						cityValue = obj.id;
+					}
+					else
+					{
+						cityValue += "," + obj.id;
+					}
+				}
+				var specValue:String = null;
+				for each (var obj:Object in specArray)
+				{
+					if (specValue == null)
+					{
+						specValue = obj.id;
+					}
+					else
+					{
+						specValue += "," + obj.id;
+					}
+				}
+				var operatorValue:String = null;
+				for each (var obj:Object in operatorArray)
+				{
+					if (operatorValue == null)
+					{
+						operatorValue = obj.id;
+					}
+					else
+					{
+						operatorValue += "," + obj.id;
+					}
+				}
+				
+				dm.parameters.city = cityValue;
+				dm.parameters.spec_name = specValue;
+				dm.parameters.operator_name = operatorValue;
+				log.debug("事件过滤");
+				dispatchMsg(new Event("LOAD_EVENTWINDOW_DATA"));
+				
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:Form width="100%"
+			 height="100%">
+		<mx:FormItem direction="horizontal"  height="30">
+			
+			<s:Label text="地  市 ："/>
+			<view:MultiEditDropDownList id="cityField" 
+									  allowMultipleSelecte="true"
+									  width="190" 
+									  dataProvider="{dm.cityProvider}" 
+									  prompt="请选择"  />
+			
+		</mx:FormItem>
+		<mx:FormItem direction="horizontal" height="30" >
+			<s:Label text="专  业 ："/>
+			<view:MultiEditDropDownList id="specField" 
+									  allowMultipleSelecte="true"
+									  width="190" 
+									  dataProvider="{dm.specProvider}" 
+									  prompt="请选择"/>
+		</mx:FormItem>
+		<mx:FormItem direction="horizontal" height="30" >
+			<s:Label text="调度人 ："/>
+			<view:MultiEditDropDownList id="operatorField" 
+									  allowMultipleSelecte="true"
+									  width="190" 
+									  dataProvider="{dm.operatorProvider}" 
+									  prompt="请选择" />
+		</mx:FormItem>
+		<mx:FormItem direction="horizontal" height="30" textAlign="right" horizontalAlign="right"  >
+			<s:Button id="ok" label="确定" width="60"  click="dulSelFilter()"/>
+			<s:Button id="canel" label="取消" width="60" click="closeWindow()"/>
+		</mx:FormItem>
+		
+		
+	</mx:Form>
+
+	
+</panel:Window>

@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					close="closeWindow()"
+					width="100%"
+					styleName="window"
+					minimizable="false"
+					height="100%"
+					dragable="true"
+					maximize="window1_maximizeHandler(event)"
+					restore="window1_restoreHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="window1_creationCompleteHandler(event)"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-9-7
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.scenedaily.event.hangandpick.HangPlateEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.collections.IList;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.components.HGroup;
+			import spark.components.Label;
+			private var log:ILogger = Log.getLoggerByClass(HangPlateComp);
+
+			[Inject("hangPlateCompPM")]
+			[Bindable]
+			public var pm:HangPlateCompPM;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("hangMedalDetail")]
+			public var hangMedalDetail:HangMedalDetail;
+
+			private var lm:LoadManager = new LoadManager(this);
+
+			[MessageHandler(selector="CREATE_HANGPLATE_PAGEHANDLER")]
+			public function createHangPlateGridHandler(e:HangPlateEvent):void
+			{
+				log.info("挂牌页面创建 begin");
+
+				hpGrid.removeAllElements();
+
+				//创建挂牌页面
+
+				var frow:GridRow;
+				var fitem:GridItem;
+				if(pm.dm.hangPlates)
+				{
+					var la:Label;
+					for each(var citys:Object in pm.dm.hangPlates)
+					{
+						log.info(citys);
+						frow = new GridRow();
+						frow.percentWidth = 100;
+						frow.setStyle("horizontalAlign", "center");
+
+						//插入地市
+						fitem = new GridItem();
+						fitem.percentWidth = 10;
+						fitem.setStyle("verticalAlign", "middle");
+						fitem.setStyle("borderStyle", "solid");
+						fitem.setStyle("borderColor", "0xCCCCCC");
+						fitem.setStyle("horizontalAlign", "center");
+						la = new Label();
+						la.percentWidth = 100;
+						la.text = citys.cityname;
+						la.setStyle("textAlign", "center");
+						fitem.addElement(la);
+						frow.addElement(fitem);
+
+
+						//摘牌率
+						fitem = new GridItem();
+						fitem.percentWidth = 20;
+						fitem.setStyle("horizontalAlign", "center");
+						fitem.setStyle("verticalAlign", "middle");
+						fitem.setStyle("borderStyle", "solid");
+						fitem.setStyle("borderColor", "0xCCCCCC");
+						la = new Label();
+						la.percentWidth = 100;
+						la.text = "上月摘牌率:" + citys.rate;
+						la.setStyle("textAlign", "center");
+						fitem.addElement(la);
+						frow.addElement(fitem);
+
+						//网元类型
+						var moTypeItem:GridItem = new GridItem();
+						moTypeItem.percentWidth = 70;
+						moTypeItem.setStyle("horizontalAlign", "center");
+						moTypeItem.setStyle("verticalAlign", "middle");
+						moTypeItem.setStyle("borderStyle", "solid");
+						moTypeItem.setStyle("borderColor", "0xCCCCCC");
+
+						//挂牌网元类型表格
+						var moTypeGrid:Grid = new Grid();
+						moTypeGrid.percentWidth = 100;
+						moTypeGrid.setStyle("horizontalGap", "2");
+						moTypeGrid.setStyle("verticalGap", "1");
+						log.info("内部循环citys.hasOwnProperty(types):{0}", citys.types.length);
+						log.info(citys.types);
+						log.info(typeof citys.types);
+						log.info((citys.types as ArrayList).getItemAt(0));
+						log.info((citys.types as ArrayList).getItemAt(0)['typename']);
+
+						var al:ArrayCollection = new ArrayCollection;
+						al.addAll(citys.types as IList);
+
+						for each(var moType:Object in al)
+						{
+							log.info("ceshi jinru xunhuan ");
+							log.info("添加网元类型:{0}", moType.hasOwnProperty("typename"));
+							log.info("添加网元类型:{0}", moType.typename);
+							log.info(moType);
+
+							var moTypeRow:GridRow = new GridRow();
+							moTypeRow.percentWidth = 100;
+							moTypeRow.setStyle("horizontalAlign", "center");
+
+							// 网元类型
+							fitem = new GridItem();
+							fitem.percentWidth = 16;
+							fitem.setStyle("horizontalAlign", "center");
+							fitem.setStyle("verticalAlign", "middle");
+							fitem.setStyle("borderStyle", "solid");
+							fitem.setStyle("borderColor", "0xCCCCCC");
+							la = new Label();
+							la.text = moType.typename + ":" + moType.num;
+							la.percentWidth = 100;
+							fitem.addElement(la);
+							moTypeRow.addElement(fitem);
+
+							//后续的单元格，里面放入一个表格
+							var moItem6Grid:GridItem = new GridItem();
+							moItem6Grid.percentWidth = 84;
+
+							var moGrid:Grid = new Grid();
+							moGrid.percentWidth = 100;
+							moGrid.setStyle("horizontalGap", "3");
+							moGrid.setStyle("verticalGap", "1");
+
+							var i:int = 0;
+							var moRow:GridRow;
+							//插入网元，如果网元数量超过7，那么新建HGroup插入
+							log.info("---------------");
+							var bl:ArrayCollection = new ArrayCollection;
+							bl.addAll(moType.infos as IList);
+							for each(var mo:Object in bl)
+							{
+								log.info("网元循环插入:{0}；", i);
+								//判断如果网元数量
+								if(i % 6 == 0)
+								{
+									if(i > 0)
+									{
+										log.info("11网元类型:{0}网元数量:{1}", moType.typename, moRow.numElements);
+										moGrid.addElement(moRow);
+									}
+									moRow = new GridRow();
+									moRow.percentWidth = 100;
+									moRow.setStyle("horizontalAlign", "center");
+								}
+
+								fitem = new GridItem();
+								fitem.percentWidth = 17;
+								fitem.setStyle("horizontalAlign", "center");
+								fitem.setStyle("verticalAlign", "middle");
+								fitem.setStyle("borderStyle", "solid");
+								fitem.setStyle("borderColor", "0xCCCCCC");
+//								fitem.setStyle("backgroundColor", 0X00FF00);
+								var hpt:HangPlateTip = new HangPlateTip();
+								hpt.hangId = mo.id; //挂牌id
+								hpt.text = mo.mo_name;
+								hpt.circleText1 = mo.num;
+								hpt.circleText2 = mo.sheetstatus;
+								hpt.contextMenu = new ContextMenu();
+								hpt.contextMenu.hideBuiltInItems();
+								fitem.setStyle("backgroundColor", mo.color);
+
+								//挂牌网元详情
+								var item:ContextMenuItem = new ContextMenuItem("挂牌网元详情");
+								item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+									{
+										//挂牌网元详情 传递参数 网元id
+										var e:HangPlateEvent = new HangPlateEvent(HangPlateEvent.HANGPLATE_MO_DETAILHANDLER);
+										e.param = new Object();
+										log.info("================");
+										if(evt.mouseTarget is HangPlateTip)
+										{
+											log.info("evt.mouseTarget is HangPlateTip");
+										}
+										else if(evt.contextMenuOwner is HangPlateTip)
+										{
+
+											log.info("evt.contextMenuOwner is 2 HangPlateTip");
+										}
+										else
+										{
+											log.info("evt.currentTarget is not HangPlateTip");
+										}
+										e.param.id = (evt.contextMenuOwner as HangPlateTip).hangId;
+										msgDispatcher(e);
+									});
+								hpt.contextMenu.customItems.push(item);
+
+								if(mo.bad == "正常")
+								{ //如果不是最差网元 
+//									fitem.setStyle("backgroundColor", "0X00FF00");
+									//摘牌
+									item = new ContextMenuItem("摘牌");
+									item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+										{
+											//抛出摘牌事件 传递参数网元Id
+											var e:HangPlateEvent = new HangPlateEvent(HangPlateEvent.PICKPLATE_HANDLER);
+											e.param = new Object();
+											log.info("================");
+											if(evt.currentTarget is HangPlateTip)
+											{
+												log.info("evt.currentTarget is HangPlateTip");
+											}
+											else
+											{
+												log.info("evt.currentTarget is not HangPlateTip");
+											}
+											e.param.id = (evt.contextMenuOwner as HangPlateTip).hangId;
+											msgDispatcher(e);
+										});
+									hpt.contextMenu.customItems.push(item);
+								}
+								hpt.buttonMode = true;
+								fitem.addElement(hpt);
+								moRow.addElement(fitem);
+								i++;
+							}
+							if(i > 0)
+							{ //如果存在网元，那么补满单元格并且加入行中
+								log.info("i>0:{0};", i);
+								if(i % 6 > 0)
+								{
+									for(var m:int = i; m < 6; m++)
+									{
+										fitem = new GridItem();
+										fitem.percentWidth = 17;
+										fitem.setStyle("horizontalAlign", "center");
+										fitem.setStyle("verticalAlign", "middle");
+										fitem.setStyle("borderStyle", "solid");
+										fitem.setStyle("borderColor", "0xCCCCCC");
+										moRow.addElement(fitem);
+									}
+								}
+								moGrid.addElement(moRow);
+							}
+							moItem6Grid.addElement(moGrid);
+							moTypeRow.addElement(moItem6Grid);
+							moTypeGrid.addElement(moTypeRow);
+						}
+						log.info("ceshi jiesu xunhuanqqwww222 ");
+						moTypeItem.addElement(moTypeGrid);
+						frow.addElement(moTypeItem);
+						hpGrid.addElement(frow);
+
+					}
+				}
+
+				lm.hideLoading();
+				log.info("挂牌页面创建 end");
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("window1_creationCompleteHandler[挂牌]派送事件，开始请求:{0}", pm == null);
+
+				pm.getHangPlateInfos();
+
+				lm.showLoading();
+
+				log.info("window1_creationCompleteHandler[挂牌]派送事件，开始请求end");
+			}
+
+			protected function closeWindow():void
+			{
+				lm.hideLoading();
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+				this.width = this.parentApplication.width;
+				this.height = this.parentApplication.height;
+				this.closeButton.visible = false;
+			}
+
+			[MessageHandler(selector="HANGPLATE_MO_DETAILHANDLER")]
+			public function hangPlateMoDetailHandler(e:HangPlateEvent):void
+			{
+				hangMedalDetail.width = 700;
+				hangMedalDetail.height = 400;
+				PopUpManager.addPopUp(hangMedalDetail, this.parentApplication as DisplayObject);
+				hangMedalDetail.loadData(e.param);
+			}
+
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				this.width = 700;
+				this.height = 400;
+				this.x = (this.parentApplication.width - this.width) / 2
+				this.y = (this.parentApplication.height - this.height) / 2 - 50;
+				this.closeButton.visible = true;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:Scroller width="100%"
+					height="100%"
+					horizontalScrollPolicy="auto"
+					verticalScrollPolicy="auto">
+			<s:VGroup id="vgroup"
+					  width="100%"
+					  height="100%"
+					  paddingLeft="2"
+					  paddingRight="2"
+					  paddingBottom="2"
+					  paddingTop="2">
+				<mx:Grid id="hpGrid"
+						 left="5"
+						 right="5"
+						 top="5"
+						 bottom="5"
+						 width="100%"
+						 height="100%"
+						 borderStyle="solid"
+						 horizontalGap="2"
+						 textAlign="center"
+						 verticalGap="1">
+				</mx:Grid>
+			</s:VGroup>
+		</s:Scroller>
+		<s:HGroup width="100%"
+				  horizontalAlign="center">
+			<s:Label text="工单状态  1:草稿 2:待受理 3:处理中 4:待确认 5:待审批 6:待归档 7:关闭 8:作废 9:处理超时 10:已销单 11:已强制删除"/>
+		</s:HGroup>
+	</s:VGroup>
+</ailk_compts:Window>

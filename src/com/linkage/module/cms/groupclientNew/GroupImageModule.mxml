@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:panel="com.linkage.system.component.panel.*"
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   xmlns:pager="com.linkage.module.cms.components.pager.*"
+		   xmlns:common="com.linkage.module.cms.common.*"
+		   xmlns:container="com.linkage.module.topo.container.*"
+		   xmlns:components1="com.linkage.module.cms.groupclientNew.components.*"
+		   xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   creationCompleteEffect="{fadeEffect}"
+		   xmlns:component="com.linkage.module.cms.topo.component.*" xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis">
+	
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace panel "com.linkage.system.component.panel.*";
+		@namespace components "com.fusioncharts.components.*";
+		@namespace pubflow "com.linkage.module.cms.alarm.pubflow.*";
+		@namespace pager "com.linkage.module.cms.components.pager.*";
+		@namespace common "com.linkage.module.cms.common.*";
+		mx|DateChooser{
+			color:"0x000000";
+		}
+	</fx:Style>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<fx:Script source="GroupImage.as"/>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<!--<s:HTTPService id="httpService"
+		method="get"
+		resultFormat="e4x"/>-->
+		<s:Elastic id="elasticEasing"/>
+		<s:Bounce id="bounceEasing"/>
+		<s:Move id="moveRight"
+				target="{leftGroup}"
+				xFrom="{-leftGroup.width}"
+				xTo="{leftGroup.x}"
+				duration="2000"
+				easer="{bounceEasing}"
+				effectEnd="moveRight_effectStopHandler(event)"/>
+		<s:Move id="moveLeft"
+				target="{rightGruop}"
+				xFrom="{this.width}"
+				xTo="{rightGruop.x}"
+				duration="2000"
+				easer="{bounceEasing}"
+				effectEnd="moveLeft_effectStopHandler(event)">
+		</s:Move>
+		
+		<s:Fade id="fadeEffect"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="0"
+				effectEnd="fadeEffect_effectEndHandler(event)"/>
+		
+	</fx:Declarations>
+	<mx:states>
+		<s:State name="city_state"/>
+		<s:State name="lever_state"/>
+		<s:State name="cust_state"/>
+	</mx:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup width="100%"
+			  height="100%"
+			  left="5"
+			  top="5"
+			  right="5"
+			  bottom="5"
+			  gap="0">
+		<s:VGroup id="leftGroup"
+				  width="260"
+				  height="100%">
+			<s:Group width="100%"
+					 height="100%">
+				<mx:ViewStack id="leftViewStack"
+							  width="100%"
+							  height="100%"
+							  top="23"
+							  styleName="commonViewStack">
+					<s:NavigatorContent id="treeNav"
+										label="导航树"
+										width="100%"
+										height="100%">
+						<components1:NavTree id="navTree"
+											 dataProvider="{treeData}"/>
+					</s:NavigatorContent>
+					<s:NavigatorContent id="filterNav"
+										label="筛选器"
+										width="100%"
+										height="100%">
+						<components1:FilterForm id="filterForm"
+												formInit="filterForm_formInitHandler(event)"
+												query="filterForm_queryHandler(event)"/>
+					</s:NavigatorContent>
+				</mx:ViewStack>
+				<s:TabBar dataProvider="{leftViewStack}"
+						  buttonMode="true"
+						  styleName="commonTabBar"
+						  width="160"/>
+			</s:Group>
+		</s:VGroup>
+		<s:VGroup width="5"
+				  height="100%"
+				  verticalAlign="middle">
+			<mx:Image id="img3"
+					  source="{pic11}"
+					  click="resizeWindow(3);"
+					  buttonMode="true">
+			</mx:Image>
+			<mx:Image id="img4"
+					  source="{pic21}"
+					  click="resizeWindow(4);"
+					  buttonMode="true">
+			</mx:Image>
+		</s:VGroup>
+		<s:VGroup id="rightGruop"
+				  width="100%"
+				  height="100%">
+			<s:Group width="100%"
+					 height="100%"
+					 id="rightTopGroup">
+				<ailk_gis:MapWork id="mapWork"
+								  showToolBar="false"
+								  showOverView="false"
+								  showDrawToolBar="false"
+								  showZoomSlider="true"
+								  mapCreationComplete="mapWork_creationCompleteHandler(event)"
+								  width="100%"
+								  height="100%" extent_change="mapWork_extent_changeHandler(event)">
+				</ailk_gis:MapWork>
+			</s:Group>
+		</s:VGroup>
+	</s:HGroup>
+	<panel:Window id="moInfoPanel"
+				  width="200"
+				  height="115"
+				  visible="false"
+				  includeInLayout="false"
+				  maximizable="false"
+				  minimizable="false"
+				  close="moInfoPanel_closeHandler(event)">
+		<s:VGroup id="moInfoGroup"
+				  width="100%">
+			<s:HGroup width="100%">
+				<s:Label text="{moInfoData['CUST_NAME']}"/>
+				<s:Label id="moreLabel" text="更多>>" 
+						 buttonMode="true"
+						 click="moreLabel_clickHandler(event)"/>
+			</s:HGroup>
+			<s:HGroup width="100%">
+				<s:Label text="客户等级:"/>
+				<s:Label text="{moInfoData['COMM_NAME']}"/>
+			</s:HGroup>
+			<s:HGroup width="100%">
+				<s:Label text="客户地址:"/>
+				<s:Label text="{moInfoData['CUST_ADDR']}"/>
+			</s:HGroup>
+			<s:VGroup id="moreInfoGroup"
+					  width="100%"
+					  visible="false"
+					  includeInLayout="false">		
+				<s:HGroup width="100%">
+					<s:Label text="客户经理:"/>
+					<s:Label text="{moInfoData['CUST_MANAGER']}"/>
+				</s:HGroup>
+				<s:HGroup width="100%">
+					<s:Label text="代维人员:"/>
+					<s:Label text="{moInfoData['CUST_LINK_MAN']}"/>
+				</s:HGroup>
+				<s:HGroup width="100%">
+					<s:Label text="客户编号:"/>
+					<s:Label text="{moInfoData['CUST_NO']}"/>
+				</s:HGroup>
+			</s:VGroup>
+			<s:Label id="moreInfoLable" 
+					 text="面向客户经理与技术经理视图" 
+					 textDecoration="underline"
+					 buttonMode="true"
+					 color="#0000FF"
+					 click="moreInfoLabel_clickHandler(event)"/>
+			<s:Label id="moreCustInfoLable" 
+					 text="面向客户视图" 
+					 buttonMode="true"
+					 color="#0000FF"
+					 textDecoration="underline"
+					 click="moreCustInfoLable_clickHandle(event)"/>
+		</s:VGroup>
+	</panel:Window>
+</mx:Module>

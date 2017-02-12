@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  minimizable="false"
+			  maximizable="false"
+			  closable="false"
+			  dragable="true"
+			  title="指标配置"
+			  visible="false"
+			  height="150"
+			  width="250">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.structure.map.Map;
+
+			import mx.events.FlexEvent;
+
+			import spark.components.CheckBox;
+			/**
+			 * 回调函数
+			 */
+			private var callBack:Function=null;
+			/**
+			 * 复选框数组
+			 */
+			private var cehckBoxArray:Array=null;
+			/**
+			 * 指标数组
+			 */
+			private var segementArray:Array=null;
+
+			public function initSegmentSet(data:Object, callFunc:Function):void
+			{
+				//初始化回调函数
+				callBack=callFunc;
+
+				//初始化指标信息
+				cehckBoxArray=[];
+				segementArray=[];
+				var checkBox:CheckBox=null;
+				for each (var obj:Object in data)
+				{
+					checkBox=new CheckBox();
+					checkBox.selected=true;
+					cehckBoxArray.push(checkBox);
+					checkBox.label=obj["show_name"];
+					if (segmentSet)
+					{
+						segmentSet.addElement(checkBox);
+					}
+					else
+					{
+						segementArray.push(checkBox);
+					}
+				}
+			}
+
+			//指标窗口创建成功
+			protected function segmentSetCreation(event:FlexEvent):void
+			{
+				if (segementArray != null && segementArray.length > 0)
+				{
+					for each (var checkBox:CheckBox in segementArray)
+					{
+						segmentSet.addElement(checkBox);
+					}
+				}
+			}
+
+			//点击确定按钮
+			protected function button_clickHandler(event:MouseEvent):void
+			{
+				var result:Map=new Map();
+				for each (var checkBox:CheckBox in cehckBoxArray)
+				{
+					if (checkBox.selected)
+					{
+						result.put(checkBox.label, checkBox.label);
+					}
+				}
+				callBack.call(this, result);
+				windowOpenClose();
+			}
+
+			//窗口打开或关闭
+			public function windowOpenClose():void
+			{
+				visible=!visible;
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%"
+				  gap="-5">
+			<s:Group id="segmentSet"
+					 width="100%"
+					 height="100%"
+					 top="6"
+					 left="6"
+					 creationComplete="segmentSetCreation(event)">
+				<s:layout>
+					<s:TileLayout verticalGap="0"/>
+				</s:layout>
+			</s:Group>
+			<s:HGroup width="100%"
+					  height="23"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button label="确定"
+						  click="button_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:Scroller>
+</panel:Window>

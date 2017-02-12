@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:resource="com.linkage.module.cms.perfmonitor.subject.flow.resource.*"
+		 xmlns:perf="com.linkage.module.cms.perfmonitor.subject.flow.perf.*"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+
+			private var _commonService:SubjectInterfaceCommService;
+
+			private var _wlanService:SubjectWlanService;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.flow.WlanDataFlow");
+
+			//参数对象
+			private var _param:Object = null;
+
+			//是否初次装载告警 
+			private var isInit:Boolean = false;
+
+			//是否首次切换到资源信息
+			private var isFirstShowRes:Boolean = true;
+			//是否首次切换到告警流水页签
+			private var isFirstShowAlarm:Boolean = true;
+
+			//是否首次切换到性能信息页签
+			private var isFirstShowPerf:Boolean = true;
+
+			private var _isDebug:Boolean = false;
+
+			public var alarmRule:String = "";
+
+			private var _cityId:String;
+			private var _layer:String;
+			private var _cityName:String;
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+
+			public function get wlanService():SubjectWlanService
+			{
+				return _wlanService;
+			}
+
+			public function set wlanService(value:SubjectWlanService):void
+			{
+				_wlanService = value;
+			}
+
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+			}
+
+			public function initData(cityId:String, layer:String, cityName:String):void
+			{
+				log.info('加载流水数据 cityId:' + cityId + ' layer:' + layer + ' cityName:' + cityName);
+				_cityId = cityId;
+				_cityName = cityName;
+				_layer = layer;
+
+				//重载告警流水页签和性能页签初始化标志
+				isFirstShowRes = true;
+				isFirstShowAlarm = true;
+				isFirstShowPerf = true;
+
+//				_wlanService.wlanResList(paramMap,loadResDataSucc,null,loadResDataErr);
+//				_wlanService.wlanPerfList(paramMap,loadPerfDataSucc,null,loadPerfDataErr);
+
+				var evt:IndexChangedEvent = new IndexChangedEvent(IndexChangedEvent.CHANGE);
+				evt.newIndex = flowViewStack.selectedIndex;
+				flowViewStack.dispatchEvent(evt);
+			}
+
+			private function initAlarmFlow():void
+			{
+				if(!isInit)
+				{
+					//初始化告警
+					this.alarmFlow.params = _param;
+//					var ruleStr:String = '((nmsalarmtype=3)&(buss_id=62))|((equipmentclass="AP")&(sheetsendstatus=1|sheetsendstatus=2|sheetsendstatus=3|sheetsendstatus=5)&(alarmtitle%="AP下线"|alarmtitle%="Ping不可达"))';
+					var ruleStr:String = '((nmsalarmtype=3)&(buss_id=62))|((equipmentclass="AP")&(alarmtitle="AP下线"|alarmtitle="Ping不可达"))';
+					alarmRule = ruleStr;
+					if(_cityName != null && _cityName != "")
+					{
+						if(_layer == '2')
+							ruleStr = '(' + ruleStr + ")&(alarmregion=\"" + _cityName + "\")";
+						else if(_layer == '3')
+							ruleStr = '(' + ruleStr + ")&(alarmcounty=\"" + _cityName + "\")";
+					}
+					log.info("告警初始化，ruleContent：" + ruleStr);
+					this.alarmFlow.ruleContent = ruleStr;
+					this.alarmFlow.initInfo();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(alarmFlow);
+					//-------------------------------------历史回退修改------------------------------------
+
+					isInit = true;
+				}
+				else
+				{
+					var rule:String = "";
+					if(_cityName != null && _cityName != "")
+					{
+						if(_layer == '2')
+							rule = '(' + alarmRule + ")&(alarmregion=\"" + _cityName + "\")";
+						else if(_layer == '3')
+							rule = '(' + alarmRule + ")&(alarmcounty=\"" + _cityName + "\")";
+						else
+							rule = alarmRule;
+					}
+					else
+					{
+						rule = alarmRule;
+					}
+
+					this.alarmFlow.reload(rule);
+					log.info("告警流水重载， rule：" + rule);
+				}
+			}
+
+			private function loadResDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载资源列表成功！");
+					this.resourceFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载资源列表为空！");
+					if(_isDebug)
+					{
+						this.resourceFlow.initData(null);
+					}
+				}
+			}
+
+			private function loadResDataErr(obj:Object):void
+			{
+				log.info("加载资源列表失败！" + obj);
+				if(_isDebug)
+				{
+					this.resourceFlow.initData(null);
+				}
+			}
+
+			private function loadPerfDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载性能列表成功！");
+					this.perfFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载性能列表为空！");
+					if(_isDebug)
+					{
+						this.perfFlow.initData(null);
+					}
+				}
+			}
+
+			private function loadPerfDataErr(obj:Object):void
+			{
+				log.info("加载性能列表失败！" + obj);
+				if(_isDebug)
+				{
+					this.perfFlow.initData(null);
+				}
+			}
+
+			protected function flowViewStack_changeHandler(event:IndexChangedEvent):void
+			{
+				if(event.newIndex == 0)
+				{
+
+					if(isFirstShowRes)
+					{
+						var paramMap:Object = new Object();
+						if(_cityId != "")
+						{
+							paramMap.city_id = _cityId;
+							paramMap.city_layer = _layer;
+						}
+						_wlanService.wlanResList(paramMap, loadResDataSucc, null, loadResDataErr);
+						isFirstShowRes = false;
+					}
+				}
+
+				if(event.newIndex == 1) //切换到告警流水 --首次则初始化告警流水
+				{
+					if(isFirstShowAlarm)
+					{
+						initAlarmFlow();
+						isFirstShowAlarm = false;
+					}
+				}
+				else if(event.newIndex == 2) //切换到性能列表 --首次则初始化性能信息
+				{
+					if(isFirstShowPerf)
+					{
+						var paramMap:Object = new Object();
+						if(_cityId != "")
+						{
+							paramMap.city_id = _cityId;
+							paramMap.city_layer = _layer;
+						}
+
+						_wlanService.wlanPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+						isFirstShowPerf = false;
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:ViewStack id="flowViewStack"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  change="flowViewStack_changeHandler(event)"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2"
+				  creationPolicy="auto">
+		<s:NavigatorContent id="alarmNav"
+							label="资源信息">
+			<resource:MoResourceStat id="resourceFlow"
+									 width="100%"
+									 height="100%">
+			</resource:MoResourceStat>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="sheetNav"
+							label="性能告警">
+			<pubflow:alarm id="alarmFlow"
+						   moduleKey="categoriesflowalarm"
+						   width="100%"
+						   height="100%">
+			</pubflow:alarm>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="workStateNav"
+							label="性能信息">
+			<perf:MoPerfStat id="perfFlow"
+							 width="100%"
+							 height="100%">
+			</perf:MoPerfStat>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar dataProvider="{flowViewStack}"
+			  id="tabBar1"
+			  styleName="commonTabBar">
+	</s:TabBar>
+</s:Group>

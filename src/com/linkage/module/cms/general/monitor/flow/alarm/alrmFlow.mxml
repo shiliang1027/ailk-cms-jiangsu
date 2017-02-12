@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%"
+		 creationComplete="initData();">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			
+			private var alarmList:ArrayCollection = new ArrayCollection([
+				{name:["网元名称","网元类型","告警对象名称","告警级别","告警标题","所属地市","告警发生时间","派单状态","工单号"],
+					column:["a","b","c","d","e","f","g","h","i"],
+					datalist:[{a:"南京BSC1",b:"BSC",c:"1111",d:"一级告警",e:"大面积基站故障",f:"高淳",g:"2011-05-14 12:00:00",h:"已派单",i:"JS-056-1111"},
+						{a:"南京RNC1",b:"RNC",c:"2222",d:"一级告警",e:"基站断站",f:"下关",g:"2011-05-14 12:00:00",h:"已派单",i:"js-056-2222"}]
+				}
+			]);
+			
+			public function initData():void
+			{
+				var alarmData:Object = alarmList[0];
+				
+				var colArr:Array = new Array();
+				for (var index:String in alarmData.name)
+				{
+					var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					col.dataField = alarmData.column[index];
+					col.headerText = alarmData.name[index];
+					colArr = colArr.concat(col);
+				}
+				this.grid.columns = colArr;
+				this.grid.dataProvider = alarmData.datalist;
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:AdvancedDataGrid sortableColumns="false" id="grid" width="100%" height="100%">
+	</mx:AdvancedDataGrid>
+</s:Group>

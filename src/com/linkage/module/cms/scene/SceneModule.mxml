@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+           xmlns:s="library://ns.adobe.com/flex/spark"
+           xmlns:mx="library://ns.adobe.com/flex/mx"
+           xmlns:parsley="http://www.spicefactory.org/parsley"
+           xmlns:view="com.linkage.module.cms.scene.view.*"
+           layout="absolute"
+           width="100%"
+           height="100%"
+           creationComplete="module1_creationCompleteHandler(event)">
+    <fx:Declarations>
+        <parsley:Configure/>
+        <parsley:ContextBuilder>
+            <parsley:FlexConfig type="{SceneModuleContext}"/>
+        </parsley:ContextBuilder>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.view.SceneView;
+			
+			import mx.events.FlexEvent;
+
+            [Inject("user")]
+            public var user:IUser;
+
+            public var parameters:Object;
+
+            private var log:ILogger = Log.getLoggerByClass(SceneModule);
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+            [Init]
+            public function moduleInit():void
+            {
+                if (log.infoEnabled)
+                    log.info("--开始初始化用户信息！");
+
+                this.parameters = this.parentApplication.parameters;
+
+                user.newAdded = this.parameters['newAdded'];
+
+
+                user.context = this.parameters['context'];
+                user.account = this.parameters['account'];
+                user.areaId = this.parameters['areaId'];
+                user.cityId = "00";
+                user.mapType = this.parameters['mapType'];
+
+                if (user.newAdded && user.newAdded == "1")
+                {
+                    user.sceneId = this.parameters['sceneAreaid'];
+                    user.initSceneId = this.parameters['sceneId'];
+                    user.rendeType = "2";
+                    user.currentMapType = "0"; //初始化数据，当前窗口是gis地图还是矢量地图
+                    user.level = "2";
+                    user.pointlatitude = this.parameters['pointlatitude'];
+                    user.pointlongitude = this.parameters['pointlongitude'];
+                }
+                else
+                {
+                    user.sceneId = this.parameters['sceneId'];
+                    user.initSceneId = user.sceneId;
+                    user.rendeType = "1";
+                    user.currentMapType = user.mapType; //初始化数据，当前窗口是gis地图还是矢量地图
+                    user.level = this.parameters['level'];
+                }
+
+                user.sceneTypeId = this.parameters['sceneTypeId'];
+                user.showMoLayer = this.parameters['showMoLayer'];
+                user.usinglayer = this.parameters['usinglayer'];
+                user.layerurl = this.parameters['layerurl'];
+                user.layerId = this.parameters['layerid'];
+                user.isNew = this.parameters["isNew"];
+
+                user.showBadMoPoints = false;
+                user.isGisFlag = "0";
+                user.initLayerId = user.layerId; //初始layerId
+                user.initLayerUrl = user.layerurl; //初始layerUrl
+
+                user.alarmParam = this.parameters['mapInfo'];
+
+                if (log.infoEnabled)
+                {
+                    log.debug(user);
+                    log.info("--初始化用户信息完成！");
+                }
+            }
+
+            protected function module1_creationCompleteHandler(event:FlexEvent):void
+            {
+//                sv.initView();
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				msgDispatcher(new SceneEvent("MODULE_COMPLETE"));
+            }
+
+            //普通版本
+        ]]>
+    </fx:Script>
+    <view:SceneView id="sv"
+                    width="100%"
+                    height="100%"/>
+</mx:Module>

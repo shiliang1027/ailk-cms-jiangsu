@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  width="100%"
+		  height="100%"
+		  gap="15"
+		  xmlns:hangandpick="com.linkage.module.cms.scenedaily.view.components.hangandpick.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 * @author xudx (69291)
+		 @version 1.0
+		 @date 2012-8-20
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+			import com.linkage.module.cms.scenedaily.event.functionchain.FunctionChainEvent;
+			import com.linkage.module.cms.scenedaily.view.HealthReportView;
+			import com.linkage.module.cms.scenedaily.view.components.hangandpick.HangPlateComp;
+			import com.linkage.module.cms.scenedaily.view.components.hangandpick.PickOffMedal;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.managers.ISystemManager;
+			import mx.managers.PopUpManager;
+
+			private var log:ILogger = Log.getLoggerByClass(FunctionChain);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[Inject("functionChainPM")]
+			[Bindable]
+			public var functionChainPM:FunctionChainPM;
+
+			[Inject("healthReportView")]
+			public var healthReportWin:HealthReportView;
+
+			[Inject("hangPlateComp")]
+			public var hangPlateCompWin:HangPlateComp;
+
+			[Inject("pickOffMedal")]
+			public var pickOffMedalWin:PickOffMedal;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var param:Object = {};
+
+			[MessageHandler(selector="LOADVIEW_KPIDATA")]
+			public function loadData(e:SceneDailyEvent):void
+			{
+				log.info("功能链接 加载数据！" + e);
+				param.cityId = user.cityId;
+				param.interval = user.interval;
+				param.isHealthOrThreshold = user.isHealthOrThreshold;
+				param.gatherTime = user.gatherTime;
+				param.viewType = user.viewType;
+
+				functionChainPM.loadData(param);
+			}
+
+			private function openUrl(type:int):void
+			{
+				log.info("点击链接type:【{0}】;", type);
+				var url:String;
+				switch (type)
+				{
+					case 1:
+						url = "/cms/cms/scenedaily/HealthReportView.jsp?resId=" + user.resId + "&resType=" + user.resType + "&viewType=" + user.viewType + "&cityId=" + user.cityId + "&perfTypeId=" + user.kpiId + "&timeGranular=" + user.interval + "&stateTime=" + user.gatherTime + "&moTypeId=" + user.moTypeId;
+						break;
+
+					case 2:
+						url = "/cms/cms/scenedaily/HangPlate.jsp";
+						break;
+
+					case 3:
+						url = "/cms/cms/scenedaily/PickOffMedal.jsp";
+						break;
+
+				}
+
+				navigateToURL(new URLRequest(url), "_blank");
+			}
+
+			//健康报告弹出
+			public function healthReportWinHandler():void
+			{
+				healthReportWin.width = 800;
+				healthReportWin.height = 400;
+//				var parent:*;
+//				var sm:ISystemManager=ISystemManager(FlexGlobals.topLevelApplication.systemManager);
+//				// no types so no dependencies
+//				var mp:Object=sm.getImplementation("mx.managers.IMarshallPlanSystemManager");
+//				if (mp && mp.useSWFBridge())
+//					parent=Sprite(sm.getSandboxRoot());
+//				else
+//					parent=Sprite(FlexGlobals.topLevelApplication);
+//				
+				PopUpManager.addPopUp(healthReportWin, this.parent.parent.parent.parent.parent.parent.parent.parent.parent);
+				PopUpManager.centerPopUp(healthReportWin);
+//				healthReportWin.x = (this.parent.parent.width - healthReportWin.width) / 2
+//				healthReportWin.y = 55;
+
+//				user.perfTypeId = user.kpiId;
+//				user.timeGranular = user.interval;
+//				user.stateTime = user.gatherTime;
+				healthReportWin.stateTime = user.gatherTime;
+				healthReportWin.timeGranular = user.interval;
+				healthReportWin.initData();
+			}
+
+			//挂牌页面弹出
+			public function hangPlateWindowHandler():void
+			{
+				hangPlateCompWin.width = 700;
+				hangPlateCompWin.height = 400;
+//				var parent:*;
+//				var sm:ISystemManager=ISystemManager(FlexGlobals.topLevelApplication.systemManager);
+//				// no types so no dependencies
+//				var mp:Object=sm.getImplementation("mx.managers.IMarshallPlanSystemManager");
+//				if (mp && mp.useSWFBridge())
+//					parent=Sprite(sm.getSandboxRoot());
+//				else
+//					parent=Sprite(FlexGlobals.topLevelApplication);
+				PopUpManager.addPopUp(hangPlateCompWin, this.parent.parent.parent.parent.parent.parent.parent.parent.parent);
+				PopUpManager.centerPopUp(hangPlateCompWin);
+//				hangPlateCompWin.x = (this.parent.parent.width - hangPlateCompWin.width) / 2
+//				hangPlateCompWin.y = (this.parent.parent.height - hangPlateCompWin.height) / 2 - 50;
+			}
+
+			//摘牌页面弹出
+			public function pickPlateWindowHandler():void
+			{
+				pickOffMedalWin.width = 700;
+				pickOffMedalWin.height = 400;
+//				var parent:*;
+//				var sm:ISystemManager=ISystemManager(FlexGlobals.topLevelApplication.systemManager);
+//				// no types so no dependencies
+//				var mp:Object=sm.getImplementation("mx.managers.IMarshallPlanSystemManager");
+//				if (mp && mp.useSWFBridge())
+//					parent=Sprite(sm.getSandboxRoot());
+//				else
+//					parent=Sprite(FlexGlobals.topLevelApplication);
+				PopUpManager.addPopUp(pickOffMedalWin, this.parent.parent.parent.parent.parent.parent.parent.parent.parent);
+				PopUpManager.centerPopUp(pickOffMedalWin);
+//				pickOffMedalWin.x = (this.parent.parent.width - pickOffMedalWin.width) / 2
+//				pickOffMedalWin.y = (this.parent.parent.height - pickOffMedalWin.height) / 2 - 50;
+			}
+
+			protected function group1_clickHandler(event:MouseEvent):void
+			{
+				var url:String = "http://10.39.248.230/monitor/RoamIndex.html";
+				navigateToURL(new URLRequest(url));
+			}
+		]]>
+	</fx:Script>
+	<mx:Image source="@Embed('../../../img/healthReport1.jpg')"
+			  height="77"
+			  width="235"
+			  buttonMode="true"
+			  toolTip="健康报告"
+			  click="healthReportWinHandler()"/>
+
+	<s:Group buttonMode="true"
+			 toolTip="挂牌管理"
+			 height="77"
+			 width="235"
+			 click="hangPlateWindowHandler();">
+		<mx:Image id="img2"
+				  source="@Embed('../../../img/hangOutShingleMng1.png')"
+				  width="100%"
+				  height="100%"/>
+		<s:Label bottom="17"
+				 color="0"
+				 textAlign="center"
+				 width="100%"
+				 text="{functionChainPM.functionChainDM.hangOutShingleCount}"/>
+	</s:Group>
+
+	<s:Group buttonMode="true"
+			 toolTip="摘牌管理"
+			 height="77"
+			 width="235"
+			 click="pickPlateWindowHandler();">
+		<mx:Image source="@Embed('../../../img/pickShingle1.png')"
+				  width="100%"
+				  height="100%"/>
+		<s:Label bottom="17"
+				 color="0"
+				 textAlign="center"
+				 width="100%"
+				 text="{functionChainPM.functionChainDM.pickShingleRate}"/>
+	</s:Group>
+
+	<s:Group buttonMode="true"
+			 toolTip="漫游视图"
+			 height="77"
+			 width="235"
+			 click="group1_clickHandler(event)">
+		<mx:Image source="@Embed('../../../img/manyoupic.png')"
+				  width="100%"
+				  height="100%"/>
+	</s:Group>
+</s:VGroup>
+

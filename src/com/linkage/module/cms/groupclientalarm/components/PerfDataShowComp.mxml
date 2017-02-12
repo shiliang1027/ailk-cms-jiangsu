@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" minHeight="50"
+		  xmlns:fusioncharts="com.linkage.common.fusioncharts.*" creationComplete="perfDataShowComp_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="dataQuery", type="com.linkage.module.cms.groupclientalarm.event.PerfDataShowCompEvent")]
+		[Event(name="buildComplete", type="com.linkage.module.cms.groupclientalarm.event.PerfDataShowCompEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.module.cms.groupclientalarm.event.PerfDataShowCompEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientalarm.control.GroupMonitorModuleControl_TREE");
+			[Bindable]
+			public var param:Object;
+			//实时性能查询图表标准线数据集
+			[Bindable]
+			private var realPrefChartTrendLinesData:ArrayCollection=new ArrayCollection();
+			//实时性能查询图表数据集
+			[Bindable]
+			private var realPrefChartData:ArrayCollection=new ArrayCollection();
+			//实时性能查询图表参数数据集
+			[Bindable]
+			private var realPrefChartParams:ArrayCollection=new ArrayCollection([{decimalPrecision: "0"}, {labelDisplay: 'Rotate'}, {slantLabels: '1'}]);
+			private var colorArray:Array = ["660000","00ff00","666600","FFCC00","339900"];
+			private var realPmData:Object;
+			private var realExperience:Object;
+			
+			private var realPrefChart:FusionChartsLK;
+			
+			private var perfDataGridComp:PerfDataGridComp = new PerfDataGridComp;
+			private var perfDataProvider:ArrayCollection = new ArrayCollection;
+			
+			protected function perfDataShowComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(PerfDataShowCompEvent.DATACHANGE,onDataChange);
+				this.addEventListener(PerfDataShowCompEvent.SELECTCHANGE,onSelectChange);
+				var evt:PerfDataShowCompEvent = new PerfDataShowCompEvent(PerfDataShowCompEvent.DATAQUERY);
+				evt.param = param;
+				this.dispatchEvent(evt);
+				var perf_algorithm:Number=Number(param.perf_algorithm);
+				realPrefChartParams = new ArrayCollection([{caption: param.title+"性能统计趋势图"},{animation:"0"}, {showvalues: "0"},{numberSuffix:perf_algorithm==2?"%":""}, {decimalPrecision: "0"}, {labelDisplay: 'Rotate'}, {slantLabels: '1'},{lineColor:"0x00FF00"},{lineThickness:"4"}]);
+			
+				perfDataGridComp.addEventListener(WindowEvent.CLOSE,function(event:WindowEvent):void{
+					PopUpManager.removePopUp(perfDataGridComp);
+				});
+			}
+			
+			private function onDataChange(event:PerfDataShowCompEvent):void{
+				realPmData = new Object();
+				var result:Object = event.param;
+				log.info("[性能查询结果]result:"+result);
+				var evt:PerfDataShowCompEvent;
+				if(!result || !result.total || result.total.length<=0){
+					log.info("[性能查询结果]查询无结果");
+					promptLabel.text = "查询无结果";
+					promptLabel.visible=true;
+					promptLabel.includeInLayout=true;
+					evt = new PerfDataShowCompEvent(PerfDataShowCompEvent.COMPLETE);
+					evt.param=10;
+					this.dispatchEvent(evt);
+					return;
+				}else{
+					promptLabel.visible=false;
+					promptLabel.includeInLayout=false;
+				}
+				realExperience = result["experience"];
+				for(var key:String in result){
+					realPmData[key]=result[key];
+					log.info("[性能查询结果]key:"+key+","+result[key]+",perf_algorithm:"+param.perf_algorithm);
+				}
+				evt = new PerfDataShowCompEvent(PerfDataShowCompEvent.SELECTCHANGE);
+				evt.param = result.realSelectArray;
+				this.dispatchEvent(evt);
+			}
+			
+			private var realSelectArray:Array;
+			
+			private function onSelectChange(event:PerfDataShowCompEvent):void{
+				if(realPrefChart){
+					chartGroup.removeElement(realPrefChart);
+					chartGroup.removeElement(perfDataGridComp);
+					realPrefChart = null;
+				}
+				realSelectArray = event.param as Array;
+				var evt:PerfDataShowCompEvent;
+				if(realSelectArray.length<=0 || !realPmData || !realPmData.total || realPmData.total.length<=0){
+					promptLabel.text = "查询无结果";
+					promptLabel.visible=true;
+					promptLabel.includeInLayout=true;
+					evt = new PerfDataShowCompEvent(PerfDataShowCompEvent.COMPLETE);
+					evt.param=10;
+					this.dispatchEvent(evt);
+					return;
+				}
+				try{
+					buildRealChart();
+					promptLabel.visible=false;
+					promptLabel.includeInLayout=false;
+				}catch(e:Error){
+					log.error("[性能图表]"+e.getStackTrace());
+					evt = new PerfDataShowCompEvent(PerfDataShowCompEvent.COMPLETE);
+					evt.param=10;
+					this.dispatchEvent(evt);
+				}
+			}
+			
+			private function buildRealChart():void{
+				realPrefChartData.removeAll();
+				perfDataProvider.removeAll();
+				var labels:ArrayCollection = new ArrayCollection();
+				log.info("[性能图表]基线值："+realExperience);
+				if(realExperience && realExperience!=null && realExperience!='null'){
+					var trendObj:Object = new Object();
+					trendObj.startValue=String(realExperience);
+					trendObj.color="FF0000";
+					trendObj.displayValue=String(realExperience);
+					realPrefChartTrendLinesData.addItem(trendObj);
+				}
+				for each(var total:Object in realPmData["total"]){
+					var labelObj:Object = new Object();
+					labelObj.label = String(total["time"]);
+					log.info("[性能图表]label:"+labelObj.label);
+					realPrefChartData.addItem(labelObj);
+					labels.addItem(labelObj);
+				}
+				var  perf_algorithm:Number = Number(param.perf_algorithm);
+				var totalValueArray:Array = new Array();
+				var key:String;
+				var totflag:Boolean=false;
+				if(realSelectArray.length>0){
+					var i:Number=0;
+					for each(key in realSelectArray){
+						if(key == "汇总"){
+							totflag=true;
+							continue;
+						}
+						var dataObj:Object=new Object();
+						dataObj.title=param.cust_serv_type_name+key;
+						var seriesObj:Object = new Object();
+						seriesObj.seriesName=param.cust_serv_type_name+key;
+						seriesObj.color=colorArray[i];
+						i++;
+						realPrefChartData.addItem(seriesObj);
+						log.info("[性能图表]series:"+seriesObj.seriesName);
+						var dataList:ArrayCollection = new ArrayCollection;
+						var time:String;
+						for each(var data:Object in realPmData[key]){
+							if(time != data["time"]){
+								dataList.addItem({"name":param.title,"num":data["num"],"time":data["time"]});
+								time = data["time"];
+								var valueObj:Object = new Object();
+								valueObj.value = String(data["num"]);
+								realPrefChartData.addItem(valueObj);
+								var totalData:Object =totalValueArray[data["time"]];
+								if(!totalData){
+									totalData = new Object();
+									totalData.value = Number(data["num"]);
+								}else if(realSelectArray.length>1){
+									totalData.value = Number(totalData.value)+Number(data["num"]);
+								}
+								totalValueArray[data["time"]]=totalData;
+							}
+							log.info("[性能图表]time:{0},value:{1}",time,valueObj.value);
+						}
+						dataObj.dataList = dataList;
+						perfDataProvider.addItem(dataObj);
+						
+					}
+					if(perf_algorithm==2 && realSelectArray.length>1){
+						log.info("[性能图表]求平均");
+						for(key in totalValueArray){
+							log.info("[性能图表]求平均:key:"+key+","+Number(totalValueArray[key].value)+","+Number(realSelectArray.length));
+							totalValueArray[key].value = Number(totalValueArray[key].value)/((Number(realSelectArray.length)-1));
+							log.info("[性能图表]平均:"+key+","+totalValueArray[key]);
+						}
+					}
+				}
+				if(realSelectArray.length>1 && totflag){
+					var seriesTotalObj:Object = new Object();
+					seriesTotalObj.seriesName=param.cust_serv_type_name+"汇总";
+					seriesTotalObj.color="ffff00";
+					realPrefChartData.addItem(seriesTotalObj);
+					for each(var label:Object in labels){
+						var tatalObj:Object = totalValueArray[label.label];
+						if(!tatalObj){
+							tatalObj = new Object();
+							tatalObj.value=0;
+						}
+						log.info("[性能图表汇总]value:"+tatalObj.value);
+						realPrefChartData.addItem(tatalObj);
+					}
+				}
+				
+				var width:Number = 40*labels.length;
+				if(width<this.width-50){
+					width = this.width - 50;
+				}
+				realPrefChart = new FusionChartsLK();
+				realPrefChart.width = width;
+				realPrefChart.height = 260;
+				realPrefChart.FCChartType = "MSLine";
+				realPrefChart.FCFolder = "/cms/flex-release/FusionCharts";
+				realPrefChart.FCParams = realPrefChartParams;
+				realPrefChart.FCData = realPrefChartData;
+				if(realPrefChartTrendLinesData && realPrefChartTrendLinesData.length>0){
+					realPrefChart.FCTrendLines = realPrefChartTrendLinesData;
+				}
+//				realPrefChart.addEventListener(MouseEvent.CLICK,onChartClick);
+				chartGroup.addElement(realPrefChart);
+				
+				dataGridGroup.addElement(perfDataGridComp);
+				perfDataGridComp.dataProvider = perfDataProvider;
+				var evt:PerfDataShowCompEvent = new PerfDataShowCompEvent(PerfDataShowCompEvent.COMPLETE);
+				evt.param=2000;
+				this.dispatchEvent(evt);
+			}
+			
+			private function onChartClick(event:MouseEvent):void{
+				PopUpManager.removePopUp(perfDataGridComp);
+				perfDataGridComp.title = param.title;
+				perfDataGridComp.dataProvider = perfDataProvider;
+				PopUpManager.addPopUp(perfDataGridComp,this.parent.parent);
+				PopUpManager.centerPopUp(perfDataGridComp);
+			}
+			
+			private function image1_clickHandler(event:MouseEvent):void{
+				perfDataGridComp.visible=!perfDataGridComp.visible;
+				perfDataGridComp.includeInLayout=perfDataGridComp.visible;
+//				if(perfDataGridComp.visible){
+//					perfDataGridComp.title = param.title;
+//				}
+				perfDataGridComp.dataProvider = perfDataProvider;
+			}
+			
+			private function chartRender():void{
+				
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:BorderContainer styleName="commonBorderContainer" borderWeight="2" width="100%" height="100%">
+		<s:layout>
+			<s:VerticalLayout paddingTop="5" paddingLeft="5" paddingBottom="5" paddingRight="5"/>
+		</s:layout>
+		<s:Group width="100%">
+			<s:Label text="{param.title}"/>
+			<mx:Image right="0" source="@Embed(source='com/linkage/module/cms/groupclientalarm/assets/u555.png')"
+					  buttonMode="true"
+					  click="image1_clickHandler(event)"
+					  toolTip="表格显示"/>
+		</s:Group>
+		<s:Label id="promptLabel" visible="false" includeInLayout="false"/>
+		<s:Scroller width="100%"
+					height="100%"
+					horizontalScrollPolicy="auto"
+					verticalScrollPolicy="auto">
+			<s:VGroup width="100%" height="100%" id="chartGroup">
+			</s:VGroup>
+		</s:Scroller>
+		<s:VGroup width="100%" height="100%" id="dataGridGroup">
+		</s:VGroup>
+	</s:BorderContainer>
+</s:VGroup>

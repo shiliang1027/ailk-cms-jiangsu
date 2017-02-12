@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%"
+		   xmlns:component="com.linkage.module.cms.topo.component.*" 
+		   creationComplete="topoLocate_applicationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.CanvasEvent;
+			import com.linkage.module.topo.framework.util.TopoUtil;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.targets.MonsterTarget2;
+			
+			import mx.events.FlexEvent;
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.topo.TopoLocate");
+			public var parameters:Object;
+			
+			// 分隔日志过滤器
+			private function splitFilters(filters:String):Array
+			{
+				var array:Array = null;
+				if (filters != null)
+				{
+					array = filters.split(",");
+				}
+				return array;
+			}
+			
+			private function topoLocate_applicationCompleteHandler(event:FlexEvent):void
+			{
+				parameters=parentApplication.parameters;
+				System.useCodePage = true;
+				// 初始化日志Target
+				var target:MonsterTarget2 = new MonsterTarget2();
+				target.level = int(this.parameters.logLevel);
+				target.filters = splitFilters(this.parameters.logFilters);
+				Log.addTarget(target);
+				
+				log.info(" >>>>> 进入CMS拓扑定位  {0}>>>>> ", Version.info);
+				
+				// 加载样式
+				styleManager.loadStyleDeclarations2(this.parameters.styleUrl);
+				styleManager.loadStyleDeclarations2(this.parameters.topoStyle);
+				
+				var iconContext:String = parameters[Constants.PARAM_ICON_CONTEXT];
+				var iconFillContext:String = parameters[Constants.PARAM_ICONFILL_CONTEXT];
+				var urlContext:String = parameters[Constants.PARAM_URL_CONTEXT];
+				var sessionId:String = parameters[Constants.PARAM_SESSIONID];
+				var user:Object = TopoUtil.jsonDecode(parameters[Constants.PARAM_USER]);
+				var jkTopoNamesRegex:String = parameters[CmsTopoConstants.PARAM_JK_TOPONAMES_REGEX];
+				var isEoms:String = parameters["isEoms"];
+				var isHttpDS:Boolean = (parameters.isHttpDS == "true");
+				
+				topo.iconContext = iconContext;
+				topo.iconFillContext = iconFillContext;
+				topo.urlContext = urlContext;
+				topo.sessionId = sessionId;
+				topo.isEoms = isEoms;
+				topo.user = user;
+				topo.isHttpDS = isHttpDS;
+				
+				log.info("全部的参数 ");
+				log.info(parameters);
+
+				if(isEoms == "1")
+				{
+					topo.edit.visible = false;
+					topo.includeInLayout = false;
+					log.info("TopoLocate edit false");
+				}else{
+					topo.edit.visible = true;
+					topo.edit.includeInLayout = true;
+					log.info("TopoLocate edit true");
+				}
+
+				topo.jkTopoNamesRegex = jkTopoNamesRegex;
+				topo.navigationEnabled = true;
+				topo.workStatRefreshEnable = true;
+				topo.resStatEnabled = true;
+				topo.resStatDefaultShow = false;
+				topo.flowAlarmEnable = true;
+				topo.isGroupTopo = false;
+				
+				
+				var locateType:String = parameters["locateType"];
+				log.info("定位类型 locateType = {0}", locateType);
+				switch (locateType)
+				{
+					case "mo":
+						locateByMo();
+						break;
+					case "circuit":
+						locateByCircuitMo();
+						break;
+					case "circuit_code":
+						locateByCircuitCode();
+						break;
+					case "viewModel":
+						locateByViewModel();
+						break;
+					case "cust":
+						locateByCust();
+						break;
+				}
+			}
+			
+			/**
+			 * [拓扑定位]根据 MO
+			 */
+			private function locateByMo():void
+			{
+				// 启动拓扑
+				topo.startTopo();
+				
+				var moId:String = parameters["moId"];
+				var topoName:String = parameters["topoName"];
+				var rootPid:String = parameters["rootPid"];
+				
+				log.info("根据[MO]定位拓扑 moId={0} topoName={1} rootPid={2}", moId, topoName, rootPid);
+				// 搜索网元
+				topo.searchMo(moId, rootPid, topoName);
+			}
+			
+			/**
+			 * [拓扑定位]根据 两端网元定为到传输电路
+			 */
+			private function locateByCircuitMo():void
+			{
+				// 启动拓扑
+				topo.startTopo();
+				
+				var moId:String = parameters["moId"];
+				var topoName:String = parameters["topoName"];
+				var moId1:String = parameters["moId1"];
+				var moId2:String = parameters["moId2"];
+				
+				log.info("根据[传输电路两端设备]定位拓扑 moId={0} topoName={1} moId1={2} moId2={3}", moId, topoName, moId1, moId2);
+				// 注册加载拓扑完毕后定位网元事件
+				topo.topoCanvas.addEventListener(CanvasEvent.LAYER_CHANGED, afterTopoLoaded);
+				// 加载电路拓扑
+				topo.loadCircuitTopoByDblMo(moId1, moId2, topoName);
+			}
+			
+			/**
+			 * [拓扑定位]根据 电路id(可为空)和电路编号定为到传输电路
+			 */
+			private function locateByCircuitCode():void
+			{
+				// 启动拓扑
+				topo.startTopo();
+				
+				var topoName:String = parameters["topoName"];
+				var circId:String = parameters["circId"];
+				var circCode:String = parameters["circCode"];
+				
+				log.info("根据[传输电路编号]定位拓扑  topoName={0} circId={1} circCode={2}", topoName, circId, circCode);
+				// 加载电路拓扑
+				topo.loadCircuitTopoByCircCode(circId, circCode, topoName);
+			}
+			
+			/**
+			 * [拓扑定位]根据 视图模板
+			 */
+			private function locateByViewModel():void
+			{
+				// 启动拓扑
+				topo.startTopo();
+				
+				var moId:String = parameters["moId"];
+				var topoName:String = parameters["topoName"];
+				var modelId:String = parameters["modelId"];
+				var modelParams:String = parameters["modelParams"];
+				
+				log.info("根据[视图模板]定位拓扑 moId={0} topoName={1} modelId={2} modelParams={3}", moId, topoName, modelId, modelParams);
+				// 注册加载拓扑完毕后定位网元事件
+				topo.topoCanvas.addEventListener(CanvasEvent.LAYER_CHANGED, afterTopoLoaded);
+				// 加载视图模型
+				topo.loadViewModelTopo(modelId, modelParams, topoName);
+			}
+			
+			/**
+			 * [拓扑定位]根据 集客id
+			 */
+			private function locateByCust():void
+			{
+				topo.resStatEnabled = false;
+				topo.isGroupTopo = true;
+				// 启动拓扑
+				topo.startTopo();
+				
+				var custId:String = parameters["custId"];
+				log.info("根据[集客]定位拓扑 custId={0}", custId);
+				// 搜索集客
+				topo.searchCustId(custId);
+			}
+			
+			// 拓扑加载完毕之后,定位网元
+			private function afterTopoLoaded(event:CanvasEvent):void
+			{
+				topo.topoCanvas.removeEventListener(CanvasEvent.LAYER_CHANGED, afterTopoLoaded);
+				var moId:String = parameters["moId"];
+				topo.locateMo(moId);
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:SkinnableContainer width="100%"
+						  height="100%">
+		<s:layout>
+			<s:VerticalLayout paddingBottom="5"/>
+		</s:layout>
+		<component:TopoComponent id="topo"/>
+	</s:SkinnableContainer>
+</mx:Module>

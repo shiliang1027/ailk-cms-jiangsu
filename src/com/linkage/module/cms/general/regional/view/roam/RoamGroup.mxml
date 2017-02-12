@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:dummymap="com.linkage.module.cms.components.dummymap.*"
+		 xmlns:pager="com.linkage.module.cms.components.pager.*"
+		 xmlns:panel="com.linkage.system.component.panel.*" 
+		 xmlns:components="com.linkage.module.cms.general.regional.view.roam.components.*" 
+		 creationComplete="roamGroup_creationCompleteHandler(event)">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace panel "com.linkage.system.component.panel.*";
+		@namespace local "*";
+		@namespace dummymap "com.linkage.module.cms.components.dummymap.*";
+		@namespace pager "com.linkage.module.cms.components.pager.*";
+	</fx:Style>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.dummymap.MapNodeEvent;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.general.regional.view.roam.components.RoamColorConfigGroup;
+			import com.linkage.module.cms.general.regional.view.roam.control.RoamControl;
+			import com.linkage.module.cms.general.regional.view.roam.event.RoamEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import spark.events.IndexChangeEvent;
+//			[Bindable]
+//			private var tabBarData:ArrayCollection=new ArrayCollection([{id: 2, label: "省际漫游"}, {id: 3, label: "省内漫游"}, {id: 1, label: "国际漫游"}]);
+//			public var roamTypes:Object={"roam_in": 1, "roam_out": 2};
+//			public var roamDefCitys:Object={"2": "10", "3": "0100", "1": "3"};
+			[Bindable]
+			private var tabBarData:ArrayCollection;
+			public var roamTypes:Object;
+//			public var roamDefCitys:Object;
+			
+			private var control:RoamControl;
+			private var timeData:ArrayCollection=new ArrayCollection([{label: "00:00", hour: 0}, {label: "01:00", hour: 1}, {label: "02:00", hour: 2}, {label: "03:00", hour: 3}, {label: "04:00", hour: 4}, {label: "05:00", hour: 5}, {label: "06:00", hour: 6}, {label: "07:00", hour: 7}, {label: "08:00", hour: 8}, {label: "09:00", hour: 9}, {label: "10:00", hour: 10}, {label: "11:00", hour: 11}, {label: "12:00", hour: 12}, {label: "13:00", hour: 13}, {label: "14:00", hour: 14}, {label: "15:00", hour: 15}, {label: "16:00", hour: 16}, {label: "17:00", hour: 17}, {label: "18:00", hour: 18}, {label: "19:00", hour: 19}, {label: "20:00", hour: 20}, {label: "21:00", hour: 21}, {label: "22:00", hour: 22}, {label: "23:00", hour: 23}]);
+			public var parameters:Object;
+//			private var mapObjArray:Array;
+//			private var mapUrlArray:Array;
+
+			[Bindable]
+			public var roamData:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			public var roamStatData:ArrayCollection=new ArrayCollection();
+
+			private var httpService:HTTPService;
+
+			
+			protected function roamGroup_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(RoamEvent.INIT,onInit);
+			}
+
+			private function onInit(event:RoamEvent):void{
+//				mapObjArray = parameters.mapObjArray;
+//				mapUrlArray = parameters.mapUrlArray;
+				tabBarData = parameters.tabBarData;
+				roamTypes = parameters.roamTypes;
+//				roamDefCitys = parameters.roamDefCitys;
+				httpService=new HTTPService();
+				httpService.method="get";
+				httpService.resultFormat="e4x";
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				control=new RoamControl(this);
+				var date:Date=new Date();
+				var df:DateFormatter=new DateFormatter();
+				df.formatString="YYYY-MM-DD";
+				startTime.text=df.format(date);
+				startTime.selectedDate=date;
+				hourTime.selectedIndex=0;
+				var indexEvent:IndexChangeEvent=new IndexChangeEvent(IndexChangeEvent.CHANGE);
+				indexEvent.newIndex=0;
+				roamTabBar.dispatchEvent(indexEvent);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onMapNodeClick);
+				
+			}
+
+			private function onMapNodeClick(event:MapNodeEvent):void
+			{
+				if(event.mapNode && event.mapNode.id){
+					control.loadDataByCity(String(mapWork.getAreaId(event.mapNode.id)));
+				}
+			}
+
+			protected function roamTabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				mapWork.mapObjArray = tabBarData.getItemAt(event.newIndex).mapArray;
+				httpService.url = tabBarData.getItemAt(event.newIndex).mapUrl;
+				httpService.send();
+			}
+
+			protected function httpService_resultHandler(event:ResultEvent):void
+			{
+				// TODO Auto-generated method stub
+				mapWork.xmlData=event.result as XML;
+				mapWork.showMap();
+				control.dispatchEvent(new RoamEvent(RoamEvent.ROAM_TAB_CHANGE));
+			}
+
+
+			protected function roamQueryBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				control.dispatchEvent(new RoamEvent(RoamEvent.DATA_QUERY));
+			}
+
+
+			protected function roamTypeRadio_clickHandler(event:MouseEvent):void
+			{
+				var roamEvent:RoamEvent=new RoamEvent(RoamEvent.ROAM_TYPE_CHANGE);
+				roamEvent.attributes={"roam_type": roamTypes[event.target.id]};
+				control.dispatchEvent(roamEvent);
+			}
+
+			protected function pager_pageChangeHandler(event:PagerEvent):void
+			{
+				control.dispatchEvent(new RoamEvent(RoamEvent.ROAM_PAGE_CHANGE));
+			}
+
+
+			protected function legendWindow_configHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				control.legendConfigWindowInit();
+				legendConfigWindow.visible=!legendConfigWindow.visible;
+				legendConfigWindow.x=(this.width - legendConfigWindow.width) / 2;
+			}
+
+			protected function legendWindow_restoreHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				legendWindow.clearStyle("height");
+			}
+
+
+			protected function legendAddBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var roamColorConfigGroup:RoamColorConfigGroup = new RoamColorConfigGroup();
+				legendGroup.addElement(roamColorConfigGroup);
+			}
+
+
+			protected function legendSaveBtn_clickHandler(event:MouseEvent):void
+			{
+				control.saveLegend();
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Group width="100%"
+			 height="100%"
+			 left="5"
+			 top="5"
+			 right="5"
+			 bottom="5">
+		<mx:ViewStack width="100%"
+					  height="100%"
+					  top="23"
+					  styleName="commonViewStack"
+					  backgroundAlpha="0.8">
+			<s:NavigatorContent width="100%"
+								height="100%">
+				<s:VGroup width="100%"
+						  height="100%">
+					<mx:Form width="100%">
+						<s:HGroup width="100%"
+								  verticalAlign="middle">
+							<mx:FormHeading label="历史查询"/>
+							<mx:FormItem label="查询时间">
+								<mx:DateField width="150"
+											  id="startTime"
+											  formatString="YYYY-MM-DD"
+											  color="0x000000"/>
+							</mx:FormItem>
+							<mx:FormItem>
+								<s:DropDownList id="hourTime"
+												dataProvider="{timeData}"
+												labelField="label"/>
+							</mx:FormItem>
+							<s:Button label="查询"
+									  id="roamQueryBtn"
+									  buttonMode="true"
+									  click="roamQueryBtn_clickHandler(event)"/>
+						</s:HGroup>
+					</mx:Form>
+					<s:SkinnableContainer width="100%"
+										  height="100%">
+						<s:Scroller width="100%"
+									height="100%"
+									verticalScrollPolicy="auto"
+									horizontalScrollPolicy="auto">
+							<s:VGroup width="100%"
+									  height="100%" paddingLeft="100" paddingTop="20">
+								<dummymap:MapWork id="mapWork" width="100%" height="100%">
+								</dummymap:MapWork>
+							</s:VGroup>
+						</s:Scroller>
+						<s:VGroup right="20"
+								  bottom="10"
+								  width="330">
+							<s:BorderContainer width="100%"
+											   height="280"
+											   styleName="commonBorderContainer"
+											   id="roamBC"
+											   visible="false">
+								<s:layout>
+									<s:VerticalLayout paddingBottom="2"
+													  paddingLeft="2"
+													  paddingRight="2"
+													  paddingTop="2"/>
+								</s:layout>
+								<mx:AdvancedDataGrid width="100%"
+													 id="roamDG"
+													 dataProvider="{roamData}"
+													 height="100%">
+								</mx:AdvancedDataGrid>
+								<s:HGroup width="100%"
+										  horizontalAlign="right">
+									<pager:Pager id="pager"
+												 pageSize="20"
+												 pageChange="pager_pageChangeHandler(event)"
+												 showPageSizeInfo="false"
+												 showTotalNumInfo="false">
+									</pager:Pager>
+								</s:HGroup>
+							</s:BorderContainer>
+							<s:BorderContainer width="100%"
+											   styleName="commonBorderContainer"
+											   id="roamStatBC"
+											   visible="false"
+											   minHeight="0">
+								<s:layout>
+									<s:VerticalLayout paddingBottom="2"
+													  paddingLeft="2"
+													  paddingRight="2"
+													  paddingTop="2"/>
+								</s:layout>
+								<mx:AdvancedDataGrid width="100%"
+													 id="roamStatDG"
+													 dataProvider="{roamStatData}"
+													 rowCount="3">
+								</mx:AdvancedDataGrid>
+							</s:BorderContainer>
+						</s:VGroup>
+
+						<panel:Window title="图例"
+									  id="legendWindow"
+									  minHeight="30"
+									  width="210"
+									  bottom="10"
+									  left="10"
+									  maximizable="false" closable="false"
+									  configable="true"
+									  config="legendWindow_configHandler(event)" restore="legendWindow_restoreHandler(event)">
+							<s:HGroup top="-24"
+									  right="50">
+
+								<s:RadioButton label="漫入"
+											   id="roam_in"
+											   groupName="roamType"
+											   selected="true"
+											   click="roamTypeRadio_clickHandler(event)"/>
+								<s:RadioButton label="漫出"
+											   id="roam_out"
+											   groupName="roamType"
+											   click="roamTypeRadio_clickHandler(event)"/>
+							</s:HGroup>
+							<s:HGroup width="100%">
+								<s:VGroup width="100%"
+										  id="leftColorGroup">
+								</s:VGroup>
+								<s:VGroup width="100%"
+										  id="rightColorGroup">
+								</s:VGroup>
+							</s:HGroup>
+						</panel:Window>
+
+						<panel:Window title="图例配置"
+									  id="legendConfigWindow"
+									  visible="false"
+									  minHeight="30"
+									  minWidth="250"
+									  maxHeight="500"
+									  width="300" y="100"
+									  dragable="true" maximizable="false"
+									  close="legendConfigWindow.visible=false"
+									  minimizableBottom="12"
+									  minimizableRight="360">
+								<s:VGroup width="100%">
+									<s:Scroller width="100%" maxHeight="220" verticalScrollPolicy="auto">
+										<s:VGroup width="100%" id="legendGroup">
+										</s:VGroup>
+									</s:Scroller>
+									<s:HGroup width="100%" horizontalAlign="center">
+										<s:Button id="legendAddBtn" label="增加" buttonMode="true" click="legendAddBtn_clickHandler(event)"/>
+										<s:Button id="legendSaveBtn" label="保存" buttonMode="true" click="legendSaveBtn_clickHandler(event)"/>
+									</s:HGroup>
+								</s:VGroup>
+						</panel:Window>
+					</s:SkinnableContainer>
+				</s:VGroup>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+		<s:TabBar dataProvider="{tabBarData}"
+				  id="roamTabBar"
+				  labelField="label"
+				  styleName="commonTabBar"
+				  buttonMode="true"
+				  change="roamTabBar_changeHandler(event)"/>
+	</s:Group>
+</s:Group>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXTreeItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					   creationComplete="mxtreeitemrenderer_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import spark.components.Group;
+			
+			public static var _levelColorMap:Object = {'一级告警': 0XFF0000, '二级告警': 0XEE9800, '三级告警': 0XFED701, '四级告警': 0X4169E1, '0': 0X000000, '1': 0XFF0000, '2': 0XEE9800, '3': 0XFED701, '4': 0X4169E1};
+			protected function mxtreeitemrenderer_creationCompleteHandler(event:FlexEvent):void
+			{
+				trace("data.@label:"+data.@label + ",data.@moId:"+data.@moId);
+				if(null!=data.@moTypeId&&""!=String(data.@moTypeId)&&(null==data.@moId||""==String(data.@moId))){//设备类型
+ 					if(null!=data.@alarmInfo&&""!=String(data.@alarmInfo)){
+						var group:Group = new Group();
+						group.width = 1;
+						var alarmGroup:TreeDataItemRendererCircleGroup = new TreeDataItemRendererCircleGroup();
+						alarmGroup.circleStyles = data.@alarmSeverity;
+						alarmGroup.alarmInfo = data.@alarmInfo;
+						hgroup.addElement(group);
+						hgroup.addElement(alarmGroup);
+					} 
+					if(XML(data).hasComplexContent()){
+						this.buttonMode = true;
+						this.useHandCursor = true;
+						labelField.buttonMode = true;
+						labelField.useHandCursor = true;
+						labelField.mouseChildren = false;
+					}
+				}else if(null!=data.@moId&&""!=String(data.@moId)){//设备
+					if(null!=data.@alarmSeverity&&uint(_levelColorMap[data.@alarmSeverity])){
+						labelField.setStyle("color",uint(_levelColorMap[data.@alarmSeverity]));
+					}
+					//设备也能链接。
+					this.buttonMode = true;
+					this.useHandCursor = true;
+					labelField.buttonMode = true;
+					labelField.useHandCursor = true;
+					labelField.mouseChildren = false;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="normal"/>
+		<s:State name="hovered"/>
+		<s:State name="selected"/>
+	</s:states>
+	<s:HGroup id="hgroup" left="0"
+			  right="0"
+			  top="0"
+			  bottom="0"
+			  verticalAlign="middle">
+		<s:Rect id="indentationSpacer"
+				width="{treeListData.indent}"
+				percentHeight="100"
+				alpha="0">
+			<s:fill>
+				<s:SolidColor color="0xFFFFFF"/>
+			</s:fill>
+		</s:Rect>
+		<s:Group id="disclosureGroup">
+			<s:BitmapImage source="{treeListData.disclosureIcon}"
+						   visible="{treeListData.hasChildren}"/>
+		</s:Group>
+		<mx:Label id="labelField"
+			text="{data.@label}"
+			fontWeight="bold"
+			toolTip="{data.@label}"/>
+	</s:HGroup>
+</s:MXTreeItemRenderer>

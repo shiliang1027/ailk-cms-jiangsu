@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  minHeight="100"
+			  width="100%"
+			  height="100%"
+			  dragable="false"
+			  closable="false"
+			  maximizable="false"
+			  minimizable="false">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			/**
+			 * 展示列
+			 */
+			private var columns:Array=null;
+			/**
+			 * 展示数据
+			 */
+			private var dataProvider:ArrayCollection=null;
+			/**
+			 * 展示列描述
+			 */
+			private var nameArray:ArrayCollection=new ArrayCollection(['序号', '场馆名称', '指标值']);
+			/**
+			 * 展示列关键字
+			 */
+			private var columnArray:ArrayCollection=new ArrayCollection(['index', 'venue_name', 'perf_value']);
+
+			//初始化数据
+			public function initData(data:Object):void
+			{
+				if (data != null)
+				{
+					//1.生成标题
+					title=data["title"];
+
+					//2.生成表格数据
+					columns=[];
+					dataProvider=data.dataList;
+					var col:AdvancedDataGridColumn=null;
+					for (var index:String in nameArray)
+					{
+						col=new AdvancedDataGridColumn();
+						col.headerText=nameArray[index];
+						col.dataField=columnArray[index];
+						columns.push(col);
+					}
+					//展示表格数据
+					if (priDataGrid)
+					{
+						priDataGrid.columns=columns;
+						priDataGrid.dataProvider=dataProvider;
+					}
+				}
+			}
+
+			//表格创建完成
+			protected function priDataGridCreation(event:FlexEvent):void
+			{
+				if (columns)
+				{
+					priDataGrid.columns=columns;
+					priDataGrid.dataProvider=dataProvider;
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="priDataGrid"
+				 width="100%"
+				 height="100%"
+				 creationComplete="priDataGridCreation(event)">
+		<mx:columns>
+
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</panel:Window>

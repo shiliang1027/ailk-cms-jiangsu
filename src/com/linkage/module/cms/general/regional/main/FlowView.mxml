@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="300"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 xmlns:flow="com.linkage.module.cms.general.regional.main.flow.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.data.GisServ;
+
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			//数据接口
+			private var _gisServ:GisServ=null;
+
+			//当前显示的场景编号
+
+			private var _monitorId:String=null;
+
+			//页面参数
+			private var _params:Object=null;
+
+			//是否初始化
+			private var _isInit:Boolean=false;
+			//日志
+			public var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.FlowView");
+
+			private var alarmRule:String="";
+
+			public function get params():Object
+			{
+				return _params;
+			}
+
+			public function set params(value:Object):void
+			{
+				_params=value;
+			}
+
+			public function get monitorId():String
+			{
+				return _monitorId;
+			}
+
+			public function set monitorId(value:String):void
+			{
+				_monitorId=value;
+			}
+
+			public function get gisServ():GisServ
+			{
+				return _gisServ;
+			}
+
+			public function set gisServ(value:GisServ):void
+			{
+				_gisServ=value;
+			}
+
+			public function init():void
+			{
+				//初始化告警流水
+				this.alarmFlow.params=_params;
+				alarmRule=_params["alarmRule"];
+			}
+
+			protected function perfflow1_initializeHandler(event:FlexEvent):void
+			{
+				var param:Object=new Object();
+				param.monitor_id=_monitorId;
+				param.type="1";
+				param.time="";
+
+				_gisServ.getNePerfList(param, loadPerfData, null, loadPerfErrData);
+			}
+
+			public function loadPerfData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载性能数据成功！");
+					this.perfFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载性能数据为空！");
+				}
+			}
+
+			public function loadPerfErrData(obj:Object):void
+			{
+				log.info("加载性能数据失败！");
+			}
+
+			protected function resourceflow1_initializeHandler(event:FlexEvent):void
+			{
+				this.resourceFlow.init();
+				//加载资源信息
+				var param:Object=new Object();
+				param.monitor_id=_monitorId;
+
+				_gisServ.getNeList(param, loadResData, null, loadResDataErr);
+			}
+
+			public function loadResData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载资源数据成功！");
+					this.resourceFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载资源数据为空！");
+				}
+			}
+
+			public function loadResDataErr(obj:Object):void
+			{
+				log.info("加载资源数据失败！");
+			}
+
+			protected function alarmFlow_initializeHandler(event:FlexEvent):void
+			{
+
+			}
+
+			public function showView():void
+			{
+				log.info("告警过滤规则ruleContent=" + _params["alarmRule"]);
+				if (!_isInit)
+				{
+					_isInit=true;
+					//设置过滤规则
+					this.alarmFlow.ruleContent=_params["alarmRule"];
+					this.alarmFlow.initInfo();
+				}
+				else
+				{
+					this.alarmFlow.reload(_params["alarmRule"]);
+				}
+			}
+
+			public function hideView():void
+			{
+				if (_isInit && this.alarmFlow != null)
+				{
+					this.alarmFlow.stopLoad();
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:ViewStack id="viewStack"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2">
+		<s:NavigatorContent width="100%"
+							height="100%"
+							id="alarmNav"
+							label="告警">
+			<pubflow:alarm id="alarmFlow"
+						   moduleKey="regionalviewflow"
+						   width="100%"
+						   height="100%"
+						   initialize="alarmFlow_initializeHandler(event)">
+			</pubflow:alarm>
+		</s:NavigatorContent>
+		<s:NavigatorContent width="100%"
+							height="100%"
+							id="resourceNav"
+							label="资源">
+			<flow:ResourceFlow id="resourceFlow"
+							   width="100%"
+							   height="100%"
+							   initialize="resourceflow1_initializeHandler(event)">
+			</flow:ResourceFlow>
+		</s:NavigatorContent>
+		<s:NavigatorContent width="100%"
+							height="100%"
+							id="perfNav"
+							label="性能">
+			<flow:PerfFlow id="perfFlow"
+						   width="100%"
+						   height="100%"
+						   initialize="perfflow1_initializeHandler(event)">
+			</flow:PerfFlow>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar styleName="commonTabBar"
+			  dataProvider="{viewStack}"
+			  id="tabBar">
+	</s:TabBar>
+</s:Group>

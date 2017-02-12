@@ -1,0 +1,617 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:gis="com.linkage.gis.*"
+		 xmlns:windows="com.linkage.module.cms.perfmonitor.subject.mapview.windows.*"
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 xmlns:cms="http://www.ailk.com/2011/cms"
+		 xmlns:dynamicdropdown="com.linkage.module.cms.components.dynamicdropdown.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisContextMenuItem;
+			import com.linkage.gis.core.GisContextUtil;
+			import com.linkage.gis.core.GisDynamicServiceLayer;
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.GisFeatureLayer;
+			import com.linkage.gis.core.GisLayer;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.core.styles.GisMarkerPredefinedStyle;
+			import com.linkage.gis.core.styles.GisMarkerStyle;
+			import com.linkage.gis.core.task.GisIdentifyParameters;
+			import com.linkage.gis.core.task.GisIdentifyTask;
+			import com.linkage.gis.core.task.GisQuery;
+			import com.linkage.gis.event.GisExtentEvent;
+			import com.linkage.gis.event.GisIdentifyEvent;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.components.dynamicdropdown.events.DynamicDropDownEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+
+			private var _commonService:SubjectInterfaceCommService;
+
+			private var _wlanService:SubjectWlanService;
+
+			private var testData:ArrayCollection = new ArrayCollection([{"mo_id": "1", "mo_name": "test", "longitude": "118.796711", "latitude": "32.060537", "type": "1"}]);
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subject.mapview.WlanProvinceMap");
+
+			private var cellMap:Dictionary = new Dictionary();
+
+			//等待提示
+			private var loadInfo:LoadManager = new LoadManager(this, "blue");
+			;
+
+			private var _isDebug:Boolean = false;
+
+			//记录已放置的热点
+			private var wlanMap:ArrayCollection = new ArrayCollection();
+
+			[Embed(source="../img/wlan_0.png")]
+			private static var wlan0Pic:Class;
+
+			[Embed(source="../img/wlan_1.png")]
+			private static var wlan1Pic:Class;
+
+			[Embed(source="../img/ap_0.png")]
+			private static var ap0Pic:Class;
+
+			[Embed(source="../img/ap_1.png")]
+			private static var ap1Pic:Class;
+
+			//右键菜单链接
+			private static var cellDetailURL:String = "cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=";
+			private static var perfDetailURL:String = "cms/performance/report/permsg!initForm.action";
+			private static var alarmDetailURL:String = "cms/warn/report/query/ShowAlarmList.jsp";
+			private var _context:String = "cms/";
+
+			//记录当前地图状态
+			private var mapScale:Number = 0;
+			private var mapXmax:Number = 0;
+			private var mapXmin:Number = 0;
+			private var mapYmax:Number = 0;
+			private var mapYmin:Number = 0;
+
+			private var apOutLayer:GisLayer;
+			private var wlanZeroLayer:GisLayer;
+
+			public function get context():String
+			{
+				return _context;
+			}
+
+			public function set context(value:String):void
+			{
+				_context = value;
+			}
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get wlanService():SubjectWlanService
+			{
+				return _wlanService;
+			}
+
+			public function set wlanService(value:SubjectWlanService):void
+			{
+				_wlanService = value;
+			}
+
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			private var wlanLayers:Array = new Array;
+			private var apLayers:Array = new Array;
+			private var hotLayers:Array = new Array;
+
+			private var gisDynamicLayer:GisDynamicServiceLayer;
+			private var cachAPLayer:GisLayer;
+			private var cachHotLayer:GisLayer;
+
+			private var contextMenus:Array = new Array;
+
+			protected function mapWork_mapCreationCompleteHandler(event:MapEvent):void
+			{
+				dynamicDropDown.visible = dynamicDropDown.includeInLayout = false;
+
+				if(contextMenus && contextMenus.length > 0)
+				{
+
+				}
+				else
+				{
+					contextMenus.push(new GisContextMenuItem("资源信息", popupDealer));
+					contextMenus.push(new GisContextMenuItem("告警信息", popupDealer));
+					contextMenus.push(new GisContextMenuItem("性能信息", popupDealer));
+				}
+				if(!gisDynamicLayer)
+				{
+					gisDynamicLayer = GisContextUtil.getBean("wlanLayer_00") as GisDynamicServiceLayer;
+					this.mapWork.map.addGisLayer(gisDynamicLayer);
+					cachAPLayer = GisContextUtil.getBean("wlanLayer_00_AP") as GisLayer;
+					cachHotLayer = GisContextUtil.getBean("wlanLayer_00_HOT") as GisLayer;
+					if(!cachHotLayer.queryTask.hasEventListener(GisIdentifyEvent.EXECUTE_COMPLETE))
+					{
+						cachHotLayer.queryTask.addEventListener(GisIdentifyEvent.EXECUTE_COMPLETE, onHotExcuteCompleteHandler);
+					}
+					if(!cachAPLayer.queryTask.hasEventListener(GisIdentifyEvent.EXECUTE_COMPLETE))
+					{
+						cachAPLayer.queryTask.addEventListener(GisIdentifyEvent.EXECUTE_COMPLETE, onAPExcuteCompleteHandler);
+					}
+					cachAPLayer.featureContextMenus = contextMenus;
+					cachHotLayer.featureContextMenus = contextMenus;
+					log.info("gisDynamicLayer.layerInfos:{0}", gisDynamicLayer.layerInfos);
+					this.mapWork.map.addGisLayer(cachHotLayer);
+					this.mapWork.map.addGisLayer(cachAPLayer);
+				}
+				if(!wlanZeroLayer)
+				{
+					wlanZeroLayer = new GisLayer();
+					this.mapWork.map.addGisLayer(wlanZeroLayer);
+				}
+				if(!apOutLayer)
+				{
+					apOutLayer = new GisLayer();
+					this.mapWork.map.addGisLayer(apOutLayer);
+				}
+				var paramMap:Object = new Object();
+				//				
+				_wlanService.wlanGisInfo(paramMap, loadGisDataSucc, null, loadGisDataErr);
+
+			}
+
+
+			private function getFeatureStyle(feature:GisFeature):*
+			{
+				var cell:Object;
+				var moID:String;
+				var moType:String;
+				var offsetx:Number = 0;
+				var offsety:Number = 0;
+				var pic:GisMarkerPictureStyle = null;
+				moID = feature.attributes["MO_ID"];
+				moType = feature.attributes["MO_TYPE_ID"];
+				if(feature.attributes["OFFSET_X"])
+				{
+					offsetx = Number(feature.attributes["OFFSET_X"]);
+				}
+				if(feature.attributes["OFFSET_Y"])
+				{
+					offsety = Number(feature.attributes["OFFSET_Y"]);
+				}
+				var moName:String = feature.attributes["MO_NAME"];
+				var LONGITUDE:String = feature.attributes["LONGITUDE"];
+				var LATITUDE:String = feature.attributes["LATITUDE"];
+//				var wlanID:String = feature.attributes["MO_TYPE_ID"];
+				log.info("[onExcuteCompleteHandler]feature:{0},moID:{1},moType:{2},moName:{3},LONGITUDE:{4},LATITUDE:{5}", feature.id, moID, moType, moName, LONGITUDE, LATITUDE);
+				cell = cellMap[moID];
+				if(cell != null)
+				{
+					log.info("[onExcuteCompleteHandler]moID:{0},cell.type:{1}", moID, cell.type);
+					switch(cell.type)
+					{
+						case "1": //正常AP
+							pic = new GisMarkerPictureStyle(ap1Pic, 32, 32, offsetx, offsety);
+							if(!wlanFilter.ap_all.selected)
+							{
+								feature.visible = false;
+							}
+							break;
+						case "2": //退服AP
+							pic = new GisMarkerPictureStyle(ap0Pic, 32, 32, offsetx, offsety);
+							if(!wlanFilter.ap_quit.selected)
+							{
+								feature.visible = false;
+							}
+							break;
+						case "3": //正常热点
+							pic = new GisMarkerPictureStyle(wlan1Pic, 32, 32);
+							if(!wlanFilter.wlan_all.selected)
+							{
+								feature.visible = false;
+							}
+							break;
+						case "4": //零业务量热点
+							pic = new GisMarkerPictureStyle(wlan0Pic, 32, 32);
+							if(!wlanFilter.wlan_zero.selected)
+							{
+								feature.visible = false;
+							}
+							break;
+					}
+				}
+				else
+				{
+					switch(moType)
+					{
+						case "84": //正常AP
+							pic = new GisMarkerPictureStyle(ap1Pic, 32, 32, offsetx, offsety);
+							if(!wlanFilter.ap_all.selected)
+							{
+								feature.visible = false;
+							}
+							break;
+						case "201": //正常热点
+							pic = new GisMarkerPictureStyle(wlan1Pic, 32, 32);
+							if(!wlanFilter.wlan_all.selected)
+							{
+								feature.visible = false;
+							}
+							break;
+					}
+				}
+				feature.toolTip = moName;
+				return pic;
+			}
+
+			private function onHotExcuteCompleteHandler(event:GisIdentifyEvent):void
+			{
+				var feature:GisFeature;
+				for(var id:*in event.gisFeatures)
+				{
+					feature = event.gisFeatures[id];
+					feature.gisStyle = getFeatureStyle(feature);
+					cachHotLayer.updateFeature(feature);
+				}
+			}
+
+
+			private function onAPExcuteCompleteHandler(event:GisIdentifyEvent):void
+			{
+				var feature:GisFeature;
+				for(var id:*in event.gisFeatures)
+				{
+					feature = event.gisFeatures[id];
+					feature.gisStyle = getFeatureStyle(feature);
+					cachAPLayer.updateFeature(feature);
+				}
+			}
+
+
+			private function loadGisDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载GIS数据成功！");
+					initMapView(obj);
+				}
+				else
+				{
+					log.info("加载GIS数据为空！");
+					if(_isDebug)
+					{
+						initMapView(null);
+					}
+					loadInfo.hideLoading();
+				}
+			}
+
+			private function loadGisDataErr(obj:Object):void
+			{
+				log.info("加载GIS数据失败！" + obj);
+				if(_isDebug)
+				{
+					initMapView(null);
+				}
+				loadInfo.hideLoading();
+			}
+
+			private function initMapView(obj:Object):void
+			{
+				loadInfo.hideLoading();
+				log.info("wlan GIS 开始撒点数据--------------- obj：" + obj.length);
+
+				if(obj == null)
+				{
+					obj = testData;
+				}
+//				cellMap = new Dictionary();
+				searchResult = obj as ArrayCollection;
+				var feature:GisFeature = null;
+				for each(var cell:Object in obj)
+				{
+					if(cell.mo_id)
+					{
+						cellMap[cell.mo_id] = cell;
+					}
+//					else if(cell.wlan_id){
+//						cellMap[cell.wlan_id] = cell;
+//					}
+//					log.info("[initMapView]mo_id:{0},cell.type:{1}",cell.mo_id,cell.type);
+					if(cell.type == "4")
+					{
+						feature = new GisFeature(new GisPoint(Number(cell.longitude), Number(cell.latitude)), new GisMarkerPredefinedStyle(GisMarkerStyle.STYLE_CIRCLE, 10, 0xFF0000));
+						wlanZeroLayer.addGisFeature(feature);
+					}
+					else if(cell.type == "2")
+					{
+						feature = new GisFeature(new GisPoint(Number(cell.longitude), Number(cell.latitude)), new GisMarkerPredefinedStyle(GisMarkerStyle.STYLE_CIRCLE, 10, 0xFF0000));
+						apOutLayer.addGisFeature(feature);
+					}
+				}
+			}
+
+
+			private var visibleLayers:ArrayCollection = new ArrayCollection([apLayerId, hotLayerId]);
+
+			private var apLayerId:int = 1;
+			private var hotLayerId:int = 2;
+			private var cellShow:Boolean = false;
+
+			private function refreshView():void
+			{
+				if(wlanFilter.wlan_all.selected)
+				{
+					if(!visibleLayers.contains(hotLayerId))
+					{
+						visibleLayers.addItem(hotLayerId);
+					}
+				}
+				else
+				{
+					if(visibleLayers.contains(hotLayerId))
+					{
+						visibleLayers.removeItemAt(visibleLayers.getItemIndex(hotLayerId));
+					}
+				}
+				if(wlanFilter.ap_all.selected)
+				{
+					if(!visibleLayers.contains(apLayerId))
+					{
+						visibleLayers.addItem(apLayerId);
+					}
+				}
+				else
+				{
+					if(visibleLayers.contains(apLayerId))
+					{
+						visibleLayers.removeItemAt(visibleLayers.getItemIndex(apLayerId));
+					}
+				}
+
+				if(mapWork.map.level > 6)
+				{
+					var gisQueryParam:GisIdentifyParameters;
+					visibleLayers.removeAll();
+					wlanZeroLayer.visible = false;
+					apOutLayer.visible = false;
+					if(wlanFilter.wlan_all.selected || wlanFilter.wlan_zero.selected)
+					{
+						cachHotLayer.visible = true;
+						gisQueryParam = GisIdentifyTask(cachHotLayer.queryTask).identifyParameters;
+						gisQueryParam.width = mapWork.width;
+						gisQueryParam.height = mapWork.height;
+						gisQueryParam.mapExtent = mapWork.map.gisExtent;
+						gisQueryParam.gisMetry = mapWork.map.gisExtent;
+						cachHotLayer.selectFeatures();
+					}
+					else
+					{
+						cachHotLayer.visible = false;
+					}
+					if(wlanFilter.ap_all.selected || wlanFilter.ap_quit.selected)
+					{
+						cachAPLayer.visible = true;
+						gisQueryParam = GisIdentifyTask(cachAPLayer.queryTask).identifyParameters;
+						gisQueryParam.width = mapWork.width;
+						gisQueryParam.height = mapWork.height;
+						gisQueryParam.mapExtent = mapWork.map.gisExtent;
+						gisQueryParam.gisMetry = mapWork.map.gisExtent;
+						cachAPLayer.selectFeatures();
+					}
+					else
+					{
+						cachAPLayer.visible = false;
+					}
+
+				}
+				else
+				{
+					cachAPLayer.visible = false;
+					cachHotLayer.visible = false;
+					if(wlanFilter.wlan_zero.selected)
+					{
+						wlanZeroLayer.visible = true;
+					}
+					else
+					{
+						wlanZeroLayer.visible = false;
+					}
+					if(wlanFilter.ap_quit.selected)
+					{
+						apOutLayer.visible = true;
+					}
+					else
+					{
+						apOutLayer.visible = false;
+					}
+				}
+
+				gisDynamicLayer.visibleLayers = visibleLayers;
+
+			}
+
+
+			protected function mapWork_toolbar_gotoHandler(event:MapEvent):void
+			{
+				dynamicDropDown.dispatchEvent(new DynamicDropDownEvent(DynamicDropDownEvent.INIT));
+				dynamicDropDown.visible = dynamicDropDown.includeInLayout = dynamicDropDown.visible ? false : true;
+			}
+
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+//				loadInfo.showLoading("正在加载数据，请稍候");
+			}
+
+			//右键菜单处理函数
+			private function popupDealer(feature:GisFeature):void
+			{
+//				//根据网元id加载相关页面
+				var url:String = "";
+				var cellId:String = feature.attributes["MO_ID"];
+				var mo_type:Object = feature.attributes['MO_TYPE_ID'];
+//				var wlan_id:String = feature.attributes["WLAN_ID"];
+				//根据网元id加载相关页面
+//				var cell:Object = cellMap[mo_id];
+//				log.info("【右键菜单】cell:{0}",cell);
+//				var cellId:Object = cell['mo_id'];
+//				var mo_type:Object = cell['mo_type_id'];
+				log.info("【右键菜单】mo_id:{0},mo_type:{1}", cellId, mo_type);
+				//菜单名称
+				switch(feature.attributes.selectMenuName)
+				{
+					case "资源信息":
+						url = (cellDetailURL + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+
+					case "告警信息":
+						url = (alarmDetailURL + "?alarmStatus=1&neId=" + cellId).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+
+					case "性能信息":
+						url = (perfDetailURL + "?moId=" + cellId + "&moTypeId=" + mo_type).replace(/\$/g, "&");
+						navigateToURL(new URLRequest(context + url));
+						break;
+				}
+			}
+			private var isChange:Boolean = false;
+
+			private function reloadMap(event:GisExtentEvent):void
+			{
+				try
+				{
+					refreshView();
+				}
+				catch(e:Error)
+				{
+				}
+
+			}
+
+			protected function mapWork_toolbar_legendHandler(event:MapEvent):void
+			{
+
+			}
+
+
+			protected function mapWork_toolbar_picLayerHandler(event:MapEvent):void
+			{
+				this.wlanFilter.visible = true;
+			}
+
+
+			private var searchResult:ArrayCollection;
+			private var filterFunction:Function;
+
+			protected function dynamicdropdown_keyWordQueryHandler(event:DynamicDropDownEvent):void
+			{
+				// TODO Auto-generated method stub
+				var keyword:String = DynamicDropDown(event.target).keyWord;
+
+				searchResult.filterFunction = getFilterfunciton(keyword);
+				searchResult.refresh();
+				searchSiteHandler(searchResult);
+			}
+
+			private function searchSiteHandler(result:Object):void
+			{
+				var evt:DynamicDropDownEvent = new DynamicDropDownEvent(DynamicDropDownEvent.DATALISTCHANGE);
+				dynamicDropDown.listData = ArrayCollection(result);
+				dynamicDropDown.dispatchEvent(evt);
+			}
+
+			protected function dynamicdropdown_dataSelectedHandler(event:DynamicDropDownEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object = dynamicDropDown.selectedItem;
+				this.mapWork.map.zoomToScale(2000, new GisPoint(Number(data.longitude), Number(data.latitude)));
+			}
+
+
+			protected function dynamicDropDown_queryHandler(event:DynamicDropDownEvent):void
+			{
+				var keyword:String = DynamicDropDown(event.target).keyWord;
+				searchResult.filterFunction = getFilterfunciton(keyword);
+				searchResult.refresh();
+				searchSiteHandler(searchResult);
+			}
+
+			private function getFilterfunciton(keyword:String):Function
+			{
+				var filterfunc:Function = function(item:Object):Boolean{
+						if(String(item.mo_name).indexOf(keyword) != -1){
+							return true;
+						}
+						return false;
+					};
+				return filterfunc;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:BorderContainer id="nowGroup"
+					   width="100%"
+					   height="100%"
+					   styleName="commonBorderContainer">
+		<gis:MapWork id="mapWork"
+					 width="100%"
+					 height="100%"
+					 showOverView="false"
+					 extent_change="reloadMap(event)"
+					 mapCreationComplete="mapWork_mapCreationCompleteHandler(event)"
+					 toolbar_goto="mapWork_toolbar_gotoHandler(event)"
+					 toolbar_picLayer="mapWork_toolbar_picLayerHandler(event)"
+					 toolbar_legend="mapWork_toolbar_legendHandler(event)">
+		</gis:MapWork>
+
+		<dynamicdropdown:DynamicDropDown visible="false"
+										 includeInLayout="false"
+										 top="55"
+										 left="55"
+										 id="dynamicDropDown"
+										 labelField="mo_name"
+										 width="200"
+										 dropDownHeight="200"
+										 keyWordQuery="dynamicdropdown_keyWordQueryHandler(event)"
+										 dataSelected="dynamicdropdown_dataSelectedHandler(event)"
+										 query="dynamicDropDown_queryHandler(event)"/>
+	</s:BorderContainer>
+	<windows:WlanFilterDiv id="wlanFilter"
+						   callBack="refreshView"
+						   right="5"
+						   top="5">
+	</windows:WlanFilterDiv>
+</s:Group>

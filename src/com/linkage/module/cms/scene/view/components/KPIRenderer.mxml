@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)"
+								  creationComplete="mxdatagriditemrenderer1_creationCompleteHandler(event)"
+								  focusEnabled="true"
+								  contentBackgroundAlpha="0"
+								  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+
+		<![CDATA[
+			import mx.events.FlexEvent;
+
+			[Inject("kPISituationPM")]
+			public var kpiSituationPM:KPISituationPM;
+
+			protected function mxdatagriditemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				try
+				{
+					var operStr:String = data["oper"];
+					var preValue:int = parseFloat(data["preValue"]);
+					var currentValue:int = parseFloat(data["kpiValue"]);
+
+					switch(operStr)
+					{
+						case "1":
+							kpiButtion.visible = currentValue < preValue;
+						case "2":
+							kpiButtion.visible = currentValue <= preValue;
+						case "3":
+							kpiButtion.visible = currentValue == preValue;
+						case "4":
+							kpiButtion.visible = currentValue > preValue;
+						case "5":
+							kpiButtion.visible = currentValue >= preValue;
+					}
+				}
+				catch(e:Error)
+				{
+
+				}
+
+			}
+
+			protected function kpiButtion_clickHandler(event:MouseEvent):void
+			{
+				var kipId:String = data['kpiId'];
+				kpiSituationPM.dispKPIPlan(kipId);
+			}
+
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				try
+				{
+					var operStr:String = data["oper"];
+					var preValue:int = parseFloat(data["preValue"]);
+					var currentValue:int = parseFloat(data["kpiValue"]);
+
+					switch(operStr)
+					{
+						case "1":
+							kpiButtion.visible = currentValue < preValue;
+						case "2":
+							kpiButtion.visible = currentValue <= preValue;
+						case "3":
+							kpiButtion.visible = currentValue == preValue;
+						case "4":
+							kpiButtion.visible = currentValue > preValue;
+						case "5":
+							kpiButtion.visible = currentValue >= preValue;
+					}
+				}
+				catch(e:Error)
+				{
+
+				}
+
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%"
+			  horizontalAlign="center"
+			  height="100%">
+		<s:Button id="kpiButtion"
+				  buttonMode="true"
+				  click="kpiButtion_clickHandler(event)"
+				  label="应急调度"
+				  visible="false"/>
+	</s:HGroup>
+</s:MXAdvancedDataGridItemRenderer>

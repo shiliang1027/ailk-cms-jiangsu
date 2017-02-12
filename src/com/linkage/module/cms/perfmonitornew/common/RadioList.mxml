@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Scroller xmlns:fx="http://ns.adobe.com/mxml/2009"
+            xmlns:s="library://ns.adobe.com/flex/spark"
+            xmlns:mx="library://ns.adobe.com/flex/mx"
+            width="100%"
+            height="100%"
+            contentBackgroundAlpha="0"
+            doubleClickEnabled="false"
+            horizontalScrollPolicy="auto"
+            verticalScrollPolicy="auto">
+    <fx:Script>
+        <![CDATA[
+            import mx.collections.ArrayCollection;
+            import mx.events.FlexEvent;
+
+            import spark.components.RadioButton;
+
+            public var labelField:String = "label";
+
+            public var click:Function;
+
+            private var dp:ArrayCollection = new ArrayCollection;
+
+            private var _selectedItem:Object;
+
+            public function selectedIndex(index:int):void
+            {
+                unSelectedAll();
+
+                (listGroup.getElementAt(index) as RadioButton).selected = true;
+
+                _selectedItem = dp.getItemAt(index);
+            }
+
+            public function dataProvider(ac:ArrayCollection):void
+            {
+                dp = ac;
+
+                for each (var data:Object in ac)
+                {
+                    var rb:RadioButton = new RadioButton;
+                    rb.label = data[labelField];
+
+                    rb.height = 22;
+                    rb.percentWidth = 100;
+
+                    rb.addEventListener(MouseEvent.CLICK, rbClick);
+
+                    listGroup.addElement(rb);
+                }
+            }
+
+            private function rbClick(e:MouseEvent):void
+            {
+                var rb:RadioButton = e.target as RadioButton;
+                _selectedItem = dp.getItemAt(listGroup.getElementIndex(rb));
+
+                if (click != null)
+                    click.call();
+            }
+
+            private function unSelectedAll():void
+            {
+                for (var index:int = 0; index < listGroup.numElements; index++)
+                    (listGroup.getElementAt(index) as RadioButton).selected = false;
+            }
+
+            public function get selectedItem():Object
+            {
+                return _selectedItem;
+            }
+
+            public function set selectedItem(value:Object):void
+            {
+                _selectedItem = value;
+
+                for (var index:int = 0; index < listGroup.numElements; index++)
+                    (listGroup.getElementAt(index) as RadioButton).selected = _selectedItem[labelField] == (listGroup.getElementAt(index) as RadioButton).label;
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:VGroup id="listGroup"
+              paddingLeft="3"
+              gap="3"
+              width="100%"
+              height="100%">
+
+    </s:VGroup>
+</s:Scroller>

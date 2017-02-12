@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					  xmlns:s="library://ns.adobe.com/flex/spark" 
+					  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+					  creationComplete="editorComp_creationCompleteHandler(event)">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:states>
+		<s:State name="common"/>
+		<s:State name="edit"/>
+	</s:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="delete",type="com.linkage.module.cms.machroomlayout.event.EditorEvent")]
+		[Event(name="arrow",type="com.linkage.module.cms.machroomlayout.event.EditorEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.machroomlayout.event.EditorEvent;
+			
+			import mx.events.FlexEvent;
+			
+
+			protected function editorComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+			}
+
+
+			protected function del_clickHandler(event:MouseEvent):void
+			{
+				this.dispatchEvent(new EditorEvent(EditorEvent.DELETE));
+			}
+			
+			protected function arrow_clickHandler(event:MouseEvent):void
+			{
+				this.dispatchEvent(new EditorEvent(EditorEvent.ARROW));
+			}
+
+			
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup gap="0" id="editTool" top="-16">
+		<mx:Image buttonMode="true" visible="false" visible.edit="true" width="16" height="16" source="@Embed(source='com/linkage/module/cms/machroomlayout/assets/edit_close.png')" click="del_clickHandler(event)"/>
+		<mx:Image buttonMode="true" visible="false" visible.edit="true" width="16" height="16" source="@Embed(source='com/linkage/module/cms/machroomlayout/assets/edit_arrow.png')" click="arrow_clickHandler(event)"/>
+	</s:HGroup>
+</s:SkinnableContainer>

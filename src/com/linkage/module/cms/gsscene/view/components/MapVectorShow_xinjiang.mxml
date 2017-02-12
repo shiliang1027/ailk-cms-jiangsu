@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Scroller xmlns:fx="http://ns.adobe.com/mxml/2009"
+			xmlns:s="library://ns.adobe.com/flex/spark"
+			xmlns:mx="library://ns.adobe.com/flex/mx"
+			xmlns:parsley="http://www.spicefactory.org/parsley"
+			width="100%"
+			height="100%"
+			styleName="sceneScroller"
+			verticalScrollPolicy="auto"
+			xmlns:local="*"
+			xmlns:ailk="http://www.ailk.com/2011/ailk"
+			xmlns:dummymap="com.linkage.module.cms.components.dummymap.*">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.components.dummymap.MapNode;
+			import com.linkage.module.cms.components.dummymap.MapNodeEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.MapVectorCompPM;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.MapVectorDM;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.event.MapVectorEvent;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.util.MapBean;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.util.MapDictionary;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.util.MapVectorUtil;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.util.XinJiangMapDictionary;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			private var log:ILogger = Log.getLoggerByClass(MapVectorShow);
+			
+			[Inject("mapVectorCompPM")]
+			[Bindable]
+			public var pm:MapVectorCompPM;
+			
+			[Inject("mapVectorDM")]
+			[Bindable]
+			public var dm:MapVectorDM;
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			private var mapFinished:Boolean = false;
+			
+			private var mapProvinceBean:MapBean;
+			private var mapCityBean:MapBean;
+			
+			private var currentMapWork:MapWork;//待渲染的矢量图
+			private var currentMapBean:MapBean;//
+			
+			
+			[MessageHandler(selector="AREAORMO_MAPVECTOR_DATACHANGE")]
+			[MessageHandler(selector="KPI_CHANGE")]
+			[MessageHandler(selector="RENDER_VECTOR_MAP")]
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function mapDyeHandler(e:SceneEvent = null):void
+			{
+				log.info("矢量地图渲染事件：{0}。", e);
+				if (user.currentMapType == "1")
+				{
+					newLayer.removeAllElements();
+					pm.getDyeMap();
+				}
+			}
+
+			public function mapWork_creationCompleteHandler():void
+			{
+				log.info("地图初始化………………");
+//				/******************* 江苏 *********************/
+//				mapProvinceBean = MapDictionary.getInitMapVector();
+				/******************* 新疆 *********************/
+				mapProvinceBean = XinJiangMapDictionary.getInitMapVector();
+				log.info(mapProvinceBean);
+				doInitProvinceMap();
+			}
+			/**
+			 * 地市显示(初始化)
+			 **/ 
+			private function doInitProvinceMap():void{
+				this.doShowProvinceMap();
+				doShowMap();//省市地图，初始化加载。
+			}
+			/**
+			 * 省市显示(切换视图)
+			 **/ 
+			public function doShowProvinceMap():void{
+				newLayer.removeAllElements();
+				user.level = "1";
+				user.cityId = GsSceneConts.Province_KEY;
+				user.cityName = "";
+				user.currentMapType = user.mapType;
+				user.layerId = user.initLayerId;
+				user.layerurl = user.initLayerUrl;
+
+				this.currentState = "provinceState";
+				this.currentMapWork = mapProvinceWork;
+				this.currentMapBean = mapProvinceBean;
+			}
+			/**
+			 * 市县图显示(切换视图)
+			 **/ 
+			private function doShowCityMap():void{
+				this.currentState = "cityState";
+				this.currentMapWork = mapCityWork;
+				this.currentMapBean = mapCityBean;
+				doShowMap();
+			}
+			private function doShowMap():void{
+				mapFinished = false;
+				//通过http请求xml文件
+				var httpService:HTTPService = new HTTPService();
+				httpService.method = "get";
+				httpService.resultFormat = "e4x";
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				httpService.url = currentMapBean.XML_URL;
+				httpService.send();
+			}
+			
+			//加载xml文件地图生成
+			private function httpService_resultHandler(event:ResultEvent):void
+			{
+				log.info("mapWork.xmlData:" + event.result);
+				currentMapWork.mapObjArray = currentMapBean.VcetorArr;
+				currentMapWork.xmlData = event.result as XML;
+				currentMapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOVER, onMapNodeOverHandler);
+				currentMapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOUT, onMapNodeOutHandler);
+				if("provinceState" == this.currentState){
+					currentMapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onProvinceMapNodeOutHandler);
+				}else{
+					currentMapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onCityMapNodeClickHandler);
+				}
+				currentMapWork.showMap();
+				mapFinished = true;
+			}
+			
+			[MessageHandler(selector="CMS_SCENE_GENERAL_MAPVECTOR_DYEMAP")]
+			public function dyeMapHandler(e:MapVectorEvent = null):void
+			{
+				log.info("准备加载数据Tips!");
+				if (mapFinished){
+					seeMapTips();
+				}else{
+					setTimeout(dyeMapHandler, 500);
+				}
+			}
+			/**
+			 * 显示数据，渲染地图。
+			 **/
+			private var labelMap:Object = {}; //存放渲染的label
+			public function seeMapTips():void
+			{
+				log.info("[矢量地图]传过来的数据集为map");
+				var className:String = MapVectorUtil.getTipClass(dm.loadMapInfoType);
+				log.info("[矢量地图]classname=" + className);
+				var definition:Class = getDefinitionByName(className) as Class; // get class  
+				var gisMap:Object = pm.dm.dyeMap;
+				log.info(gisMap);
+				var cityId:String;
+				var sLabel:BorderContainer;
+				//循环地图，寻找MapNodeA，
+				for each (var obj:Object in this.currentMapWork.elementBox.elements)
+				{
+					if (obj is MapNode && String(obj.id).indexOf("_a") != -1)
+					{
+						var mn:MapNode = obj as MapNode;
+						mn.toolTip = "";
+						cityId = (mn.id).split("_")[0];
+						//给地图填充颜色
+						if (gisMap.hasOwnProperty(cityId) && null!=gisMap[cityId])
+						{
+							//1.提示
+							if (gisMap[cityId].hasOwnProperty("kpi_id") && gisMap[cityId]["kpi_id"]){
+								mn.toolTip = gisMap[cityId]["kpi_name"] + ":" + gisMap[cityId]["value"];
+							}
+							//2.指标框
+							sLabel = new definition();
+							sLabel["loadMapShowKey"] = dm.loadMapShowKey;
+//							log.info("dm.loadMapShowKey");
+//							log.info(dm.loadMapShowKey);
+							sLabel.x = mn.centerPoint.x + sLabel["Offset_X"];
+							sLabel.y = mn.centerPoint.y + sLabel["Offset_Y"];
+							sLabel["data"] = gisMap[cityId];
+							newLayer.addElement(sLabel as BorderContainer);
+							
+							labelMap[cityId] = sLabel;//存放渲染的label，方便后期使用。
+							//3.矢量图渲染颜色
+							if (gisMap[cityId].hasOwnProperty("color")&& ""!=gisMap[cityId]["color"]){
+								mn.fillColor(Number(gisMap[cityId].color));
+							}else if("provinceState" == this.currentState){
+								//区县的，正常情况下，不渲染。
+								mn.fillColor(0x00ff00);
+							}
+//							else{
+//								mn.reset();
+//							}
+						}
+						else
+						{ //否则，恢复原状，清空数据
+							if("provinceState" == this.currentState){
+								//区县的，正常情况下，不渲染。
+								mn.reset();
+//								mn.fillColor(0x0f9cb3);
+							}
+						}
+					}
+				}
+				log.info("[矢量地图]渲染地图完成！！");
+			}
+			
+/* ************************************************************处理地市，区县事件********************************************************************** */
+			/**  
+			 * 
+			 *处理tree传来的事件。
+			 * 3.地市，即地市网元的统计，矢量图，给MapVectorShow,让矢量图类处理，是否存在该地市统计，再做判断。
+			 * 4.区县，即区县网元的统计，gis地图，目前暂无统计到区县级别的后台模块，后面需开发，具体的逻辑抛给MapVectorShow处理。 
+			 ***/
+			[MessageHandler(selector="CHANGE_VECTOR_MAPVIEW")]
+			public function Change_MapView_Handler(e:SceneEvent = null):void
+			{
+				/**
+				 * 目前只处理level为3或者4的事件
+				 * */
+				var param:Object = e.param;
+				log.info(param);//level,cityId,cityName;
+				this.dodealChangeMapView(param);
+			}
+			
+			//点击地市，抛出事件以进入地市视图
+			private function onProvinceMapNodeOutHandler(event:MapNodeEvent):void
+			{
+				var cityId:String = event.mapNode.id.split("_")[0];
+				var cityName:String = mapProvinceBean.cityMapping[cityId];
+				var level:String = "3";
+				var param:Object = {};
+				param.cityId = cityId;
+				param.cityName = cityName;
+				param.level = level;
+				log.info(param);//level,cityId,cityName;
+				this.dodealChangeMapView(param);
+			}
+			//点击区县，抛出事件以进入地市视图
+			private function onCityMapNodeClickHandler(event:MapNodeEvent):void
+			{
+				//
+				var cityId:String = event.mapNode.id.split("_")[0];
+				var cityName:String = mapCityBean.cityMapping[cityId];
+				var level:String = "4";
+				var param:Object = {};
+				param.cityId = cityId;
+				param.cityName = cityName;
+				param.level = level;
+				log.info(param);//level,cityId,cityName;
+				this.dodealChangeMapView(param);
+				
+				
+			}
+			/**
+			 *处理事件 
+			 **/
+			private function dodealChangeMapView(param:Object):void
+			{
+				if(null!=param){
+					switch(param.level)
+					{
+						case "3":
+						{
+							this.doCityChangeMapView(param);
+							break;
+						}
+						case "4":
+						{//区县
+							this.doCountyChangeMapView(param);
+							break;
+						}
+						default:
+						{
+							break;
+						}
+					}
+				}
+			}
+			private function doCityChangeMapView(param:Object):void
+			{
+				var cityId:String = param.cityId;
+				var cityName:String = param.cityName;
+				var cityBean:MapBean = null;
+//				/* 江苏 */
+//				cityBean = MapDictionary.getMapVector(cityId);
+				/* 新疆 */
+				cityBean = XinJiangMapDictionary.getMapVector(cityId);
+				
+				if(null==cityBean){
+					log.info("MapDictionary 暂时没有配置该地市！");
+					Alert.show("目前该地市区县图还没有完成，开发中！");
+					return;
+				}
+				mapCityBean = cityBean;
+				/* 点击地图时，要立刻删去指标信息，加载前的删除只针对gis地图返回 */
+				newLayer.removeAllElements();
+				doShowCityMap();
+				
+				var evt:SceneEvent = new SceneEvent(SceneEvent.CHANGE_MAPVIEW);
+				//todo user中加入cityId,抛出事件
+				log.info("cityId:{0}", cityId);
+				user.cityName = cityName;
+				user.cityId = cityId;
+				user.currentMapType = "1";
+				user.level = param.level;
+				
+				log.info(user);
+				//				var obj:Object = pm.dm.dyeMap[user.cityId];
+				//				log.info(user);
+				//				log.info(obj);
+				//				evt.param = new Object;
+				//				evt.param.centerlongitude = obj["centerlongitude"];
+				//				evt.param.centerlatitude = obj["centerlatitude"];
+				msgDispatcher(evt);
+			}
+			private function doCountyChangeMapView(param:Object):void
+			{
+				var evt:SceneEvent = new SceneEvent(SceneEvent.CHANGE_MAPVIEW);
+				//todo user中加入cityId,抛出事件
+				log.info("地市区县cityId:{0}", param.cityId);
+				log.info("地市区县cityName:{0}", param.cityName);
+				/* user.cityName = cityName;
+				user.cityId = cityId;
+				user.currentMapType = "0";
+				user.level = "4";
+				
+				var obj:Object = pm.dm.dyeMap[user.cityId];
+				log.info(user);
+				log.info(pm.dm.dyeMap[user.cityId]);
+				evt.param = new Object;
+				evt.param.centerlongitude = obj["centerlongitude"];
+				evt.param.centerlatitude = obj["centerlatitude"];
+				log.info(evt.param); 
+				//暂时不开放区县的相关信息展示，后台统计待完成。2014-7-5，汪炜 
+				msgDispatcher(evt); */
+			}
+			//地图偏移立体效果
+			private function onMapNodeOverHandler(event:MapNodeEvent):void
+			{
+				var mapNode:MapNode = event.mapNode;
+				mapNode.x = mapNode.x - 2;
+				mapNode.y = mapNode.y - 2;
+				
+			}
+			
+			//地图位置恢复
+			private function onMapNodeOutHandler(event:MapNodeEvent):void
+			{
+				var mapNode:MapNode = event.mapNode;
+				mapNode.x = mapNode.x + 2;
+				mapNode.y = mapNode.y + 2;
+			}
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="provinceState"/>
+		<s:State name="cityState"/>
+	</s:states>
+	<s:HGroup id="mapGroup"
+			  width="100%"
+			  height="100%"
+			  horizontalAlign="center"
+			  verticalAlign="middle">
+		<s:BorderContainer minWidth="547"
+						   minHeight="492"
+						   borderAlpha="0">
+			<s:Group width="100%"
+					 height="100%"
+					 left="-70"
+					 top="20">
+				<dummymap:MapWork id="mapProvinceWork"
+								  width="100%"
+								  height="100%"
+								  includeIn="provinceState"/>
+				<dummymap:MapWork id="mapCityWork"
+								  width="100%"
+								  height="100%"
+								  includeIn="cityState"/>
+				<s:Group id="newLayer"
+						 width="100%"
+						 height="100%"/>
+			</s:Group>
+		</s:BorderContainer>
+	</s:HGroup>
+</s:Scroller>

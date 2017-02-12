@@ -1,0 +1,190 @@
+<viewnew:PopUpCompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+						 minimizableBottom="10"
+						 minimizable="false"
+						 xmlns:ailk="http://www.ailk.com/2011/ailk/components"
+						 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneResource;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.components.AlarmSeverityColumnRenderer;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.event.SheetStatEvent;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			private var log:ILogger = Log.getLoggerByClass(CitySheetStatNew);
+			
+			private var sheetStatParam:Object = {};
+			
+			private var alarmDetailShow:Boolean=false;
+			protected function showSheetAlarms(pageFlag:Boolean = false):void
+			{
+				var motypename:String = sheetStatMotypeDG.selectedItem.MOTYPENAME;
+				var num:String = sheetStatMotypeDG.selectedItem.SHEETNUM;
+				log.info("工单数量点击，显示告警：" +　motypename);
+				var evt:SheetStatEvent = new SheetStatEvent(SheetStatEvent.LOAD_SHEET_ALARMS);
+				sheetStatParam = {};
+				sheetStatParam.curPage  = "1";
+				sheetStatParam.pageSize = "10";
+				
+				if(pageFlag){
+					sheetStatParam.curPage  = warnSheetPager.currentPage;
+				}
+				alarmDetailShow = pageFlag;
+				
+				sheetStatParam.login_name =  user.account;
+				sheetStatParam.mk = "queryalarm";
+				sheetStatParam.level = user.level;
+				sheetStatParam.moType = motypename;
+				sheetStatParam.cityName = this.scenePM.sheetStatDM.cityName;
+				sheetStatParam.sceneId = user.sceneId;
+				sheetStatParam.num = num;
+				
+				evt.param = sheetStatParam;
+				log.info(sheetStatParam);
+				requestServerUtil.addRequest(evt);
+			}
+			
+			[MessageHandler(selector = "LOAD_SHEET_ALARMS_SUCC")]
+			public function showSheetAlarmsWin(event:SheetStatEvent):void
+			{
+				log.debug("LOAD_SHEET_ALARMS_SUCC");
+				initDataSource(this.scenePM.sheetStatDM.sheetAlarmsList);
+				if(!alarmDetailShow){
+					PopUpManager.addPopUp(sd, this.parentApplication as DisplayObject);
+					PopUpManager.centerPopUp(sd);
+				}
+			}
+			private var alarmColArrs:Array = new Array();
+			
+			public function initDataSource(data:Object):void
+			{
+				log.info("显示工单告警：");
+				log.info(data["datas"]);
+				
+				if (data != null && data.hasOwnProperty("displayColumns") && alarmColArrs.length < 1&&!alarmDetailShow)
+				{
+					log.info("显示工单告警，初始化表头");
+					for each (var col:String in data['displayColumns'])
+					{
+						var dgColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						dgColumn.headerText = col.split(",")[0];
+						dgColumn.dataField = col.split(",")[1];
+						dgColumn.width = dgColumn.headerText.length * 20;
+						
+						switch (dgColumn.dataField)
+						{
+							case "specialty":
+								dgColumn.width = 80;
+								break;
+							case "alarmseverity": // 告警级别
+								dgColumn.itemRenderer = new ClassFactory(AlarmSeverityColumnRenderer);
+								break;
+							case "eventtime": // 告警时间
+							case "canceltime": // 告警时间
+							case "daltime": // 告警时间
+							case "acktime": // 告警时间
+								dgColumn.width = 190;
+								break;
+							case "alarmtitle": // 告警标题
+							case "alarmtext": // 告警正文
+								dgColumn.wordWrap = false;
+								break;
+						}
+						
+						alarmColArrs.push(dgColumn);
+					}
+					
+					sheetAlarmDG.columns = alarmColArrs;
+					
+				}
+				sheetAlarmDG.dataProvider = data["datas"];
+				warnSheetPager.totalRowCount = int(data['total']);
+				
+				log.info("显示工单告警--end");
+			}
+			
+			protected function sheetAlarmDG_itemClickHandler(event:ListEvent):void
+			{
+				var url:String = "warn/sheet/sheetAction.action?alarmuniqueid=" + sheetAlarmDG.selectedItem.alarmuniqueid + "&dalTime=" + sheetAlarmDG.selectedItem.daltime_old;
+				log.debug("跳转到工单详情：" +　url);
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			protected function exportKPI():void
+			{
+				log.info("导出");
+				var url:String = "gsscene/panels/exportSheetStatInfoAction!exportSheetStatInfo.action?";//待修改。
+				url += "login_name="+sheetStatParam.login_name;
+				url += "&mk="+sheetStatParam.mk;
+				url += "&level="+sheetStatParam.level;
+				url += "&logicalType="+user.logicalType;
+				url += "&moType="+sheetStatParam.moType;
+				url += "&cityName="+sheetStatParam.cityName;
+				url += "&sceneId="+sheetStatParam.sceneId;
+				url += "&areaId="+user.areaId;
+				url += "&num="+sheetStatParam.num;
+				log.debug("导出url="+url);
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<mx:AdvancedDataGrid id="sheetStatMotypeDG"
+						 width="100%"
+						 height="100%"
+						 styleName="sceneDG"
+						 verticalAlign="middle" 
+						 itemClick="showSheetAlarms()"
+						 horizontalScrollPolicy="auto"
+						 dataProvider="{scenePM.sheetStatDM.sheetListMotype}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="MOTYPENAME"
+									   headerText="网元类型"/>
+			<mx:AdvancedDataGridColumn dataField="SHEETNUM"
+									   headerText="工单数"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	<mx:Box visible="false" includeInLayout="false">
+		<viewnew:PopUpCompWindow id="sd" width="500" minimizable="false" maximizable="true">
+			<s:VGroup width="100%" height="100%">
+				<mx:AdvancedDataGrid id="sheetAlarmDG" width="100%"
+									 height="100%" itemClick="sheetAlarmDG_itemClickHandler(event)"
+									 styleName="sceneDG"
+									 verticalAlign="middle"
+									 horizontalScrollPolicy="auto"/>
+				<s:HGroup width="100%"
+						  horizontalAlign="right">
+					<ailk:Pager id="warnSheetPager"
+								pageSize="10"
+								currentPage="1"
+								pageChange="showSheetAlarms(true)"/>
+				</s:HGroup>
+			</s:VGroup>
+			<mx:Image source="{GsSceneResource.export}"
+					  right="50"
+					  top="-24"
+					  buttonMode="true"
+					  toolTip="导出"
+					  click="exportKPI()"/>
+		</viewnew:PopUpCompWindow>
+	</mx:Box>
+</viewnew:PopUpCompWindow>

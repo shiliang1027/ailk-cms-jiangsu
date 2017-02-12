@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:sheet="com.linkage.module.cms.general.monitor.flow.sheet.*"
+		 xmlns:workstate="com.linkage.module.cms.general.monitor.flow.workstate.*"
+		 xmlns:alarm="com.linkage.module.cms.general.monitor.flow.alarm.*"
+		 xmlns:flow="com.linkage.module.cms.alarm.flow.*"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.flow.flowTab");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//参数对象
+			private var _param:Object = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//属地名称
+			private var _cityName:String = null;
+
+			//专业列表
+			private var specList:ArrayList = new ArrayList();
+
+			//专业的告警过滤方法
+			private var specRuleStr:String = "";
+
+			//告警过滤条件
+			private var reloadStr:String = "";
+			private var filterStr:String = "";
+
+			//所有本地网列表
+			private var allNetCityArr:ArrayCollection = new ArrayCollection();
+
+			//主视图
+			private var _general:Object = null;
+
+			public function get general():Object
+			{
+				return _general;
+			}
+
+			public function set general(value:Object):void
+			{
+				_general = value;
+			}
+
+			public function get cityName():String
+			{
+				return _cityName;
+			}
+
+			public function set cityName(value:String):void
+			{
+				_cityName = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function init():void
+			{
+				log.info("flowtab init（）！");
+
+				//根据配置确定显示的内容
+				if(param.config != null)
+				{
+					var configXml:XML = (param.config as XML);
+					//读取显示的专业
+					var filterConfigs:XMLList = configXml.child("filter");
+					if(filterConfigs != null && filterConfigs.length() > 0)
+					{
+						var specs:XMLList = filterConfigs.child("spec");
+						for each(var spec:XML in specs)
+						{
+							var id:String = spec.@id;
+							specList.addItem(id);
+						}
+					}
+				}
+
+				//初始化
+				this.alarmNav.addElement(this.alarmFlow);
+				this.showGroup.visible = false;
+				this.showGroup.includeInLayout = false;
+				this.flowViewStack.visible = true;
+				this.flowViewStack.includeInLayout = true;
+				this.tabBar1.visible = true;
+				this.tabBar1.includeInLayout = true;
+
+				//初始化告警流水
+				this.alarmFlow.params = _param;
+				//生成专业的规则
+				if(specList.length > 0)
+				{
+					specRuleStr = "&(";
+					var size:int = specList.length;
+					for(var index:int = 0; index < size; index++)
+					{
+						if(index != 0)
+						{
+							specRuleStr += "|specialty=" + specList.getItemAt(index);
+						}
+						else
+						{
+							specRuleStr += "specialty=" + specList.getItemAt(index);
+						}
+					}
+					specRuleStr += ")";
+				}
+				//设置过滤规则
+				var ruleStr:String = "(alarmseverity=1)" + specRuleStr;
+				log.info("初始化告警过滤规则：" + ruleStr);
+				this.alarmFlow.ruleContent = ruleStr;
+				reloadStr = ruleStr;
+				this.alarmFlow.initInfo();
+
+				//-------------------------------------历史回退修改------------------------------------
+				setTimeout(function(){
+						parentApplication.add(alarmFlow);
+					}, 3000);
+				//-------------------------------------历史回退修改------------------------------------
+
+
+				//初始化工单、工程
+				sheetFlowContent_initializeHandler();
+				workStateFlowContent_initializeHandler();
+
+				initSelectOption();
+			}
+
+			//1,2,3分别代表一级、二级、三级视图，4表示从其他功能定位过来的
+			public function reloadFlow(level:String, cityId:String = null):void
+			{
+				log.info(" flowtab reloadFlow");
+
+				//如果是一级和二级视图，显示工单和工程流水
+				if(level == "1" || level == "2")
+				{
+					this.alarmNav.addElement(this.alarmFlow);
+					this.showGroup.visible = false;
+					this.showGroup.includeInLayout = false;
+					this.flowViewStack.visible = true;
+					this.flowViewStack.includeInLayout = true;
+					this.tabBar1.visible = true;
+					this.tabBar1.includeInLayout = true;
+
+					//刷新工单
+					if(this.sheetFlowContent != null)
+					{
+						this.sheetFlowContent.cityId = _cityId;
+						this.sheetFlowContent.cityLayer = level;
+						this.sheetFlowContent.alarmLevel = level;
+						this.sheetFlowContent.reload();
+						this.sheetFlowContent.showView();
+					}
+
+					//属性工程
+					if(this.workStateFlowContent != null)
+					{
+						this.workStateFlowContent.cityId = _cityId;
+						this.workStateFlowContent.cityLayer = level;
+						this.workStateFlowContent.reload();
+						this.workStateFlowContent.showView();
+					}
+				}
+				else
+				{
+					this.showGroup.addElement(this.alarmFlow);
+					this.showGroup.visible = true;
+					this.showGroup.includeInLayout = true;
+					this.flowViewStack.visible = false;
+					this.flowViewStack.includeInLayout = false;
+					this.tabBar1.visible = false;
+					this.tabBar1.includeInLayout = false;
+
+					this.sheetFlowContent.hideView();
+					this.workStateFlowContent.hideView();
+				}
+
+				var ruleStr:String = "";
+
+				if(level == "4")
+				{
+					//刷新告警
+					ruleStr = "(alarmsubtype=\"68\"|alarmsubtype=\"69\"|alarmsubtype=\"70\"|alarmsubtype=\"71\")";
+
+					if(cityId != null && cityId != "" && cityId != "00")
+					{
+						ruleStr += "&(alarmregion=\"" + cityId + "\")";
+					}
+
+					log.info("告警过滤规则：" + ruleStr);
+					reloadStr = ruleStr;
+					this.alarmFlow.reload(ruleStr);
+
+					//-------------------------------------历史回退修改------------------------------------
+					parentApplication.add(alarmFlow);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+				else
+				{
+					//刷新告警
+					ruleStr = "(alarmseverity=1)";
+					if(level == "2")
+					{
+						ruleStr = "(alarmseverity=1|alarmseverity=2)";
+						if(_cityName != null && _cityName != "")
+						{
+							ruleStr += "&(alarmregion=\"" + _cityName + "\")";
+						}
+					}
+					else if(level == "3")
+					{
+						ruleStr = "(alarmseverity=1|alarmseverity=2|alarmseverity=3)";
+						if(_cityName != null && _cityName != "")
+						{
+							ruleStr += "&(alarmcounty=\"" + _cityName + "\")";
+						}
+					}
+					else if(level == "1")
+					{
+						ruleStr = "(alarmseverity=1)";
+					}
+					else if(level == "4")
+					{
+						ruleStr = "";
+					}
+
+					ruleStr += specRuleStr;
+					log.info("重载告警流水：" + ruleStr);
+					reloadStr = ruleStr;
+
+					//如果不显示，则不加载
+					if(_general.flowGroup.visible)
+					{
+						this.alarmFlow.reload(ruleStr);
+						//-------------------------------------历史回退修改------------------------------------
+						parentApplication.add(alarmFlow);
+							//-------------------------------------历史回退修改------------------------------------
+					}
+				}
+			}
+
+			public function reloadAlarm(city:String, moType:String, level:String, alarmLevel:String = null, outReason:String = null):void
+			{
+				log.info(" flowtab reloadAlarm");
+
+				showFlowInfo(1);
+
+				//刷新告警
+				var ruleStr:String = "";
+
+				//二级视图
+				if(level == "2")
+				{
+					ruleStr = "(alarmseverity=1|alarmseverity=2)";
+					ruleStr += "&(alarmregion=\"" + _cityName + "\")";
+					if(city != null && city != "全省" && city != "" && city != _cityName)
+					{
+						ruleStr += "&(alarmcounty=\"" + city + "\")";
+					}
+
+					if(moType != null && moType != "")
+					{
+						ruleStr += "&(alarmnetype=\"" + moType + "\")";
+					}
+
+					//退服统计特殊处理
+					if(outReason != null && outReason != "")
+					{
+						ruleStr = "(alarmsubtype=\"68\"|alarmsubtype=\"69\"|alarmsubtype=\"70\"|alarmsubtype=\"71\")";
+						ruleStr += "&(alarmregion=\"" + _cityName + "\")";
+						if(city != null && city != "全省" && city != "" && city != _cityName)
+						{
+							ruleStr += "&(alarmcounty=\"" + city + "\")";
+						}
+					}
+				}
+				//三级视图
+				else if(level == "3")
+				{
+					ruleStr = "(alarmseverity=1|alarmseverity=2|alarmseverity=3)";
+					ruleStr += "&(alarmcounty=\"" + _cityName + "\")";
+
+					if(moType != null && moType != "")
+					{
+						ruleStr += "&(alarmnetype=\"" + moType + "\")";
+					}
+
+					//退服统计特殊处理
+					if(outReason != null && outReason != "")
+					{
+						ruleStr = "(alarmsubtype=\"68\"|alarmsubtype=\"69\"|alarmsubtype=\"70\"|alarmsubtype=\"71\")";
+						ruleStr += "&(alarmcounty=\"" + _cityName + "\")";
+					}
+				}
+				//一级视图
+				else if(level == "1")
+				{
+					ruleStr = "(alarmseverity=1)";
+					if(city != null && city != "全省" && city != "")
+					{
+						ruleStr += "&(alarmregion=\"" + city + "\")";
+					}
+					else if(city == "全省")
+					{
+						if(allNetCityArr.length > 0)
+						{
+							var index:int = 0;
+							ruleStr += "&(";
+							for each(var cityObj:Object in allNetCityArr)
+							{
+								if(index > 0)
+								{
+									ruleStr += "|alarmregion=\"" + cityObj.city_name + "\"";
+								}
+								else
+								{
+									ruleStr += "alarmregion=\"" + cityObj.city_name + "\"";
+								}
+								index++;
+							}
+							ruleStr += ")";
+						}
+					}
+
+					if(moType != null && moType != "")
+					{
+						ruleStr += "&(alarmnetype=\"" + moType + "\")";
+					}
+
+					//退服统计特殊处理
+					if(outReason != null && outReason != "")
+					{
+						ruleStr = "(alarmsubtype=\"68\"|alarmsubtype=\"69\"|alarmsubtype=\"70\"|alarmsubtype=\"71\")";
+						if(city != null && city != "全省" && city != "")
+						{
+							ruleStr += "&(alarmregion=\"" + city + "\")";
+						}
+					}
+				}
+
+				ruleStr += specRuleStr;
+				log.info("告警刷新规则：" + ruleStr);
+				//this.alarmFlow.filterAlarm = ruleStr;
+				filterStr = ruleStr;
+
+				if(_general.flowGroup.visible)
+				{
+					this.alarmFlow.reload(ruleStr);
+					//-------------------------------------历史回退修改------------------------------------
+					parentApplication.add(alarmFlow);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			protected function sheetFlowContent_initializeHandler():void
+			{
+				//工单流水
+				this.sheetFlowContent.remoteData = _remoteData;
+				this.sheetFlowContent.cityId = _cityId;
+				this.sheetFlowContent.specList = specList;
+				this.sheetFlowContent.param = _param;
+				this.sheetFlowContent.initData();
+			}
+
+			protected function workStateFlowContent_initializeHandler():void
+			{
+				//工程流水
+				this.workStateFlowContent.remoteData = _remoteData;
+				this.workStateFlowContent.cityId = _cityId;
+				this.workStateFlowContent.specList = specList;
+				this.workStateFlowContent.initData();
+			}
+
+			public function showFlowInfo(type:int):void
+			{
+				if(type == 1)
+				{
+					this.flowViewStack.selectedIndex = 0;
+					this.flowViewStack.selectedChild = this.alarmNav;
+					this.tabBar1.selectedIndex = 0;
+				}
+				else if(type == 2)
+				{
+					this.flowViewStack.selectedIndex = 1;
+					this.flowViewStack.selectedChild = this.sheetNav;
+					this.tabBar1.selectedIndex = 1;
+				}
+				else if(type == 3)
+				{
+					this.flowViewStack.selectedIndex = 2;
+					this.flowViewStack.selectedChild = this.workStateNav;
+					this.tabBar1.selectedIndex = 2;
+				}
+			}
+
+			public function suspendAlarm():void
+			{
+				log.info(" flowtab suspendAlarm");
+
+				this.alarmFlow.stopLoad();
+				//-------------------------------------历史回退修改------------------------------------
+				parentApplication.remove(alarmFlow);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			public function startAlarm():void
+			{
+				log.info(" flowtab startAlarm");
+
+				this.alarmFlow.reload(reloadStr);
+				//-------------------------------------历史回退修改------------------------------------
+				parentApplication.add(alarmFlow);
+				//-------------------------------------历史回退修改------------------------------------
+				this.alarmFlow.filterAlarm = filterStr;
+			}
+
+			public function reloadData(type:int, cityId:String, level:String, alarmLevel:String):void
+			{
+				log.info(" flowtab reloadData");
+
+				if(type == 2)
+				{
+					showFlowInfo(2);
+					if(this.sheetFlowContent != null)
+					{
+						this.sheetFlowContent.cityId = cityId;
+						this.sheetFlowContent.cityLayer = level;
+						this.sheetFlowContent.alarmLevel = alarmLevel;
+						this.sheetFlowContent.reload();
+					}
+				}
+				else if(type == 3)
+				{
+					showFlowInfo(3);
+					if(this.workStateFlowContent != null)
+					{
+						this.workStateFlowContent.cityId = cityId;
+						this.workStateFlowContent.cityLayer = level;
+						this.workStateFlowContent.reload();
+					}
+				}
+			}
+
+			public function showQuitAlarm(cityId:String = null):void
+			{
+				log.info(" flowtab showQuitAlarm");
+
+				//刷新告警
+				var ruleStr:String = "";
+				ruleStr += "(alarmsubtype=\"68\"|alarmsubtype=\"69\"|alarmsubtype=\"70\"|alarmsubtype=\"71\")";
+
+				if(cityId != null && cityId != "" && cityId != "00")
+				{
+					ruleStr += "&(alarmregion=\"" + cityId + "\")";
+				}
+
+				log.info("告警过滤规则：" + ruleStr);
+				reloadStr = ruleStr;
+
+
+				this.alarmFlow.reload(ruleStr);
+				//-------------------------------------历史回退修改------------------------------------
+				parentApplication.add(alarmFlow);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			private function initSelectOption():void
+			{
+				_remoteData.queryNextCity("", initCityOption, null, initCityErr);
+			}
+
+			public function initCityOption(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("查询所有本地网成功！");
+					for each(var cityInfo:Object in obj)
+					{
+						allNetCityArr.addItem(cityInfo);
+					}
+				}
+				else
+				{
+					log.info("查询所有本地网为空！");
+				}
+			}
+
+			public function initCityErr(obj:Object):void
+			{
+				log.info("查询所有本地网失败！");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<pubflow:alarm id="alarmFlow"
+				   moduleKey="categoriesflowalarm"
+				   width="100%"
+				   height="100%">
+	</pubflow:alarm>
+	<s:Group id="showGroup"
+			 width="100%"
+			 height="100%"
+			 visible="false"
+			 includeInLayout="false">
+	</s:Group>
+	<mx:ViewStack id="flowViewStack"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2"
+				  visible="false"
+				  includeInLayout="false"
+				  creationPolicy="all">
+		<s:NavigatorContent id="alarmNav"
+							label="告警">
+		</s:NavigatorContent>
+		<s:NavigatorContent id="sheetNav"
+							label="工单">
+			<sheet:sheetFlow id="sheetFlowContent"
+							 width="100%"
+							 height="100%">
+			</sheet:sheetFlow>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="workStateNav"
+							label="工程">
+			<workstate:workStateFlow id="workStateFlowContent"
+									 width="100%"
+									 height="100%">
+			</workstate:workStateFlow>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar dataProvider="{flowViewStack}"
+			  id="tabBar1"
+			  styleName="commonTabBar"
+			  visible="false"
+			  includeInLayout="false">
+	</s:TabBar>
+</s:Group>

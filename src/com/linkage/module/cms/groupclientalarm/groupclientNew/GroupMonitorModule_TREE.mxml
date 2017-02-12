@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:panel="com.linkage.system.component.panel.*"
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   xmlns:pager="com.linkage.module.cms.components.pager.*"
+		   xmlns:common="com.linkage.module.cms.common.*"
+		   xmlns:container="com.linkage.module.topo.container.*"
+		   xmlns:components1="com.linkage.module.cms.groupclientNew.components.*"
+		   xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+		   layout="absolute"
+		   width="100%"
+		   height="100%"
+		   creationComplete="groupMonitorModule_creationCompleteHandler(event)"
+		   creationCompleteEffect="{fadeEffect}"
+		   xmlns:component="com.linkage.module.cms.topo.component.*">
+
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace panel "com.linkage.system.component.panel.*";
+		@namespace components "com.fusioncharts.components.*";
+		@namespace pubflow "com.linkage.module.cms.alarm.pubflow.*";
+		@namespace pager "com.linkage.module.cms.components.pager.*";
+		@namespace common "com.linkage.module.cms.common.*";
+		mx|DateChooser{
+			color:"0x000000";
+		}
+	</fx:Style>
+
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<fx:Script source="GroupMonitor.as"/>
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<!--<s:HTTPService id="httpService"
+			 method="get"
+			 resultFormat="e4x"/>-->
+		<s:Elastic id="elasticEasing"/>
+		<s:Bounce id="bounceEasing"/>
+		<s:Move id="moveRight"
+				target="{leftGroup}"
+				xFrom="{-leftGroup.width}"
+				xTo="{leftGroup.x}"
+				duration="2000"
+				easer="{bounceEasing}"
+				effectEnd="moveRight_effectStopHandler(event)"/>
+		<s:Move id="moveLeft"
+				target="{rightGruop}"
+				xFrom="{this.width}"
+				xTo="{rightGruop.x}"
+				duration="2000"
+				easer="{bounceEasing}"
+				effectEnd="moveLeft_effectStopHandler(event)">
+		</s:Move>
+
+		<s:Fade id="fadeEffect"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="0"
+				effectEnd="fadeEffect_effectEndHandler(event)"/>
+
+	</fx:Declarations>
+	<mx:states>
+		<s:State name="city_state"/>
+		<s:State name="lever_state"/>
+		<s:State name="cust_state"/>
+	</mx:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup width="100%"
+			  height="100%"
+			  left="5"
+			  top="5"
+			  right="5"
+			  bottom="5"
+			  gap="0">
+		<s:VGroup id="leftGroup"
+				  width="260"
+				  height="100%">
+			<s:Group width="100%"
+					 height="100%">
+				<mx:ViewStack id="leftViewStack"
+							  width="100%"
+							  height="100%"
+							  top="23"
+							  styleName="commonViewStack">
+					<s:NavigatorContent id="treeNav"
+										label="导航树"
+										width="100%"
+										height="100%">
+						<components1:NavTree id="navTree"
+											 dataProvider="{treeData}"/>
+					</s:NavigatorContent>
+					<s:NavigatorContent id="filterNav"
+										label="筛选器"
+										width="100%"
+										height="100%">
+						<components1:FilterForm id="filterForm"
+												formInit="filterForm_formInitHandler(event)"
+												query="filterForm_queryHandler(event)"/>
+					</s:NavigatorContent>
+				</mx:ViewStack>
+				<s:TabBar dataProvider="{leftViewStack}"
+						  buttonMode="true"
+						  styleName="commonTabBar"
+						  width="160"/>
+			</s:Group>
+		</s:VGroup>
+
+		<s:VGroup width="5"
+				  height="100%"
+				  verticalAlign="middle">
+			<mx:Image id="img3"
+					  source="{pic11}"
+					  click="resizeWindow(3);"
+					  buttonMode="true">
+			</mx:Image>
+			<mx:Image id="img4"
+					  source="{pic21}"
+					  click="resizeWindow(4);"
+					  buttonMode="true">
+			</mx:Image>
+		</s:VGroup>
+		<s:VGroup id="rightGruop"
+				  width="100%"
+				  height="100%">
+			<s:Group width="100%"
+					 height="100%"
+					 id="rightTopGroup">
+				<mx:ViewStack id="rightViewStack"
+							  width="100%"
+							  height="100%"
+							  top="23"
+							  styleName="commonViewStack"
+							  creationPolicy="all">
+					<s:NavigatorContent id="realMonitNC"
+										label="告警监控"
+										width="100%"
+										height="100%">
+						<s:Group width="100%"
+								 height="100%"
+								 excludeFrom="city_state,lever_state">
+							<mx:ViewStack id="realCustMonitorViewStack"
+										  width="100%"
+										  height="100%"
+										  top="23"
+										  styleName="commonViewStack">
+								<!-- 实时告警监控  1-->
+								<components1:RealMonitorAlarmListWindow id="custAlarmWindow"
+																		dataQuery="custAlarmWindow_dataQueryHandler(event)"
+																		alarmFilter="custAlarmWindow_alarmFilterHandler(event)"
+																		custInfoShow="custAlarmWindow_custInfoShowHandler(event)">
+								</components1:RealMonitorAlarmListWindow>
+								<!-- SLA组件  2-->
+								<components1:SLAComp id="SLAComp"
+													 dataQuery="SLAComp_dataQueryHandler(event)"
+													 alarmQuery="SLAComp_alarmQueryHandler(event)"/>
+								<!-- 工单信息 3 -->
+								<components1:SheetInfoComp id="sheetInfoComp"
+													 	   dataQuery="SheetInfoComp_dataQueryHandler(event)"
+														   sheetDetailShow="sheetInfoComp_sheetDetailShowHandler(event)"/>
+								<!-- 资源信息  4-->
+								<components1:ResourceComp id="resourceComp"
+														  resInfodataQuery="resourceComp_resInfodataQueryHandler(event)"
+														  resServdataQuery="resourceComp_resServdataQueryHandler(event)"/>
+								<!-- 拓扑信息  5-->
+								<mx:VBox label="拓扑信息"
+										 width="100%"
+										 height="100%">
+									<s:Group width="100%"
+											 height="100%"
+											 id="topoGroup"
+											 creationComplete="topo_creationCompleteHandler(event)">
+										<component:TopoComponent width="100%"
+																 height="100%"
+																 id="topo"/>
+										<components1:PerfTopoWindow id="perfTopoWindow"
+																	init="perfTopoWindow_initHandler(event)"/>
+										<components1:PerfTopoTotalWindow id="perfTopoTotalWindow"
+																		 init="perfTopoTotalWindow_initHandler(event)"/>
+										<components1:ProdTopoNavComp id="prodTopoNav"
+																	 query="prodTopoNav_queryHandler(event)"
+																	 prodChange="prodTopoNav_prodChangeHandler(event)"/>
+									</s:Group>
+								</mx:VBox>
+								<!-- 工程割接信息  6-->
+								<components1:ProcessComp id="processComp"
+														 dataQuery="processComp_dataQueryHandler(event)"
+														 infoQuery="processComp_infoQueryHandler(event)"/>
+								<!-- 告警统计 7 -->
+								<components1:AlarmStatComp id="alarmStatComp"
+														   dataQuery="alarmStatComp_dataQueryHandler(event)"
+														   alarmQuery="alarmStatComp_alarmQueryHandler(event)"/>
+								<!-- 实时性能监控  8-->
+								<components1:RealMonitorPerfComp id="custRealPerfComp"
+																 serverQuery="custRealPerfComp_serverQueryHandler(event)"
+																 serverTargetQuery="custRealPerfComp_serverTargetQueryHandler(event)"
+																 perfQuery="custRealPerfComp_perfQueryHandler(event)"/>
+								<!-- 投诉信息 9-->
+								<components1:ComplaintInfoComp id="complaintInfoComp"
+															   dataQuery="complaintInfoComp_dataQueryHandler(event)"
+															   complaintDetailQuery="complaintInfoComp_complaintDetailQueryHandler(event)"/>
+								
+							</mx:ViewStack>
+							<s:TabBar id="realCustMonitorTabBar"
+									  dataProvider="{realCustMonitorViewStack}"
+									  styleName="commonTabBar"
+									  change="realCustMonitorTabBar_changeHandler(event)"
+									  buttonMode="true"/>
+						</s:Group>
+						<!-- 集客列表 -->
+						<components1:RealMonitorCustListGroup id="custListGroup"
+															  excludeFrom="cust_state"
+															  queryAlarmCust="custListGroup_queryAlarmCustHandler(event)"
+															  queryAllCust="custListGroup_queryAllCustHandler(event)"
+															  custSelected="custListGroup_custSelectedHandler(event)"
+															  custNumQuery="custListGroup_custNumQueryHandler(event)"/>
+					</s:NavigatorContent>
+				</mx:ViewStack>
+				<s:TabBar id="rightTabBar"
+						  dataProvider="{rightViewStack}"
+						  styleName="commonTabBar"
+						  buttonMode="true"
+						  change="rightTabBar_changeHandler(event)"/>
+			</s:Group>
+			<components1:CustFlowAlarmWindow id="alarmWindow"
+											 height="200"
+											 title="设备告警窗口"
+											 params="{params}"
+											 custInfoShow="alarmWindow_custInfoShowHandler(event)"
+											 minimize="alarmWindow_minimizeHandler(event)"
+											 maximize="alarmWindow_maximizeHandler(event)"
+											 restore="alarmWindow_restoreHandler(event)"/>
+		</s:VGroup>
+	</s:HGroup>
+
+	<!-- 集客告警列表 -->
+	<components1:MonitorAlarmListWindow id="alarmListWindow"
+										alarmInfoShow="alarmListWindow_alarmInfoShowHandler(event)"/>
+
+</mx:Module>

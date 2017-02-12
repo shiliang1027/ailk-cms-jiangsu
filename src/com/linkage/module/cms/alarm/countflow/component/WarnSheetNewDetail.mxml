@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  close="windowCloseHandler(event)"
+			  maximize="window_ResizeHandler(1)"
+			  restore="window_ResizeHandler(2)"
+			  mouseEnabled="true"
+			  closable="true"
+			  minimizable="false"
+			  dragable="true"
+			  width="100%"
+			  height="100%"
+			  xmlns:ailk="http://www.ailk.com/2011/ailk"
+			  xmlns:pager="com.linkage.module.cms.components.pager.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-5-20
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.linkage.module.cms.alarm.countflow.core.CountManagerNew;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalCollectionView;
+			import mx.collections.HierarchicalData;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Group;
+			
+			private var cellContextMenu:ContextMenu;
+
+			//专业Id
+			private var specId:String = null;
+			//列Id
+			private var columnKey:String = null;
+			//专业名称
+			private var specName:String = null;
+			//列名
+			private var columnName:String = null;
+			
+			private var alarmCount:String = null;
+			private var alarmregion:String = null;
+			//用于判断是工单还是告警 1告警  2工单
+			private var type:int = 0;
+			
+			[Bindable]
+			public var isCityWin:String = "";
+
+			//统计管理类
+			private var _countManager:CountManagerNew = null;
+
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.alarm.countflow.component.WarnSheetNewDetail");
+
+			private var headerArr:ArrayCollection = new ArrayCollection([{"id": "form_no", "name": "工单号", "width": "100"},
+//				{"id":"spec_name","name":"专业","width":"100"},
+//				{"id":"city_name","name":"地市","width":"100"},
+//				{"id":"is_over","name":"是否超时","width":"100"},
+//				{"id":"overtime","name":"超时时长","width":"100"},
+//				{"id":"over_node","name":"超时环节","width":"100"},
+				{"id": "nename", "name": "网元名称", "width": "100"},
+				{"id": "class_three_name", "name": "设备类型", "width": "100"},
+				{"id": "alarmtitle", "name": "告警标题", "width": "100"},
+				{"id": "flow_state", "name": "工单处理环节", "width": "120"},
+				{"id": "accept_time", "name": "工单受理时间", "width": "120"},
+				{"id": "dept_name", "name": "受理部门", "width": "120"},
+				{"id": "t1_dealtime_lmt", "name": "T1环节处理时限", "width": "120"},
+				{"id": "t1_transactor_name", "name": "T1环节处理人", "width": "120"},
+				{"id": "t2_dealtime_lmt", "name": "T2环节处理时限", "width": "120"},
+				{"id": "t2_transactor_name", "name": "T2环节处理人", "width": "120"},
+				{"id": "t3_dealtime_lmt", "name": "T3环节处理时限", "width": "120"},
+				{"id": "t3_transactor_name", "name": "T3环节处理人", "width": "120"}]);
+
+
+			//设置标题
+			public function initParamsInfo(specId:String, specName:String, columnName:String, columnKey:String,num:String,alarmregion:String, type:int, countManager:CountManagerNew):void
+			{
+				this.specId = specId;
+				this.specName = specName;
+				this.columnKey = columnKey;
+				this.columnName = columnName;
+				this.alarmCount = num;
+				this.alarmregion = alarmregion;
+				if (columnName.indexOf("告警数") == -1)
+					this.title = columnName + "涉及的告警   (派单数："+ this.alarmCount+")";
+				else
+					this.title = columnName;
+				this.type = type;
+				_countManager = countManager;
+			}
+			
+			public function isCityAlarmWin(isCityAlarmWin:String):void
+			{
+				isCityWin = isCityAlarmWin;
+			}
+
+			//设置数据
+			public function initDataSource(data:Object, type:int = 0):void
+			{
+				statData.width = 550;
+				statData.height = 240;
+				
+				initCellContextMenu();
+				log.error("type:{0}", type);
+				if (type == 0 && data != null)
+				{
+					//如果是0，那么属于翻页，直接更新内容，
+					if (data.hasOwnProperty("datas"))
+					{
+						log.info(data["datas"]);
+//						var _hcv:HierarchicalCollectionView = new HierarchicalCollectionView(new HierarchicalData(data['datas']));
+						statData.dataProvider = data["datas"];
+					}
+					else
+					{
+						statData.dataProvider = data;
+					}
+					
+				}
+				else if (type == 2)
+				{
+					statData.columns = [];
+					//否则先生成列头，再赋值
+
+					var alarmColArr:Array = new Array();
+
+					for each (var obj:Object in headerArr)
+					{
+						var dc:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						dc.headerText = obj["name"];
+						dc.dataField = obj["id"];
+						dc.width = obj["width"];
+
+						switch (dc.dataField)
+						{
+							case "is_over":
+							case "overtime":
+								dc.itemRenderer = new ClassFactory(ColorRenderer);
+								break;
+						}
+						alarmColArr.push(dc);
+					}
+
+					statData.columns = alarmColArr;
+					log.info("返回数据集");
+					if (data != null && data.hasOwnProperty("datas"))
+					{
+						log.info(data["datas"]);
+//						var _hcv:HierarchicalCollectionView = new HierarchicalCollectionView(new HierarchicalData(data['datas']));
+						statData.dataProvider = data["datas"];
+					}
+					
+				}
+				else if (type == 1)
+				{
+					//否则先生成列头，再赋值
+					statData.columns = [];
+
+					if (data != null && data.hasOwnProperty("total"))
+					{
+						if (data["total"] != null)
+						{
+							setPageParam(int(data["total"]));
+						}
+						else
+						{
+							setPageParam(0);
+						}
+					}
+
+					if (data != null && data.hasOwnProperty("displayColumns"))
+					{
+						var alarmColArrs:Array = new Array();
+						for each (var col:String in data['displayColumns'])
+						{
+							var dgColumn:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+							dgColumn.headerText = col.split(",")[0];
+							dgColumn.dataField = col.split(",")[1];
+							dgColumn.width = dgColumn.headerText.length * 20;
+
+							switch (dgColumn.dataField)
+							{
+								case "specialty":
+									dgColumn.width = 80;
+									break;
+								case "alarmseverity": // 告警级别
+									dgColumn.itemRenderer = new ClassFactory(AlarmSeverityColumnRenderer);
+									break;
+								case "eventtime": // 告警时间
+								case "canceltime": // 告警时间
+								case "daltime": // 告警时间
+								case "acktime": // 告警时间
+									dgColumn.width = 190;
+									break;
+								case "alarmtitle": // 告警标题
+								case "alarmtext": // 告警正文
+									dgColumn.wordWrap = false;
+									break;
+							}
+
+							alarmColArrs.push(dgColumn);
+						}
+						statData.columns = alarmColArrs;
+						log.info("返回数据集");
+
+						if (data != null && data.hasOwnProperty("datas"))
+						{
+//							var _hcv:HierarchicalCollectionView = new HierarchicalCollectionView(new HierarchicalData(data['datas']));
+							statData.dataProvider = data["datas"];
+						}
+					}
+				}
+				else
+				{
+					if (data != null && data.hasOwnProperty("datas"))
+					{
+//						var _hcv:HierarchicalCollectionView = new HierarchicalCollectionView(new HierarchicalData(data['datas']));
+						statData.dataProvider = data["datas"];
+					}
+				}
+
+			}
+			
+			
+			private function initCellContextMenu():void
+			{
+//				Alert.show("开始初始化右键菜单...");
+				log.info("开始初始化右键菜单...");
+				
+				cellContextMenu = new ContextMenu();
+				
+				var sheetDetail:ContextMenuItem = new ContextMenuItem("工单详情");
+				sheetDetail.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, sheetDetailHandler);
+				var alarmDetail:ContextMenuItem = new ContextMenuItem("告警详情");
+				alarmDetail.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, alarmDetailHandler);
+				
+				cellContextMenu.customItems.push(sheetDetail);
+				cellContextMenu.customItems.push(alarmDetail);
+				cellContextMenu.hideBuiltInItems();
+				
+				statData.contextMenu = cellContextMenu;
+				log.info("初始化右键菜单结束。");
+			}
+			
+			 private function sheetDetailHandler(event:ContextMenuEvent):void
+			{
+				var parameters:Object;
+				parameters = parentApplication.parameters;
+				
+				var obj:Object = event.mouseTarget.parent as IListItemRenderer;
+				if (obj == null)
+					obj = event.mouseTarget as IListItemRenderer;
+				var item:Object = obj["data"];
+				
+				var sheetno:String = String(item["sheetno"]);
+				//				logger.info("sheetno:"+sheetno);
+				if(sheetno != null  || sheetno != "")
+				{
+					//					logger.info("查看工单详情：" +sheetno+"---_userContext:"+_userContext);
+					var url:String = "";
+					if('99'==this.specId){
+						url = "/cms/warn/sheet/sheetAction!tosheetInfo.action?sheetno=" + sheetno + "&isgroupsheet=1";
+					}else{
+						url = "/cms/warn/sheet/sheetAction!tosheetInfo.action?sheetno=" + sheetno + "&isgroupsheet=0";
+					}
+					log.info('url：' + url);
+					navigateToURL(new URLRequest(url));
+					
+				}else
+				{
+					Alert.show("工单号为空！");
+				} 
+			} 
+			
+			private function alarmDetailHandler(event:ContextMenuEvent):void
+			{
+				var obj:Object = event.mouseTarget.parent as IListItemRenderer;
+				if (obj == null)
+					obj = event.mouseTarget as IListItemRenderer;
+				var item:Object = obj["data"];
+				
+				var alarmuniqueid:String = String(item['alarmuniqueid']);
+				var daltime:String = String(item['daltime_old']);
+				log.info("查看告警详情：" + alarmuniqueid+"---daltime:"+daltime);
+				var url:String = "/cms/warn/rule/report/nonprofess/NonprofessWarnAction!queryWarnInfo.action?alarmNo=" +
+					alarmuniqueid + "&dalTime=" + daltime;
+				navigateToURL(new URLRequest(url));
+			}
+
+			//弹出列过滤过滤告警
+			public function showHideWindow(displayObj:DisplayObject = null):void
+			{
+				if (displayObj == null)
+				{
+					warnSheetPager.currentPage = 1;
+					PopUpManager.removePopUp(this);
+				}
+				else
+				{
+					PopUpManager.addPopUp(this, displayObj, false);
+					PopUpManager.centerPopUp(this);
+				}
+			}
+
+			//关闭窗口
+			protected function windowCloseHandler(event:WindowEvent):void
+			{
+				showHideWindow();
+			}
+
+			//设置分页参数
+			public function setPageParam(totalRowCount:int):void
+			{
+				warnSheetPager.totalRowCount = totalRowCount;
+//				warnSheetPager.currentPage = 1;
+			}
+
+
+			//分页时执行
+			protected function warnSheetPager_pageChangeHandler(event:PagerEvent):void
+			{
+//				Alert.show("isNotCityWin:");
+				_countManager.showWarnStatNewPage(warnSheetPager.currentPage, warnSheetPager.pageSize, specId, specName, columnKey, 3, warnSheetPager.totalRowCount + "");
+				
+			}
+			
+			protected function window_ResizeHandler(type:Number):void
+			{
+				if(type == 1)
+				{
+					statData.rowCount = 18;
+					var offset:Number = 3;
+					statData.height = statData.rowCount * statData.rowHeight + offset + statData.headerHeight;
+					statData.width = this.parent.width - 30;
+				}else{
+					statData.rowCount =9;
+					var offset:Number = 3;
+					statData.height = statData.rowCount * statData.rowHeight + offset + statData.headerHeight;
+					statData.width = 550;
+				} 
+				
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<mx:AdvancedDataGrid id="statData"
+							 enabled="true"
+							 editable="false"
+							 verticalScrollPolicy="auto"
+							 horizontalScrollPolicy="auto">
+			<mx:columns>
+
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:HGroup width="100%"
+				  horizontalAlign="right">
+			<pager:Pager id="warnSheetPager"
+						 pageSize="10"
+						 currentPage="1"
+						 pageChange="warnSheetPager_pageChangeHandler(event)"/>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

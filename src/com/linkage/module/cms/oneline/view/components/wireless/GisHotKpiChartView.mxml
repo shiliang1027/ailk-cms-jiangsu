@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					title="性能趋势"
+					width="700"
+					height="400"
+					styleName="windowScene"
+					visible="false"
+					minimizable="false"
+					resizable="true"
+					dragable="true"
+					close="this.visible=false;loadManager.hideLoading();"
+					creationComplete="gisHotKpiChartView_creationCompleteHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley" xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2013-1-18
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			private var loadManager:LoadManager;
+			private var horizontalLines:ArrayCollection;
+			
+			private static var log:ILogger = Log.getLoggerByClass(GisHotKpiChartView);
+			[Bindable]
+			[Inject("gisHotViewPM")]
+			public var pm:GisHotViewPM;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			private static var dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD JJ:NN";
+			[Bindable]
+			private var queryMoName:String = "";
+			
+			private var mo:*;
+			protected function gisHotKpiChartView_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				loadManager=new LoadManager(this);
+			}
+			
+			[MessageHandler(selector="SHOWKPICHARTVIEW")]
+			public function gisHotKpiChartViewShowHandler(e:GisHotEvent):void{
+				this.restoreButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				this.visible = true;
+				var s:Rectangle = systemManager.screen;
+				var appWidth:Number;
+				var appHeight:Number;
+				var parentWidth:Number;
+				var parentHeight:Number;
+				
+				appWidth = s.width;
+				appHeight = s.height;
+				parentWidth = this.parent.width;
+				parentHeight = this.parent.height;
+				x = Math.max(0, (Math.min(appWidth, parentWidth) - this.width) / 2);
+				y = Math.max(0, (Math.min(appHeight, parentHeight) - this.height) / 2);
+				
+				var date:Date = new Date();
+				endTime.text = dateFormatter.format(date);
+				//date.setDate(date.getDate()-1);
+				date.setHours(date.getHours()- 1);
+				startTime.text = dateFormatter.format(date);
+				mo = e.param;
+				
+				//新增查询条件中显示小区名，2013-9-9，汪炜。
+				if(mo&&mo.mo_name&&null!=mo.mo_name){ this.queryMoName = mo.mo_name;}
+				
+				var evt:GisHotEvent = new GisHotEvent(GisHotEvent.LOADKPISDATA);
+				var param:Object = new Object();
+				param.moTypeId = mo.mo_type_id;
+				evt.param = param;
+				//log.info("date1="+date1);
+				dispatcher(evt);
+			}
+			[MessageHandler(selector="LOADKPISDATACOMPLETE")]
+			public function loadKpisDataCompleteHandler(e:GisHotEvent):void{
+				kpisDropDown.enabled=true;
+				if(mo){
+					var selectedArray:ArrayCollection = new ArrayCollection();
+					for each(var item:* in pm.dm.kpis)
+					{
+						if(item.id == mo.kpiId)
+						{
+							item.selected = true;
+							selectedArray.addItem(item);
+						}
+					}
+					kpisDropDown.selectedItemArray.addAll(selectedArray);
+				}
+				
+				if(kpisDropDown.selectedItemArray.length <= 0)
+				{
+					pm.dm.kpis.getItemAt(0).selected = true;
+					kpisDropDown.selectedItemArray.addItem(pm.dm.kpis.getItemAt(0));
+				}
+				doQuery_clickHandler();
+			}
+			[MessageHandler(selector="LOADKPISDATAERROR")]
+			public function loadKpisDataErrorHandler(e:GisHotEvent):void{
+				kpisDropDown.enabled=true;
+			}
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+				
+			[MessageHandler(selector="LOADKPICHARTDATACOMPLETE")]
+			public function gisHotKpiChartDataCompleteHandler(e:GisHotEvent):void{
+				loadManager.hideLoading();
+				doQueryBtn.enabled=true;
+			}
+			[MessageHandler(selector="LOADKPICHARTDATAERROR")]
+			public function gisHotKpiChartDataErrorHandler(e:GisHotEvent):void{
+				loadManager.hideLoading();
+				doQueryBtn.enabled=true;
+			}
+			
+			private function doQuery_clickHandler(event:MouseEvent = null):void
+			{
+				if(DateFormatter.parseDateString(startTime.text+":00").getTime()>DateFormatter.parseDateString(endTime.text+":00").getTime()){
+					Alert.show("开始时间不能大于结束时间","提示");
+					return;
+				}
+//				if(DateFormatter.parseDateString(endTime.text+":00").getTime() - DateFormatter.parseDateString(startTime.text+":00").getTime()>3600000*24){
+//					Alert.show("时间间隔超过1天，暂不支持");
+//					return;
+//				}
+//				if(DateFormatter.parseDateString(endTime.text+":00").getTime() - DateFormatter.parseDateString(startTime.text+":00").getTime()>3600000*2){
+//					Alert.show("时间间隔超过2小时，查询可能较慢，是否继续？", "提示", Alert.YES | Alert.NO, null, function (event:CloseEvent) : void
+//					{
+//						if (event.detail == Alert.YES)
+//						{
+//							doQuery();
+//						}
+//					})
+//				}else{
+//					doQuery();
+//				}
+				doQuery();
+			}
+			
+			private function doQuery():void{
+				doQueryBtn.enabled=false;
+				loadManager.showLoading();
+				pm.dm.kpiChartData.removeAll();
+				var param:Object=new Object();
+				for each(var item:* in kpisDropDown.selectedItemArray)
+				{
+					var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADKPICHARTDATA);
+					param.kpiId=item.kpiId;
+					param.mo_id=mo.mo_id;
+//					param.kpiId="337";
+//					param.mo_id="5.cell.40999990";
+					param.startTime=startTime.text+":00";
+					param.endTime=endTime.text+":00";
+					param.moTypeId = mo.mo_type_id;
+					evt.param=param;
+					dispatcher(evt);
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<ailk_compts:layout>
+		<s:VerticalLayout paddingBottom="10"
+						  paddingLeft="10"
+						  paddingRight="10"
+						  paddingTop="5"/>
+	</ailk_compts:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	
+	<s:TileGroup width="100%"
+				 requestedColumnCount="2"
+				 columnAlign="justifyUsingWidth">
+		<s:HGroup verticalAlign="middle"
+				  width="100%">
+			<s:Label text="开始时间："/>
+			<ailk_compts:UXDateField id="startTime"
+									 labelFunction="formatDate"
+									 yearNavigationEnabled="true"
+									 width="100%"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle"
+				  width="100%">
+			<s:Label text="结束时间："/>
+			<ailk_compts:UXDateField id="endTime"
+									 labelFunction="formatDate"
+									 yearNavigationEnabled="true"
+									 width="100%"/>
+		</s:HGroup>
+		
+		<s:HGroup verticalAlign="middle"
+				  width="100%">
+			<s:Label text="指标名称："/>
+			<ailk_compts:MultiEditDropDownList prompt="请选择指标"
+											   enabled="false"
+											   id="kpisDropDown"
+											   allowMultipleSelecte="true"
+											   labelField="kpiName"
+											   dataProvider="{pm.dm.kpis}"
+											   editable="false"
+											   width="100%"/>
+		</s:HGroup>
+		<s:HGroup width="100%"
+				  horizontalAlign="right"
+				  verticalAlign="middle">
+			<s:Label text="小区名称："/>
+			<s:TextInput text="{queryMoName}" width="100%" editable="false" borderColor="0x6E6E6E" color="0x6E6E6E"/>
+			<s:Button label="查询"
+					  id="doQueryBtn"
+					  buttonMode="true"
+					  click="doQuery_clickHandler(event)"/>
+		</s:HGroup>
+	</s:TileGroup>
+	<s:Group width="100%" height="100%">
+		<s:VGroup visible="{pm.dm.kpiChartData.length == 0}" includeInLayout="{pm.dm.kpiChartData.length == 0}" width="100%" height="100%" horizontalAlign="center" verticalAlign="middle">
+			<s:Label text="数据为空"/>
+		</s:VGroup>
+		<s:Scroller width="100%"
+					height="100%"
+					styleName="sceneScroller">
+			<s:DataGroup width="100%"
+						 height="100%"
+						 dataProvider="{pm.dm.kpiChartData}"
+						 itemRenderer="com.linkage.module.cms.oneline.view.components.wireless.renderer.KpiDataItemRenderer">
+				<s:layout>
+					<s:VerticalLayout gap="1"/>
+				</s:layout>
+			</s:DataGroup>
+		</s:Scroller>
+	</s:Group>
+</ailk_compts:Window>

@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="240"
+					height="150"
+					styleName="windowScene"
+					close="window1_closeHandler(event)"
+					maximize="window1_maximizeHandler(event)"
+					restore="window1_restoreHandler(event)"
+					minimize="window1_minimizeHandler(event)"
+					dragable="true"
+					title="监控视频"
+					creationComplete="window1_creationCompleteHandler(event)"
+					xmlns:util="com.linkage.module.cms.gsscene.view.util.*"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-8-14
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.util.IFrame;
+
+			import flash.utils.setTimeout;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			private var log:ILogger = Log.getLoggerByClass(VideoTipWin);
+
+			public var isShow:Boolean = false;
+
+			[Bindable]
+			public var isFinish:Boolean = false;
+
+			[Bindable]
+			public var isMini:Boolean = false;
+
+			[Bindable]
+			public var videoSrc:String;
+
+			private var nowVif:IFrame;
+
+
+			public function addVideoIntoIFrame(moId:String):void
+			{
+				log.info("isFinish:{0},isMini:{1}", isFinish, isMini);
+				if (!isFinish)
+				{
+					setTimeout(function():void
+						{
+							addVideoIntoIFrame(moId);
+						}, 200);
+					return;
+				}
+				log.info("加入面板" + this.width + "-" + this.height);
+				videoSrc = "http://211.103.0.17:8080/ZXNJ/main.jsp?id=" + moId;
+				var iframe:IFrame = new IFrame();
+				iframe.source = "http://211.103.0.17:8080/ZXNJ/main.jsp?id=" + moId;
+				iframe.width = this.width - 5;
+				iframe.height = this.height - 40;
+				if (!isMini)
+					ifrGroup.addElement(iframe);
+				nowVif = iframe;
+				log.info("video 加入完成！！");
+
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				ifrGroup.removeAllElements();
+				PopUpManager.removePopUp(this);
+				isShow = false;
+
+			}
+
+			protected function window1_maximizeHandler(event:WindowEvent):void
+			{
+
+				this.width = FlexGlobals.topLevelApplication.width;
+				this.height = FlexGlobals.topLevelApplication.height;
+				log.info("maximize：" + this.width + "-" + this.height);
+				ifrGroup.removeAllElements();
+				nowVif.width = this.width - 5;
+				nowVif.height = this.height - 40;
+				ifrGroup.addElement(nowVif);
+				isMini = false;
+			}
+
+			protected function window1_restoreHandler(event:WindowEvent):void
+			{
+				this.width = 240;
+				this.height = 150;
+				log.info("restore：" + this.width + "-" + this.height);
+				ifrGroup.removeAllElements();
+				nowVif.width = this.width - 5;
+				nowVif.height = this.height - 40;
+				ifrGroup.addElement(nowVif);
+				isMini = false;
+			}
+
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener("xChanged", xchange);
+				this.addEventListener("yChanged", xchange);
+				isFinish = true;
+
+			}
+
+			private function xchange(e:Event):void
+			{
+				log.info("^^^^xchange^^^^^" + this.width + "-" + this.height);
+				if (nowVif)
+				{
+					ifrGroup.removeAllElements();
+					ifrGroup.addElement(nowVif);
+				}
+				log.info("^^^^xchange^^edn^^^^^^");
+			}
+
+			protected function window1_minimizeHandler(event:WindowEvent):void
+			{
+				log.info("________minimize________");
+				isMini = true;
+				this.removeEventListener("xChanged", xchange);
+				this.removeEventListener("yChanged", xchange);
+				ifrGroup.removeAllElements();
+				this.width = 200;
+				this.height = 20;
+				this.x = parent.x + 10;
+				this.y = parent.height - 30;
+				log.info("…………………………………………");
+				this.addEventListener("xChanged", xchange);
+				this.addEventListener("yChanged", xchange);
+				log.info("……………………end……………………");
+
+			}
+		]]>
+	</fx:Script>
+	<s:Group id="ifrGroup"
+			 width="100%"
+			 height="100%">
+	</s:Group>
+	<s:Label text="{videoSrc}"
+			 minHeight="20"
+			 bottom="3"
+			 width="100%"/>
+</ailk_compts:Window>

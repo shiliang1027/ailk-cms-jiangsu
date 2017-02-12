@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          width="100%"
+          height="100%"
+          fontFamily="微软雅黑"
+          gap="0"
+          creationComplete="vgroup1_creationCompleteHandler(event)"
+          xmlns:parsley="http://www.spicefactory.org/parsley">
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+        <parsley:Configure/>
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.threeWebPerfChart.event.KpiChartEvent;
+			import com.linkage.module.cms.threeWebPerfChart.view.KpiChartViewPM;
+			import com.linkage.module.cms.threeWebPerfChart.view.components.HorMuTypeChartWin;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.CollectionEvent;
+			import mx.events.CollectionEventKind;
+			import mx.events.FlexEvent;
+			
+			import spark.components.HGroup;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+
+            private var log:ILogger = Log.getLoggerByClass(KpiChartMuTypeView);
+
+            private var refreshTimer:Timer = new Timer(2 * 60 * 1000);
+
+			[Bindable]
+			private var _rowHeight:Number = 0;
+            [Inject("kpiChartViewPM")]
+            [Bindable]
+            public var pm:KpiChartViewPM;
+
+			[Init]
+			public function myinit():void{
+				pm.dm.chartDatas.addEventListener(CollectionEvent.COLLECTION_CHANGE,onCollectionChange);
+			}
+            public function initView(type:String):void
+            {
+                log.info("initView : type: " + type);
+
+                explain.visible = type == "3";
+                explain.includeInLayout = type == "3";
+
+                //初始化数据
+                pm.queryKpiMuTypeCharts(type);
+
+                //启动定时器刷新页面
+//                refreshTimer.addEventListener(TimerEvent.TIMER, refreshCharts);
+//                refreshTimer.start();
+            }
+			
+			private function onCollectionChange(event:CollectionEvent):void{
+				
+				log.info("[onCollectionChange]{0}",event.kind);
+				//				log.info(event.items);
+				switch (event.kind)
+				{
+					case CollectionEventKind.ADD:
+						//TODO创建面板
+						buildChart(event.items[0]);
+						break;
+					case CollectionEventKind.REMOVE:
+//						removeChart(event.items[0]);
+						break;
+					case CollectionEventKind.REFRESH:
+						chartsGroup.removeAllElements();
+						for each(var item:* in pm.dm.chartDatas){
+							buildChart(item);
+						}
+						break;
+					case CollectionEventKind.RESET:
+						chartsGroup.removeAllElements();
+						break;
+				}
+			}
+			
+			private function buildChart(item:*):void{
+				var chartComp:ChartItemComp = new ChartItemComp();
+				chartComp.data = item;
+//				item.comp=chartComp;
+				chartsGroup.addElement(chartComp);
+			}
+			
+//			private function removeChart(item:*):void{
+//				if(item.comp){
+//					chartsGroup.removeElement(item.comp);
+//				}
+//				
+//			}
+
+            protected function tabBar_changeHandler(event:IndexChangeEvent):void
+            {
+                var type:int = event.newIndex;
+
+                if (refreshTimer.running)
+                    refreshTimer.stop();
+
+                pm.queryKpiCharts(type);
+            }
+			
+             /*   [MessageHandler(selector = "CMS_KPICHART_MUTYPE_INITCHARTS")]
+             public function initCharts(e:KpiChartEvent):void
+            {
+				log.info("CMS_KPICHART_MUTYPE_INITCHARTS");
+				log.info(pm.dm.charts);
+				
+                if (refreshTimer.running)
+                    refreshTimer.stop();
+
+                Charts.removeAllElements();
+
+                if (pm.dm.charts.length > 0)
+                {
+                    log.debug("pm.dm.charts:" + pm.dm.charts.length);
+
+                    var colNum:Number = 2;
+                    var next:int = 0;
+
+                    var chartWidth:Number = (Charts.width - 8 * colNum + 3) / colNum;
+                    var chartHeight:Number = (Charts.height - 8 * 2 + 3) / 2;
+
+                    log.info("chartW:{0},chartH:{1},w:{2},h:{3}", chartWidth, 205, Charts.width, Charts.height);
+                    var hcc:HorMuTypeChartWin = null;
+
+                    for each (var chart:Object in pm.dm.charts)
+                    {
+//						if(next == 0 || next == 1)
+//						{
+							log.info("chart 数据");
+							log.info(chart);
+							
+							if (next == 0 || next % colNum == 0)
+							{
+								hcc = new HorMuTypeChartWin();
+								hcc.percentWidth = 100;
+								hcc.percentHeight = 50;
+								hcc.chartWidth = chartWidth;
+								hcc.chartHeight = chartHeight - 5;
+								
+								log.debug("添加图表:");
+								Charts.addElement(hcc);
+								
+							}
+							//按照顺序组装chart 放入group中
+							
+							var isBing:String = ArrayCollection(chart).getItemAt(ArrayCollection(chart).length - 1)["isBing"];
+							log.debug("添加图表 行  isBing:" + isBing);
+							hcc.flag = (next == 1 && this.parentApplication.parameters.type == "2");
+							
+							if(isBing =="false")
+							{
+//								hcc.lineChartArr.removeAll();
+//								hcc.lineChartArr.addAll(ArrayCollection(chart).getItemAt(ArrayCollection(chart).length - 1) as ArrayCollection);
+//								hcc.lineChartArr.refresh();
+								hcc.addChart(chart as ArrayCollection);
+								hcc.isBing = isBing;
+//								hcc.addChartNew(chart as ArrayCollection);
+								
+							}
+								
+							else 
+								hcc.pieChartBuildChart(chart as ArrayCollection);
+							
+							next++;
+//						}
+						
+                    }
+                } 
+                log.info("加入图表结束");
+
+                if (!refreshTimer.running)
+                    refreshTimer.start();
+            }    */
+
+//			}
+
+            protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+            {
+                g2Label.graphics.beginFill(0X00FF00);
+                g2Label.graphics.drawCircle(5, 5, 5);
+
+                g3Label.graphics.beginFill(0X0000FF);
+                g3Label.graphics.drawCircle(5, 5, 5);
+
+//                g23Label.graphics.beginFill(0X0EECF1);
+//                g23Label.graphics.drawCircle(5, 5, 5);
+
+                g4Label.graphics.beginFill(0XFF0000);
+                g4Label.graphics.drawCircle(5, 5, 5);
+            }
+			
+
+			
+			protected function chartsGroup_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				resize();
+			}
+			
+			
+			public function resize():void{
+				_rowHeight = Math.round((this.height-30)/2);
+				log.info("[resize]:{0}",_rowHeight);
+				chartsGroup.rowHeight = _rowHeight;
+				pm.dm.chartDatas.refresh();
+			}
+			
+		]]>
+    </fx:Script>
+    <s:HGroup id="hg"
+              paddingBottom="2"
+              paddingTop="2"
+              gap="10"
+              width="100%"
+              horizontalAlign="center"
+              fontSize="14">
+        <s:HGroup gap="15">
+            <s:Label id="g2Label"/>
+            <s:Label text="2G"/>
+        </s:HGroup>
+
+        <s:HGroup gap="15">
+            <s:Label id="g3Label"/>
+            <s:Label text="3G"/>
+        </s:HGroup>
+
+        <!--<s:HGroup gap="15">
+            <s:Label id="g23Label"/>
+            <s:Label text="2G&amp;3G"/>
+        </s:HGroup>-->
+
+        <s:HGroup gap="15">
+            <s:Label id="g4Label"/>
+            <s:Label text="4G"/>
+        </s:HGroup>
+    </s:HGroup>
+
+    <!--<s:VGroup height="100%"
+              width="100%">
+		<s:List width="100%" height="100%" styleName="sceneList" contentBackgroundAlpha="0" borderVisible="false" itemRenderer="com.linkage.module.cms.threeWebPerfChart.view.ChartRenderer" dataProvider="{pm.dm.chartDatas}">
+			<s:layout>
+				<s:TileLayout horizontalGap="5" verticalGap="5" requestedColumnCount="2" requestedRowCount="-1" rowHeight="260" columnAlign="justifyUsingWidth" rowAlign="top"/>
+			</s:layout>
+		</s:List>
+    </s:VGroup>-->
+	<s:Scroller width="100%"
+				height="100%" 
+				styleName="sceneScroller">
+		<s:TileGroup id="chartsGroup" width="100%" height="100%" orientation="rows"
+					 columnAlign="justifyUsingWidth" rowAlign="top"
+					 requestedColumnCount="2" creationComplete="chartsGroup_creationCompleteHandler(event)">
+			
+		</s:TileGroup>
+	</s:Scroller>
+    <s:VGroup id="explain"
+              paddingLeft="20"
+              paddingBottom="10"
+              paddingTop="10"
+              visible="false"
+              includeInLayout="false"
+              color="red"
+              fontWeight="bold"
+              gap="5">
+        <s:Label text="即时通信包括QQ、米聊、飞信、微信、陌陌等191种即时通信方式汇总"/>
+        <s:Label text="网页浏览主要包括UC、360浏览器、qq浏览器、百度、搜狗浏览器等1907种网页浏览汇总"/>
+    </s:VGroup>
+</s:VGroup>

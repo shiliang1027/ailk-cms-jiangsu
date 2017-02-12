@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%"
+		 creationComplete="filterForm_creationCompleteHandler(event)" gap="0">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="formInit", type="com.linkage.module.cms.groupclient.event.FilterFormEvent")]
+		[Event(name="queryMoTypeList", type="com.linkage.module.cms.groupclient.event.FilterFormEvent")]
+		[Event(name="query", type="com.linkage.module.cms.groupclient.event.FilterFormEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.groupclient.event.FilterFormEvent;
+			import com.linkage.system.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.components.EquipmentKPITable");			
+			private var _selectServTypeId:String = "";//选中的业务类型
+			protected function filterForm_creationCompleteHandler(event:FlexEvent):void
+			{	var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient*"];
+				Log.addTarget(target);
+				
+				this.addEventListener(FilterFormEvent.CITYCHANGE,onCityChange);
+				this.addEventListener(FilterFormEvent.SERVTYPECHANGE,onServTypeChange);
+				this.addEventListener(FilterFormEvent.MOTYPECHANGE,onMoTypeChange);
+				this.addEventListener(FilterFormEvent.SELECTSERVTYPECHANGE,onSelectServTypeChange);
+				this.addEventListener(FilterFormEvent.SELECTMOTYPECHANGE,onSelectMoTypeChange);
+			}
+			
+			private function onCityChange(event:FilterFormEvent):void{
+				var result:Object = event.param;
+				var dataArray:ArrayCollection = new ArrayCollection();
+				dataArray.addItem({city_name:"全部",city_id:"00",parent_id:"00"});
+				for each(var data:Object in result){
+//					log.info("[筛选器属地列表]"+data.city_id+","+data.city_name+","+data.parent_id);
+					dataArray.addItem(data);
+				}
+				cityDropDownList.dataProvider = dataArray;
+				cityDropDownList.selectedIndex=0;
+			}
+			
+			private function onServTypeChange(event:FilterFormEvent):void{
+				var result:Object = event.param;
+				var dataArray:ArrayCollection = new ArrayCollection();
+				dataArray.addItem({cust_serv_type_name:"请选择",cust_serv_type_id:"-1"});
+				for each(var data:Object in result){
+					dataArray.addItem(data);
+				}
+				servTypeDropDownList.dataProvider = dataArray;
+				servTypeDropDownList.selectedIndex=0;
+			}
+	
+			[Bindable]
+			private var moTypeDropDownListData:ArrayCollection;
+			/**
+			 *tree修改业务类型事件
+			 **/
+			private function onMoTypeChange(event:FilterFormEvent):void{
+				var result:Object = event.param.result;
+				var dataArray:ArrayCollection = new ArrayCollection();
+				dataArray.addItem({mo_type_name:"请选择",mo_type_id:"-1"});
+				for each(var data:Object in result){
+					dataArray.addItem(data);
+				}
+				moTypeDropDownListData = dataArray;
+				 //修改设备类型事件
+				this.callLater(onSelectMoTypeChange,[event]);
+			}
+			/**
+			 *tree修改业务类型事件
+			 **/
+			private function onSelectServTypeChange(event:FilterFormEvent):void{
+				var selectServTypeId:String = event.param.selectServTypeId;
+				//设置选中的业务类型
+				if(null!=selectServTypeId&&""!=selectServTypeId){
+					for each (var item:Object in servTypeDropDownList.dataProvider)
+					{
+						if (item.cust_serv_type_id == selectServTypeId)
+						{
+							servTypeDropDownList.selectedItem = item;
+							break;
+						}
+					}
+				}else{
+					servTypeDropDownList.selectedIndex=0;
+				}
+				
+				//抛出业务修改事件
+				if(selectServTypeId!=this._selectServTypeId){
+					servTypeDropDownList.dispatchEvent(new IndexChangeEvent("change"));
+				}else{
+					var evt:FilterFormEvent = new FilterFormEvent(FilterFormEvent.SELECTMOTYPECHANGE);
+					evt.param = event.param;
+					log.info("业务类型不变，只修改设备类型。");
+					this.dispatchEvent(evt);
+				}
+			}
+			/**
+			 *tree修改设备类型事件
+			 **/
+			private function onSelectMoTypeChange(event:FilterFormEvent):void{
+				var selectMoTypeId:String = event.param.selectMoTypeId;
+//				log.info("修改设备类型,moTypeDropDownList.dataProvider.length："+moTypeDropDownList.dataProvider.length);
+				//设置选中的设备类型
+				if(null!=selectMoTypeId&&""!=selectMoTypeId){
+					for each (var item:Object in moTypeDropDownListData)
+					{
+						log.info("item.mo_type_id:"+item.mo_type_id + ",selectMoTypeId:"+selectMoTypeId);
+						if (item.mo_type_id == selectMoTypeId)
+						{
+							log.info("moTypeDropDownList.selectedItem = item");
+							moTypeDropDownList.selectedItem = item;
+							break;
+						}
+					}
+				}else{
+					moTypeDropDownList.selectedIndex=0;
+				}
+			}
+			
+			protected function custName_keyUpHandler(event:KeyboardEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (event.keyCode == 13)
+				{
+					queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+			protected function servName_keyUpHandler(event:KeyboardEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (event.keyCode == 13)
+				{
+					queryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			
+			protected function queryBtn_clickHandler(event:MouseEvent):void
+			{
+				if(cityDropDownList.selectedIndex<0){
+					Alert.show("请选择地市","提示");
+					return;
+				}
+				if(servTypeDropDownList.selectedIndex<=0){
+					Alert.show("请选择业务类型","提示");
+					return;
+				}
+				if(moTypeDropDownList.selectedIndex<=0){
+					Alert.show("请选择设备类型","提示");
+					return;
+				}
+				var cityId:String = String(cityDropDownList.selectedItem["city_id"]);
+				var cityName:String = String(cityDropDownList.selectedItem["city_name"]);
+				var cityLever:String = "1";
+				var parentCityId:String = String(cityDropDownList.selectedItem["parent_id"]);
+				if(parentCityId == "00"){
+					cityLever = "1";
+				}else{
+					cityLever = "2";
+				}
+				var servTypeId:String = String(servTypeDropDownList.selectedItem["cust_serv_type_id"]);
+				var servTypeName:String = String(servTypeDropDownList.selectedItem["cust_serv_type_name"]);				
+				var custNametext:String = custName.text;
+				var moNametext:String = moName.text;
+				//增加设备类型的查询条件，2013-10-26，汪炜
+				var moTypeId:String = String(moTypeDropDownList.selectedItem["mo_type_id"]);
+				var moTypeName:String = String(moTypeDropDownList.selectedItem["mo_type_name"]);
+				if(!StringUtils.isEmpty(cityId)){
+					var groupCusStaticParam:Object = new Object();
+					groupCusStaticParam.cityId = cityId;
+					groupCusStaticParam.cityName = cityName;
+					groupCusStaticParam.cityLever = cityLever;
+					if(!StringUtils.isEmpty(servTypeId) && servTypeId != "-1"){
+						groupCusStaticParam.servTypeId = servTypeId;
+						groupCusStaticParam.servTypeName = servTypeName;
+					}
+					if(!StringUtils.isEmpty(moTypeId)){
+						groupCusStaticParam.moTypeId = moTypeId;
+						groupCusStaticParam.moTypeName = moTypeName;
+					}
+					if(!StringUtils.isEmpty(custNametext)){
+						groupCusStaticParam.cusName = custNametext;
+					}
+					if(!StringUtils.isEmpty(moNametext)){
+						groupCusStaticParam.moName = moNametext;
+					}
+					log.info("查询");
+					var evt:FilterFormEvent = new FilterFormEvent(FilterFormEvent.QUERY);
+					evt.param = groupCusStaticParam;
+					this.dispatchEvent(evt);
+				}
+			}
+
+			protected function servTypeDropDownList_changeHandler():void
+			{
+				log.info("触发change事件！");
+				var servTypeId:String = servTypeDropDownList.selectedItem["cust_serv_type_id"];
+				_selectServTypeId = servTypeId;
+				if("-1" != servTypeId){
+					var evt:FilterFormEvent = new FilterFormEvent(FilterFormEvent.QUERYMOTYPELIST);
+					var param:Object = {};
+					param.servTypeId = servTypeId;
+					evt.param = param;
+					log.info("根据业务类型查询设备类型");
+					log.info(param);
+					this.dispatchEvent(evt);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:Grid width="100%" height="100%" borderVisible="false" horizontalGap="0" verticalGap="0">
+		<mx:GridRow width="100%" height="100%" borderVisible="true" borderColor="0xff0000">
+			<mx:GridItem verticalAlign="middle" horizontalAlign="right" height="100%" width="16%" backgroundColor="0xDFE3E8"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label text="业务类型：" />
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="left" width="16%" height="100%"  backgroundColor="0xC8DEEC"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label width="1"/>
+				<s:DropDownList id="servTypeDropDownList"
+								prompt="选择业务类型"
+								labelField="cust_serv_type_name"
+								contentBackgroundAlpha="1"
+								change="servTypeDropDownList_changeHandler()"
+								width="120"/>
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="right" height="100%" width="16%" backgroundColor="0xDFE3E8"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label text="设备类型：" />
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="left" width="16%" height="100%"  backgroundColor="0xC8DEEC"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label width="1"/>
+				<s:DropDownList id="moTypeDropDownList"
+								prompt="选择设备类型"
+								labelField="mo_type_name"
+								contentBackgroundAlpha="1"
+								dataProvider="{moTypeDropDownListData}"
+								width="120"/>
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="right" width="16%" height="100%"  backgroundColor="0xDFE3E8"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label text="地市：" />
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="left" width="16%" height="100%"  backgroundColor="0xC8DEEC"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label width="1"/>
+				<s:DropDownList id="cityDropDownList"
+								itemRenderer="com.linkage.module.cms.groupclient.renderer.CityDropDownListRenderer"
+								prompt="选择地市"
+								labelField="city_name"
+								contentBackgroundAlpha="1"
+								width="120"/>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" height="100%" borderStyle="none" borderVisible="false" >
+			<mx:GridItem verticalAlign="middle" horizontalAlign="right" width="16%" height="100%"  backgroundColor="0xDFE3E8"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label text="设备名称：" />
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="left" width="16%" height="100%"  backgroundColor="0xC8DEEC"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label width="1"/>
+				<s:TextInput id="moName"
+							 keyUp="servName_keyUpHandler(event)"
+							 width="120"/>
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="right" width="16%" height="100%"  backgroundColor="0xDFE3E8"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label text="客户名称：" />
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="left" width="16%" height="100%"  backgroundColor="0xC8DEEC"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+				<s:Label width="1"/>
+				<s:TextInput id="custName"
+							 keyUp="custName_keyUpHandler(event)"
+							 width="120"/>
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" width="16%" height="100%"  backgroundColor="0xDFE3E8"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+			</mx:GridItem>
+			<mx:GridItem verticalAlign="middle" width="16%" height="100%"  backgroundColor="0xC8DEEC"
+						 borderColor="0x8EB4E1" borderStyle="inset">
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" height="100%" >
+			<mx:GridItem width="16%"/>
+			<mx:GridItem width="16%"/>
+			<mx:GridItem width="16%"/>
+			<mx:GridItem width="16%"/>
+			<mx:GridItem width="16%"/>
+			<mx:GridItem verticalAlign="middle" horizontalAlign="right" width="16%">
+				<s:Label width="30"/>
+				<s:Button label="查  询" width="90"
+						  id="queryBtn"
+						  click="queryBtn_clickHandler(event)"
+						  buttonMode="true"/>
+			</mx:GridItem>
+		</mx:GridRow>
+	</mx:Grid>
+	
+</s:VGroup>

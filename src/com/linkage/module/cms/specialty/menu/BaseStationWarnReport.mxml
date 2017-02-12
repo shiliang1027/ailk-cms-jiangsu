@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:wmenu="com.linkage.module.cms.specialty.menu.*"
+			   width="100%" 
+			   height="100%"
+			   preinitialize="init(event)" creationComplete="init2(event)">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		mx|LinkButton{
+			color:#FFFFFF;
+		}
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			
+			//日志
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.specialty.menu");
+			
+			private static var destination:String  = "flexdestination_cms_warn_report_menu_BaseStationWarnReportServImp";
+			private static var src:String  = "com.linkage.module.cms.warn.report.menu.serv.BaseStationWarnReportServImp";
+			private static var endpoint:String = "/cms/messagebroker/amf";
+
+			// 初始化
+			protected function init(event:FlexEvent):void
+			{
+				//初始化日志
+				var target:ILoggingTarget = new DeMonsterTarget();
+				target.level = LogEventLevel.DEBUG;
+				target.filters = ["com.linkage.module.cms.specialty.menu.*","com.linkage.system.*"];
+				Log.addTarget(target);
+				
+				logger.info(">>> 初始化日志组建完成 >>>");
+				
+				styleManager.loadStyleDeclarations2("/cms/flex-release/css/common/show/ui.swf");
+			}
+			
+			// 初始化方法
+			protected function init2(event:FlexEvent):void
+			{
+				// 加载左侧网元列表
+				moList.initMoList(this.parameters.login_name,this.parameters.isPage,this.parameters.moId,destination,src,endpoint);
+				// 加载展示列
+				warnList.loadDisplayColumn(this.parameters.login_name);
+			}
+		]]>
+	</fx:Script>
+	<wmenu:MoList id="moList" width="100" height="100%" warnList="{warnList}">
+	</wmenu:MoList>
+	<wmenu:WarnList id="warnList" x="110" width="100%" height="100%">
+	</wmenu:WarnList>
+</s:Application>

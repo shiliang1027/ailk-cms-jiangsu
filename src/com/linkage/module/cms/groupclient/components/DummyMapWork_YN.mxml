@@ -1,0 +1,878 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 creationComplete="dummyMapWork_creationCompleteHandler(event)"
+		 xmlns:local="*"
+		 xmlns:map="com.linkage.module.cms.groupclient.map.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:states>
+		<s:State name="cityAll"/>
+		<s:State name="cityProvince"/>
+		<s:State name="cityTransProvince"/>
+		<s:State name="city"/>
+	</s:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="init", type="com.linkage.module.cms.groupclient.event.DummyMapWorkEvent")]
+		[Event(name="cityLayerNoSelected", type="com.linkage.module.cms.groupclient.event.DummyMapWorkEvent")]
+		[Event(name="cityLayerChange", type="com.linkage.module.cms.groupclient.event.DummyMapWorkEvent")]
+		[Event(name="mapCitySelected", type="com.linkage.module.cms.groupclient.event.DummyMapWorkEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.common.GlowAnimal;
+			import com.linkage.module.cms.groupclient.Config;
+			import com.linkage.module.cms.groupclient.event.DummyMapWorkEvent;
+			import com.linkage.module.cms.groupclient.map.MapNode;
+			import com.linkage.module.cms.groupclient.map.MapNodeEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.GroupTotalModuleControl_JS");
+
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/groupclient/assets/u46.png")]
+			public var lever1:Class;
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/groupclient/assets/u48.png")]
+			public var lever2:Class;
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/groupclient/assets/u50.png")]
+			public var lever3:Class;
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/groupclient/assets/u52.png")]
+			public var lever4:Class;
+			[Bindable]
+			[Embed(source="com/linkage/module/cms/groupclient/assets/u65.png")]
+			public var promIcon:Class;
+			private var mapArray:Array = new Array();
+			private var cityAlarmData:Array = new Array;
+			private var suspInfoData:Array = new Array;
+			private static const CITY_ALL:String = "all";
+			private static const CITY_TransProvince:String = "0000";
+			private static const CITY_Province:String = "000";
+			private var currentQueryParam:Object;
+			private var user:Object;
+			public static const CITY_LAYER1:Number = 1;
+			public static const CITY_LAYER2:Number = 2;
+			public static const CITY_LAYER3:Number = 3;
+
+			protected function dummyMapWork_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(DummyMapWorkEvent.CITYALLSELECTED, onCityAllSelected);
+				this.addEventListener(DummyMapWorkEvent.CITYPROVINCESELECTED, onCityProvinceSelected);
+				this.addEventListener(DummyMapWorkEvent.CITYTRANSPROVINCESELECTED, onCityTransProvinceSelected);
+				this.addEventListener(DummyMapWorkEvent.CITYSELECTED, onCitySelected);
+				this.addEventListener(DummyMapWorkEvent.ALARMINFODATACHANGE, onAlarmInfoDataChange);
+				this.addEventListener(DummyMapWorkEvent.ALARMNUMDATACHANGE, onAlarmNumDataChange);
+				this.addEventListener(DummyMapWorkEvent.REFRESH, onRefresh);
+				this.addEventListener(DummyMapWorkEvent.VIEWINIT, onViewInit);
+				/* 	mapArray["0100_a"] = js_nanjing_a;
+				   mapArray["0100_b"] = js_nanjing_b;
+				   mapArray["0200_a"] = js_suzhou_a;
+				   mapArray["0200_b"] = js_suzhou_b;
+				   mapArray["0300_a"] = js_wuxi_a;
+				   mapArray["0300_b"] = js_wuxi_b;
+				   mapArray["0400_a"] = js_changzhou_a;
+				   mapArray["0400_b"] = js_changzhou_b;
+				   mapArray["0500_a"] = js_zhenjiang_a;
+				   mapArray["0500_b"] = js_zhenjiang_b;
+				   mapArray["0600_a"] = js_yangzhou_a;
+				   mapArray["0600_b"] = js_yangzhou_b;
+				   mapArray["0700_a"] = js_nantong_a;
+				   mapArray["0700_b"] = js_nantong_b;
+				   mapArray["0800_a"] = js_taizhou_a;
+				   mapArray["0800_b"] = js_taizhou_b;
+				   mapArray["0900_a"] = js_xuzhou_a;
+				   mapArray["0900_b"] = js_xuzhou_b;
+				   mapArray["1000_a"] = js_huaian_a;
+				   mapArray["1000_b"] = js_huaian_b;
+				   mapArray["1100_a"] = js_yancheng_a;
+				   mapArray["1100_b"] = js_yancheng_b;
+				   mapArray["1200_a"] = js_lianyungang_a;
+				   mapArray["1200_b"] = js_lianyungang_b;
+				   mapArray["1300_a"] = js_suqian_a;
+				 mapArray["1300_b"] = js_suqian_b;*/
+
+				mapArray["2_a"] = yn_kunmin_a;
+				mapArray["3_a"] = yn_yuxi_a;
+				mapArray["4_a"] = yn_puer_a;
+				mapArray["5_a"] = yn_dali_a;
+				mapArray["6_a"] = yn_chuxiong_a;
+				mapArray["7_a"] = yn_qujin_a;
+				mapArray["8_a"] = yn_baoshan_a;
+				mapArray["9_a"] = yn_wenshan_a;
+				mapArray["10_a"] = yn_honghe_a;
+				mapArray["11_a"] = yn_dehong_a;
+				mapArray["12_a"] = yn_linchang_a;
+				mapArray["13_a"] = yn_banna_a;
+				mapArray["14_a"] = yn_lijiang_a;
+				mapArray["15_a"] = yn_nujiang_a;
+				mapArray["16_a"] = yn_shaotong_a;
+				mapArray["17_a"] = yn_diqing_a;
+
+				mapHttpService.send();
+				zx_a.width = 560;
+				zx_a.height = 480;
+				zx_b.width = 560;
+				zx_b.height = 480;
+				zx_UI.addChild(zx_b);
+				zx_UI.addChild(zx_a);
+				var colorForm:ColorTransform = zx_a.transform.colorTransform;
+				colorForm.color = 0xffff00;
+				zx_a.transform.colorTransform = colorForm;
+				zx_b.transform.colorTransform = colorForm;
+				zx_UI.addEventListener(MouseEvent.MOUSE_OVER, onZXMouseOver);
+				zx_UI.addEventListener(MouseEvent.MOUSE_OUT, onZXMouseOut);
+			}
+
+			//			private var refreshTimer:Timer;
+			//			private var time:Number = 1*60*1000;
+			private function onViewInit(event:DummyMapWorkEvent):void
+			{
+				user = event.param;
+				if (Number(user.is_szx) == 1)
+				{
+					this.currentState = "cityProvince";
+				}
+				else if (Number(user.is_szx) == 2)
+				{
+					this.currentState = "cityTransProvince";
+				}
+				else if (Number(user.city_layer) == CITY_LAYER2)
+				{
+					this.currentState = "city";
+				}
+				else if (Number(user.city_layer) == CITY_LAYER1)
+				{
+					this.currentState = "cityAll";
+				}
+				log.info("[地图组件状态]:" + this.currentState + "," + user);
+				currentQueryParam = new Object();
+				currentQueryParam.city_layer = String(user.city_layer);
+				currentQueryParam.is_szx = String(user.is_szx);
+				currentQueryParam.area_id = String(user.areaId);
+				currentQueryParam.view_layer = String(user.view_layer);
+				this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.REFRESH));
+
+				//				if(!refreshTimer){
+				//					refreshTimer = new Timer(time);
+				//					refreshTimer.addEventListener(TimerEvent.TIMER,onRefreshTimerHandler);
+				//					refreshTimer.start();
+				//				}
+
+			}
+
+			private function onRefreshTimerHandler(event:TimerEvent):void
+			{
+				this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.REFRESH));
+			}
+
+			private function onRefresh(event:DummyMapWorkEvent):void
+			{
+				if (showAllCB.selected || showProvinceCB.selected || showTransProvinceCB.selected || showCityCB.selected)
+				{
+					var evt:DummyMapWorkEvent = new DummyMapWorkEvent(DummyMapWorkEvent.CITYLAYERCHANGE);
+					evt.param = currentQueryParam;
+					this.dispatchEvent(evt);
+					var alarmInfoLoadEvent:DummyMapWorkEvent = new DummyMapWorkEvent(DummyMapWorkEvent.ALARMINFOLOAD);
+					alarmInfoLoadEvent.param = currentQueryParam;
+					var alarmNumLoadEvent:DummyMapWorkEvent = new DummyMapWorkEvent(DummyMapWorkEvent.ALARMNUMLOAD);
+					alarmNumLoadEvent.param = currentQueryParam;
+					this.dispatchEvent(alarmInfoLoadEvent);
+					this.dispatchEvent(alarmNumLoadEvent);
+				}
+				else
+				{
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYNOSELECTED));
+				}
+			}
+
+			private function onZXMouseOver(event:MouseEvent):void
+			{
+				var cityId:String;
+				if (showAllCB.selected)
+				{
+					cityId = CITY_ALL;
+				}
+				else if (showProvinceCB.selected)
+				{
+					cityId = CITY_Province;
+				}
+				else if (showTransProvinceCB.selected)
+				{
+					cityId = CITY_TransProvince;
+				}
+				promptBC.x = 10;
+				promptBC.y = 10;
+				var alarmNumProm:AlarmNumPrompt = getCityAlarmByCityId(cityId) as AlarmNumPrompt;
+				if (alarmNumProm)
+				{
+					alarmNumProm.visible = true;
+					alarmNumProm.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_OVER));
+				}
+			}
+
+			/**
+			 *根据地市ID取该地市告警数据
+			 * @param cityId
+			 * @return
+			 *
+			 */
+			private function getCityAlarmByCityId(cityId:String):Object
+			{
+				for (var key:String in cityAlarmData)
+				{
+					if (key == cityId)
+					{
+						return cityAlarmData[key];
+					}
+				}
+				return null;
+			}
+
+			private function onZXMouseOut(event:MouseEvent):void
+			{
+				var cityId:String;
+				if (showAllCB.selected)
+				{
+					cityId = CITY_ALL;
+				}
+				else if (showProvinceCB.selected)
+				{
+					cityId = CITY_Province;
+				}
+				else if (showTransProvinceCB.selected)
+				{
+					cityId = CITY_TransProvince;
+				}
+				var alarmNumProm:AlarmNumPrompt = getCityAlarmByCityId(cityId) as AlarmNumPrompt;
+				if (alarmNumProm && alarmNumProm.visible)
+				{
+					alarmNumProm.visible = false;
+					alarmNumProm.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_OUT));
+				}
+				showModeLayer(false);
+			}
+
+
+			protected function mapHttpService_resultHandler(event:ResultEvent):void
+			{
+				// TODO Auto-generated method stub
+				mapWork.xmlData = event.result as XML;
+				mapWork.mapObjArray = mapArray;
+				zx_c.x = 21;
+				zx_c.y = 11;
+				mapWork.setBackGround(zx_c);
+				mapWork.showMap();
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOVER, onMapNodeOver);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOUT, onMapNodeOut);
+//				mapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onMapNodeClick);
+				this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.INIT));
+			}
+
+			private function onMapNodeOver(event:MapNodeEvent):void
+			{
+				if (showAllCB.selected || showProvinceCB.selected || showTransProvinceCB.selected)
+				{
+					showModeLayer(true);
+				}
+				var cityId:String = mapWork.getAreaId(event.mapNode.id);
+				if (cityAlarmData && cityAlarmData[cityId])
+				{
+					var alarmNumProm:AlarmNumPrompt = cityAlarmData[cityId] as AlarmNumPrompt;
+					if (alarmNumProm.visible)
+					{
+						alarmNumProm.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_OVER));
+					}
+				}
+			}
+
+			private function onMapNodeOut(event:MapNodeEvent):void
+			{
+				var cityId:String = mapWork.getAreaId(event.mapNode.id);
+				if (cityAlarmData && cityAlarmData[cityId])
+				{
+					var alarmNumProm:AlarmNumPrompt = cityAlarmData[cityId] as AlarmNumPrompt;
+					if (alarmNumProm.visible)
+					{
+						alarmNumProm.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_OUT));
+					}
+				}
+			}
+
+			private function onMapNodeClick(event:MapNodeEvent):void
+			{
+				log.info("mapNode click-->" + event.mapNode.id);
+				var cityId:String = mapWork.getAreaId(event.mapNode.id);
+				var evt:DummyMapWorkEvent = new DummyMapWorkEvent(DummyMapWorkEvent.MAPCITYSELECTED);
+				evt.param = cityId;
+				this.dispatchEvent(evt);
+			}
+
+			private function showModeLayer(flag:Boolean):void
+			{
+				zx_UI.visible = flag;
+				zx_UI.includeInLayout = flag;
+				mapWork.visible = !flag;
+			}
+
+			private function onCityAllSelected(event:DummyMapWorkEvent):void
+			{
+				currentQueryParam = new Object();
+				currentQueryParam.area_id = String(user.areaId);
+				currentQueryParam.city_layer = "1";
+				currentQueryParam.is_szx = "0";
+				currentQueryParam.view_layer = "1";
+				this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.REFRESH));
+			}
+
+			private function onCityProvinceSelected(event:DummyMapWorkEvent):void
+			{
+				currentQueryParam = new Object();
+				currentQueryParam.area_id = String(user.areaId);
+				currentQueryParam.city_layer = "2";
+				currentQueryParam.is_szx = "1";
+				currentQueryParam.view_layer = "1";
+				this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.REFRESH));
+			}
+
+			private function onCityTransProvinceSelected(event:DummyMapWorkEvent):void
+			{
+				currentQueryParam = new Object();
+				currentQueryParam.area_id = String(user.areaId);
+				currentQueryParam.city_layer = "2";
+				currentQueryParam.is_szx = "2";
+				currentQueryParam.view_layer = "1";
+				this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.REFRESH));
+			}
+
+			private function onCitySelected(event:DummyMapWorkEvent):void
+			{
+				currentQueryParam = new Object();
+				currentQueryParam.area_id = String(user.areaId);
+				currentQueryParam.city_layer = "2";
+				currentQueryParam.is_szx = "0";
+				currentQueryParam.view_layer = "1";
+				this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.REFRESH));
+			}
+
+			private function onAlarmInfoDataChange(event:DummyMapWorkEvent):void
+			{
+				var result:Object = event.param;
+				for (var key:String in result)
+				{
+					log.info("getSuspInfo data---->[" + key + "]" + result[key]);
+					suspInfoData[key] = result[key];
+				}
+			}
+
+			private function onAlarmNumDataChange(event:DummyMapWorkEvent):void
+			{
+				var result:Object = event.param;
+				mapWorkGroup.removeAllElements();
+				for each (var data:Object in result)
+				{
+					log.info("[地图告警数据] ---->[city_id:" + data.city_id + "][maxserverite:" + data.maxseverity + "][maxnum:" + data.maxnum + "][longitude:" + data.longitude + "][latitude:" + data.latitude + "]");
+					drawAlarm(data);
+				}
+				var alarmNumPrompt:AlarmNumPrompt;
+				var mapNode:MapNode;
+				if (showAllCB.selected)
+				{
+					for (var key:String in cityAlarmData)
+					{
+						if (key == CITY_ALL)
+						{
+						}
+						else
+						{
+							(cityAlarmData[key] as AlarmNumPrompt).visible = false;
+							mapNode = mapWork.elementBox.getElementById(key + "_a") as MapNode;
+							if (mapNode)
+							{
+								mapNode.reset();
+							}
+						}
+					}
+				}
+				else if (showProvinceCB.selected)
+				{
+					for (var key1:String in cityAlarmData)
+					{
+						if (key1 == CITY_Province)
+						{
+						}
+						else
+						{
+							(cityAlarmData[key1] as AlarmNumPrompt).visible = false;
+							mapNode = mapWork.elementBox.getElementById(key1 + "_a") as MapNode;
+							if (mapNode)
+							{
+								mapNode.reset();
+							}
+						}
+					}
+				}
+				else if (showTransProvinceCB.selected)
+				{
+					for (var key2:String in cityAlarmData)
+					{
+						if (key2 == CITY_TransProvince)
+						{
+						}
+						else
+						{
+							(cityAlarmData[key2] as AlarmNumPrompt).visible = false;
+							mapNode = mapWork.elementBox.getElementById(key2 + "_a") as MapNode;
+							if (mapNode)
+							{
+								mapNode.reset();
+							}
+						}
+					}
+				}
+				else if (showCityCB.selected)
+				{
+					for (var key3:String in cityAlarmData)
+					{
+						if (key3 == CITY_Province || key3 == CITY_ALL || key3 == CITY_TransProvince)
+						{
+							(cityAlarmData[key3] as AlarmNumPrompt).visible = false;
+						}
+						else
+						{
+							alarmNumPrompt = cityAlarmData[key3] as AlarmNumPrompt;
+							alarmNumPrompt.visible = true;
+							alarmNumPrompt.startGlow();
+							mapNode = mapWork.elementBox.getElementById(key3 + "_a") as MapNode;
+							mapNode.fillColor(Config.alarmColorConfig[(cityAlarmData[key3] as AlarmNumPrompt).maxseverity]);
+						}
+					}
+				}
+			}
+
+			protected function showAllCB_clickHandler(event:MouseEvent):void
+			{
+				if (event.target.selected)
+				{
+					showProvinceCB.selected = true;
+					showCityCB.selected = true;
+					showTransProvinceCB.selected = true;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYALLSELECTED));
+				}
+				else
+				{
+					showCityCB.selected = false;
+					showProvinceCB.selected = false;
+					showTransProvinceCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYNOSELECTED));
+				}
+			}
+
+			protected function showProvinceCB_clickHandler(event:Event):void
+			{
+				if (event.target.selected)
+				{
+					showAllCB.selected = false;
+					showCityCB.selected = false;
+					showTransProvinceCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYPROVINCESELECTED));
+				}
+				else if (showTransProvinceCB.selected)
+				{
+					showAllCB.selected = false;
+					showCityCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYTRANSPROVINCESELECTED));
+				}
+				else if (showCityCB.selected)
+				{
+					showAllCB.selected = false;
+					showTransProvinceCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYSELECTED));
+				}
+				else
+				{
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYNOSELECTED));
+				}
+			}
+
+			protected function showTransProvinceCB_clickHandler(event:Event):void
+			{
+				if (event.target.selected)
+				{
+					showProvinceCB.selected = false;
+					showCityCB.selected = false;
+					showAllCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYTRANSPROVINCESELECTED));
+				}
+				else if (showProvinceCB.selected)
+				{
+					showAllCB.selected = false;
+					showCityCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYPROVINCESELECTED));
+				}
+				else if (showCityCB.selected)
+				{
+					showAllCB.selected = false;
+					showProvinceCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYSELECTED));
+				}
+				else
+				{
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYNOSELECTED));
+				}
+			}
+
+			protected function showCityCB_clickHandler(event:Event):void
+			{
+				if (event.target.selected)
+				{
+					showProvinceCB.selected = false;
+					showAllCB.selected = false;
+					showTransProvinceCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYSELECTED));
+				}
+				else if (showProvinceCB.selected)
+				{
+					showAllCB.selected = false;
+					showTransProvinceCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYPROVINCESELECTED));
+				}
+				else if (showTransProvinceCB.selected)
+				{
+					showAllCB.selected = false;
+					showCityCB.selected = false;
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYTRANSPROVINCESELECTED));
+				}
+				else
+				{
+					this.dispatchEvent(new DummyMapWorkEvent(DummyMapWorkEvent.CITYNOSELECTED));
+					for (var key:String in cityAlarmData)
+					{
+						(cityAlarmData[key] as AlarmNumPrompt).visible = false;
+						var mapNode:MapNode = mapWork.elementBox.getElementById(key + "_a") as MapNode;
+						if (mapNode)
+						{
+							mapNode.reset();
+						}
+					}
+				}
+			}
+
+			/**
+			 *绘制地图告警信息
+			 * @param data
+			 *
+			 */
+			public function drawAlarm(data:Object):void
+			{
+				if (Number(data.maxseverity) <= 0)
+				{
+					return;
+				}
+				var mapNode:MapNode;
+				var alarmNumProm:AlarmNumPrompt = new AlarmNumPrompt();
+				var x:Number = 0;
+				var y:Number = 0;
+				if (data.city_id == CITY_ALL)
+				{
+					x = 320;
+					y = 200;
+				}
+				else if (data.city_id == CITY_Province)
+				{
+					x = 320;
+					y = 200;
+				}
+				else if (data.city_id == CITY_TransProvince)
+				{
+					x = 320;
+					y = 200;
+				}
+				else
+				{
+					mapNode = mapWork.elementBox.getElementById(data.city_id + "_a") as MapNode;
+					x = mapNode.x + 37;
+					y = mapNode.y + 69;
+				}
+				log.info("x,y:{0},{1}", x, y);
+				alarmNumProm.label = data.maxnum;
+				alarmNumProm.maxseverity = Number(data.maxseverity);
+				alarmNumProm.cityId = String(data.city_id);
+				alarmNumProm.source = getSource(Number(data.maxseverity));
+				alarmNumProm.glow = new GlowAnimal([alarmNumProm], Config.alarmColorConfig[data.maxseverity], 10);
+				alarmNumProm.x = x;
+				alarmNumProm.y = y;
+				alarmNumProm.visible = false;
+				mapWorkGroup.addElement(alarmNumProm);
+				alarmNumProm.addEventListener(MouseEvent.MOUSE_OVER, onAlarmNumPromOver);
+				alarmNumProm.addEventListener(MouseEvent.MOUSE_OUT, onAlarmNumPromOut);
+				cityAlarmData[data.city_id] = alarmNumProm;
+			}
+
+			/**
+			 *根据告警级别取相应图标
+			 * @param alarmLever
+			 * @return
+			 *
+			 */
+			private function getSource(alarmLever:Number = 0):Object
+			{
+				if (alarmLever == 1)
+				{
+					return lever1;
+				}
+				else if (alarmLever == 2)
+				{
+					return lever2;
+				}
+				else if (alarmLever == 3)
+				{
+					return lever3;
+				}
+				else if (alarmLever == 4)
+				{
+					return lever4;
+				}
+				return null;
+			}
+
+			private function onAlarmNumPromOver(event:MouseEvent):void
+			{
+				var data:Object = suspInfoData[event.target.cityId];
+				log.info("onAlarmNumPromOver--->city_id:" + event.target.cityId + "," + data);
+				promptBC.removeAllElements();
+				if (data && data.length > 0)
+				{
+					for each (var info:Object in data)
+					{
+						//					log.info("info--->"+info["serv_type"]+","+info["total"]);
+						var hgroup:HGroup = new HGroup();
+						hgroup.verticalAlign = "middle";
+						var image:Image = new Image();
+						image.source = promIcon;
+						var label:Label = new Label();
+						label.text = info["serv_type"] + "：" + info["total"];
+						hgroup.addElement(image);
+						hgroup.addElement(label);
+						promptBC.addElement(hgroup);
+					}
+					showPrompt(new Point(event.target.x, event.target.y));
+				}
+			}
+
+			private function onAlarmNumPromOut(event:MouseEvent):void
+			{
+				promptBC.visible = false;
+			}
+
+			private function showPrompt(point:Point):void
+			{
+				log.info("show prompt parent width:" + mapScroller.width + ",height:" + mapScroller.height);
+				promptBC.visible = true;
+				if (showAllCB.selected || showProvinceCB.selected || showTransProvinceCB.selected)
+				{
+					return;
+				}
+				//			point = app.leftBC.localToGlobal(point);
+				if (point.x + promptBC.width >= mapScroller.width - 20)
+				{
+					promptBC.x = point.x - promptBC.width - 20;
+					if (promptBC.x + promptBC.width >= mapScroller.width - 20)
+					{
+						promptBC.x = mapScroller.width - promptBC.width - 70;
+					}
+				}
+				else
+				{
+					promptBC.x = point.x + 20;
+				}
+				if (point.y + promptBC.height >= mapScroller.height - 20)
+				{
+					promptBC.y = point.y - promptBC.height;
+					if (promptBC.y + promptBC.height > mapScroller.height - 20)
+					{
+						promptBC.y = mapScroller.height - promptBC.height - 70;
+					}
+				}
+				else
+				{
+					promptBC.y = point.y - 20;
+				}
+				//			app.promptBC.x=event.target.x>660?event.target.x-app.promptBC.width:event.target.x+event.target.width;
+				//			app.promptBC.y=event.target.y;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:HTTPService id="mapHttpService"
+					   url="xml/map_yunnan.xml"
+					   method="get"
+					   resultFormat="e4x"
+					   result="mapHttpService_resultHandler(event)"/>
+		<!--<local:nanjing_a id="js_nanjing_a"/>
+			 <local:nanjing_b id="js_nanjing_b"/>
+			 <local:wuxi_a id="js_wuxi_a"/>
+			 <local:wuxi_b id="js_wuxi_b"/>
+			 <local:changzhou_a id="js_changzhou_a"/>
+			 <local:changzhou_b id="js_changzhou_b"/>
+			 <local:zhenjiang_a id="js_zhenjiang_a"/>
+			 <local:zhenjiang_b id="js_zhenjiang_b"/>
+			 <local:suzhou_a id="js_suzhou_a"/>
+			 <local:suzhou_b id="js_suzhou_b"/>
+			 <local:yangzhou_a id="js_yangzhou_a"/>
+			 <local:yangzhou_b id="js_yangzhou_b"/>
+			 <local:huaian_a id="js_huaian_a"/>
+			 <local:huaian_b id="js_huaian_b"/>
+			 <local:suqian_a id="js_suqian_a"/>
+			 <local:suqian_b id="js_suqian_b"/>
+			 <local:xuzhou_a id="js_xuzhou_a"/>
+			 <local:xuzhou_b id="js_xuzhou_b"/>
+			 <local:nantong_a id="js_nantong_a"/>
+			 <local:nantong_b id="js_nantong_b"/>
+			 <local:yancheng_a id="js_yancheng_a"/>
+			 <local:yancheng_b id="js_yancheng_b"/>
+			 <local:taizhou_a id="js_taizhou_a"/>
+			 <local:taizhou_b id="js_taizhou_b"/>
+			 <local:lianyungang_a id="js_lianyungang_a"/>
+			 <local:lianyungang_b id="js_lianyungang_b"/>
+
+			 <local:jszx_a id="zx_a"/>
+			 <local:jszx_b id="zx_b"/>-->
+		<!-- 云南省 -->
+		<local:kunmin id="yn_kunmin_a"/>
+		<local:yuxi id="yn_yuxi_a"/>
+		<local:simao id="yn_puer_a"/>
+		<local:dali id="yn_dali_a"/>
+		<local:shuxiong id="yn_chuxiong_a"/>
+		<local:qujin id="yn_qujin_a"/>
+		<local:baoshan id="yn_baoshan_a"/>
+		<local:wenshan id="yn_wenshan_a"/>
+		<local:honghe id="yn_honghe_a"/>
+		<local:dehong id="yn_dehong_a"/>
+		<local:linchang id="yn_linchang_a"/>
+		<local:xishuangbanna id="yn_banna_a"/>
+		<local:lijiang id="yn_lijiang_a"/>
+		<local:nujiang id="yn_nujiang_a"/>
+		<local:shaotong id="yn_shaotong_a"/>
+		<local:diqing id="yn_diqing_a"/>
+		<local:bk id="zx_a"/>
+		<local:bk id="zx_b"/>
+		<local:bk id="zx_c"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<s:Scroller id="mapScroller"
+				width="100%"
+				height="100%"
+				horizontalScrollPolicy="auto"
+				verticalScrollPolicy="auto">
+		<s:Group width="100%"
+				 height="100%">
+			<mx:UIComponent id="zx_UI"
+							top="42"
+							left="27"
+							visible="false"
+							includeInLayout="false">
+			</mx:UIComponent>
+			<!--x="21.55" y="16.55" w="457.5" h="470.7"-->
+			<map:MapWork id="mapWork"
+						 width="100%"
+						 height="100%"
+						 top="30"
+						 left="20">
+			</map:MapWork>
+			<s:Group id="mapWorkGroup">
+			</s:Group>
+			<s:BorderContainer id="promptBC"
+							   styleName="promptBC"
+							   visible="false">
+				<s:layout>
+					<s:VerticalLayout paddingLeft="15"
+									  paddingRight="10"
+									  paddingTop="5"
+									  paddingBottom="5"/>
+				</s:layout>
+
+			</s:BorderContainer>
+		</s:Group>
+
+	</s:Scroller>
+	<s:VGroup right="30"
+			  top="20"
+			  id="cbGroup">
+		<s:HGroup>
+			<s:CheckBox id="showAllCB"
+						selected="true"
+						label="全省"
+						enabled.cityAll="true"
+						enabled="false"
+						click="showAllCB_clickHandler(event)"/>
+		</s:HGroup>
+		<s:HGroup paddingLeft="20">
+			<s:CheckBox id="showProvinceCB"
+						selected="true"
+						label="省级"
+						enabled="false"
+						enabled.cityAll="true"
+						enabled.cityProvince="true"
+						click="showProvinceCB_clickHandler(event)"/>
+		</s:HGroup>
+		<s:HGroup paddingLeft="20">
+			<s:CheckBox id="showTransProvinceCB"
+						selected="true"
+						label="跨省"
+						enabled="false"
+						enabled.cityAll="true"
+						enabled.cityTransProvince="true"
+						click="showTransProvinceCB_clickHandler(event)"/>
+		</s:HGroup>
+		<s:HGroup paddingLeft="20">
+			<s:CheckBox id="showCityCB"
+						selected="true"
+						label="市级"
+						enabled="false"
+						enabled.cityAll="true"
+						enabled.city="true"
+						click="showCityCB_clickHandler(event)"/>
+		</s:HGroup>
+	</s:VGroup>
+	<s:VGroup left="10"
+			  bottom="15"
+			  id="alarmTip">
+		<s:HGroup verticalAlign="middle">
+			<mx:Image source="{lever1}"/>
+			<s:Label text="一级告警"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<mx:Image source="{lever2}"/>
+			<s:Label text="二级告警"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<mx:Image source="{lever3}"/>
+			<s:Label text="三级告警"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<mx:Image source="{lever4}"/>
+			<s:Label text="四级告警"/>
+		</s:HGroup>
+	</s:VGroup>
+
+
+</s:Group>

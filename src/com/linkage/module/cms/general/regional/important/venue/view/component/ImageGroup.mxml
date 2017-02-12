@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%"
+		  height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.regional.important.venue.controller.VenueAction;
+			import com.linkage.module.cms.general.regional.important.venue.view.element.ImageNode;
+
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.rpc.events.FaultEvent;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.important.venue.view.component.ImageGroup");
+			/**
+			 * 场馆监控action
+			 */
+			private var _venueAction:VenueAction=null;
+			/**
+			 * 场馆监控视图
+			 */
+			private var _regionalView:Object=null;
+			/**
+			 * 告警滚动展现面板
+			 */
+			private var alarmData:ImageAlarmData=null;
+			/**
+			 * 加载管理
+			 */
+			private var _loadManager:LoadManager=null;
+			/**
+			 * 是否加载完成
+			 */
+			private var _isLoadOk:int=0;
+
+			//初始化场景信息
+			public function initVenueInfo(regionalView:Object, loadManager:LoadManager):void
+			{
+				//1.初始化参数
+				_regionalView=regionalView;
+				_loadManager=loadManager;
+				_isLoadOk=0;
+				_loadManager.showLoading();
+
+				//2.加载视图列表
+				loadImageInfo();
+
+				//3.加载列表数据
+				loadVenueInfo();
+			}
+
+			//加载视图列表
+			private function loadImageInfo():void
+			{
+				var paramMap:Object=new Object();
+				paramMap["monitor_id"]=venueAction.venueFo.monitorId;
+				venueAction.getVenueInfo(paramMap, function(result:Object):void
+					{
+						initImageInfo(result);
+					});
+			}
+
+			//加载完成
+			private function loadComplate():void
+			{
+				_isLoadOk++;
+				if (_isLoadOk == 2)
+				{
+					_loadManager.hideLoading();
+				}
+			}
+
+			//初始化图片信息
+			private function initImageInfo(data:Object):void
+			{
+				loadComplate();
+				imageInfo.removeAllElements();
+				for each (var image:Object in data)
+				{
+					var venueId:String=image["venue_id"];
+					var venueURL:String=image["venue_image"];
+					var venueName:String=image["venue_name"];
+					var venueLevel:String=image["alarm_level"];
+
+					log.info("场景监控 -------> 参数：");
+					log.info("----------> venue_id:" + venueId);
+					log.info("----------> venue_image:" + venueURL);
+					log.info("----------> venue_name:" + venueName);
+					log.info("----------> alarm_level:" + venueLevel);
+					log.info("场景监控 -------> 参数。");
+					//生成场馆列表
+					var imageNode:ImageNode=new ImageNode(160, 100, venueId, venueURL, venueName, venueLevel);
+					imageNode.addEventListener(MouseEvent.CLICK, imageNodeClick);
+					imageInfo.addElement(imageNode);
+				}
+			}
+
+			//鼠标点击事件
+			private function imageNodeClick(event:MouseEvent):void
+			{
+				var node:ImageNode=event.currentTarget as ImageNode;
+				log.info("场景监控， 场景切换：场景id：" + node.imageId);
+				_regionalView.showVenue(node.imageId);
+			}
+
+			//加载列表数据
+			private function loadVenueInfo():void
+			{
+				var paramMap:Object=new Object();
+				paramMap["monitor_id"]=venueAction.venueFo.monitorId;
+				//1.初始化性能指标数据
+				venueAction.getVenuePerfInfo(paramMap, function(result:Object):void
+					{
+						listInfo.removeAllElements();
+						initPrefInfo(result);
+						loadVenueAlarm(paramMap);
+					}, function(event:FaultEvent):void
+					{
+						loadVenueAlarm(paramMap);
+					});
+
+
+			}
+
+			//加载告警信息
+			private function loadVenueAlarm(paramMap:Object):void
+			{
+				//初始化告警信息
+				venueAction.getVenueAlarmInfo(paramMap, function(result:Object):void
+					{
+						initVenueAlarmInfo(result);
+					});
+			}
+
+			//初始化性能指标数据
+			private function initPrefInfo(data:Object):void
+			{
+				loadComplate();
+				var priData:ImagePriData=null;
+				for each (var obj:Object in data)
+				{
+					priData=new ImagePriData();
+					priData.initData(obj);
+					listInfo.addElement(priData);
+				}
+			}
+
+			//初始化告警信息
+			private function initVenueAlarmInfo(data:Object):void
+			{
+				loadComplate();
+				alarmData=new ImageAlarmData();
+				alarmData.initData(data);
+				scollPanel.addElement(alarmData);
+			}
+
+			public function set venueAction(venueAction:VenueAction):void
+			{
+				_venueAction=venueAction;
+			}
+
+			public function get venueAction():VenueAction
+			{
+				return _venueAction;
+			}
+
+			/**
+			 * 播放移动效果
+			 */
+			public function playScollEffect():void
+			{
+				if (alarmData)
+				{
+					log.info("播放告警滚动效果");
+					alarmData.playScollEffect();
+				}
+			}
+
+			/**
+			 * 停止移动效果
+			 */
+			public function stopScollEffect():void
+			{
+				if (alarmData)
+				{
+					log.info("停止告警滚动效果");
+					alarmData.stopScollEffect();
+				}
+			}
+		]]>
+	</fx:Script>
+	<!-- 左侧图片 -->
+	<s:Group id="imageInfo"
+			 width="100%"
+			 height="100%">
+		<s:layout>
+			<s:TileLayout verticalGap="30"
+						  horizontalGap="30"/>
+		</s:layout>
+	</s:Group>
+	<!-- 右侧业务指标和滚动信息 -->
+	<s:VGroup width="300"
+			  height="100%">
+		<!-- 业务指标表格 -->
+		<s:Group id="listInfo"
+				 width="100%"
+				 height="100%">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="top"/>
+			</s:layout>
+		</s:Group>
+		<!-- 告警滚动面板 -->
+		<s:Group id="scollPanel"
+				 width="100%"
+				 height="100">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="top"/>
+			</s:layout>
+		</s:Group>
+	</s:VGroup>
+</s:HGroup>

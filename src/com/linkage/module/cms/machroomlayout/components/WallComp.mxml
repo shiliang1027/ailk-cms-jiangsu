@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<components:EditorComp xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					  xmlns:s="library://ns.adobe.com/flex/spark" 
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  skinClass="com.linkage.module.cms.machroomlayout.skins.WallSkin"
+					  backgroundColor="0xcccccc"
+					  dragEnter="wall_dragEnterHandler(event)" 
+					  dragDrop="wall_dragDropHandler(event)" 
+					  creationComplete="wall_creationCompleteHandler(event)" 
+					  xmlns:components="com.linkage.module.cms.machroomlayout.components.*">
+	<components:layout>
+		<s:BasicLayout/>
+	</components:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.machroomlayout.event.EditorEvent;
+			import com.linkage.module.cms.machroomlayout.skins.RoomDoorLeftTopSkin;
+			import com.linkage.module.cms.machroomlayout.util.Conts;
+			
+			import flash.net.registerClassAlias;
+			
+			import mx.controls.Alert;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			import mx.events.StateChangeEvent;
+			import mx.managers.DragManager;
+			import mx.utils.ObjectUtil;
+			
+			public var location:String;
+			
+			private var subEditorComps:Array = new Array;
+			
+			protected function wall_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE,onStateChange);
+			}
+			
+			private function onStateChange(event:StateChangeEvent):void{
+				for each(var editorComp:EditorComp in subEditorComps){
+					editorComp.currentState = event.newState;
+				}
+			}
+			
+			
+			protected function wall_dragEnterHandler(event:DragEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (this.currentState == Conts.ACTION_EDIT && event.dragSource.hasFormat(Conts.FORMAT_DOOR)) 
+				{ 
+					DragManager.acceptDragDrop(WallComp(event.currentTarget)); 
+				} 
+			}
+			
+			
+			protected function wall_dragDropHandler(event:DragEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(event.dragInitiator is RoomDoorComp){
+//					var door:RoomDoorComp = EditorComp(ObjectUtil.copy(event.dragInitiator));
+					var door:RoomDoorComp = new RoomDoorComp();
+					door.currentState = this.currentState;
+					door.addEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
+					door.addEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+					door.addEventListener(EditorEvent.DELETE,onDeleteDoor);
+					door.addEventListener(EditorEvent.ARROW,onArrowDoor);
+					subEditorComps.push(door);
+					switch(location){
+						case Conts.LOCATION_LEFT:
+							door.setStyle(Conts.PROP_SKINCLASS,com.linkage.module.cms.machroomlayout.skins.RoomDoorLeftTopSkin);
+							door.x = 0;
+							door.y = checkLocalY(event.localY,door);
+							break;
+						case Conts.LOCATION_TOP:
+							door.setStyle(Conts.PROP_SKINCLASS,com.linkage.module.cms.machroomlayout.skins.RoomDoorTopLeftSkin);
+							door.y = 0;
+							door.x = checkLocalX(event.localX,door);
+							break;
+						case Conts.LOCATION_RIGHT:
+							door.setStyle(Conts.PROP_SKINCLASS,com.linkage.module.cms.machroomlayout.skins.RoomDoorRightTopSkin);
+							door.x = -door.width+this.width;
+							door.y = checkLocalY(event.localY,door);
+							break;
+						case Conts.LOCATION_BOTTOM:
+							door.setStyle(Conts.PROP_SKINCLASS,com.linkage.module.cms.machroomlayout.skins.RoomDoorBottomLeftSkin);
+							door.y = -door.height+this.height;
+							door.x = checkLocalX(event.localX,door);
+							break;
+						default:
+							door.x = 0;
+							door.y = checkLocalY(event.localY,door);
+							break;
+					}
+					this.addElement(door);
+				}
+			}
+			
+			private function checkLocalX(local:Number,door:RoomDoorComp):Number{
+				if(local-door.width<0){
+					local = 0;
+				}
+				if(local+door.width>this.width){
+					local = this.width-door.width;
+				}
+				return local;
+			}
+			private function checkLocalY(local:Number,door:RoomDoorComp):Number{
+				if(local-door.height<0){
+					local = 0;
+				}
+				if(local+door.height+6>this.height){
+					local = this.height-door.height;
+				}
+				return local;
+			}
+			
+			private function onMouseDown(event:MouseEvent):void{
+				if(this.currentState != Conts.ACTION_EDIT){
+					return;
+				}
+				switch(location){
+					case Conts.LOCATION_LEFT:
+						RoomDoorComp(event.currentTarget).startDrag(false, new Rectangle(0, 0, 0, this.height-RoomDoorComp(event.currentTarget).height));
+						break;
+					case Conts.LOCATION_TOP:
+						RoomDoorComp(event.currentTarget).startDrag(false, new Rectangle(0, 0,  this.width-RoomDoorComp(event.currentTarget).width,0));
+						break;
+					case Conts.LOCATION_RIGHT:
+						RoomDoorComp(event.currentTarget).startDrag(false, new Rectangle(-RoomDoorComp(event.currentTarget).width+this.width, 0, 0, this.height-RoomDoorComp(event.currentTarget).height));
+						break;
+					case Conts.LOCATION_BOTTOM:
+						RoomDoorComp(event.currentTarget).startDrag(false, new Rectangle(0, -RoomDoorComp(event.currentTarget).height+this.height,  this.width-RoomDoorComp(event.currentTarget).width,0));
+						break;
+					default:
+						RoomDoorComp(event.currentTarget).startDrag(false, new Rectangle(0, 0, 0, this.height-RoomDoorComp(event.currentTarget).height));
+						break;
+				}
+			}
+			
+			private function onMouseUp(event:MouseEvent):void{
+				if(this.currentState != Conts.ACTION_EDIT){
+					return;
+				}
+				RoomDoorComp(event.currentTarget).stopDrag();
+			}
+			
+			private function onDeleteDoor(event:EditorEvent):void{
+				subEditorComps.forEach(function(door:RoomDoorComp,index:int,arr:Array):void{
+					if(door == RoomDoorComp(event.currentTarget)){
+						arr.splice(index,1);
+					}
+				},RoomDoorComp(event.currentTarget));
+				this.removeElement(RoomDoorComp(event.currentTarget));
+			}
+			
+			private function onArrowDoor(event:EditorEvent):void{
+				var door:RoomDoorComp = RoomDoorComp(event.currentTarget);
+				switch(location){
+					case Conts.LOCATION_LEFT:
+						door.setStyle(Conts.PROP_SKINCLASS,door.angle==180?com.linkage.module.cms.machroomlayout.skins.RoomDoorLeftTopSkin:com.linkage.module.cms.machroomlayout.skins.RoomDoorLeftBottomSkin);
+						door.angle = door.angle==0?180:0;
+						break;
+					case Conts.LOCATION_TOP:
+						door.setStyle(Conts.PROP_SKINCLASS,door.angle==180?com.linkage.module.cms.machroomlayout.skins.RoomDoorTopLeftSkin:com.linkage.module.cms.machroomlayout.skins.RoomDoorTopRightSkin);
+						door.angle = door.angle==0?180:0;
+						break;
+					case Conts.LOCATION_RIGHT:
+						door.setStyle(Conts.PROP_SKINCLASS,door.angle==180?com.linkage.module.cms.machroomlayout.skins.RoomDoorRightTopSkin:com.linkage.module.cms.machroomlayout.skins.RoomDoorRightBottomSkin);
+						door.angle = door.angle==0?180:0;
+						break;
+					case Conts.LOCATION_BOTTOM:
+						door.setStyle(Conts.PROP_SKINCLASS,door.angle==180?com.linkage.module.cms.machroomlayout.skins.RoomDoorBottomLeftSkin:com.linkage.module.cms.machroomlayout.skins.RoomDoorBottomRightSkin);
+						door.angle = door.angle==0?180:0;
+						break;
+					default:
+						break;
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Rotate3D	id="rotate" duration="0"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+</components:EditorComp>

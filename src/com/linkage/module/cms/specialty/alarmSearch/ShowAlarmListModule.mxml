@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   width="100%"
+		   height="100%"
+		   xmlns:alarmSearch="com.linkage.module.cms.specialty.alarmSearch.*"
+		   preinitialize="showAlarmListModule_creationCompleteHandler(event)">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			import com.linkage.system.rpc.remoting.BlazeDSUtil;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			//日志
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.specialty.alarmSearch");
+
+			private var loadFlag:Boolean = false;
+
+			public var loadManger:LoadManager;
+
+			private var scObj:Object = new Object();
+
+			private var totalFlag:Boolean = false;
+
+			public static var destination:String = "flexdestination_cms_warn_report_search_AlarmSearchServImp";
+			public static var src:String = "com.linkage.module.cms.warn.report.search.serv.AlarmSearchServImp";
+			public static var endpoint:String = "messagebroker/amf";
+
+			public var parameters:Object;
+
+			protected function showAlarmListModule_creationCompleteHandler(event:FlexEvent):void
+			{
+				parameters = parentApplication.parameters;
+				//初始化日志
+				var target:ILoggingTarget = new DeMonsterTarget();
+				target.level = LogEventLevel.DEBUG;
+				target.filters = ["com.linkage.module.cms.specialty.*", "com.linkage.system.*"];
+				Log.addTarget(target);
+
+				logger.info(">>> 初始化日志组建完成 ......");
+
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				endpoint = this.parameters["context"] + endpoint;
+
+				logger.info(">>> 初始化JS回调函数 confCallBack......");
+				ExternalInterface.addCallback("confCallBack", confCallBack);
+				logger.info(">>> 初始化JS回调函数 confCallBack 成功！");
+
+				loadAllCmi();
+			}
+
+			private function loadAllCmi():void
+			{
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint, function(result:Object):void
+					{
+						logger.info(">>> 加载当前用户权限内菜单数据成功。" + result.length);
+						resultPanel.allCmis = result;
+					}, function(event:FaultEvent):void
+					{
+						logger.error(">>> 加载当前用户权限内菜单数据失败！{0} ", event.fault.faultString);
+					});
+
+				logger.info(">>> 加载当前用户权限内菜单数据。");
+				remoteService.getItems(this.parameters['login_name'] as String, 'queryalarm');
+			}
+
+			private function confCallBack():void
+			{
+				initResultPanel();
+			}
+
+			//初始化查询结果表格  根据配置设置展示列、加载数据
+			private function initResultPanel():void
+			{
+				//				resultPanel.hidePage();
+				resultPanel.initPage();
+				resultPanel.hideExport();
+				resultPanel.context = this.parameters["context"];
+
+
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint, function(result:Object):void
+					{
+						logger.info(">>> 加载告警列表配置列数据成功。");
+						logger.info(">>> 初始化查询结果列表 开始 ......");
+						resultPanel.initColumn(result as ArrayCollection);
+						logger.info(">>> 初始化查询结果列表 结束 ......");
+
+						logger.info(">>> 开始查询数据 。。。");
+						loadData();
+					}, function(event:FaultEvent):void
+					{
+						logger.error(">>> 加载告警列表配置列数据失败！{0}", event.fault.faultString);
+					});
+
+				remoteService.getDisplayColumns('queryalarm', this.parameters.login_name as String);
+			}
+
+
+			public function doQuery(totalRow:String = "10", currPage:uint = 1, pageSize:uint = 200):void
+			{
+				logger.info(">>> 查询告警");
+
+				scObj['beginRowNum'] = String(pageSize * (currPage - 1));
+				scObj['endRowNum'] = String(pageSize * currPage);
+				scObj['maxnum'] = totalRow;
+				scObj['queryType'] = "1";
+
+				scObj['isExce'] = this.parameters.isExce;
+				scObj['startTime'] = this.parameters.startTime;
+				scObj['endTime'] = this.parameters.endTime;
+				scObj['alarmregion'] = this.parameters.alarmregion;
+				scObj['vendor'] = this.parameters.vendor;
+				scObj['specialty'] = this.parameters.specialty;
+				scObj['equipmentclass'] = this.parameters.equipmentclass;
+				scObj['nename'] = this.parameters.nename;
+				scObj['neroom'] = this.parameters.neroom;
+				scObj['neId'] = this.parameters.neId;
+				scObj['alarmseverity'] = this.parameters.alarmseverity;
+				scObj['alarmStatus'] = this.parameters.alarmStatus;
+				scObj['alarmtitle'] = this.parameters.alarmtitle;
+				scObj['ackStatus'] = this.parameters.ackStatus;
+				scObj['sheetStatus'] = this.parameters.sheetStatus;
+				scObj['dispStatus'] = this.parameters.dispStatus;
+				scObj['projectStatus'] = this.parameters.projectStatus;
+				scObj['sheetno'] = this.parameters.sheetno;
+				scObj['rule_id'] = this.parameters.rule_id;
+				scObj['isGroup'] = this.parameters.isGroup;
+				scObj['isLight'] = this.parameters.isLight;
+				scObj['isRela'] = '-1';
+				scObj['login_name'] = this.parameters.login_name;
+				scObj['customerFlag'] = this.parameters.customerFlag;
+
+
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint, function(result:Object):void
+					{
+						logger.info(">>> 查询告警成功");
+						loadManger.hideLoading();
+						if (null == result || result['datas'] == null)
+						{
+							logger.error(">>> 查询告警为null");
+							Alert.show("没有记录！");
+							return;
+						}
+
+						resultPanel.setData(result['datas'], scObj['startTime'] as String, scObj['endTime'] as String, result['maxnum'], scObj);
+
+						if (!totalFlag)
+						{
+							totalFlag = true;
+							queryTotalNum(scObj);
+						}
+					}, function(event:FaultEvent):void
+					{
+						logger.error(">>> 查询告警失败！ ：{0}", event.fault.faultString);
+						loadManger.hideLoading();
+					});
+
+				logger.info(">>> 查询条件=========================");
+				logger.info(">>> scObj['beginRowNum']:" + scObj['beginRowNum']);
+				logger.info(">>> scObj['endRowNum']:" + scObj['endRowNum']);
+				logger.info(">>> scObj['maxnum']:" + scObj['maxnum']);
+				logger.info(">>> scObj['queryType']:" + scObj['queryType']);
+				logger.info(">>> scObj['isExce']:" + scObj['isExce']);
+				logger.info(">>> scObj['startTime']:" + scObj['startTime']);
+				logger.info(">>> scObj['endTime']:" + scObj['endTime']);
+				logger.info(">>> scObj['alarmregion']:" + scObj['alarmregion']);
+				logger.info(">>> scObj['vendor']:" + scObj['vendor']);
+				logger.info(">>> scObj['specialty']:" + scObj['specialty']);
+				logger.info(">>> scObj['equipmentclass']:" + scObj['equipmentclass']);
+				logger.info(">>> scObj['nename']:" + scObj['nename']);
+				logger.info(">>> scObj['neroom']:" + scObj['neroom']);
+				logger.info(">>> scObj['neId']:" + scObj['neId']);
+				logger.info(">>> scObj['alarmseverity']:" + scObj['alarmseverity']);
+				logger.info(">>> scObj['alarmStatus']:" + scObj['alarmStatus']);
+				logger.info(">>> scObj['alarmtitle']:" + scObj['alarmtitle']);
+				logger.info(">>> scObj['ackStatus']:" + scObj['ackStatus']);
+				logger.info(">>> scObj['sheetStatus']:" + scObj['sheetStatus']);
+				logger.info(">>> scObj['dispStatus']:" + scObj['dispStatus']);
+				logger.info(">>> scObj['projectStatus']:" + scObj['projectStatus']);
+				logger.info(">>> scObj['sheetno']:" + scObj['sheetno']);
+				logger.info(">>> scObj['rule_id']:" + scObj['rule_id']);
+				logger.info(">>> scObj['isGroup']:" + scObj['isGroup']);
+				logger.info(">>> scObj['isLight']:" + scObj['isLight']);
+				logger.info(">>> scObj['isRela']:" + scObj['isRela']);
+				logger.info(">>> scObj['login_name']:" + scObj['login_name']);
+				logger.info(">>> 查询条件=========================");
+
+				remoteService.getWarnDatas(scObj);
+				loadManger.showLoading(" 正在查询，请稍后 ");
+			}
+
+			private function queryTotalNum(scObj:Object):void
+			{
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint, function(result:Object):void
+					{
+						logger.error(">>> 查询总记录数成功：" + result['maxnum']);
+						resultPanel.setTotalNum(result['maxnum']);
+					}, function(event:FaultEvent):void
+					{
+						logger.error(">>> 查询总记录数失败！ ：" + event.fault.faultString);
+					});
+
+				scObj['maxnum'] = "0";
+				logger.error(">>> 查询总记录数!");
+				remoteService.getWarnDatas(scObj);
+			}
+
+			protected function loadData():void
+			{
+				loadManger = new LoadManager(resultPanel);
+
+				doQuery();
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Bounce id="bounceEasing"/>
+
+		<s:Move id="moveLeft"
+				target="{resultPanel}"
+				xFrom="{this.width}"
+				xTo="{resultPanel.x}"
+				duration="1500"
+				easer="{bounceEasing}"
+				effectEnd="initResultPanel()"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<alarmSearch:AlarmSearchResultPanel id="resultPanel"
+										width="100%"
+										height="100%"
+										showal="{this}"
+										creationComplete="initResultPanel()"
+										userName="{parentApplication.parameters.login_name}"/>
+</s:Group>

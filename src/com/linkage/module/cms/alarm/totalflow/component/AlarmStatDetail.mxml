@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  close="windowCloseHandler(event)"
+			  minimizable="false"
+			  maximizable="false"
+			  dragable="true"
+			  minHeight="30"
+			  width="360"
+			  height="300">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.totalflow.event.StatEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			/**
+			 * 工单标题
+			 */
+			private var _sheetTitle:String=null;
+			/**
+			 * 工单ID
+			 */
+			private var _sheetId:String=null;
+
+			//设置数据
+			public function initDataSource(data:Object):void
+			{
+				statData.dataProvider=data;
+			}
+
+			//弹出列过滤过滤告警
+			public function showHideWindow(displayObj:DisplayObject=null):void
+			{
+				if (displayObj == null)
+				{
+					PopUpManager.removePopUp(this);
+				}
+				else
+				{
+					PopUpManager.addPopUp(this, displayObj, false);
+					PopUpManager.centerPopUp(this);
+				}
+			}
+
+			//关闭窗口
+			protected function windowCloseHandler(event:WindowEvent):void
+			{
+				showHideWindow();
+			}
+
+			//统计详情
+			protected function statDataItemClickHandler(event:ListEvent):void
+			{
+				var item:Object=event.target.selectedItem;
+				var obj:Object=new Object();
+				obj.cityName=item.cityName;
+				obj.specName=item.specName;
+				obj.title=_sheetTitle;
+				obj.type=_sheetId;
+				obj.num=item.num;
+				dispatchEvent(new StatEvent(StatEvent.DETAIL_OPEN, obj));
+			}
+
+			//设置标题ID
+			public function set sheetId(value:String):void
+			{
+				_sheetId=value;
+			}
+
+			//设置标题
+			public function set titleInfo(value:String):void
+			{
+				_sheetTitle=value;
+				this.title=value;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="statData"
+						 width="100%"
+						 height="100%"
+						 enabled="true"
+						 editable="false"
+						 itemClick="statDataItemClickHandler(event)">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn headerText="属地"
+									   dataField="cityName"/>
+			<mx:AdvancedDataGridColumn headerText="专业"
+									   dataField="specName"/>
+			<mx:AdvancedDataGridColumn headerText="工单数"
+									   dataField="num"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</panel:Window>

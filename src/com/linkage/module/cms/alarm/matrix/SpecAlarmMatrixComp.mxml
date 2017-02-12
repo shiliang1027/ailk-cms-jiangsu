@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 creationComplete="SpecAlarmMatrixComp_creationCompleteHandler(event)"
+		 width="100%" height="100%" xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.alarm.matrix.data.DataManager;
+			import com.linkage.module.cms.alarm.matrix.data.IDataManager;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			public var params:Object;
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.alarm.matrix.SpecAlarmMatrixComp");
+			protected function SpecAlarmMatrixComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				var target:ILoggingTarget=new MonsterTarget2();
+				target.level=0;
+				target.filters=["com.linkage.*"];
+				Log.addTarget(target);
+				
+				this.params = parentApplication.parameters;
+				for(var i:int=0;i<this.specAlarmMatrixDataGrid.columns.length;i++)
+				{
+					this.specAlarmMatrixDataGrid.columns[i].width=Number(
+						this.specAlarmMatrixDataGrid.width/this.specAlarmMatrixDataGrid.columns.length);
+				}
+				var dataManager:IDataManager = new DataManager(this.params["urlContext"]);
+				var areaId:String = String(AlarmUtil.jsonDecode(this.params["user"].toString()).areaId);
+				dataManager.getSpecAlarmMatrix(areaId,getSpecAlarmMatrixSucc,getSpecAlarmMatrixErr);
+				
+				//初始化流水
+				var mapInfo:String = this.params["user"];
+				alarmFlow.params = {mapInfo: mapInfo};
+				alarmFlow.initInfo();
+			}
+			
+			private function getSpecAlarmMatrixSucc(obj:Object):void
+			{
+				log.info("查询专业告警矩阵成功！");
+				log.info(obj);
+				specAlarmMatrixDataGrid.dataProvider = obj;
+			}
+			
+			private function getSpecAlarmMatrixErr():void
+			{
+				log.info("查询专业告警矩阵失败！");
+				Alert.show("查询专业告警矩阵失败！");
+			}
+			
+			protected function cityAlarmMatrixDataGrid_itemClickHandler(event:ListEvent):void
+			{
+				var xidValue:String=event.target.columns[event.columnIndex].dataField;
+				var yidValue:String=event.target.selectedItem["specname"];
+				var spedId:String = null;
+				if("移动核心网" == yidValue)
+				{
+					spedId = "1";
+				}else if("数据网" == yidValue)
+				{
+					spedId = "2";
+				}else if("传输网" == yidValue)
+				{
+					spedId = "3";
+				}else if("动力环境" == yidValue)
+				{
+					spedId = "4";
+				}else if("无线网" == yidValue)
+				{
+					spedId = "5";
+				}else if("固网交换网" == yidValue)
+				{
+					spedId = "6";
+				}else if("IP承载网" == yidValue)
+				{
+					spedId = "7";
+				}else
+				{
+					spedId = "8";
+				}
+				if(alarmFlow != null)
+				{
+					if("totalalarmnum" == xidValue)
+					{
+						alarmFlow.reload("specialty="+spedId);
+						
+					}else if("criticalalarmnum" == xidValue)
+					{
+						alarmFlow.reload("specialty="+spedId+"&alarmseverity=1");
+					}else if("locatenalarmnum" == xidValue)
+					{
+						alarmFlow.reload("specialty="+spedId+"&locatenestatus=1");
+					}else if("unackedalarmnum" == xidValue)
+					{
+						alarmFlow.reload("specialty="+spedId+"&ackflag=0");
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:VDividedBox width="100%" height="100%">
+		<panel:Window width="100%" height="65%" maximizable="false"
+					  closable="false" title="专业告警矩阵" minHeight="30">
+			<mx:AdvancedDataGrid width="100%" height="100%" verticalScrollPolicy="auto"
+								 horizontalScrollPolicy="off" textAlign="center" id="specAlarmMatrixDataGrid"  itemClick="cityAlarmMatrixDataGrid_itemClickHandler(event)">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn headerText="专业" dataField="specname" id="specname"/>
+					<mx:AdvancedDataGridColumn headerText="告警总数" dataField="totalalarmnum"/>
+					<mx:AdvancedDataGridColumn headerText="严重告警" dataField="criticalalarmnum"/>
+					<mx:AdvancedDataGridColumn headerText="工程告警" dataField="locatenalarmnum"/>
+					<mx:AdvancedDataGridColumn headerText="未确认" dataField="unackedalarmnum"/>
+					<mx:AdvancedDataGridColumn headerText="未派单" dataField="unsendsheetnum"/>
+					<mx:AdvancedDataGridColumn headerText="已回单" dataField="answeredsheetnum"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+		</panel:Window>
+		<panel:Window width="100%" height="35%" maximizable="false" minimizable="false"
+					  closable="false" title="告警流水" minHeight="30">
+			<pubflow:alarm id="alarmFlow" width="100%" height="100%" moduleKey="totalflowalarm"/>
+		</panel:Window>
+	</mx:VDividedBox>
+</s:Group>

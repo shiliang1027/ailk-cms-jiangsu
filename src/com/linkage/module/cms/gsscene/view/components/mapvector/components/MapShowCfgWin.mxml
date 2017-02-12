@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="350"
+					height="240"
+					title="地图显示配置"
+					dragable="true"
+					minimizable="false"
+					maximizable="false"
+					styleName="windowScene"
+					creationComplete="window1_creationCompleteHandler()"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					close="window1_closeHandler(event)">
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.MapVectorDM;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.util.MapVectorImageFactory;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			private var log:ILogger = Log.getLoggerByClass(MapShowCfgWin);
+			
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			[Inject("mapVectorDM")]
+			[Bindable]
+			public var mapVectorDM:MapVectorDM;
+
+			[Bindable]
+			public var refreshTimeData:ArrayCollection = new ArrayCollection([{"value": "1", "label": "1分钟"},{"value": "2", "label": "2分钟"},{"value": "5", "label": "5分钟"},{"value": "10", "label": "10分钟"}]);
+
+			public var isShow:Boolean = false;
+			
+//			public var refreshFun:Function;
+			
+			[Bindable]
+			public var isLTEFlag:Boolean = false;
+			/**
+			 * 
+			 *确定，触发事件，获取用户需用的数据。 
+			 **/
+			protected function ok_clickHandler():void
+			{
+				var loadMapInfoType:String;
+				var refreshT:String;
+				var loadMapShowKey:Object = {};
+				if(alarm.selected){
+					loadMapInfoType = GsSceneConts.loadMapInfoType_alarm;
+					loadMapShowKey["eq"] = eq.selected;
+					loadMapShowKey["perf"] = perf.selected;
+				}else if(quit.selected){
+					loadMapInfoType = GsSceneConts.loadMapInfoType_quit;
+					if(!isLTEFlag){
+						loadMapShowKey["gsm"] = gsm.selected;
+						loadMapShowKey["td"] = td.selected;
+					}else{
+						loadMapShowKey["gsm"] = false;
+						loadMapShowKey["td"] = false;
+					}
+					loadMapShowKey["lte"] = lte.selected;
+				}else if(area.selected){
+					loadMapInfoType = GsSceneConts.loadMapInfoType_area;
+				}
+//				refreshFun(refreshT,loadMapInfoType,loadMapShowKey);
+
+				mapVectorDM.loadMapInfoType = loadMapInfoType;
+				mapVectorDM.loadMapShowKey = loadMapShowKey;
+				//通知查询。
+				var evt:SceneEvent = new SceneEvent(SceneEvent.AREAORMO_MAPVECTOR_DATACHANGE);
+				msgDispatcher(evt);
+				
+				//改变轮询设置
+				if(times.selected){
+					refreshT = refreshTime.selectedItem['value'];
+					var evt:SceneEvent = new SceneEvent("CHANGE_REFRESHTIME");
+					evt.param.refreshTime = refreshT;
+					msgDispatcher(evt);
+				}else{
+					msgDispatcher(new SceneEvent("STOPTIMER"));
+				}
+//				this.window1_closeHandler();
+				this.dispatchEvent(new WindowEvent(WindowEvent.CLOSE,this));
+			}
+			protected function canel_clickHandler():void
+			{
+//				this.window1_closeHandler();
+				this.dispatchEvent(new WindowEvent(WindowEvent.CLOSE,this));
+			}
+			
+			protected function alarm_clickHandler():void
+			{
+				eq.selected = true;
+				perf.selected = true;
+				
+				gsm.selected = false;
+				td.selected = false;
+				lte.selected = false;
+			}
+			
+			protected function quit_clickHandler():void
+			{
+				eq.selected = false;
+				perf.selected = false;
+				
+				gsm.selected = true;
+				td.selected = true;
+				lte.selected = true;
+			}
+			
+			protected function area_clickHandler():void
+			{
+				eq.selected = false;
+				perf.selected = false;
+				area.selected=true;
+				gsm.selected = false;
+				td.selected = false;
+				lte.selected = false;
+			}
+			protected function window1_closeHandler(event:WindowEvent=null):void
+			{
+//				PopUpManager.removePopUp(this);
+			}
+			
+			protected function window1_creationCompleteHandler():void
+			{
+				log.info("地图显示配置");
+				log.info(user);
+				if ("2" == user.logicalType)
+				{//LTE
+					isLTEFlag = true;
+				}
+				
+				if ("4" == user.logicalType)
+				{//区域
+					log.info("地图显示配置---》区域");
+					area_clickHandler();
+					mapVectorDM.loadMapInfoType = GsSceneConts.loadMapInfoType_area;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:VGroup width="98%"  height="98%" verticalCenter="0" horizontalCenter="0">
+		<s:HGroup verticalAlign="middle" width="100%" height="35">
+			<s:Label width="10"/>
+			<s:RadioButton id="alarm" groupName="view" label="告警：" click="alarm_clickHandler()" selected="true"/>
+			<s:CheckBox id="eq" selected="true"/>
+			<mx:Image source="{MapVectorImageFactory.eq}" />
+			<s:Label text="设备"/>  
+			<s:Label width="20"/>
+			<s:CheckBox id="perf" selected="true"/>
+			<mx:Image source="{MapVectorImageFactory.perf}" />
+			<s:Label text="性能"/>  
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle" horizontalAlign="left" width="100%" height="35">
+			<s:Label width="10"/>
+			<s:RadioButton id="quit" groupName="view" label="退服：" click="quit_clickHandler()"/>
+			<s:CheckBox id="gsm" visible="{!isLTEFlag}" includeInLayout="{!isLTEFlag}" label="GSM" width="60"/>
+			<s:CheckBox id="td" visible="{!isLTEFlag}" includeInLayout="{!isLTEFlag}" label="TD" width="60"/>
+			<s:CheckBox id="lte" label="LTE" width="60"/>
+		</s:HGroup>
+		
+		<s:HGroup verticalAlign="middle" width="100%" height="35">
+			<s:Label width="10"/>
+			<s:RadioButton id="area" groupName="view" label="区域" click="area_clickHandler()"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle" width="100%" height="35">
+			<s:Label width="10"/>
+			<s:CheckBox id="times" label="轮循" selected="true"/>
+			<s:Label width="8"/>
+			<s:DropDownList id="refreshTime" 
+							dataProvider="{refreshTimeData}" 
+							labelField="label" width="100" 
+							selectedIndex="2"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle" horizontalAlign="center" width="100%" height="35" gap="20">
+			<s:Button label="确定" id="ok" click="ok_clickHandler()"  width="80" />
+			<s:Button label="取消" id="canel" click="canel_clickHandler()"  width="80" />
+		</s:HGroup>
+	</s:VGroup>
+</ailk_compts:Window>

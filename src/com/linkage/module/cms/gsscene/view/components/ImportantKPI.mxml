@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					title="重点指标"
+					minimizable="false"
+					styleName="windowScene"
+					titleIcon="@Embed(source='../../img/title_ico01.png')"
+					close="closeWindow(1)"
+					maximize="window2_resize(true)"
+					restore="window2_resize(false)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2012-7-26
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.importantKPI.ImportantKPIPM;
+			import com.linkage.module.cms.gsscene.view.components.importantKPI.event.ImportantKPIEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			
+			import spark.events.IndexChangeEvent;
+			private var log:ILogger = Log.getLoggerByClass(ImportantKPI);
+			public var location:String;
+			public var index:String;
+			private var maxFlag:Boolean = false;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var labelNum:int = 4;
+
+			[Bindable]
+			[Embed(source="../../img/clock1.png")]
+			private var clock:Class;
+
+			[Inject("importantKPIPM")]
+			[Bindable]
+			public var importantKPIPM:ImportantKPIPM;
+
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(event:SceneEvent = null):void
+			{
+				log.info("init 重点指标 初始化！");
+
+				importantChart.percentHeight = 100;
+				importantKPIPM.loadKpiDatas("", "");
+			}
+
+			private var dataIndex:uint = 0;
+
+			[MessageHandler(selector="SHOW_KPI_DATA")]
+			public function showChart(event:ImportantKPIEvent):void
+			{
+				dataIndex = 0;
+				log.debug("[重点指标]：第一个图表 开始渲染！" + importantKPIPM.impDM.resultData[dataIndex]["kpiName"]);
+				var p1:SerialParam = new SerialParam('kpiValue', importantKPIPM.impDM.resultData[dataIndex]["kpiName"]);
+				p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+
+				var charParam:ChartParam = new ChartParam();
+				//设置横坐标参数
+				charParam.xAxisProperty = "kpiTime";
+				charParam.showLegend = false;
+//				charParam.labelStep = int(importantKPIPM.impDM.resultData[dataIndex]["datas"].length / labelNum);
+				importantChart.chartParam = charParam;
+
+				importantChart.series = new ArrayCollection([p1]);
+
+				var arrData:ArrayCollection;
+
+				if(importantKPIPM.impDM.resultData[dataIndex])
+					arrData = importantKPIPM.impDM.resultData[dataIndex++]["datas"] as ArrayCollection;
+				else
+					arrData = new ArrayCollection();
+
+				importantChart.width = arrData.length * 38;
+
+				if(importantChart.width < this.width)
+					importantChart.width = this.width - 80;
+
+				importantChart.chartData(arrData, true);
+
+//				importantKPIPM.startTimer();
+			}
+
+			[MessageHandler(selector="LOOP_KPI_DATA")]
+			public function loopChart(event:ImportantKPIEvent):void
+			{
+				log.debug("[重点指标]：定时渲染！" + importantKPIPM.impDM.resultData[dataIndex]["kpiName"]);
+
+				var p1:SerialParam = new SerialParam('kpiValue', importantKPIPM.impDM.resultData[dataIndex]["kpiName"]);
+				p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+
+				var charParam:ChartParam = new ChartParam();
+				//设置横坐标参数
+				charParam.xAxisProperty = "kpiTime";
+				charParam.showLegend = false;
+				importantChart.chartParam = charParam;
+
+				this.importantChart.series = new ArrayCollection([p1]);
+
+				var arrData:ArrayCollection;
+
+				log.debug("------------------->dataIndex=" + dataIndex);
+
+				if(importantKPIPM.impDM.resultData[int(dataIndex % (importantKPIPM.impDM.resultData.length))])
+					arrData = importantKPIPM.impDM.resultData[int((dataIndex++) % (importantKPIPM.impDM.resultData.length))]["datas"] as ArrayCollection;
+				else
+					arrData = new ArrayCollection();
+
+				importantChart.width = arrData.length * 38;
+
+				if(importantChart.width < this.width)
+					importantChart.width = this.width - 80;
+
+				importantChart.chartData(arrData, true);
+			}
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+
+			//创建时间
+			protected function createTime(event:FlexEvent, remote:int):void
+			{
+				var date:Date = new Date();
+				date = new Date(date.getTime() + remote * 1000);
+				event.currentTarget.text = dateFormatter.format(date);
+			}
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			//点击查询
+			protected function button_clickHandler(event:MouseEvent):void
+			{
+				this.timeComp.visible = false;
+				this.timeComp.includeInLayout = false;
+
+				var startTime:String = startTimeField.text;
+				var endTime:String = endTimeField.text;
+				importantKPIPM.loadKpiDatas(startTime, endTime);
+			}
+
+			public function closeWindow(type:int = 0):void
+			{
+				if(type == 1)
+				{
+					this.visible = false;
+					this.includeInLayout = false;
+
+				}
+				else
+					(this.parent as Group).removeElement(this);
+
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+				e.panelName = this.name;
+				msgDispatcher(e);
+			}
+
+			protected function window2_resize(flag:Boolean):void
+			{
+				log.info("重点指标最大化、恢复窗口：" + flag + "_" + maxFlag);
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+				e.panelName = this.name;
+				e.panelIndex = this.index;
+				e.panellocation = this.location;
+				e.panelMaxFlag = this.maxFlag;
+				msgDispatcher(e);
+				log.info("重点指标 最大化、恢复窗口：派发事件！");
+
+				this.maxFlag = flag;
+
+				this.closeButton.visible = !flag;
+				this.closeButton.includeInLayout = !flag;
+
+				importantChart.width = (importantKPIPM.impDM.kpiNameDataMap[kpiSelector.selectedItem["kpiName"]] as ArrayCollection).length * 38;
+
+				if(importantChart.width < this.width)
+					importantChart.width = this.width - 80;
+			}
+
+			protected function kpiSelector_changeHandler():void
+			{
+				log.debug("[重点指标]：指标切换 开始渲染！" + kpiSelector.selectedItem["kpiName"]);
+				var p1:SerialParam = new SerialParam('kpiValue', kpiSelector.selectedItem["kpiName"]);
+				p1.chartType = PrettyChartType.CHART_TYPE_LINE;
+
+				importantChart.width = (importantKPIPM.impDM.kpiNameDataMap[kpiSelector.selectedItem["kpiName"]] as ArrayCollection).length * 38;
+
+				if(importantChart.width < this.width)
+					importantChart.width = this.width - 80;
+
+				var charParam:ChartParam = new ChartParam();
+				charParam.xAxisProperty = "kpiTime";
+				charParam.showLegend = false;
+
+				importantChart.chartParam = charParam;
+
+				importantChart.series = new ArrayCollection([p1]);
+
+				importantChart.chartData(importantKPIPM.impDM.kpiNameDataMap[kpiSelector.selectedItem["kpiName"]] as ArrayCollection, true);
+			}
+
+			//指标概况指标点击后切换重点指标数据。
+//			[MessageHandler(selector="KPI_CHANGE")]
+			public function dealSelectedKpi(e:SceneEvent):void
+			{
+				log.debug("指标切换 重点指标：" + e.kpiName);
+				for each(var kpi:Object in importantKPIPM.impDM.kpiList)
+				{
+					if(kpi['kpiName'] == e.kpiName)
+					{
+						kpiSelector.selectedItem = kpi;
+						break;
+					}
+				}
+
+				kpiSelector_changeHandler();
+			}
+		]]>
+	</fx:Script>
+
+	<s:Group width="100%"
+			 right="-20"
+			 left="-8"
+			 height="100%">
+		<s:Scroller width="100%"
+					top="20"
+					height="100%">
+			<s:HGroup width="100%"
+					  horizontalAlign="center"
+					  clipAndEnableScrolling="true"
+					  height="100%">
+				<ailk_chart:PrettyChart top="20"
+										id="importantChart"
+										showYaxisTitle="true"
+										showXaxisTitle="true"
+										width="250"
+										height="100"/>
+			</s:HGroup>
+		</s:Scroller>
+		<s:DropDownList id="kpiSelector"
+						right="-10"
+						top="2"
+						width="210"
+						requireSelection="true"
+						labelField="kpiName"
+						dataProvider="{importantKPIPM.impDM.kpiList}"
+						change="kpiSelector_changeHandler()"/>
+	</s:Group>
+
+	<mx:Image bottom="14"
+			  x="-3"
+			  buttonMode="true"
+			  toolTip="显示时间配置"
+			  source="{clock}"
+			  click="{this.timeComp.visible = true; this.timeComp.includeInLayout = true;}"/>
+
+
+	<ailk_compts:Window bottom="8"
+						x="2"
+						minimizable="false"
+						maximizable="false"
+						id="timeComp"
+						styleName="window"
+						visible="false"
+						close="{this.timeComp.visible = false; this.timeComp.includeInLayout = false;}"
+						includeInLayout="false">
+		<s:VGroup width="100%"
+				  height="100%"
+				  verticalAlign="middle">
+			<ailk_compts:UXDateField id="startTimeField"
+									 color="0x000000"
+									 creationComplete="createTime(event,-3600)"
+									 labelFunction="formatDate"
+									 yearNavigationEnabled="true"
+									 width="190"/>
+			<ailk_compts:UXDateField id="endTimeField"
+									 color="0x000000"
+									 creationComplete="createTime(event,0)"
+									 labelFunction="formatDate"
+									 yearNavigationEnabled="true"
+									 width="190"/>
+			<s:Button label="查询"
+					  click="button_clickHandler(event)"/>
+		</s:VGroup>
+	</ailk_compts:Window>
+</ailk_compts:Window>

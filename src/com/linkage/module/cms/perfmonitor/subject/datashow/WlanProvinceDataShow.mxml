@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:wlan="com.linkage.module.cms.perfmonitor.subject.datashow.wlan.*"
+		 creationComplete="group1_creationCompleteHandler(event)">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExt;
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectWlanService;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.events.FlexEvent;
+			
+			private var _commonService:SubjectInterfaceCommService;
+			
+			private var _wlanService:SubjectWlanService;
+			
+			[Bindable]
+			private var _wlanMonitor:Object;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.datashow.WlanProvinceDataShow");
+			
+			private var _isDebug:Boolean = false;
+			
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+			
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get wlanService():SubjectWlanService
+			{
+				return _wlanService;
+			}
+			
+			public function set wlanService(value:SubjectWlanService):void
+			{
+				_wlanService = value;
+			}
+			
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+			
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+			
+			public function get wlanMonitor():Object
+			{
+				return _wlanMonitor;
+			}
+
+			public function set wlanMonitor(value:Object):void
+			{
+				_wlanMonitor = value;
+			}
+			
+			public function initData():void
+			{
+//				//默认隐藏
+//				this.outServiceAp.showThisWindow();
+//				this.zeroServiceWlan.hideThisWindow();
+				
+				_wlanService.quitApStat(loadApDataSucc,null,loadApDataErr);
+				_wlanService.zeroWlanStat(loadWlanDataSucc,null,loadWlanDataErr);
+			}
+			
+			private function loadApDataSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载AP退服统计数据正常！");
+					this.outServiceAp.initData(obj);
+				}
+				else
+				{
+					log.info("加载AP退服统计数据为空！");
+					if (_isDebug)
+					{
+						this.outServiceAp.initData(null);
+					}
+				}
+			}
+			
+			private function loadApDataErr(obj:Object):void
+			{
+				log.info("加载AP退服统计数据异常！" + obj);
+				if (_isDebug)
+				{
+					this.outServiceAp.initData(null);
+				}
+			}
+			
+			private function loadWlanDataSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("加载零业务热点统计数据正常！");
+					this.zeroServiceWlan.initData(obj);
+				}
+				else
+				{
+					log.info("加载零业务热点统计数据为空！");
+					if (_isDebug)
+					{
+						this.zeroServiceWlan.initData(null);
+					}
+				}
+			}
+			
+			private function loadWlanDataErr(obj:Object):void
+			{
+				log.info("加载零业务热点统计数据异常！" + obj);
+				if (_isDebug)
+				{
+					this.zeroServiceWlan.initData(null);
+				}
+			}
+
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				windowArray.push(outServiceAp);
+				windowArray.push(zeroServiceWlan);
+				showWindow(WindowExt(windowArray[0]));
+			}
+
+//			private function closeOpenWindow():void
+//			{
+//				if (this.outServiceAp._defaultShow)
+//				{
+//					this.outServiceAp.hideThisWindow();
+//				}
+//				if (this.zeroServiceWlan._defaultShow)
+//				{
+//					this.zeroServiceWlan.hideThisWindow();
+//				}
+//			}
+			
+			private var windowArray:Array = new Array;
+			protected function windowext_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				showWindow(WindowExt(event.target));
+				WindowExt(event.target).titleDisplay.addEventListener(MouseEvent.CLICK,function(evt:MouseEvent):void{
+					getWindow(evt.target).dispatchEvent(new WindowExtEvent(WindowExtEvent.TOGGLE));
+					function getWindow(target:Object):WindowExt{
+						if(!target){
+							return null;
+						}
+						if(target is WindowExt){
+							return WindowExt(target);
+						}else{
+							return getWindow(target.parent);
+						}
+						return null;
+					}
+					
+				});
+			}
+			
+			protected function windowext_toggleHandler(event:WindowExtEvent):void
+			{
+				// TODO Auto-generated method stub
+				for each(var window:WindowExt in windowArray){
+					showWindow(window);
+				}
+			}
+			
+			private function showWindow(window:WindowExt):void{
+				var vis:Boolean = window.contentGroup.visible;
+				window.contentGroup.visible=!vis;
+				window.contentGroup.includeInLayout=!vis;
+				if(vis){
+					window.height = window.minHeight;
+					window.toggleButton.text="︽";
+				}else{
+					window.percentHeight = 100;
+					window.toggleButton.text="︾";
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%">
+		<wlan:OutServerApStat id="outServiceAp" width="100%" height="100%" wlanMonitor="{_wlanMonitor}" maxWindowHeight="{this.height-10}" windowNum="2" creationComplete="windowext_creationCompleteHandler(event)" toggle="windowext_toggleHandler(event)">
+		</wlan:OutServerApStat>
+		<wlan:ZeroServiceWlanStat id="zeroServiceWlan" width="100%" height="100%" wlanMonitor="{_wlanMonitor}" maxWindowHeight="{this.height-10}" windowNum="2" creationComplete="windowext_creationCompleteHandler(event)" toggle="windowext_toggleHandler(event)">
+		</wlan:ZeroServiceWlanStat>
+	</s:VGroup>
+</s:Group>

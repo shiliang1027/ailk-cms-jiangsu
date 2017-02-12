@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 width="100%"
+		 height="100%">
+
+    <fx:Declarations>
+        <parsley:Configure/>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.complaintsheet.ComplaintSheetStatDM;
+			import com.linkage.module.cms.gsscene.view.components.complaintsheet.ComplaintSheetStatPM;
+			
+			import mx.events.ListEvent;
+
+            private var log:ILogger = Log.getLoggerByClass(ComplaintSheetStat);
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            [Inject("complaintSheetStatPM")]
+            [Bindable]
+            public var complaintSheetStatPM:ComplaintSheetStatPM;
+			
+			[Inject("user")]
+			public var user:IUser;
+
+            [Inject("complaintSheetStatDM")]
+            [Bindable]
+            public var complaintSheetStatDM:ComplaintSheetStatDM;
+
+            [MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+            public function loadData(e:SceneEvent = null):void
+            {
+                log.info("开始加载投诉工单数据。");
+				complaintSheetStatPM.loadDetailData(user);
+            }
+			
+			protected function sheetAlarmDG_itemClickHandler(event:ListEvent):void
+			{
+				var param:String = "";
+				param += "alarmuniqueid=" + sheetAlarmDG.selectedItem.alarmuniqueid;
+				param += "&moId=" + sheetAlarmDG.selectedItem.moId;
+				param += "&daltime=" + sheetAlarmDG.selectedItem.daltime;
+				var url:String = "warn/sheet/sheetAction.action?" + param;
+				log.info("跳转到投诉工单详情：" +　url);
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			
+			protected function exportKPI():void
+			{
+				var param:String = user.getImportParams();
+				var url:String = "gsscene/panels/panelsAction!exportProjectInfo.action?" + param;
+				log.info("跳转到投诉工单导出：" +　url);
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+		]]>
+
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+	<s:Scroller	width="100%" height="100%" styleName="sceneScroller">
+		<s:Group width="100%"  height="100%">
+				<mx:AdvancedDataGrid id="sheetAlarmDG" width="100%"
+									 dataProvider="{complaintSheetStatDM.sheetAlarmsList['datas']}"
+									 height="100%" itemClick="sheetAlarmDG_itemClickHandler(event)"
+									 styleName="sceneDG"
+									 verticalAlign="middle"
+									 horizontalScrollPolicy="auto">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="city"
+												   headerText="地市"/>
+						<mx:AdvancedDataGridColumn dataField="bussiness"
+												   headerText="业务类型"/>
+						<mx:AdvancedDataGridColumn dataField="sheetTitle"
+												   headerText="工单标题"/>
+						<mx:AdvancedDataGridColumn dataField="sendTime"
+												   headerText="派单时间"/>
+						<mx:AdvancedDataGridColumn dataField="sheetno"
+												   headerText="工单号"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+		</s:Group>
+	</s:Scroller>
+	<mx:Image top="-28" right="35" source="@Embed('../../img/icon_export.png')"
+			  buttonMode="true"
+			  toolTip="导出"
+			  click="exportKPI()"/>
+</s:Group>

@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 creationComplete="gisHotCellRadiusView_creationCompleteHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-14
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.oneline.domain.wireless.IUser;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+
+			import spark.events.TextOperationEvent;
+
+			[Bindable]
+			[Inject("gisHotViewPM")]
+			public var pm:GisHotViewPM;
+			[Inject("user")]
+			public var user:IUser;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+
+			private var exportUrl:String="scenedaily/produce/hotmap/hotmap!export.action?";
+			private var exportType:String="1";
+
+			private function setCellRadius_clickHandler(event:MouseEvent):void
+			{
+				radiusView.visible=!radiusView.visible;
+			}
+
+			private function refresh_clickHandler(event:MouseEvent):void
+			{
+				dispatcher(new GisHotEvent(GisHotEvent.REFRESHHOTSPOTCELLDATA));
+			}
+			protected function gisHotCellRadiusView_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				dispatcher(new GisHotEvent(GisHotEvent.LOADCELLRADIUSDATA));
+			}
+
+			[MessageHandler(selector="SAVECELLRADIUSDATACOMPLETE")]
+			public function saveCellRadiusDataCompleteHandler(e:GisHotEvent):void
+			{
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.DOLOADHOTSPOTCELLDATA);
+				evt.param=new Object();
+				dispatcher(evt);
+			}
+
+
+			protected function save_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.SAVECELLRADIUSDATA);
+				var param:Object=new Object();
+				param.radius=pm.dm.cellRadius;
+				evt.param=param;
+				dispatcher(evt);
+			}
+
+			protected function radiusInput_changeHandler(event:TextOperationEvent):void
+			{
+				if (!isNaN(Number(radiusInput.text)))
+				{
+					pm.dm.cellRadius=Number(radiusInput.text);
+				}
+				else
+				{
+//					Alert.show("请输入正确数字", "错误");
+				}
+			}
+
+			protected function allRB_changeHandler(event:Event):void
+			{
+				if (RadioButton(event.currentTarget).selected)
+				{
+					var evt:GisHotEvent=new GisHotEvent(GisHotEvent.DOLOADHOTSPOTCELLDATA);
+					var param:Object=new Object();
+					param.btsType="0";
+					evt.param=param;
+					dispatcher(evt);
+				}
+			}
+
+			protected function hzRB_changeHandler(event:Event):void
+			{
+				if (RadioButton(event.currentTarget).selected)
+				{
+					var evt:GisHotEvent=new GisHotEvent(GisHotEvent.DOLOADHOTSPOTCELLDATA);
+					var param:Object=new Object();
+					param.btsType="1";
+					evt.param=param;
+					dispatcher(evt);
+				}
+			}
+
+			protected function wfwRB_changeHandler(event:Event):void
+			{
+				if (RadioButton(event.currentTarget).selected)
+				{
+					var evt:GisHotEvent=new GisHotEvent(GisHotEvent.DOLOADHOTSPOTCELLDATA);
+					var param:Object=new Object();
+					param.btsType="2";
+					evt.param=param;
+					dispatcher(evt);
+				}
+			}
+
+			protected function exportAllRB_changeHandler(event:Event):void
+			{
+				if (RadioButton(event.currentTarget).selected)
+				{
+					exportType="1";
+				}
+			}
+
+			protected function exportSelectedRB_changeHandler(event:Event):void
+			{
+				if (RadioButton(event.currentTarget).selected)
+				{
+					exportType="3";
+				}
+			}
+
+			protected function exportBZRB_changeHandler(event:Event):void
+			{
+				if (RadioButton(event.currentTarget).selected)
+				{
+					exportType="2";
+				}
+			}
+
+			protected function exportTopNRB_changeHandler(event:Event):void
+			{
+				if (RadioButton(event.currentTarget).selected)
+				{
+					exportType="4";
+				}
+			}
+
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var url:String=exportUrl + "type=" + exportType;
+				if (exportType == "3")
+				{
+					if (pm.dm.regionPints == "")
+					{
+						Alert.show("未框选区域", "提示");
+						return;
+					}
+					url+="&points=" + pm.dm.regionPints;
+				}
+				navigateToURL(new URLRequest(user.context + url), "_self");
+			}
+
+			private function singleKpiConfig(event:MouseEvent):void
+			{
+				navigateToURL(new URLRequest(user.context + "/scenedaily/produce/hotmap/conf/singleperf/hotCell.action"));
+			}
+
+			private function multiKpiConfig(event:MouseEvent):void
+			{
+				navigateToURL(new URLRequest(user.context + "/scenedaily/produce/hotmap/conf/mutliperf/hotConfAction.action"));
+			}
+			
+			
+			protected function change_table(event:MouseEvent):void
+			{
+				navigateToURL(new URLRequest(user.context + "/scenedaily/produce/hotmap/hotmap!SpecialPhoneDataInfo.action"));
+			}
+			protected function change_black(event:MouseEvent):void
+			{
+				navigateToURL(new URLRequest(user.context + "/scenedaily/produce/hotmap/blackList/blackListAction!execute.action"));
+			}
+			protected function change_hot(event:MouseEvent):void
+			{
+				navigateToURL(new URLRequest(user.context + "/scenedaily/produce/hotmap/hotmap!HotCellDataInfo.action"));
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+		<mx:NumberValidator source="{radiusInput}"
+							property="text"
+							trigger="{radiusInput}"
+							triggerEvent="change"
+							valid="this.saveRadiusBtn.enabled=true;"
+							invalid="this.saveRadiusBtn.enabled=false;"/>
+	</fx:Declarations>
+	<s:SkinnableContainer id="radiusView"
+						  visible="false"
+						  styleName="skinnableContainer1">
+		<s:layout>
+			<s:VerticalLayout paddingLeft="10"
+							  paddingRight="10"
+							  paddingTop="8"
+							  paddingBottom="3"/>
+		</s:layout>
+		<s:HGroup verticalAlign="middle">
+			<s:Label text="小区选择："/>
+			<s:RadioButton label="全部"
+						   selected="true"
+						   groupName="cellType"
+						   change="allRB_changeHandler(event)"/>
+			<s:RadioButton label="宏站小区"
+						   groupName="cellType"
+						   change="hzRB_changeHandler(event)"/>
+			<s:RadioButton label="微蜂窝小区"
+						   groupName="cellType"
+						   change="wfwRB_changeHandler(event)"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<s:Label text="导出选择："/>
+			<s:RadioButton label="全部小区"
+						   selected="true"
+						   groupName="exportType"
+						   change="exportAllRB_changeHandler(event)"/>
+			<!--<s:RadioButton label="框选小区"
+						   groupName="exportType"
+						   change="exportSelectedRB_changeHandler(event)"/>-->
+			<s:RadioButton label="标注小区"
+						   groupName="exportType"
+						   change="exportBZRB_changeHandler(event)"/>
+			<s:RadioButton label="指标TOPN"
+						   groupName="exportType"
+						   change="exportTopNRB_changeHandler(event)"/>
+			<s:Button label="导出"
+					  buttonMode="true"
+					  click="export_clickHandler(event)"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<s:Label text="辐射范围："/>
+			<s:TextInput id="radiusInput"
+						 text="{pm.dm.cellRadius}"
+						 change="radiusInput_changeHandler(event)"/>
+			<s:Label text="km"/>
+			<s:Button label="设置"
+					  id="saveRadiusBtn"
+					  buttonMode="true"
+					  click="save_clickHandler(event)"/>
+		</s:HGroup>
+
+		<s:HGroup verticalAlign="middle">
+			<s:Label text="指标配置："/>
+			<s:Label text="单指标配置"
+					 buttonMode="true"
+					 textDecoration="underline"
+					 click="singleKpiConfig(event)"/>
+			<!--<s:Label text="多指标配置"
+					 buttonMode="true"
+					 textDecoration="underline"
+					 click="multiKpiConfig(event)"/>-->
+		
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<s:Button label="特殊号码"
+					  buttonMode="true"
+					  click="change_table(event)"/>
+			<s:Button label="黑名单"
+					  buttonMode="true"
+					  click="change_black(event)"/>
+			<s:Button label="热点区域"
+					  buttonMode="true"
+					  click="change_hot(event)"/>
+		</s:HGroup>
+	</s:SkinnableContainer>
+
+	<s:HGroup top="-28"
+			  right="5">
+		<mx:Image source="@Embed(source='../../../assets/refresh.png')"
+				  width="16"
+				  height="16"
+				  buttonMode="true"
+				  toolTip="刷新"
+				  click="refresh_clickHandler(event)"/>
+		<mx:Image source="@Embed(source='assets/cog_edit.png')"
+				  width="16"
+				  height="16"
+				  buttonMode="true"
+				  toolTip="向导"
+				  click="setCellRadius_clickHandler(event)"/>
+	</s:HGroup>
+
+</s:Group>

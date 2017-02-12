@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute"
+		   xmlns:panel="com.linkage.system.component.panel.*"  
+		   xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		   xmlns:local="com.linkage.module.cms.groupclient.components.*" 
+		   backgroundColor="0xD7E0E7"
+		   width="100%" height="100%" creationComplete="module_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.groupclient.components.EqKPIDetailView;
+			import com.linkage.module.cms.groupclient.data.DemoDatas;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManager;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManagerBS;
+			import com.linkage.module.cms.groupclient.event.FilterFormEvent;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			private var moId:String;
+			[Bindable]
+			private var moName:String = "";
+			[Bindable]
+			private var radiusNum:Number = 5;
+			
+			private var queryParam:Object = {};//查询参数
+			public var parameters:Object;
+			public var lm:LoadManager = null;
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.EqKPIInfoModule");
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				
+				parameters = parentApplication.parameters;
+				lm = new LoadManager(this);
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//初始化manager
+				initServerClass();
+				log.info("初始化完成！");
+				
+				this.moName = this.parameters["moName"];
+				
+				queryParam.moId = this.parameters["moId"];
+				queryParam.moTypeId = this.parameters["moTypeId"];
+				queryParam.kpiIds = this.parameters["kpiIds"];
+				queryParam.servTypeId = this.parameters["servTypeId"];
+				log.info("参数：");
+				log.info(queryParam);
+				initKPIDetail(queryParam);
+			}
+			private function initKPIDetail(param:Object):void
+			{
+				lm.showLoading();
+				groupEqPerfDataManager.loadEqKPIDetail(param,
+					function(result:Object):void
+					{
+						var obj:Object = DemoDatas.kpiViewdata;
+						if(result){
+							log.info('查询集客设备性能指标详细信息成功！');
+							obj = result;
+						}
+						initModule(obj);
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('询集客设备性能指标详细信息失败！');
+						lm.hideLoading();
+					});
+			}
+			//初始化groupEqPerfDataManager，并给数据类注入context
+			private var groupEqPerfDataManager:GroupEqPerfDataManager;
+			private function initServerClass():void
+			{
+				if(null==groupEqPerfDataManager)
+					groupEqPerfDataManager = new GroupEqPerfDataManagerBS(this.parameters['context']);
+			}
+			protected function initModule(result:Object):void
+			{
+				moId = result["moId"];
+				//查询条件初始化展示
+				log.info(result["queryKPIForm"]);
+				log.info(""+ArrayCollection(result["queryKPIForm"]).length);
+				queryKPIForm.dataProvider = ArrayCollection(result["queryKPIForm"]);
+				//查询结果展示
+				initKPIGroup(result["KPIDetails"]);
+			}
+			public function initKPIGroup(result:Object):void{
+				eqKPIGroup.removeAllElements();
+				for each (var item:Object in result) 
+				{
+					var eqkpi:EqKPIDetailView = new EqKPIDetailView();
+					eqkpi.dataProvider = item;
+					eqKPIGroup.addElement(eqkpi);
+				}
+				
+			}
+			protected function queryKPIForm_queryHandler(event:FilterFormEvent):void
+			{
+				//1.查询列表
+				queryParam.kpiIds = event.param["kpiIds"];
+				initKPIDetail(queryParam);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup top="5" right="5" left="5" bottom="5" width="100%" height="100%" gap="0">
+		<s:Group width="100%" height="30">
+			<!--标题-->
+			<s:Rect alpha="1" width="{titleLabel.width + 20}" height="100%" topLeftRadiusX="{radiusNum}"  bottom="-1"
+					topLeftRadiusY="{radiusNum}" topRightRadiusX="{radiusNum}" topRightRadiusY="{radiusNum}">
+				<s:fill>
+					<s:LinearGradient>
+						<s:GradientEntry color="0xEEF6FC" ratio="0"/> 
+					</s:LinearGradient>
+				</s:fill>
+				<s:stroke>
+					<s:LinearGradientStroke weight="1">
+						<s:GradientEntry color="0x888888" alpha="0.9"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect>
+			<s:Label left="10" verticalCenter="0" text="{moName+'—》性能趋势'}" id="titleLabel"/>
+		</s:Group>
+		<s:Group width="100%" height="100%">
+			<s:Rect alpha="1" width="100%" height="100%">
+				<s:fill>
+					<s:LinearGradient>
+						<s:GradientEntry color="0xEEF6FC" ratio="0"/> 
+					</s:LinearGradient>
+				</s:fill>
+				<s:stroke>
+					<s:LinearGradientStroke weight="1">
+						<s:GradientEntry color="0x888888" alpha="0.9"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect>
+			<s:VGroup width="100%" height="100%">
+				<s:Group width="100%" minHeight="50">
+					<!--查询条件-->
+					<local:queryKPIForm id="queryKPIForm" top="10" query="queryKPIForm_queryHandler(event)"/>
+				</s:Group>
+					<!--显示结果-->
+					<s:Scroller width="100%" height="98%" id="mainScroller" verticalScrollPolicy="auto"
+								left="5" top="40" bottom="5" right="5">
+						<s:VGroup width="100%" height="100%" id="eqKPIGroup" gap="30" horizontalAlign="center">
+						</s:VGroup>
+					</s:Scroller>
+			</s:VGroup>
+		</s:Group>
+	</s:VGroup>
+</mx:Module>

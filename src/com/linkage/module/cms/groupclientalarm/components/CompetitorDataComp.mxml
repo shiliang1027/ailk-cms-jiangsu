@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="竞争对手数据"
+		 creationComplete="competitorDataComp_creationCompleteHandler(event)"
+		 xmlns:panel="com.linkage.system.component.panel.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="yuyinDataQuery",type="com.linkage.module.cms.groupclientalarm.event.HealthInfoCompEvent")]
+		[Event(name="shujuDataQuery",type="com.linkage.module.cms.groupclientalarm.event.HealthInfoCompEvent")]
+		[Event(name="hulianwangDataQuery",type="com.linkage.module.cms.groupclientalarm.event.HealthInfoCompEvent")] 
+		[Event(name="duanxinDataQuery",type="com.linkage.module.cms.groupclientalarm.event.HealthInfoCompEvent")] 
+		[Event(name="wangluofuwuDataQuery",type="com.linkage.module.cms.groupclientalarm.event.HealthInfoCompEvent")] 
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.linkage.module.cms.groupclientalarm.event.HealthInfoCompEvent;
+			import com.linkage.module.cms.groupclientalarm.renderer.AlarmCustRenderer;
+			import com.linkage.module.cms.groupclientalarm.renderer.AlarmLerver1Renderer;
+			import com.linkage.module.cms.groupclientalarm.renderer.AlarmLerver2Renderer;
+			import com.linkage.module.cms.groupclientalarm.renderer.AlarmLerver3Renderer;
+			import com.linkage.module.cms.groupclientalarm.renderer.AlarmLerver4Renderer;
+			import com.linkage.system.component.panel.Window;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.core.ScrollPolicy;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			// log
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.groupclient.components.BaseInfoComp");
+			[Bindable]
+			private var clientInfoData:Object=new Object();
+			private var thicknessTableDGData:Object=new Object();
+			private var equipmentInfoDGData:Object=new Object();
+			
+			protected function competitorDataComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(HealthInfoCompEvent.YUYINDATACHANGE, onClientInfoDataChange);
+				this.addEventListener(HealthInfoCompEvent.SHUJUDATACHANGE, onThicknessDataChange);
+				this.addEventListener(HealthInfoCompEvent.HULIANWANDATACHANGE, onEquitmentInfoChange);
+				this.addEventListener(HealthInfoCompEvent.DUANXINDATACHANGE, onEquitmentInfoChange);
+				this.addEventListener(HealthInfoCompEvent.WANGLUOFUWUDATACHANGE, onEquitmentInfoChange);
+				this.addEventListener(HealthInfoCompEvent.REFRESH, onRefresh);
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.REFRESH));
+			}
+			
+			private function onRefresh(event:HealthInfoCompEvent):void
+			{
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.YUYINDATAQUERY));
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.HULIANWANGDATAQUERY));
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.SHUJUDATAQUERY));
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.DUANXINDATAQUERY));
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.WANGLUOFUWUDATAQUERY));
+			}
+			
+			private function onClientInfoDataChange(event:HealthInfoCompEvent):void
+			{
+				log.info("log.info()");
+				log.info(event.param);
+				clientInfoData=event.param;
+				//result[key].dataList
+				//				for (var key:Object in result)
+				//				{
+				//					 log.info("[基本信息--客户信息查询]key:");
+				//					log.info(key); 
+				//					/* for each (var custInfo:Object in result[key].dataList)
+				//					{
+				//						clientInfoData=custInfo;
+				//					} */
+				//				} 
+			}
+			
+			private var expData:ArrayCollection=new ArrayCollection;
+			private var headerArr:Array=new Array();
+			
+			private function onThicknessDataChange(event:HealthInfoCompEvent):void
+			{
+//				thicknessTableDG.dataProvider=event.param;
+//				//				thicknessTableDGData = event.param;
+//				log.info("thicknessTableDGData");
+//				log.info(thicknessTableDGData);
+				//				for(var key:Object in thicknessTableDGData)
+				//				{
+				//					log.info("厚度");
+				//					log.info(key);
+				//				}
+				//				var columns:Array = buildColumns(thicknessTableDGResult);
+				//				for each(var column:AdvancedDataGridColumn in columns){
+				//					if(column.dataField == "safe_level"){
+				//						column.width=120;
+				//					}else if(column.dataField == "level1"){
+				//						column.width=150;
+				//						column.itemRenderer = new ClassFactory(AlarmLerver1Renderer);
+				//					}else if(column.dataField == "level2"){
+				//						column.width=150;
+				//						column.itemRenderer = new ClassFactory(AlarmLerver2Renderer);
+				//					}else if(column.dataField == "level3"){
+				//						column.width=150;
+				//						column.itemRenderer = new ClassFactory(AlarmLerver3Renderer);
+				//					}else if(column.dataField == "level4"){
+				//						column.width=150;
+				//						column.itemRenderer = new ClassFactory(AlarmLerver4Renderer);
+				//					}else{
+				//						column.width=250;
+				//						column.itemRenderer = new ClassFactory(AlarmCustRenderer);
+				//					}
+				//				}
+				//				thicknessTableDG.columns = columns;
+				//				thicknessTableDG.dataProvider = thicknessTableDGResult.dataList;
+				//				thicknessTableDGData = thicknessTableDGResult.dataList;
+			}
+			
+			private function onEquitmentInfoChange(event:HealthInfoCompEvent):void
+			{
+				/* log.info("设备信息数据：");
+				log.info(event.param);
+				log.info("event.param.datas="+event.param.datas.length);
+				log.info(event.param.datas); */
+				
+				//equipmentInfoDG.dataProvider=event.param.datas;
+			}
+			
+			
+			private function buildColumns(result:Object):Array
+			{
+				var columns:Array=new Array();
+				var i:Number=0;
+				headerArr.splice(0);
+				for each (var name:String in result.name)
+				{
+					log.info("[buildColumns]name:" + name + ",column:" + result.colum[i]);
+					var dataGridColumn:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+					dataGridColumn.width=150;
+					dataGridColumn.headerText=name;
+					dataGridColumn.dataField=result.colum[i];
+					columns.push(dataGridColumn);
+					headerArr.push({"id": result.colum[i], "name": name});
+					i++;
+				}
+				
+				return columns;
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%"
+				  gap="0">
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="yuyinVGroup">
+				<panel:Window id="yuyinInfoWindow"
+							  title="语音专线"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="yuyinInfoDG"
+										 width="100%"
+										 height="100%">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="cityName"/>
+							<mx:AdvancedDataGridColumn headerText="客户交换机产权"
+													   dataField="roomName"/>
+							<mx:AdvancedDataGridColumn headerText="交换机厂家型号"
+													   dataField="devName"/>
+							<mx:AdvancedDataGridColumn headerText="客户综合布线方式"
+													   dataField="ems"/>
+							<mx:AdvancedDataGridColumn headerText="话务量"
+													   dataField="circuitName"/>
+							<mx:AdvancedDataGridColumn headerText="固话门数"
+													   dataField="produceCaseIdentify"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="shujuVGroup">
+				<panel:Window id="dataInfoWindow"
+							  title="数据专线"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="dataInfoDG"
+										 width="100%"
+										 height="100%">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="cityName"/>
+							<mx:AdvancedDataGridColumn headerText="开通方式"
+													   dataField="roomName"/>
+							<mx:AdvancedDataGridColumn headerText="传输设备"
+													   dataField="devName"/>
+							<mx:AdvancedDataGridColumn headerText="专线条数"
+													   dataField="ems"/>
+							<mx:AdvancedDataGridColumn headerText="总带宽"
+													   dataField="circuitName"/>
+							<mx:AdvancedDataGridColumn headerText="长途专线数量"
+													   dataField="produceCaseIdentify"/>
+							<mx:AdvancedDataGridColumn headerText="其他附属设备类型与产权"
+													   dataField="produceCaseIdentify"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="hulianwangVGroup">
+				<panel:Window id="hulianwangInfoWindow"
+							  title="互联网专线"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="wulianwangInfoDG"
+										 width="100%"
+										 height="100%">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="cityName"/>
+							<mx:AdvancedDataGridColumn headerText="开通方式"
+													   dataField="roomName"/>
+							<mx:AdvancedDataGridColumn headerText="传输设备"
+													   dataField="devName"/>
+							<mx:AdvancedDataGridColumn headerText="专线条数"
+													   dataField="ems"/>
+							<mx:AdvancedDataGridColumn headerText="总带宽"
+													   dataField="circuitName"/>
+							<mx:AdvancedDataGridColumn headerText="总流量"
+													   dataField="produceCaseIdentify"/>
+							<mx:AdvancedDataGridColumn headerText="其他附属设备类型与产权"
+													   dataField="produceCaseIdentify"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="duanxinVGroup">
+				<panel:Window id="duanxinInfoWindow"
+							  title="短信专线"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="duanxinInfoDG"
+										 width="100%"
+										 height="100%">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="cityName"/>
+							<mx:AdvancedDataGridColumn headerText="MAS机产权"
+													   dataField="roomName"/>
+							<mx:AdvancedDataGridColumn headerText="集团短信下发量"
+													   dataField="devName"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  height="100%"
+					  id="wangluofuwuVGroup">
+				<panel:Window id="wangluofuwuInfoWindow"
+							  title="网络服务数据"
+							  width="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<mx:AdvancedDataGrid id="wangluofuwuInfoDG"
+										 width="100%"
+										 height="100%">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn headerText="竞争对手"
+													   dataField="cityName"/>
+							<mx:AdvancedDataGridColumn headerText="客户承诺故障到达时间（小时）"
+													   dataField="roomName"/>
+							<mx:AdvancedDataGridColumn headerText="客户承诺故障抢修时间（小时）"
+													   dataField="devName"/>
+							<mx:AdvancedDataGridColumn headerText="竞争对手的巡检次数（*次/年）"
+													   dataField="ems"/>
+							<mx:AdvancedDataGridColumn headerText="竞争对手承诺的年故障历时（小时）"
+													   dataField="circuitName"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+				</panel:Window>
+			</s:VGroup>
+		</s:VGroup>
+	</s:Scroller>
+</mx:VBox>

@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2013-1-14
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.supermap.web.core.Unit;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.events.IndexChangeEvent;
+			private var log:ILogger = Log.getLoggerByClass(ThresholdConfigComp);
+			public var thresholdIndex:int;
+			[Bindable]
+			public var isAlarmList:ArrayCollection = new ArrayCollection([{"alarmId": "0", "alarmName": "否"}, {"alarmId": "1", "alarmName": "是"}]);
+			[Bindable]
+			public var isDispatchList:ArrayCollection = new ArrayCollection([{"dispatchId": "0", "dispatchName": "否"}, {"dispatchId": "1", "dispatchName": "是"}]);
+			[Bindable]
+			public var alarmLevelList:ArrayCollection = new ArrayCollection([{"alarmLevelId": "1", "alarmLevelName": "一级告警", "color": "0XFF0000"}, {"alarmLevelId": "2", "alarmLevelName": "二级告警", "color": "0XEE9800"}, {"alarmLevelId": "3", "alarmLevelName": "三级告警", "color": "0XFED701"}, {"alarmLevelId": "4", "alarmLevelName": "四级告警", "color": "0X4169E1"}]);
+			//系统常用颜色
+			[Bindable]
+			public var colorList:ArrayCollection = new ArrayCollection([{"key": "0XFF0000", "color": "红"}, {"key": "0XEE9800", "color": "橙"}, {"key": "0XFED701", "color": "黄"}, {"key": "0X4169E1", "color": "蓝"}]);
+
+			public var data;
+			protected function dropdownlist1_changeHandler(event:IndexChangeEvent):void
+			{
+				var alarmId:String = DropDownList(event.target).selectedItem['alarmId'];
+				if (alarmId == "1")
+				{
+					kpicolorlabel.visible = false;
+					kpicolorlabel.includeInLayout = false;
+					colorsel.visible = false;
+					colorsel.includeInLayout = false;
+
+					alarmLevelLabel.visible = true;
+					alarmLevelLabel.includeInLayout = true;
+					alarmLevelDownList.visible = true;
+					alarmLevelDownList.includeInLayout = true;
+					alarmLevelcolor.visible = true;
+					alarmLevelcolor.includeInLayout = true;
+				}
+				if (alarmId == "0")
+				{
+
+					kpicolorlabel.visible = true;
+					kpicolorlabel.includeInLayout = true;
+					colorsel.visible = true;
+					colorsel.includeInLayout = true;
+					alarmLevelLabel.visible = false;
+					alarmLevelLabel.includeInLayout = false;
+					alarmLevelDownList.visible = false;
+					alarmLevelDownList.includeInLayout = false;
+					alarmLevelcolor.visible = false;
+					alarmLevelcolor.includeInLayout = false;
+				}
+			}
+
+			protected function alarmLevelDownList_changeHandler(event:IndexChangeEvent):void
+			{
+				var alarmLevelId:String = DropDownList(event.target).selectedItem['alarmLevelId'];
+				log.debug("-----------" + alarmLevelId);
+				if (alarmLevelId == "1")
+				{
+					alarmLevelcolor.selectedColor = uint(0XFF0000);
+				}
+				if (alarmLevelId == "2")
+				{
+					alarmLevelcolor.selectedColor = uint(0XEE9800);
+				}
+				if (alarmLevelId == "3")
+				{
+					alarmLevelcolor.selectedColor = uint(0XFED701);
+				}
+				if (alarmLevelId == "4")
+				{
+					alarmLevelcolor.selectedColor = uint(0X4169E1);
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<mx:NumberValidator id="nmValidator1" 
+							source="{thresholdDown}" property="text"
+							allowNegative="{true}"
+							domain="real"
+							required="false" 
+							requiredFieldError="必须填写"
+							decimalPointCountError="怎么俩小数点?"
+							decimalSeparator="."
+							precision="2"
+							precisionError="小数点后限制为两位!"/>
+		<mx:NumberValidator id="nmValidator2"
+							source="{thresholdUp}" property="text"
+							allowNegative="{true}"
+							domain="real"
+							required="false" 
+							requiredFieldError="必须填写"
+							decimalPointCountError="怎么俩小数点?"
+							decimalSeparator="."
+							precision="2"
+							precisionError="小数点后限制为两位!"/>
+	</fx:Declarations>
+	<s:VGroup verticalAlign="middle"
+			  horizontalAlign="left"
+			  width="100%"
+			  height="100%"
+			  gap="0">
+		<s:HGroup verticalAlign="middle"
+				  horizontalAlign="left"
+				  width="100%"
+				  height="100%"
+				  gap="20">
+			<s:Label text="下限阈值："/>
+			<s:TextInput id="thresholdDown"
+						 restrict="0-9."
+						 width="100"/>
+			<s:Label text="上限阈值："/>
+			<s:TextInput id="thresholdUp"
+						 restrict="0-9."
+						 width="100"/>
+			<s:Label text="是否派单："/>
+			<s:DropDownList id="isDispatchDownList"
+							dataProvider="{isDispatchList}"
+							labelField="dispatchName"
+							requireSelection="true"
+							width="100">
+			</s:DropDownList>
+			<s:CheckBox id="isBtsDispatch"
+						label="是否基站派单"
+						visible="false"
+						includeInLayout="false"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle"
+				  horizontalAlign="left"
+				  width="100%"
+				  height="100%"
+				  gap="20">
+			<s:Label text="是否发告警："/>
+			<s:DropDownList id="isAlarmDownList"
+							dataProvider="{isAlarmList}"
+							width="100"
+							labelField="alarmName"
+							requireSelection="true"
+							change="dropdownlist1_changeHandler(event)">
+			</s:DropDownList>
+			<s:Label text="指标颜色："
+					 id="kpicolorlabel"/>
+			<s:DropDownList dataProvider="{colorList}"
+							labelField="color"
+							width="100"
+							requireSelection="true"
+							selectedIndex="0"
+							id="colorsel"
+							itemRenderer="com.linkage.module.cms.gsscene.view.components.kpisituation.components.ColorRenderer"/>
+			<s:Label text="告警级别："
+					 visible="false"
+					 includeInLayout="false"
+					 id="alarmLevelLabel"/>
+			<s:DropDownList id="alarmLevelDownList"
+							dataProvider="{alarmLevelList}"
+							labelField="alarmLevelName"
+							requireSelection="true"
+							width="100"
+							visible="false"
+							includeInLayout="false"
+							change="alarmLevelDownList_changeHandler(event)">
+			</s:DropDownList>
+			<mx:ColorPicker id="alarmLevelcolor"
+							enabled="false"
+							visible="false"
+							includeInLayout="false"
+							selectedColor="0xFF0000"/>
+		</s:HGroup>
+		<!--<s:HGroup verticalAlign="middle"
+				  horizontalAlign="left"
+				  width="100%"
+				  height="100%"
+				  gap="20">
+			<s:Label text="观察期(告警)："/>
+			<s:TextInput id="watchTimeAlarm"
+						 restrict="0-9."
+						 width="100"/>
+			<s:Label text="观察期(清除)："/>
+			<s:TextInput id="watchTimeClear"
+						 restrict="0-9."
+						 width="100"/>
+			
+		</s:HGroup>-->
+	</s:VGroup>
+</s:Group>

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:AbstractCEPWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:panel="com.linkage.module.topo.framework.view.component.*"
+						 title="自动生成链路"
+						 minWidth="120"
+						 minHeight="20"
+						 creationComplete="initPanel()"
+						 close="closePanel()"
+						 maximizable="false"
+						 dragable="true">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.topo.constant.CmsTopoConstants;
+			import com.linkage.module.cms.topo.event.TopoEventTypes;
+			import com.linkage.module.topo.framework.Constants;
+			import com.linkage.module.topo.framework.controller.event.TopoEvent;
+			import com.linkage.module.topo.framework.core.model.element.IElement;
+			import com.linkage.module.topo.framework.data.IDataSource;
+			import com.linkage.module.topo.framework.util.DataUtil;
+			import com.linkage.module.topo.framework.util.MessageUtil;
+			import com.linkage.module.topo.framework.util.loading.ILoadingInfo;
+			import com.linkage.module.topo.framework.util.loading.LoadingManager;
+			import com.linkage.module.topo.framework.view.component.TopoCanvas;
+			import com.linkage.system.structure.map.IMap;
+			
+			import mx.collections.ArrayCollection;
+			private var log:ILogger = Log.getLoggerByClass(AutoCreateLinkPanel);
+			[Bindable]
+			private var _linkTypeArray:ArrayCollection = new ArrayCollection([{label: "数据网-CMNET", key: 1}, {label: "数据网-IP承载网", key: 2}, {label: "数据网-IP城域网", key: 3}, {label: "数据网-GPRS", key: 4}, {label: "软交换-IP承载网",
+					key: 5}, {label: "传输网", key: 6}, {label: "交换网", key: 10},{label: "LTE端到端拓扑", key: 8},{label: "LTE", key: 101},{label: "2G，3G", key: 102},{label: "WLAN", key: 103},{label: "IMS", key: 104}]);
+
+			// 数据源
+			private var _dataSource:IDataSource = null;
+			// loading
+			private var _loading:ILoadingInfo = null;
+			// 是否包含子网
+			[Bindable]
+			private var _isIncludeSubNet:Boolean = false;
+
+			/**
+			 * 注入数据源
+			 */
+			public function set dataSource(value:IDataSource):void
+			{
+				_dataSource = value;
+			}
+
+			override public function set topoCanvas(value:TopoCanvas):void
+			{
+				super.topoCanvas = value;
+				_loading = LoadingManager.getInstance().loadingInfo;
+
+				_topoCanvas.addEventListener(TopoEventTypes.AUTOCREATE_LINKS, function(event:TopoEvent):void
+					{
+						showPanel();
+					});
+			}
+
+			// 展示元素的信息
+			private function showPanel():void
+			{
+				show();
+				linkType.selectedIndex = 0;
+				_isIncludeSubNet = false;
+			}
+
+			// 关闭面板
+			private function closePanel():void
+			{
+				hide();
+			}
+
+			// 自动创建链路
+			protected function autoCreateLink_clickHandler():void
+			{
+				MessageUtil.confirm("确认自动生成链路吗?", function():void
+					{
+						var data:String = DataUtil.buildMapXML(Constants.XML_KEY_PID, _topoCanvas.topoId);
+						data += DataUtil.buildMapXML(Constants.XML_KEY_NET_TYPE, linkType.selectedItem.key);
+						data += DataUtil.buildMapXML(Constants.XML_KEY_ISINCLUDESUBNET, includeSubNetCB.selected);
+						
+						if(_topoCanvas.hasFeatureSelected()){
+							var tempArr:Array = new Array();
+							_topoCanvas.eachSelect(function(id:String, element:IElement):void
+							{
+								tempArr.push(element.getProperty(CmsTopoConstants.XML_KEY_MO_ID));
+							});
+							data += DataUtil.buildMapXML("moids",tempArr.join(","));
+							log.info("自动生成链路：{0}",data);
+						}
+						
+						
+						data = DataUtil.buildXML(Constants.TP_MC_CREATE_ELEMENTS_LINK, data);
+
+						
+						
+						_loading.loadingStart();
+						_dataSource.notify(_topoCanvas.topoName, data, function(result:String):void
+							{
+								var map:IMap = DataUtil.getActionResultMap(new XML(result));
+
+								if (map.get(Constants.XML_KEY_SUCCESS) == "1")
+								{
+									MessageUtil.showMessage("自动生成链路成功");
+									closePanel();
+									_topoCanvas.loadCurrentTopo();
+								}
+								else
+								{
+									MessageUtil.showMessage("自动生成链路失败!\n\n(" + map.get(Constants.XML_KEY_MSG) + ")");
+								}
+							}, function():void
+							{
+								_loading.loadingEnd();
+							}, function():void
+							{
+								MessageUtil.showMessage("自动生成链路失败!(通信异常)");
+							});
+
+					});
+			}
+		]]>
+	</fx:Script>
+	<mx:Form width="100%">
+		<mx:FormItem label="链路类型">
+			<s:DropDownList id="linkType"
+							dataProvider="{_linkTypeArray}"
+							selectedIndex="0"
+							width="140"/>
+		</mx:FormItem>
+		<mx:FormItem label="是否包含子网">
+			<s:CheckBox id="includeSubNetCB"
+						label="包含子网"
+						selected="{_isIncludeSubNet}"/>
+		</mx:FormItem>
+		<s:HGroup width="100%"
+				  horizontalAlign="center"
+				  gap="20">
+			<s:Button label="确 定"
+					  click="autoCreateLink_clickHandler()"/>
+			<s:Button label="关 闭"
+					  click="closePanel()"/>
+		</s:HGroup>
+	</mx:Form>
+</panel:AbstractCEPWindow>

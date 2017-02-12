@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    visible="false"
+                    width="600"
+                    height="400"
+                    dragable="true"
+                    styleName="window"
+                    minimizable="false"
+                    maximizable="false"
+                    close="{this.visible = false; this.includeInLayout = false;PopUpManager.removePopUp(this);}"
+                    includeInLayout="false"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+                    xmlns:common="com.linkage.module.cms.perfmonitornew.common.*">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+
+            private var kpiList:ArrayCollection = new ArrayCollection;
+
+            [Bindable]
+            public var allMos:ArrayCollection = new ArrayCollection;
+
+            public var kpiId:String;
+            public var moTypeId:String;
+            public var kpiName:String;
+
+            private var chartAC:ArrayCollection = new ArrayCollection;
+            private var chartParam:ChartParam = new ChartParam();
+            private var series:ArrayCollection = new ArrayCollection();
+
+            private var lm:LoadManager = new LoadManager(this, "blue");
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.alarm.MatrixMonitor");
+
+            private function loadKpiList():void
+            {
+                var param:Object = {};
+
+                if (moList.selectedItem != null)
+                    param.mo_type_id = moList.selectedItem.mo_type_id;
+
+                //加载指标列表
+                PerfMonitorDAO.getInstance().getKpiList(param,
+                                                        function(result:Object):void
+                                                        {
+                                                            kpiList.removeAll();
+                                                            kpiList.addAll(result as IList);
+                                                            kpiList.refresh();
+															log.info("kpiList");
+															log.info(kpiList);
+
+															if(kpiList.length ==  0)
+															{
+																kpiCB.visible = false;
+																kpiCB.includeInLayout = false;
+															}else{
+																kpiCB.visible = true;
+																kpiCB.includeInLayout = true;
+															}
+                                                            for each (var kpi:Object in kpiList)
+                                                            {
+                                                                if (kpi.kpi_id == kpiId)
+                                                                {
+                                                                    kpiCB.selectedItem = kpi;
+                                                                    kpiName = kpi.kpi_name;
+                                                                    break;
+                                                                }
+                                                            }
+
+                                                            if (kpiCB.selectedIndex < 0)
+                                                                kpiCB.selectedIndex = 0;
+
+                                                            loadChartData();
+                                                        });
+            }
+
+            public function setMoId(moId:String):void
+            {
+                for each (var mo:Object in allMos)
+                {
+                    if (mo.mo_id == moId)
+                    {
+                        moList.selectedItem = mo;
+                        moTypeId = mo.mo_type_id;
+                        break;
+                    }
+                }
+
+                if (moList.selectedIndex < 0)
+                    moList.selectedIndex = 0;
+
+                loadKpiList();
+            }
+
+            private function loadChartData():void
+            {
+                lm.showLoading();
+
+                var param:Object = {};
+                param.kpi_id = kpiId;
+                param.kpi_name = kpiName;
+                param.mo_type_id = moTypeId;
+                param.res_type = "3";
+                param.times = new ArrayCollection([easyDate.selectedItem]);
+                param.mos = new ArrayCollection([moList.selectedItem]);
+
+				log.info("loadChartData");
+				log.info(param);
+                PerfMonitorDAO.getInstance().getPerfomanceByKpi(
+                    param,
+                    function(result:Object):void
+                    {
+                        showData(result as IList);
+                        lm.hideLoading();
+                    },
+                    function(e:FaultEvent):void
+                    {
+                        lm.hideLoading();
+                    });
+            }
+
+            public function showData(data:IList):void
+            {
+                chartAC.removeAll();
+
+                if (data.length < 1)
+                {
+                    pc.chartData(chartAC);
+                    return;
+                }
+
+                var klist:ArrayCollection = new ArrayCollection;
+
+                chartAC.addAll(data);
+
+                for (var k:Object in data.getItemAt(0))
+                {
+                    if (k != "time" && k != "kpi_name" && k != "kpi_id" && k != "unit" && k != "experience" && k.toString().indexOf('_time') < 0)
+                        klist.addItem(k);
+                }
+
+                series.removeAll();
+
+                for each (var name:String in klist)
+                {
+                    var sp:SerialParam = new SerialParam(name, name);
+                    sp.showDataDot = false;
+                    series.addItem(sp);
+                }
+
+                pc.series = series;
+
+                chartParam = new ChartParam();
+                chartParam.xAxisProperty = 'time';
+                chartParam.showLegend = true;
+                chartParam.legendPositon = "right";
+                chartParam.itemClickEnable = true;
+
+
+                pc.chartParam = chartParam;
+
+                pc.chartData(chartAC, true);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:VGroup width="100%"
+              height="100%"
+              horizontalAlign="center"
+              verticalAlign="middle"
+              paddingTop="10">
+        <s:HGroup width="100%"
+                  horizontalAlign="center">
+            <s:ComboBox id="moList"
+                        change="loadKpiList()"
+                        dataProvider="{allMos}"
+                        labelField="mo_name"/>
+            <s:ComboBox id="kpiCB"
+                        labelField="kpi_name"
+                        dataProvider="{kpiList}"/>
+            <s:Button id="timeLabel"
+                      width="100"
+                      label="{easyDate.selectedItem.name}"
+                      click="{easyDate.visible = !easyDate.visible; easyDate.includeInLayout = !easyDate.includeInLayout;}"/>
+        </s:HGroup>
+        <ailk_chart:PrettyChart id="pc"
+                                width="100%"
+                                height="100%"/>
+    </s:VGroup>
+
+    <common:EasyDateNew id="easyDate"
+                     visible="false"
+                     right="0"
+                     top="30"
+                     change="{loadChartData}"
+                     includeInLayout="false"/>
+</ailk_compts:Window>

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extend:WindowExt xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				  xmlns:s="library://ns.adobe.com/flex/spark" 
+				  xmlns:mx="library://ns.adobe.com/flex/mx" 
+				  xmlns:extend="com.linkage.module.cms.components.extend.*" 
+				  width="100%" height="100%" minHeight="30"
+				  mouseEnabled="true"
+				  closable="false" 
+				  xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*" 
+				  creationComplete="windowext1_creationCompleteHandler(event)">
+	<extend:layout>
+		<s:BasicLayout/>
+	</extend:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="custInfoShow", type="com.linkage.module.cms.groupclient.event.CustFlowAlarmWindowEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.common.event.MenuEvent;
+			import com.linkage.module.cms.groupclient.event.CustFlowAlarmWindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.events.FlexEvent;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.GroupMonitorModuleControl");
+			private var isPubflowAlarmInfo:Boolean=false;
+			
+			[Bindable]
+			private var ruleContent:String; //集客告警规则
+			
+			//设备告警流水参数
+			[Bindable]
+			public var params:Object=new Object();
+			
+			protected function windowext1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.restoreButton.visible=false;
+				this.restoreButton.includeInLayout=false;
+				this.addEventListener(CustFlowAlarmWindowEvent.LOADALARM,onLoadAlarm);
+			}
+			
+			private function onLoadAlarm(event:CustFlowAlarmWindowEvent):void{
+				var filter:String = String(event.param.filter);
+				var flag:Boolean = Boolean(event.param.flag);
+				if(!isPubflowAlarmInfo){
+					log.info("加载集客流水1："+filter+","+flag);
+					if(filter)
+					{
+//						if(flag){
+							pubflowAlarm.ruleContent=filter;
+//						}
+					}
+					pubflowAlarm.initInfo(function():void
+					{
+						log.info("加载集客流水initInfo："+filter+","+flag);
+//						if (!flag)
+//						{
+//							pubflowAlarm.reload(filter);
+//						}else{
+//							pubflowAlarm.filterAlarm = "alarmseverity=1";
+//						}
+						pubflowAlarm.reload(filter,function():void{
+							if(flag){
+//								pubflowAlarm.filterAlarm = "alarmseverity=1";
+							}
+						});
+					});
+					isPubflowAlarmInfo=true;
+					pubflowAlarm.addAlarmListener("AlarmMenuEvent_ALARMSTAT", onAlarmStatHandler);
+					pubflowAlarm.addAlarmListener("AlarmMenuEvent_PERFTARGET", onPerfTargetHandler);
+					pubflowAlarm.addAlarmListener("AlarmMenuEvent_TOPOINFO", onTopoInfoHandler);
+					pubflowAlarm.addAlarmListener("AlarmMenuEvent_PROCESSINFO", onProcessInfoHandler);
+					pubflowAlarm.addAlarmListener("AlarmMenuEvent_RESINFO", onResInfoHandler);
+					pubflowAlarm.addAlarmListener("AlarmMenuEvent_SLAINFO", onSLAHandler);
+				}else{
+					pubflowAlarm.reload(filter,function():void{
+						if(flag){
+//							pubflowAlarm.filterAlarm = "alarmseverity=1";
+						}
+					});
+				}
+				parentApplication.add(pubflowAlarm);
+				
+			}
+			
+			
+			private function onAlarmStatHandler(event:MenuEvent):void
+			{
+				var evt:CustFlowAlarmWindowEvent = new CustFlowAlarmWindowEvent(CustFlowAlarmWindowEvent.CUSTINFOSHOW);
+				var param:Object = new Object();
+				param.custId = String(event.data.groupcustomerid);
+				param.index = 3;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			private function onPerfTargetHandler(event:MenuEvent):void
+			{
+				var evt:CustFlowAlarmWindowEvent = new CustFlowAlarmWindowEvent(CustFlowAlarmWindowEvent.CUSTINFOSHOW);
+				var param:Object = new Object();
+				param.custId = String(event.data.groupcustomerid);
+				param.index = 4;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			private function onTopoInfoHandler(event:MenuEvent):void
+			{
+				var evt:CustFlowAlarmWindowEvent = new CustFlowAlarmWindowEvent(CustFlowAlarmWindowEvent.CUSTINFOSHOW);
+				var param:Object = new Object();
+				param.custId = String(event.data.groupcustomerid);
+				param.index = 1;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			private function onProcessInfoHandler(event:MenuEvent):void
+			{
+				var evt:CustFlowAlarmWindowEvent = new CustFlowAlarmWindowEvent(CustFlowAlarmWindowEvent.CUSTINFOSHOW);
+				var param:Object = new Object();
+				param.custId = String(event.data.groupcustomerid);
+				param.index = 5;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			private function onResInfoHandler(event:MenuEvent):void
+			{
+				var evt:CustFlowAlarmWindowEvent = new CustFlowAlarmWindowEvent(CustFlowAlarmWindowEvent.CUSTINFOSHOW);
+				var param:Object = new Object();
+				param.custId = String(event.data.groupcustomerid);
+				param.index = 2;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			private function onSLAHandler(event:MenuEvent):void
+			{
+				var evt:CustFlowAlarmWindowEvent = new CustFlowAlarmWindowEvent(CustFlowAlarmWindowEvent.CUSTINFOSHOW);
+				var param:Object = new Object();
+				param.custId = String(event.data.groupcustomerid);
+				param.index = 0;
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<pubflow:custalarm id="pubflowAlarm"
+					   moduleKey="groupmonitorflowalarm" ruleContent="{ruleContent}"
+					   params="{params}"/>
+</extend:WindowExt>

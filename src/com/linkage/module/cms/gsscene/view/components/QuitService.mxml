@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					title="退服统计"
+					minimizable="false"
+					styleName="windowScene"
+					titleIcon="@Embed(source='../../img/title_ico03.png')"
+					close="closeWindow(1)"
+					maximize="window2_resize(true)"
+					restore="window2_resize(false)"
+					creationComplete="window2_creationCompleteHandler(event)"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--
+		 ***************************************
+		 This is Content
+		 * @author xudx (69291)
+		 @version 1.0
+		 @date 2012-7-26
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.QuitServicePM;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.components.QuitServiceSearchDetailComp;
+			import com.linkage.module.cms.gsscene.view.components.quitservice.event.QuitServiceEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.controls.dataGridClasses.DataGridItemRenderer;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Group;
+
+			private var log:ILogger = Log.getLoggerByClass(QuitService);
+
+			public var location:String;
+			public var index:String;
+			private var maxFlag:Boolean = false;
+
+			[Inject("quitServicePM")]
+			[Bindable]
+			public var quitServicePM:QuitServicePM;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+
+			[Inject("quitServiceSearchDetailComp")]
+			public var quitServiceSearchDetailComp:QuitServiceSearchDetailComp;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[MessageHandler(selector="COMPONENT_REFRESH_DATA")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				this.loadA();
+			}
+
+			private function loadA():void
+			{
+				log.info("退服统计 加载数据！");
+				quitServicePM.loadData();
+				quitServicePM.loadGKTJData();
+			}
+
+			public function closeWindow(type:int = 0):void
+			{
+
+				if (type == 1)
+				{
+					if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+					{
+						this.visible = false;
+						this.includeInLayout = false;
+					}
+				}
+				else
+					(this.parent as Group).removeElement(this);
+
+				if (type == 1)
+				{
+					var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+					e.panelName = this.name;
+					e.param.index = this.index;
+					e.param.pid = this.parent['id'];
+					msgDispatcher(e);
+				}
+			}
+
+			protected function window2_resize(flag:Boolean):void
+			{
+				log.info("##_## 最大化、恢复窗口：" + flag + "_" + maxFlag);
+				var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+				e.panelName = this.name;
+				e.panelIndex = this.index;
+				e.panellocation = this.location;
+				e.panelMaxFlag = this.maxFlag;
+				msgDispatcher(e);
+				log.info("##_## 最大化、恢复窗口：派发事件！");
+
+				this.maxFlag = flag;
+
+				this.closeButton.visible = !flag;
+				this.closeButton.includeInLayout = !flag;
+			}
+
+			/**
+			 * 退服详情列表点击事件
+			 */
+			protected function advanceddatagrid1_itemClickHandler(event:ListEvent):void
+			{
+				log.debug("退服详情...");
+				log.debug("图标展示 ...");
+				log.debug("行===" + quitServiceDataGrid.selectedIndex);
+				if (quitServicePM.quitServiceDM.quitServiceDetail.loadServiceFlag)
+				{
+					//请求后台
+					var data:Object = AdvancedDataGrid(event.currentTarget).selectedItem;
+					var param:Object = {};
+					if (event.columnIndex == 3 || event.columnIndex == 2)
+					{
+						param.cityId = data.cityId1;
+						param.label = data.label1;
+					}else
+					{
+						param.cityId = data.cityId;
+						param.label = data.label;
+					}
+					var e:QuitServiceEvent = new QuitServiceEvent(QuitServiceEvent.CMS_SCENE_QUITSERVICE_CITYQUITGETDATA);
+					e.param = param;
+//					msgDispatcher(e);
+					requestServerUtil.addRequest(e);
+				}else{
+					//从缓存里拿到
+					var columnIndexSelect :int = 0;
+					if (event.columnIndex == 3 || event.columnIndex == 2)
+					{
+						columnIndexSelect = 1;
+					}
+					var key:String = "list" +quitServiceDataGrid.selectedIndex + columnIndexSelect;
+					quitServicePM.quitServiceDM.qssDetail.removeAll();
+					quitServicePM.quitServiceDM.qssDetail.addAll(quitServicePM.quitServiceDM.quitServiceDetail[key]);
+					quitServicePM.quitServiceDM.qssDetail.refresh();
+				}
+				
+				this.popUpQuitDetail();
+			}
+
+			protected function window2_creationCompleteHandler(event:FlexEvent):void
+			{
+				if ("2" == user.logicalType)
+				{
+					var col:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+					col.headerText = "属地";
+					col.dataField = "属地";
+					var col2:AdvancedDataGridColumn = new AdvancedDataGridColumn;
+					col2.headerText = "eNodeB退服";
+					col2.dataField = "eNodeB退服基站数";
+					quitCityStatDG.columns = [col, col2];
+				}
+			}
+
+			private var flag701:Boolean = false;
+
+			protected function navigatorcontent1_mouseOverHandler(event:MouseEvent):void
+			{
+				flag701 = true;
+//				log.info("flag=" + flag701 + "isNew=" + user.isNew);
+				setTimeout(function():void
+					{
+						if (flag701 && user.isNew == "1")
+						{
+							user.labelTypeId = "701";
+							var obj:Object = new Object;
+							obj.sceneId = user.sceneId;
+							obj.level = user.level;
+							obj.labelId = 701;
+							var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+							e.obj = obj;
+//							msgDispatcher(e);
+							requestServerUtil.addRequest(e);
+						}
+						flag701 = false;
+					}, 3000);
+			}
+
+			protected function navigatorcontent1_mouseOutHandler(event:MouseEvent):void
+			{
+				flag701 = false;
+			}
+
+
+			private var flag702:Boolean = false;
+
+			protected function navigatorcontent2_mouseOverHandler(event:MouseEvent):void
+			{
+				flag702 = true;
+				log.info("flag=" + flag702 + "isNew=" + user.isNew);
+				setTimeout(function():void
+					{
+						if (flag702 && user.isNew == "1")
+						{
+							user.labelTypeId = "701";
+							var obj:Object = new Object;
+							obj.sceneId = user.sceneId;
+							obj.level = user.level;
+							obj.labelId = 702;
+							var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+							e.obj = obj;
+//							msgDispatcher(e);
+							requestServerUtil.addRequest(e);
+						}
+						flag702 = false;
+					}, 3000);
+			}
+
+			protected function navigatorcontent2_mouseOutHandler(event:MouseEvent):void
+			{
+				flag702 = false;
+			}
+
+			protected function quitCityStatDG_itemClickHandler(event:ListEvent):void
+			{
+				// 获取地市查询详情内容
+				var data:Object = event.itemRenderer.data;
+				var dataField:String = event.itemRenderer["listData"]["dataField"];
+				if (quitServicePM.quitServiceDM.quitServiceDetail.loadServiceFlag)
+				{
+					//请求后台
+					var param:Object = {};
+					param.cityId = data.cityId;
+					param.label = dataField;
+					var e:QuitServiceEvent = new QuitServiceEvent(QuitServiceEvent.CMS_SCENE_QUITSERVICE_CITYQUITGETDATA);
+					e.param = param;
+					msgDispatcher(e);
+				}else{
+					quitServicePM.quitServiceDM.qssDetail.removeAll();
+					quitServicePM.quitServiceDM.qssDetail.addAll(data[dataField + "_detail"]);
+					quitServicePM.quitServiceDM.qssDetail.refresh();
+				}
+				
+				this.popUpQuitDetail();
+
+			}
+			private function popUpQuitDetail(){
+				log.debug("展示弹出框...");
+				if (!quitServiceSearchDetailComp.isShow)
+				{
+					quitServiceSearchDetailComp.isShow = true;
+					PopUpManager.addPopUp(quitServiceSearchDetailComp, this.parentDocument as DisplayObject);
+					PopUpManager.centerPopUp(quitServiceSearchDetailComp);//居中显示;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  gap="0"
+			  height="100%">
+		<s:TabBar id="quitStatTabBar"
+				  styleName="sceneTabBar"
+				  width="100%"
+				  dataProvider="{quitStat}"/>
+		<mx:ViewStack id="quitStat"
+					  creationPolicy="all"
+					  styleName="sceneViewStack"
+					  height="100%"
+					  width="100%"
+					  backgroundAlpha="0">
+			<s:NavigatorContent label="退服统计"
+								height="100%"
+								width="100%"
+								mouseOver="navigatorcontent1_mouseOverHandler(event)"
+								mouseOut="navigatorcontent1_mouseOutHandler(event)"
+								creationPolicy="all">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 id="quitServiceDataGrid" 
+									 itemClick="advanceddatagrid1_itemClickHandler(event)"
+									 verticalAlign="middle"
+									 showHeaders="false"
+									 horizontalScrollPolicy="off"
+									 columnWidth="15"
+									 dataProvider="{quitServicePM.quitServiceDM.dataList}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="key"
+												   width="110"
+												   showDataTips="true"
+												   headerText="名称"/>
+						<mx:AdvancedDataGridColumn dataField="value"
+												   width="40"
+												   headerText="值"/>
+						<mx:AdvancedDataGridColumn dataField="key1"
+												   width="110"
+												   showDataTips="true"
+												   headerText="名称"/>
+						<mx:AdvancedDataGridColumn dataField="value1"
+												   width="40"
+												   headerText="值"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+			<s:NavigatorContent label="地市查询"
+								height="100%"
+								width="100%"
+								mouseOver="navigatorcontent2_mouseOverHandler(event)"
+								mouseOut="navigatorcontent2_mouseOutHandler(event)"
+								creationPolicy="all">
+				<!-- itemClick原本调用的是loadData()方法，未搞清原因 itemClick="quitCityStatDG_itemClickHandler(event)"-->
+				<mx:AdvancedDataGrid id="quitCityStatDG"
+									 width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 itemClick="quitCityStatDG_itemClickHandler(event)"
+									 verticalAlign="middle"
+									 horizontalScrollPolicy="auto"
+									 dataProvider="{quitServicePM.quitServiceDM.cityQuitDataList}"
+									 rowCount="{quitServicePM.quitServiceDM.cityQuitDataList.length + 1}">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="属地"/>
+						<mx:AdvancedDataGridColumn dataField="烟感基站数"
+												   headerText="烟感"/>
+						<mx:AdvancedDataGridColumn dataField="蓄电池供电基站数"
+												   headerText="蓄电池供电"/>
+						<mx:AdvancedDataGridColumn dataField="直流欠压基站数"
+												   headerText="直流欠压"/>
+						<mx:AdvancedDataGridColumn dataField="2G退服基站数"
+												   headerText="2G退服"/>
+						<mx:AdvancedDataGridColumn dataField="TD退服基站数"
+												   headerText="TD退服"/>
+						<mx:AdvancedDataGridColumn dataField="一次下电基站数"
+												   headerText="一次下电"/>
+						<mx:AdvancedDataGridColumn dataField="水浸基站数"
+												   headerText="水浸"/>
+						<mx:AdvancedDataGridColumn dataField="市电停电基站数"
+												   headerText="市电停电"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+			<!--添加概括统计 -->
+			<s:NavigatorContent label="概括统计"
+								height="100%"
+								width="100%"
+								creationPolicy="all">
+				<mx:AdvancedDataGrid id="gktjDG"
+									 width="100%"
+									 height="100%"
+									 styleName="sceneDG"
+									 verticalAlign="middle"
+									 horizontalScrollPolicy="auto"
+									 dataProvider="{quitServicePM.quitServiceDM.gktjList}"
+									 rowCount="{quitServicePM.quitServiceDM.gktjList.length + 1}">
+					<!--	<mx:columns>
+						 <mx:AdvancedDataGridColumn dataField="gkName"
+						 width="120"/>
+						 <mx:AdvancedDataGridColumn dataField="gkValue"/>
+						 </mx:columns>-->
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="属地"
+												   headerText="属地"/>
+						<mx:AdvancedDataGridColumn dataField="烟雾"
+												   headerText="烟雾"/>
+						<mx:AdvancedDataGridColumn dataField="温度超高"
+												   headerText="温度超高"/>
+						<mx:AdvancedDataGridColumn dataField="一次下电"
+												   headerText="一次下电"/>
+						<mx:AdvancedDataGridColumn dataField="温度过高"
+												   headerText="温度过高"/>
+						<mx:AdvancedDataGridColumn dataField="电池组总电压过低"
+												   headerText="电池组总电压过低"/>
+						<mx:AdvancedDataGridColumn dataField="水浸"
+												   headerText="水浸"/>
+						<mx:AdvancedDataGridColumn dataField="停电"
+												   headerText="市电停电"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</s:VGroup>
+</ailk_compts:Window>

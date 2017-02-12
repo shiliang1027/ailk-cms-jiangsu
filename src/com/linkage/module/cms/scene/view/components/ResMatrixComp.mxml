@@ -1,0 +1,484 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    xmlns:parsley="http://www.spicefactory.org/parsley"
+                    width="100%"
+                    height="100%"
+                    minimizable="false"
+                    styleName="windowScene"
+                    titleIcon="@Embed(source='../../img/title_ico03.png')"
+                    title="重点关注网元"
+                    close="closeWindow(1)"
+                    maximize="window2_resize(true)"
+                    restore="window2_resize(false)"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+    <!--
+         ***************************************
+         This is Content
+         @author hrw (Ailk No.)
+         @version 1.0
+         @date 2012-7-31
+         @langversion 3.0
+         @playerversion Flash 11
+         @productversion Flex 4
+         @copyright Ailk NBS-Network Mgt. RD Dept.
+         ***************************************
+    -->
+    <fx:Declarations>
+        <parsley:Configure/>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.ResMatrixEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.compenent.SceneIntroEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+            private var log:ILogger = Log.getLoggerByClass(ResMatrixComp);
+
+            [Inject("resMatrixCompPM")]
+            [Bindable]
+            public var pm:ResMatrixCompPM;
+
+            public var location:String;
+            public var index:String;
+
+            private var maxFlag:Boolean = false;
+
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+
+            [Bindable]
+//            [Embed(source = "../../img/badMatrix.png")]
+            private var badMatrix:String="img/badMatrix.png";
+
+            [Inject("user")]
+            [Bindable]
+            public var user:IUser;
+
+            [Inject("sceneIntroPM")]
+            [Bindable]
+            public var sceneIntroPM:SceneIntroPM;
+
+            [Bindable]
+//            [Embed(source = "../../img/resMatrix.png")]
+            private var resMatrix:String="img/resMatrix.png";
+
+            private var mx:Number = -100;
+            private var my:Number = -100;
+            [MessageDispatcher]
+            public var dispatchMsg:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+            public static var _levelColorMap:Object = {'一级告警': 0XFF0000, '二级告警': 0XEE9800, '三级告警': 0XFED701, '四级告警': 0X4169E1, '0': 0X00CC00, '1': 0XFF0000, '2': 0XEE9800, '3': 0XFED701, '4': 0X4169E1};
+
+            //场景告警只保留CELL,UTRANCELL,BTS,NodeB,机房,电路,BSC/RNC一级告警
+            public static var showType:Object = {'CELL': '2', 'UTRANCELL': '2', 'BTS': '2', 'NodeB': '2', '机房': '2', '电路': '2',
+                    'BSC': '1', 'RNC': '1', 'MME': '1', 'eNodeB': '1', 'PGW': '1', "EUtranCell": "1", "HSS_FE": "1", "SGW": "1"};
+
+
+            //更多标签是否激活
+            private var showMoreFlag:Boolean = false;
+
+            //暂时不显示的行缓存对象
+            private var rowCacheObj:Object = null;
+
+            [MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+            public function loadData(e:SceneEvent = null):void
+            {
+//                setTimeout(loadA, 70);
+				loadA();
+            }
+			
+//			[MessageHandler(selector = "CMS_SCENE_EMGYRESOURCE_LOAD_COMPLETE")]
+//			public function CMS_SCENE_EMGYRESOURCE_LOAD_COMPLETE(event:ResMatrixEvent):void
+//			{
+//				loadA();
+//			}
+
+			
+
+            private function loadA():void
+            {
+                log.info("资源矩阵 加载数据");
+                pm.getResMatrixList();
+            }
+
+            public function closeWindow(type:int = 0):void
+            {
+                if (type == 1)
+                {
+                    if (this.parent['id'].toString().indexOf('panelShowGroup_') >= 0)
+                    {
+                        this.visible = false;
+                        this.includeInLayout = false;
+                    }
+                }
+                else
+                    (this.parent as Group).removeElement(this);
+
+                if (type == 1)
+                {
+                    var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_CLOSE);
+                    e.panelName = this.name;
+                    e.param.index = this.index;
+                    e.param.pid = this.parent['id'];
+                    msgDispatcher(e);
+                }
+            }
+
+            //渲染劣化矩阵
+            [MessageHandler(selector = "CREATE_BADMATRIX_GRID")]
+            public function showData2Matrix(e:ResMatrixEvent):void
+            {
+                var systime:Number = (new Date()).getTime();
+
+                badMatrixGrid.removeAllElements();
+                rowCacheObj = null;
+
+                if (pm.dm.badData.length == 0)
+                {
+                    moreLabel.visible = false;
+                    moreLabel.includeInLayout = false;
+                    return;
+                }
+
+                //表格第一行加入 网元类型  和设备
+                var frow:GridRow = new GridRow();
+                frow.height = 20;
+                frow.percentWidth = 100;
+                frow.setStyle("horizontalAlign", "center");
+                var fitem:GridItem = new GridItem();
+                fitem.height = 20;
+                fitem.setStyle("verticalAlign", "middle");
+                fitem.setStyle("borderStyle", "solid");
+                fitem.setStyle("borderColor", "0xCCCCCC");
+                fitem.setStyle("horizontalAlign", "center");
+                var flabel:Label = new Label();
+                flabel.text = "网元类型";
+                flabel.setStyle("textAlign", "center");
+                fitem.addElement(flabel);
+                frow.addElement(fitem);
+
+                fitem = new GridItem();
+                fitem.setStyle("horizontalAlign", "center");
+                fitem.setStyle("verticalAlign", "middle");
+                fitem.setStyle("borderStyle", "solid");
+                fitem.setStyle("borderColor", "0xCCCCCC");
+                flabel = new Label();
+                flabel.text = "设备";
+                flabel.setStyle("textAlign", "center");
+                fitem.height = 20;
+                fitem.addElement(flabel);
+                frow.addElement(fitem);
+
+                badMatrixGrid.addElement(frow);
+
+                var data:Object = pm.dm.badData;
+
+                //如果数据为空，那么返回，不存在劣化矩阵
+                if (data == null || data.length < 1)
+                {
+                    return;
+                }
+
+                log.info("展示劣化网元数据到矩阵视图...");
+                log.info(data);
+                var firstFlag:Boolean = true;
+                var gridIndex:uint = 0; //缓存网元grid的下标
+
+                var firstLoadItems:ArrayCollection = new ArrayCollection(); //第一行的网元
+
+                var cityIndex:uint = 0;
+
+
+                //判断是否存在多行字段
+                var isrows:Boolean = false;
+
+                for each (var cityData:* in data)
+                {
+                    cityIndex++;
+                    log.info("开始处理 " + cityData.moTypeName + "的数据...")
+                    var row:GridRow = new GridRow();
+                    row.percentWidth = 100;
+
+                    //第一个单元格 
+                    var cityGridItem:GridItem = new GridItem();
+                    cityGridItem.percentWidth = 11;
+                    cityGridItem.setStyle("verticalAlign", "middle");
+                    cityGridItem.setStyle("borderStyle", "solid");
+                    cityGridItem.setStyle("borderColor", "0xCCCCCC");
+                    //第一个单元格显示指定的网元类型
+                    var cityLabel:Label = new Label();
+                    cityLabel.percentWidth = 100;
+                    cityLabel.text = cityData.moTypeName;
+                    cityLabel.toolTip = cityLabel.text;
+
+                    cityGridItem.addElement(cityLabel);
+
+                    //后续的单元格，里面放入一个表格
+                    var moItem4Grid:GridItem = new GridItem();
+                    moItem4Grid.percentWidth = 89;
+                    moItem4Grid.maxHeight = 100000;
+
+                    var moGrid:Grid = new Grid();
+                    gridIndex++;
+                    moGrid.percentWidth = 100;
+                    moGrid.setStyle("horizontalGap", "0");
+                    moGrid.setStyle("verticalGap", "0");
+
+                    var colIndex:uint = 0;
+                    var rowIndex:uint = 0;
+                    var moArr:Object = cityData.datas;
+
+
+                    while (colIndex < moArr.length)
+                    {
+                        var moRow:GridRow = new GridRow();
+                        moRow.percentWidth = 100;
+
+                        rowIndex++;
+
+                        while (true)
+                        {
+                            var moItem:GridItem = new GridItem();
+                            moItem.percentWidth = 25;
+                            moItem.height = 20;
+                            moItem.setStyle("verticalAlign", "middle");
+                            moItem.setStyle("borderStyle", "solid");
+                            moItem.setStyle("borderColor", "0xCCCCCC");
+
+                            if (colIndex < moArr.length)
+                            {
+                                var moLabel:FitLabelComp = new FitLabelComp();
+
+                                moLabel.text = moArr[colIndex]['moName'];
+                                moLabel.id = moArr[colIndex]['moId'] + "#-#" + moArr[colIndex]['alarmLevel'];
+
+
+                                if (cityIndex < 2 && rowIndex < 2)
+                                    firstLoadItems.addItem(moLabel.id);
+
+                                if (firstFlag)
+                                {
+                                    firstFlag = false;
+                                }
+                                moItem.setStyle("backgroundColor", _levelColorMap[moArr[colIndex]['alarmLevel']]);
+
+                                moLabel.percentWidth = 100;
+                                moLabel.toolTip = moLabel.text;
+                                moLabel.data = moArr[colIndex];
+                                moLabel.buttonMode = true;
+
+                                if (user.isNew == "1")
+                                {
+                                    moLabel.addEventListener(MouseEvent.MOUSE_OVER, function(evt:MouseEvent):void
+                                    {
+                                        mx = evt.stageX;
+                                        my = evt.stageY;
+
+                                        log.info("moLabel  ooooooo");
+                                        setTimeout(function():void
+                                        {
+                                            showSignInfo(evt.stageX, evt.stageY, evt.target as Label);
+                                        }, 3000);
+                                    });
+
+                                }
+                                moLabel.addEventListener(MouseEvent.CLICK, onClickComp);
+                                moItem.addElement(moLabel);
+                            }
+                            else
+                            {
+                                //空单元格填满一行
+                                moItem.setStyle("backgroundColor", "0x00CC00");
+                            }
+
+                            moRow.addElement(moItem);
+
+                            if (++colIndex % 4 == 0)
+                                break;
+                        }
+
+                        if (rowIndex != 1)
+                        {
+                            isrows = true;
+
+                            if (rowCacheObj == null)
+                            {
+                                rowCacheObj = new Object();
+                            }
+
+                            if (!rowCacheObj[gridIndex])
+                            {
+                                rowCacheObj[gridIndex] = new Object();
+                                rowCacheObj[gridIndex]['rows'] = new ArrayCollection();
+                            }
+                            rowCacheObj[gridIndex]['rows'].addItem(moRow);
+                            rowCacheObj[gridIndex]['grid'] = moGrid;
+
+                            if (showMoreFlag)
+                                moGrid.addElement(moRow);
+                        }
+                        else
+                        {
+                            moGrid.addElement(moRow);
+                        }
+                    }
+                    //将新生成的表格插入后续的单元格
+                    moItem4Grid.addElement(moGrid);
+
+                    row.addElement(cityGridItem);
+                    row.addElement(moItem4Grid);
+
+                    badMatrixGrid.addElement(row);
+
+                    //如果不存在多行，那么不要 显示更多
+                    if (!isrows)
+                    {
+                        moreLabel.visible = false;
+                    }
+                    else
+                        moreLabel.visible = true;
+
+                    log.info("#处理 " + cityData.moTypeName + "的数据结束");
+
+                }
+
+                log.warn("重点关注网元 处理耗时：{0}", (new Date).getTime() - systime);
+            }
+
+            protected function showSignInfo(oldX:Number, oldY:Number, label:Label):void
+            {
+                var obj:Object = {};
+
+                //var moType:String;
+                if (mx != oldX || my != oldY)
+                {
+                    return;
+                }
+                obj.sceneId = user.sceneId;
+                obj.level = user.level;
+                obj.labelId = 301;
+                user.labelTypeId = obj.labelId;
+
+                var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENEINTROINFO_DATA);
+                e.obj = obj;
+                log.info("jjjjjjjjj   showSignInfo");
+                log.info(e.obj);
+//                dispatchMsg(e);
+				requestServerUtil.addRequest(e);
+            }
+
+            //点击劣化矩阵中的元素，触发事件
+            private function onClickComp(e:MouseEvent):void
+            {
+                log.info("点击劣化矩阵中的label触发事件：{0}", e);
+                pm.badMoClick(e.target.data);
+            }
+
+            private function showMore():void
+            {
+                var row:* = null;
+                var gridRows:Object = null;
+
+                if (!showMoreFlag) //还未展示更多     则展示更多
+                {
+                    log.info("展示更多劣化网元到矩阵表格...");
+
+                    for each (gridRows in rowCacheObj)
+                    {
+                        for each (row in gridRows['rows'])
+                        {
+                            gridRows['grid'].addElement(row);
+                        }
+                    }
+
+                    moreLabel.text = "收起";
+                    moreLabel.toolTip = '';
+                    showMoreFlag = true;
+                }
+                else
+                {
+                    log.info("不展示更多劣化网元到矩阵表格...");
+
+                    for each (gridRows in rowCacheObj)
+                    {
+                        for each (row in gridRows['rows'])
+                        {
+                            gridRows['grid'].removeElement(row);
+                        }
+                    }
+
+                    moreLabel.text = "更多";
+                    moreLabel.toolTip = '显示所有网元。';
+                    showMoreFlag = false;
+                }
+            }
+
+            protected function window2_resize(flag:Boolean):void
+            {
+                log.info("##_## 最大化、恢复窗口：" + flag + "_" + maxFlag);
+                var e:SceneEvent = new SceneEvent(SceneEvent.PANEL_MAXIMIZE);
+                e.panelName = this.name;
+                e.panelIndex = this.index;
+                e.panellocation = this.location;
+                e.panelMaxFlag = this.maxFlag;
+                msgDispatcher(e);
+                log.info("##_## 最大化、恢复窗口：派发事件！");
+
+                this.maxFlag = flag;
+
+                this.closeButton.visible = !flag;
+                this.closeButton.includeInLayout = !flag;
+            }
+        ]]>
+    </fx:Script>
+    <s:Scroller width="100%"
+                height="100%"
+                bottom="5"
+                styleName="sceneScroller"
+                verticalScrollPolicy="auto">
+        <s:Group width="100%"
+                 height="100%">
+            <mx:Grid id="badMatrixGrid"
+                     left="5"
+                     right="5"
+                     top="5"
+                     bottom="5"
+                     width="100%"
+                     height="100%"
+                     backgroundAlpha="0.1"
+                     borderStyle="solid"
+                     horizontalGap="0"
+                     textAlign="center"
+                     verticalGap="0">
+            </mx:Grid>
+        </s:Group>
+    </s:Scroller>
+    <s:Label text="更多"
+             id="moreLabel"
+             width="100"
+             top="10"
+             color="0"
+             fontWeight="bold"
+             right="-50"
+             click="showMore()"
+             buttonMode="true"/>
+</ailk_compts:Window>
+

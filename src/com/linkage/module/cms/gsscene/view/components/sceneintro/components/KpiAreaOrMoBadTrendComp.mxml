@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					dragable="true"
+					title="劣化历史"
+					minimizable="false"
+					close="window1_closeHandler(event)"
+					titleIcon="@Embed(source='../../../../img/title_ico03.png')"
+					styleName="windowScene"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2013-1-22
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+
+			import mx.controls.Alert;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+
+			private var log:ILogger = Log.getLoggerByClass(KpiAreaOrMoBadTrendComp);
+
+
+			private var _param:Object; //参数保存
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				this.visible = false;
+			}
+
+			private static var dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			protected function button1_clickHandler():void
+			{
+				if (!startTime.text)
+				{
+					Alert.show("开始时间不能为空！", "错误");
+					return;
+				}
+				if (!endTime.text)
+				{
+					Alert.show("结束时间不能为空！", "错误");
+					return;
+				}
+
+				log.info("查询指定日期范围的劣化历史记录");
+				var sie:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.CMS_SCENE_SCENEINTRO_AREAGETBADTREND);
+				sie.params = new Object();
+				sie.params.badType = "2";
+				sie.params.kpiId = param["kpiId"];
+				sie.params.moTypeId = param["moTypeId"];
+				sie.params.threshold = param["threshold"];
+				sie.params.moId = param["moId"];
+				sie.params.beginTime = startTime.text;
+				sie.params.gatherTime = endTime.text;
+				sie.params.unit = param["unit"];
+				log.info(sie.params);
+//				msgDispatcher(sie);
+				requestServerUtil.addRequest(sie);
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+		]]>
+	</fx:Script>
+
+	<s:VGroup width="100%"
+			  height="100%">
+		<mx:Form>
+			<mx:FormItem label="开始时间">
+				<ailk_compts:UXDateField id="startTime"
+										 labelFunction="formatDate"
+										 yearNavigationEnabled="true"
+										 width="190"/>
+			</mx:FormItem>
+			<mx:FormItem label="结束时间">
+				<ailk_compts:UXDateField id="endTime"
+										 labelFunction="formatDate"
+										 yearNavigationEnabled="true"
+										 width="190"/>
+			</mx:FormItem>
+			<mx:FormItem>
+				<s:Button label="查询"
+						  click="button1_clickHandler()"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:AdvancedDataGrid id="trendGrid"
+							 width="100%"
+							 height="100%"
+							 styleName="sceneDG">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="采集时间"
+										   dataField="gatherTime"
+										   width="120"/>
+				<mx:AdvancedDataGridColumn headerText="指标值"
+										   dataField="kpiValue"
+										   width="60"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+</ailk_compts:Window>

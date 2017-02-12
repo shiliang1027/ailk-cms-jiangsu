@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					title="告警标记查询"
+					width="100%"
+					height="100%"
+					closable="false"
+					maximizable="false"
+					minimizable="false"
+					styleName="window"
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author 张传存 (69207)
+		 @version 1.0
+		 @date 2013-3-5
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.ui.components.pagination.event.PaginationEvent;
+			import com.linkage.module.cms.groupmonitor.custscene.alarmSearch.common.HeaderCheckRenderer;
+			import com.linkage.module.cms.groupmonitor.custscene.alarmSearch.event.AlarmSignEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+
+
+			public var parameters:Object;
+
+			private var log:ILogger = Log.getLoggerByClass(AlarmSign);
+
+
+
+			[Bindable]
+			private var aaa:ArrayCollection = new ArrayCollection([{"alarmUniqueid": "001", "alarmTile": "111", "alarmLevel": "1", "eventTime": "20130101", "dalTime": "20130101", "custNo": "01", "custSign": "000", "busType": "1", "busLevel": "1"}]);
+			[Bindable]
+			public var alarmLevelList:ArrayCollection = new ArrayCollection([{"alarmId": "0", "alarmLevelName": "全部"}, {"alarmId": "1", "alarmLevelName": "一级"}, {"alarmId": "2", "alarmLevelName": "二级"}, {"alarmId": "3", "alarmLevelName": "三级"}, {"alarmId": "4", "alarmLevelName": "四级"}]);
+			[Bindable]
+			[Inject("alarmSignPM")]
+			public var alarmSignPM:AlarmSignPM;
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			private var lastRollOverIndex:int;
+
+
+			private var param:Object = new Object;
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+
+			//创建时间
+			protected function createTime(event:FlexEvent, remote:int):void
+			{
+				var date:Date = new Date();
+				date.month = date.getMonth() - remote;
+				event.currentTarget.text = dateFormatter.format(date);
+			}
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				log.debug("查询开始...");
+				pager.currentPage = 1;
+				param.startTime = startTimeField.text;
+				param.endTime = endTimeField.text;
+				param.alarmTitle = alarmTitle.text;
+				param.alarmLevel = alarmLevel.selectedItem['alarmId'];
+				param.currentPage = pager.currentPage;
+				param.pageSize = pager.pageSize;
+				param.type = 0; //查询
+				alarmSignPM.queryAlarmList(param);
+			}
+
+
+			protected function pager_pageChangeHandler(event:PaginationEvent):void
+			{
+				log.debug("分页查询开始...");
+				param.startTime = startTimeField.text;
+				param.endTime = endTimeField.text;
+				param.alarmTitle = alarmTitle.text;
+				param.alarmLevel = alarmLevel.selectedItem['alarmId'];
+				param.currentPage = pager.currentPage;
+				param.pageSize = pager.pageSize;
+				param.type = 0;
+				alarmSignPM.queryAlarmList(param);
+			}
+
+			[MessageHandler(selector="CMS_ALARMSEARCH_SHOW_DATA")]
+			public function showData(event:AlarmSignEvent):void
+			{
+				for each (var obj:Object in alarmSignPM.alarmSignDM.alarmSignList)
+				{
+					obj.isUsed = 0;
+				}
+				log.debug(this.alarmSignPM.alarmSignDM.alarmSignList);
+				this.alarmSignDataGrid.dataProvider = this.alarmSignPM.alarmSignDM.alarmSignList;
+			}
+
+
+			[MessageHandler(selector="CMS_ALARMSEARCH_ALARM_DELETE_MENU")]
+			public function clearAlarm(event:AlarmSignEvent):void
+			{
+				log.debug("移除标记开始。。。");
+				log.debug(event.param.datas);
+				this.alarmSignPM.alarmClear(event.param);
+			}
+
+			[MessageHandler(selector="CMS_ALARMSEARCH_ALARM_DELETE_REAUTL")]
+			public function clearAlarmresult(event:AlarmSignEvent):void
+			{
+				log.debug("删除结果");
+				log.debug(this.alarmSignPM.alarmSignDM.clearResult);
+				if (this.alarmSignPM.alarmSignDM.clearResult == "success")
+				{
+					Alert.show("标记移除成功", "提示");
+					param.startTime = startTimeField.text;
+					param.endTime = endTimeField.text;
+					param.alarmTitle = alarmTitle.text;
+					param.alarmLevel = alarmLevel.selectedItem['alarmId'];
+					param.currentPage = 1;
+					param.pageSize = pager.pageSize;
+					param.type = 0; //查询
+					alarmSignPM.queryAlarmList(param);
+					allSelectColumn.headerRenderer = new ClassFactory(HeaderCheckRenderer);
+				}
+				else
+				{
+					Alert.show("标记移除失败", "提示");
+				}
+			}
+
+			protected function alarmSignDataGrid_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.skin.mouseEnabled = true;
+				var cmi:ContextMenuItem = new ContextMenuItem("移除标记");
+				cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, function(evt:ContextMenuEvent):void
+					{
+						var param:Object = (evt.mouseTarget as IListItemRenderer).data;
+						log.debug(param);
+
+						var clearArray:ArrayCollection = new ArrayCollection;
+						clearArray.removeAll();
+						for each (var obj:Object in alarmSignPM.alarmSignDM.alarmSignList)
+						{
+							var temp:Object = new Object;
+							if (obj.isUsed == 1)
+							{
+								temp.alarmuniqueid = obj.alarmuniqueid;
+								temp.daltime = obj.daltime;
+								clearArray.addItem(temp);
+							}
+						}
+						if (clearArray.length == 0)
+						{
+							var obj1:Object = new Object;
+							obj1.alarmuniqueid = param.alarmuniqueid;
+							obj1.daltime = param.daltime;
+							clearArray.addItem(obj1);
+						}
+						clearArray.refresh();
+						log.debug(clearArray);
+
+						var e:AlarmSignEvent = new AlarmSignEvent(AlarmSignEvent.CMS_ALARMSEARCH_ALARM_DELETE_MENU);
+						e.param = new Object();
+						e.param.datas = clearArray;
+						msgDispatcher(e);
+					});
+				var cm:ContextMenu = new ContextMenu();
+				cm.hideBuiltInItems();
+				cm.customItems = new Array();
+				cm.customItems.push(cmi);
+				cm.addEventListener(ContextMenuEvent.MENU_SELECT, contextMenu_menuSelect);
+				alarmSignDataGrid.contextMenu = cm;
+			}
+
+			private function contextMenu_menuSelect(evt:ContextMenuEvent):void
+			{
+				alarmSignDataGrid.selectedIndex = lastRollOverIndex;
+			}
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				log.debug("导出...");
+				param.startTime = startTimeField.text;
+				param.endTime = endTimeField.text;
+				param.alarmTitle = alarmTitle.text;
+				param.alarmLevel = alarmLevel.selectedItem['alarmId'];
+				param.currentPage = pager.currentPage = 1;
+				param.pageSize = pager.pageSize;
+				param.type = 1; //导出
+				alarmSignPM.export(param);
+			}
+
+
+			public function setAllAlarmSelected(flag:Boolean):void
+			{
+				for each (var data:Object in alarmSignPM.alarmSignDM.alarmSignList)
+				{
+					data.isUsed = flag ? 1 : 0;
+				}
+				alarmSignPM.alarmSignDM.alarmSignList.refresh();
+				log.debug(alarmSignPM.alarmSignDM.alarmSignList);
+
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  horizontalAlign="left"
+				  verticalAlign="middle">
+			<s:Label text="开始时间"/>
+			<ailk_compts:UXDateField id="startTimeField"
+									 color="0x000000"
+									 creationComplete="createTime(event,1)"
+									 labelFunction="formatDate"
+									 yearNavigationEnabled="true"
+									 width="190"/>
+			<s:Label text="结束时间"/>
+			<ailk_compts:UXDateField id="endTimeField"
+									 color="0x000000"
+									 creationComplete="createTime(event,0)"
+									 labelFunction="formatDate"
+									 yearNavigationEnabled="true"
+									 width="190"/>
+			<s:Label text="标题:"/>
+			<s:TextInput id="alarmTitle"/>
+			<s:Label text="级别:"/>
+			<s:DropDownList id="alarmLevel"
+							dataProvider="{alarmLevelList}"
+							labelField="alarmLevelName"
+							requireSelection="true"
+							width="100">
+			</s:DropDownList>
+			<s:Button label="查询"
+					  click="button1_clickHandler(event)"/>
+		</s:HGroup>
+		<mx:AdvancedDataGrid id="alarmSignDataGrid"
+							 width="100%"
+							 height="100%"
+							 textAlign="center"
+							 verticalScrollPolicy="auto"
+							 itemRollOver="lastRollOverIndex = event.rowIndex"
+							 creationComplete="alarmSignDataGrid_creationCompleteHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn id="allSelectColumn"
+										   headerRenderer="com.linkage.module.cms.specialty.alarmSearch.common.HeaderCheckRenderer"
+										   width="40">
+					<mx:itemRenderer>
+						<fx:Component>
+							<mx:CheckBox width="40"
+										 selected="{data.isUsed==1?true:false}"
+										 change="checkbox1_changeHandler(event)">
+								<fx:Script>
+									<![CDATA[
+										import mx.controls.Alert;
+
+										protected function checkbox1_changeHandler(event:Event):void
+										{
+											data.isUsed = CheckBox(event.target).selected ? 1 : 0;
+										}
+									]]>
+								</fx:Script>
+							</mx:CheckBox>
+						</fx:Component>
+					</mx:itemRenderer>
+				</mx:AdvancedDataGridColumn>
+				<mx:AdvancedDataGridColumn dataField="alarmuniqueid"
+										   headerText="告警流水号"/>
+				<mx:AdvancedDataGridColumn dataField="alarmtitle"
+										   headerText="告警标题"/>
+				<mx:AdvancedDataGridColumn dataField="alarmlevel"
+										   headerText="告警级别"/>
+				<mx:AdvancedDataGridColumn dataField="eventtime"
+										   headerText="告警发生时间"/>
+				<mx:AdvancedDataGridColumn dataField="daltime"
+										   headerText="告警发现时间"/>
+				<mx:AdvancedDataGridColumn dataField="custno"
+										   headerText="客户编号"/>
+				<mx:AdvancedDataGridColumn dataField="prodno"
+										   headerText="产品实例标识"/>
+				<mx:AdvancedDataGridColumn dataField="businesssystem"
+										   headerText="业务类型"/>
+				<mx:AdvancedDataGridColumn dataField="commname"
+										   headerText="业务保障级别"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:VGroup width="100%">
+			<s:HGroup width="100%"
+					  horizontalAlign="right"
+					  verticalAlign="top">
+				<ailk_compts:Pagination id="pager"
+										pageSize="200"
+										totalRowCount="{this.alarmSignPM.alarmSignDM.countTotal}"
+										pageChange="pager_pageChangeHandler(event)"/>
+				<s:Group width="10"/>
+			</s:HGroup>
+			<s:Group height="3"/>
+		</s:VGroup>
+
+	</s:VGroup>
+	<mx:Image source="@Embed('img/icon_export.png')"
+			  width="30"
+			  height="20"
+			  right="1"
+			  toolTip="导出"
+			  top="-23"
+			  buttonMode="true"
+			  click="image1_clickHandler(event)"/>
+</ailk_compts:Window>

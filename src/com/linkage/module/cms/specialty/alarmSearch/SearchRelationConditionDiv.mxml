@@ -1,0 +1,1339 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:common="com.linkage.module.cms.specialty.alarmSearch.common.*"
+		  height="100%"
+		  creationComplete="vgroup1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.specialty.alarmSearch.common.MultiEditDropDownList;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.rpc.remoting.BlazeDSUtil;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.MoveEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.FocusManager;
+			import mx.managers.PopUpManager;
+			import mx.managers.SystemManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			import mx.validators.DateValidator;
+
+			import nl.demonsters.debugger.MonsterDebugger;
+
+			import spark.events.IndexChangeEvent;
+
+			private var _userName:String = null;
+
+			//日志
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.specialty.SeachConditionDiv");
+
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS";
+
+			[Bindable]
+			private var cityDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var vendorDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var specDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			private var _neTypeDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var alarmLevelDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var alarmStatusDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var ackStatusDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var sheetStatusDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var dispStatusDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var projectStatusDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var filterNameDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var isGroupDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var isLightDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var isRelaDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var systemNameDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var nmsalarmtypeDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var isRelaDP_backup:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var isExceDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+
+			[Bindable]
+			private var customerclassDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var businesslevelDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var safelevelDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+			[Bindable]
+			private var businesscategoryDP:ArrayCollection = new ArrayCollection([{label: 'loading', value: '-10'}]);
+
+			private var _dataPanel:AlarmRelationResultPanel = null;
+
+			public var loadMangerSc:LoadManager = null;
+			public var loadManger:LoadManager = null;
+
+			/**
+			 * 格式化时间
+			 */
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			public function setParams(initData:Object):void
+			{
+				logger.info(">>> 设置查询条件参数。。。");
+
+				customerclassDP.removeAll();
+				customerclassDP.addAll(initData['customerclass'] as ArrayCollection);
+				customerclassDP.refresh();
+
+				businesslevelDP.removeAll();
+				businesslevelDP.addAll(initData['businesslevel'] as ArrayCollection);
+				businesslevelDP.refresh();
+
+				safelevelDP.removeAll();
+				safelevelDP.addAll(initData['safelevel'] as ArrayCollection);
+				safelevelDP.refresh();
+
+				businesscategoryDP.removeAll();
+				businesscategoryDP.addAll(initData['businesscategory'] as ArrayCollection);
+				businesscategoryDP.refresh();
+
+				isExceDP.removeAll();
+				isExceDP.addAll(initData['isExce'] as ArrayCollection);
+				isExceDP.refresh();
+
+				cityDP.removeAll();
+				cityDP.addAll(initData['city'] as ArrayCollection);
+				cityDP.refresh();
+
+				vendorDP.removeAll();
+				vendorDP.addAll(initData['vendor'] as ArrayCollection);
+				vendorDP.refresh();
+
+				specDP.removeAll();
+				specDP.addAll(initData['spec'] as ArrayCollection);
+				specDP.refresh();
+
+				neTypeDP.removeAll();
+				neTypeDP.addAll(initData['neType'] as ArrayCollection);
+				neTypeDP.refresh();
+
+				tempArr.removeAll();
+				tempArr.addAll(initData['neType'] as ArrayCollection);
+				tempArr.refresh();
+
+				alarmLevelDP.removeAll();
+				alarmLevelDP.addAll(initData['alarmLevel'] as ArrayCollection);
+				alarmLevelDP.refresh();
+
+				alarmStatusDP.removeAll();
+				alarmStatusDP.addAll(initData['alarmStatus'] as ArrayCollection);
+				alarmStatusDP.refresh();
+
+				ackStatusDP.removeAll();
+				ackStatusDP.addAll(initData['ackStatus'] as ArrayCollection);
+				ackStatusDP.refresh();
+
+				sheetStatusDP.removeAll();
+				sheetStatusDP.addAll(initData['sheetStatus'] as ArrayCollection);
+				sheetStatusDP.refresh();
+
+				dispStatusDP.removeAll();
+				dispStatusDP.addAll(initData['dispStatus'] as ArrayCollection);
+				dispStatusDP.refresh();
+
+				projectStatusDP.removeAll();
+				projectStatusDP.addAll(initData['projectStatus'] as ArrayCollection);
+				projectStatusDP.refresh();
+
+				filterNameDP.removeAll();
+				filterNameDP.addAll(initData['filterName'] as ArrayCollection);
+				filterNameDP.refresh();
+
+				isGroupDP.removeAll();
+				isGroupDP.addAll(initData['isGroup'] as ArrayCollection);
+				isGroupDP.refresh();
+
+				isLightDP.removeAll();
+				isLightDP.addAll(initData['isLight'] as ArrayCollection);
+				isLightDP.refresh();
+
+				systemNameDP.removeAll();
+				systemNameDP.addAll(initData['systemname'] as ArrayCollection);
+				systemNameDP.refresh();
+
+				nmsalarmtypeDP.removeAll();
+				nmsalarmtypeDP.addAll(initData['nmsalarmtype'] as ArrayCollection);
+				nmsalarmtypeDP.refresh();
+
+				isRelaDP.removeAll();
+				isRelaDP_backup.removeAll();
+				isRelaDP.addAll(initData['isRela'] as ArrayCollection);
+				isRelaDP_backup.addAll(isRelaDP);
+				isRelaDP.refresh();
+
+				doReset();
+				logger.info(">>> 设置查询条件参数 完成！");
+			}
+
+			private function valiDate1():void
+			{
+				startDate.errorString = '';
+				if (DateFormatter.parseDateString(startDate.text.split(' ')[0]) == null)
+				{
+					startDate.errorString = '时间格式错误！';
+					queryBt.enabled = true;
+					return;
+				}
+				else
+				{
+					var hour:Number = startDate.text.split(' ')[1].toString().split(':')[0];
+					var min:Number = startDate.text.split(' ')[1].toString().split(':')[1];
+					var second:Number = startDate.text.split(' ')[1].toString().split(':')[2];
+
+					if (isNaN(hour) || isNaN(min) || isNaN(second))
+						startDate.errorString = '时间格式错误！';
+
+					if (startDate.text.split(' ')[1].toString().split(':').length < 3 || hour < 0 || hour > 23 || min < 0 || min > 59 || second < 0 || second > 59)
+						startDate.errorString = '时间格式错误！';
+					queryBt.enabled = true;
+					return;
+				}
+			}
+
+			private function valiDate2():void
+			{
+				endDate.errorString = '';
+				if (DateFormatter.parseDateString(endDate.text.split(' ')[0]) == null)
+				{
+					endDate.errorString = '时间格式错误！';
+					queryBt.enabled = true;
+					return;
+				}
+				else
+				{
+					var hour:Number = endDate.text.split(' ')[1].toString().split(':')[0];
+					var min:Number = endDate.text.split(' ')[1].toString().split(':')[1];
+					var second:Number = endDate.text.split(' ')[1].toString().split(':')[2];
+
+					if (isNaN(hour) || isNaN(min) || isNaN(second))
+						startDate.errorString = '时间格式错误！';
+
+					if (endDate.text.split(' ')[1].toString().split(':').length < 3 || hour < 0 || hour > 23 || min < 0 || min > 59 || second < 0 || second > 59)
+						endDate.errorString = '时间格式错误！';
+					queryBt.enabled = true;
+					return;
+				}
+			}
+
+			public function doQuery(totalRow:String, currPage:uint = 1, pageSize:uint = 200):void
+			{
+				logger.info(">>> 查询告警");
+				dataPanel.resetPanel();
+
+				queryBt.enabled = false;
+
+				var scObj:Object = new Object();
+
+				var sd:String = startDate.text;
+				var ed:String = endDate.text;
+				if (sd == null || ed == null)
+				{
+					queryBt.enabled = true;
+					return;
+				}
+				else if (sd.localeCompare(ed) > 0)
+				{
+					Alert.show("开始时间不能大于结束时间!");
+					queryBt.enabled = true;
+					return;
+				}
+
+
+				scObj['beginRowNum'] = String(pageSize * (currPage - 1));
+				scObj['endRowNum'] = String(pageSize * currPage);
+				scObj['maxnum'] = totalRow;
+
+				scObj['isExce'] = isExceComboBox.selectedItem['value'];
+				scObj['timeType'] = timeType_faxian.selected ? "1" : "2";
+				scObj['startTime'] = startDate.text;
+				scObj['endTime'] = endDate.text;
+
+				scObj['alarmregion'] = getSelectedItemValues(cityComboBox);
+				scObj['vendor'] = getSelectedItemValues(vendorComboBox);
+				scObj['specialty'] = getSelectedItemValues(specComboBox);
+				scObj['equipmentclass'] = getSelectedItemValues(neTypeComboBox);
+				//默认配置的链接脚本条件字段加上(equipmentclass=BSC|equipmentclass=RNC)条件
+//				scObj['equipmentclass'] = "BSC,RNC";
+				scObj['nename'] = neNameTextInput.text.replace("：", ":");
+				if (neNameFlag.selected)
+					scObj['nename_flag'] = "1";
+				else
+					scObj['nename_flag'] = "0";
+
+				scObj['alarmseverity'] = getSelectedItemValues(alarmLevelComboBox);
+				scObj['alarmStatus'] = alarmStatusComboBox.selectedItem['value'];
+				scObj['alarmtitle'] = alarmTitleTextInput.text;
+				if (alarmTitleFlag.selected)
+					scObj['alarmtitle_flag'] = "1";
+				else
+					scObj['alarmtitle_flag'] = "0";
+
+				scObj['ackStatus'] = ackStatusComboBox.selectedItem['value'];
+				scObj['sheetStatus'] = getSelectedItemValues(sheetStatusComboBox);
+				scObj['dispStatus'] = getSelectedItemValues(dispStatusComboBox);
+
+				scObj['customerclass'] = getSelectedItemValues(customerclassComboBox);
+				scObj['businesslevel'] = getSelectedItemValues(businesslevelComboBox);
+				scObj['safelevel'] = getSelectedItemValues(safelevelComboBox);
+				scObj['businesscategory'] = getSelectedItemValues(businesscategoryComboBox);
+
+				scObj['projectStatus'] = projectStatusComboBox.selectedItem['value'];
+				scObj['alarmuniqueid'] = alarmSNTextInput.text;
+				if (alarmSNFlag.selected)
+					scObj['alarmuniqueid_flag'] = "1";
+				else
+					scObj['alarmuniqueid_flag'] = "0";
+
+				scObj['vendorserialno'] = vendorserialnoTextInput.text;
+				if (vendorserialnoFlag.selected)
+					scObj['vendorserialno_flag'] = "1";
+				else
+					scObj['vendorserialno_flag'] = "0";
+
+				scObj['sheetno'] = sheetNoTextInput.text;
+				if (sheetNoFlag.selected)
+					scObj['sheetno_flag'] = "1";
+				else
+					scObj['sheetno_flag'] = "0";
+
+				scObj['rule_id'] = filterNameComboBox.selectedItem['value'];
+				scObj['isGroup'] = isGroupComboBox.selectedItem['value'];
+				scObj['isLight'] = isLightComboBox.selectedItem['value'];
+				scObj['systemname'] = systemNameComboBox.selectedItem['value'];
+				scObj['nmsalarmtype'] = nmsalarmtypeComboBox.selectedItem['value'];
+				scObj['isRela'] = isRelaComboBox.selectedItem['value'];
+				scObj['servicesystem'] = serviceSystemTextInput.text;
+				if (serviceSystem_flag.selected)
+					scObj['serviceSystem_flag'] = "1";
+				else
+					scObj['serviceSystem_flag'] = "0";
+
+				scObj['businesssystem'] = businessSystemTextInput.text;
+				if (businessSystem_flag.selected)
+					scObj['businessSystem_flag'] = "1";
+				else
+					scObj['businessSystem_flag'] = "0";
+
+				scObj['projectno'] = projectNoTextInput.text;
+				if (projectno_flag.selected)
+					scObj['projectno_flag'] = "1";
+				else
+					scObj['projectno_flag'] = "0";
+
+
+
+				scObj['groupcustomer'] = groupcustomerTextInput.text;
+				if (groupcustomer_flag.selected)
+					scObj['groupcustomer_flag'] = "1";
+				else
+					scObj['groupcustomer_flag'] = "0";
+
+				scObj['cusbuss_id'] = cusbussIdTextInput.text;
+				if (cusbuss_id_flag.selected)
+					scObj['cusbuss_id_flag'] = "1";
+				else
+					scObj['cusbuss_id_flag'] = "0";
+
+				scObj['locatenename'] = locatenenameTextInput.text;
+				if (locatenename_flag.selected)
+					scObj['locatenename_flag'] = "1";
+				else
+					scObj['locatenename_flag'] = "0";
+
+				scObj['circ_name'] = circ_nameTextInput.text;
+				if (circ_name_flag.selected)
+					scObj['circ_name_flag'] = "1";
+				else
+					scObj['circ_name_flag'] = "0";
+
+				scObj['sceneName'] = scene_nameTextInput.text;
+				if (scene_name_flag.selected)
+					scObj['sceneNameFlag'] = "1";
+				else
+					scObj['sceneNameFlag'] = "0";
+
+				scObj['areaName'] = area_nameTextInput.text;
+				if (area_name_flag.selected)
+					scObj['areaNameFlag'] = "1";
+				else
+					scObj['areaNameFlag'] = "0";
+
+				scObj['login_name'] = this._userName;
+
+
+				var remoteService:RemoteObject = BlazeDSUtil.newService(AlarmRelationModule.destination, AlarmRelationModule.src, AlarmRelationModule.endpoint, function(result:Object):void
+					{
+						logger.info(">>> 查询告警成功");
+						if (null == result || !result['datas'] || result['datas'].length < 1)
+						{
+							logger.error(">>> 查询告警为null");
+							dataPanel.zeroPage();
+							Alert.show('没有符合条件的数据！');
+						}
+
+						else if (!queryBt.enabled) //如果没有取消查询
+						{
+							scObj['maxnum'] = result['maxnum'];
+							dataPanel.setData(result['datas'], scObj['startTime'] as String, scObj['endTime'] as String, result['maxnum'], scObj);
+							queryTotalNum(scObj);
+						}
+
+						resetQuery();
+						loadManger.hideLoading();
+					}, function(event:FaultEvent):void
+					{
+						logger.error(">>> 查询告警失败！ ：", event.fault.faultString);
+						loadManger.hideLoading();
+					});
+
+				logger.info(">>> 查询条件=========================");
+				logger.info(">>> scObj['beginRowNum']:" + scObj['beginRowNum']);
+				logger.info(">>> scObj['endRowNum']:" + scObj['endRowNum']);
+				logger.info(">>> scObj['maxnum']:" + scObj['maxnum']);
+				logger.info(">>> scObj['isExce']:" + scObj['isExce']);
+				logger.info(">>> scObj['timeType']:" + scObj['timeType']);
+				logger.info(">>> scObj['startTime']:" + scObj['startTime']);
+				logger.info(">>> scObj['endTime']:" + scObj['endTime']);
+				logger.info(">>> scObj['alarmregion']:" + scObj['alarmregion']);
+				logger.info(">>> scObj['vendor']:" + scObj['vendor']);
+				logger.info(">>> scObj['specialty']:" + scObj['specialty']);
+				logger.info(">>> scObj['equipmentclass']:" + scObj['equipmentclass']);
+				logger.info(">>> scObj['nename']:" + scObj['nename']);
+				logger.info(">>> scObj['nename_flag']:" + scObj['nename_flag']);
+				logger.info(">>> scObj['alarmseverity']:" + scObj['alarmseverity']);
+				logger.info(">>> scObj['alarmStatus']:" + scObj['alarmStatus']);
+				logger.info(">>> scObj['alarmtitle']:" + scObj['alarmtitle']);
+				logger.info(">>> scObj['alarmtitle_flag']:" + scObj['alarmtitle_flag']);
+				logger.info(">>> scObj['ackStatus']:" + scObj['ackStatus']);
+				logger.info(">>> scObj['sheetStatus']:" + scObj['sheetStatus']);
+				logger.info(">>> scObj['dispStatus']:" + scObj['dispStatus']);
+				logger.info(">>> scObj['projectStatus']:" + scObj['projectStatus']);
+				logger.info(">>> scObj['alarmuniqueid']:" + scObj['alarmuniqueid']);
+				logger.info(">>> scObj['alarmuniqueid_flag']:" + scObj['alarmuniqueid_flag']);
+				logger.info(">>> scObj['vendorserialno']:" + scObj['vendorserialno']);
+				logger.info(">>> scObj['vendorserialno_flag']:" + scObj['vendorserialno_flag']);
+				logger.info(">>> scObj['sheetno']:" + scObj['sheetno']);
+				logger.info(">>> scObj['sheetno_flag']:" + scObj['sheetno_flag']);
+				logger.info(">>> scObj['rule_id']:" + scObj['rule_id']);
+				logger.info(">>> scObj['isGroup']:" + scObj['isGroup']);
+				logger.info(">>> scObj['isLight']:" + scObj['isLight']);
+				logger.info(">>> scObj['isRela']:" + scObj['isRela']);
+				logger.info(">>> scObj['systemname']:" + scObj['systemname']);
+				logger.info(">>> scObj['servicesystem']:" + scObj['servicesystem']);
+				logger.info(">>> scObj['serviceSystem_flag']:" + scObj['serviceSystem_flag']);
+				logger.info(">>> scObj['businesssystem']:" + scObj['businesssystem']);
+				logger.info(">>> scObj['businessSystem_flag']:" + scObj['businessSystem_flag']);
+				logger.info(">>> scObj['projectno']:" + scObj['projectno']);
+				logger.info(">>> scObj['projectno_flag']:" + scObj['projectno_flag']);
+				logger.info(">>> _scObj['locatenename']:" + scObj['locatenename']);
+				logger.info(">>> _scObj['locatenename_flag']:" + scObj['locatenename_flag']);
+				logger.info(">>> scObj['login_name']:" + scObj['login_name']);
+				logger.info(">>> 查询条件=========================");
+
+				remoteService.getWarnDatas(scObj);
+//				loadManger.showLoading(" 正在查询，请稍后 ");
+				//进度条开始
+				//TODO
+				if (!progressBar)
+				{
+					progressBar = new MyProgress();
+					progressBar.width = 300;
+				}
+				PopUpManager.addPopUp(progressBar, _dataPanel);
+				PopUpManager.centerPopUp(progressBar);
+				progressBar.progress.start();
+			}
+			private var progressBar:MyProgress;
+
+			private function queryTotalNum(scObj:Object):void
+			{
+				var remoteService:RemoteObject = BlazeDSUtil.newService(AlarmRelationModule.destination, AlarmRelationModule.src, AlarmRelationModule.endpoint, function(result:Object):void
+					{
+						logger.error(">>> 查询总记录数成功：" + result['maxnum']);
+						dataPanel.setTotalNum(result['maxnum']);
+					}, function(event:FaultEvent):void
+					{
+						logger.error(">>> 查询总记录数失败！ ：" + event.fault.faultString);
+					});
+
+				scObj['maxnum'] = "0";
+				remoteService.getWarnDatas(scObj);
+			}
+
+			private function resetQuery():void
+			{
+//				loadManger.hideLoading();
+				queryBt.enabled = true;
+				//进度条关闭
+				//TODO
+				if (progressBar)
+				{
+					progressBar.progress.stop();
+					PopUpManager.removePopUp(progressBar);
+				}
+			}
+
+			private function getSelectedItemValues(mcb:MyComboBox):String
+			{
+				var temp:String = "";
+				for each (var item:Object in mcb.selectedArray)
+				{
+					temp += item['value'] + ",";
+				}
+
+				temp = temp.substring(0, temp.lastIndexOf(','))
+				return temp;
+			}
+
+			private function getSelectedItemCollections(mcb:MultiEditDropDownList):String
+			{
+				var temp:String = "";
+				for each (var item:Object in mcb.selectedItemArray)
+				{
+					temp += item['value'] + ",";
+				}
+
+				temp = temp.substring(0, temp.lastIndexOf(','))
+				return temp;
+			}
+
+
+			protected function doReset():void
+			{
+				logger.info(">>> 查询条件重置！");
+				var date1:Date = new Date();
+				var date2:Date = new Date();
+
+				date1.setTime(date1.getTime() - 1000 * 60 * 60 * 24 * 3);
+				var nowStr1:String = dateFormatter.format(date1);
+				startDate.text = nowStr1;
+
+				date2.setHours(23);
+				date2.setMinutes(59);
+				date2.setSeconds(59);
+				var nowStr2:String = dateFormatter.format(date2);
+				endDate.text = nowStr2;
+
+				neNameTextInput.text = "";
+				neNameFlag.selected = true;
+
+				alarmTitleTextInput.text = "";
+				alarmTitleFlag.selected = true;
+
+				alarmSNTextInput.text = "";
+				alarmSNFlag.selected = true;
+
+				vendorserialnoTextInput.text = "";
+				vendorserialnoFlag.selected = true;
+
+				sheetNoTextInput.text = "";
+				sheetNoFlag.selected = true;
+
+				serviceSystemTextInput.text = '';
+				serviceSystem_flag.selected = true;
+
+				businessSystemTextInput.text = '';
+				businessSystem_flag.selected = true;
+
+				projectNoTextInput.text = '';
+				projectno_flag.selected = true;
+
+				locatenenameTextInput.text = '';
+				locatenename_flag.selected = true;
+
+				circ_nameTextInput.text = '';
+				circ_name_flag.selected = true;
+
+				scene_nameTextInput.text = '';
+				scene_name_flag.selected = true;
+
+				area_nameTextInput.text = '';
+				area_name_flag.selected = true;
+
+				groupcustomerTextInput.text = '';
+				groupcustomer_flag.selected = true;
+
+				cusbussIdTextInput.text = '';
+				cusbuss_id_flag.selected = true;
+
+
+				cityComboBox.selectedArray = [];
+				vendorComboBox.selectedArray = [];
+				specComboBox.selectedArray = [];
+
+
+				neTypeComboBox.selectedArray = [];
+//				neTypeComboBox.selectedItemArray.removeAll();
+//				for each (var obj:Object in tempArr)
+//				{
+//					obj.selected = false;
+//				}
+//				neTypeDP.removeAll();
+//				neTypeDP.addAll(tempArr);
+//				neTypeDP.refresh();
+
+				alarmLevelComboBox.selectedArray = [];
+				sheetStatusComboBox.selectedArray = [];
+				dispStatusComboBox.selectedArray = [];
+
+				customerclassComboBox.selectedArray = [];
+				businesslevelComboBox.selectedArray = [];
+				safelevelComboBox.selectedArray = [];
+				businesscategoryComboBox.selectedArray = [];
+
+				timeType_faxian.selected = true;
+				timeType_fasheng.selected = false;
+
+				isExceComboBox.selectedItem = isExceDP[0];
+				alarmStatusComboBox.selectedItem = alarmStatusDP[0];
+				ackStatusComboBox.selectedItem = ackStatusDP[0];
+				projectStatusComboBox.selectedItem = projectStatusDP[0];
+				filterNameComboBox.selectedItem = filterNameDP[0];
+				isGroupComboBox.selectedItem = isGroupDP[0];
+				isLightComboBox.selectedItem = isLightDP[0];
+				systemNameComboBox.selectedItem = systemNameDP[0];
+				nmsalarmtypeComboBox.selectedItem = nmsalarmtypeDP[0];
+
+				isRelaDP.removeAll();
+				isRelaDP.addAll(isRelaDP_backup);
+				isRelaDP.refresh();
+				isRelaComboBox.selectedIndex = 0;
+
+				flowText.text = "";
+
+				setTimeout(function():void
+					{
+//						loadMangerSc.showLoading();
+						cityComboBox.resetPrompt();
+						vendorComboBox.resetPrompt();
+						specComboBox.resetPrompt();
+						neTypeComboBox.resetPrompt();
+						alarmLevelComboBox.resetPrompt();
+						sheetStatusComboBox.resetPrompt();
+						dispStatusComboBox.resetPrompt();
+						customerclassComboBox.resetPrompt();
+						businesslevelComboBox.resetPrompt();
+						safelevelComboBox.resetPrompt();
+						businesscategoryComboBox.resetPrompt();
+
+						setTimeout(function():void
+							{
+//								loadMangerSc.hideLoading();
+							}, 500);
+					}, 300);
+			}
+
+
+			public function initReset():void
+			{
+				doReset();
+			}
+
+			public function get dataPanel():AlarmRelationResultPanel
+			{
+				return _dataPanel;
+			}
+
+			public function set dataPanel(value:AlarmRelationResultPanel):void
+			{
+				_dataPanel = value;
+				loadManger = new LoadManager(_dataPanel);
+				loadMangerSc = new LoadManager(this);
+			}
+
+			public function get userName():String
+			{
+				return _userName;
+			}
+
+			public function set userName(value:String):void
+			{
+				_userName = value;
+			}
+
+
+
+			protected function queryBt_clickHandler():void
+			{
+				loadManger.showLoading();
+				_dataPanel.initPage();
+				doQuery("10");
+			}
+
+
+			protected function filterNameComboBox_changeHandler(event:IndexChangeEvent):void
+			{
+				logger.info("关联规则，处理是否关联选项。。。  flag:" + filterNameComboBox.dataProvider.getItemAt(event.newIndex).flag);
+				if (filterNameComboBox.dataProvider.getItemAt(event.newIndex).flag == "1")
+				{
+					isRelaDP.removeAll();
+					isRelaDP.addItem({'label': '是', 'value': '1'});
+					isRelaDP.refresh();
+					isRelaComboBox.selectedIndex = 0;
+				}
+				else if (filterNameComboBox.dataProvider.getItemAt(event.newIndex).flag == "2")
+				{
+					isRelaDP.removeAll();
+					isRelaDP.addAll(isRelaDP_backup);
+					isRelaDP.refresh();
+					isRelaComboBox.selectedIndex = 3;
+				}
+				else
+				{
+					isRelaDP.removeAll();
+					isRelaDP.addAll(isRelaDP_backup);
+					isRelaDP.refresh();
+					isRelaComboBox.selectedIndex = 0;
+				}
+			}
+
+
+			private var nowInput:TextInput;
+			private var flowText:TextInput = new TextInput();
+
+			protected function textInput_focusInHandler(event:FocusEvent, offset:uint = 78):void
+			{
+				nowInput = event.currentTarget as TextInput;
+				flowText.text = String(nowInput.text);
+
+				var p:Point = new Point();
+				p.x = event.currentTarget.x;
+				p.y = event.currentTarget.y;
+				p = event.currentTarget.localToGlobal(p);
+
+				flowText.x = p.x - offset;
+				flowText.y = p.y;
+
+				PopUpManager.addPopUp(flowText, this, false);
+				flowText.setFocus();
+			}
+
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				flowText.width = 450;
+				flowText.setStyle("contentBackgroundAlpha", "1");
+				flowText.addEventListener(FocusEvent.FOCUS_OUT, function(e:FocusEvent):void
+					{
+						nowInput.text = String(flowText.text);
+						PopUpManager.removePopUp(flowText);
+					});
+
+				flowText.addEventListener(KeyboardEvent.KEY_UP, function(e:KeyboardEvent):void
+					{
+						if (e.keyCode == 13)
+						{
+							nowInput.text = String(flowText.text);
+							PopUpManager.removePopUp(flowText);
+						}
+					});
+
+				mainScroller.addEventListener(MouseEvent.MOUSE_WHEEL, function(e:MouseEvent):void
+					{
+						if (!nowInput)
+							return;
+
+						nowInput.text = String(flowText.text);
+						PopUpManager.removePopUp(flowText);
+					});
+
+				mainScroller.verticalScrollBar.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):void
+					{
+						if (!nowInput)
+							return;
+
+						nowInput.text = String(flowText.text);
+						PopUpManager.removePopUp(flowText);
+					});
+
+				this.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):void
+					{
+						if (!nowInput)
+							return;
+
+						if ((e.target is Label) || (e.target is Group))
+						{
+							PopUpManager.removePopUp(flowText);
+							nowInput.text = String(flowText.text);
+						}
+					});
+			}
+
+
+			private var neTypeComboBoxText:TextInput = new TextInput();
+
+
+			//
+			private function neTypeComboBoxMatchHandler(event:MouseEvent):void
+			{
+//				var p:Point = new Point();
+//				p.x = event.currentTarget.x;
+//				p.y = event.currentTarget.y;
+//				p = event.currentTarget.localToGlobal(p);
+//
+//				neTypeComboBoxText.x = p.x + neTypeComboBox.width;
+//				neTypeComboBoxText.y = p.y;
+//
+//				PopUpManager.addPopUp(neTypeComboBoxText, this, false);
+//				neTypeComboBoxText.setFocus();
+//				tempArr.addAll(neTypeDP);
+//				neTypeComboBoxText.addEventListener(Event.CHANGE, function():void
+//					{
+//						//文本框内容变动，下拉框跟着变动
+//						var str:String = neTypeComboBoxText.text;
+////						neTypeDP.removeAll();
+//						for each (var obj:Object in tempArr)
+//						{
+//							if (String(obj.label).indexOf(str) == 0)
+////							{
+////								neTypeDP.addItem(obj);
+////							}
+//								obj.isShow = true;
+//							else
+//								obj.isShow = false;
+//						}
+//						logger.error(neTypeDP);
+//						neTypeDP.refresh();
+//						neTypeComboBox.dataProvider = neTypeDP;
+//						neTypeComboBox.validateNow();
+//						neTypeComboBox.dispatchEvent(new DropdownEvent(DropdownEvent.OPEN));
+//					});
+			}
+
+			protected function specComboBox_changeHandler():void
+			{
+				neTypeComboBox.enabled = false;
+				var str:String = getSelectedItemValues(specComboBox);
+				var remoteService:RemoteObject = BlazeDSUtil.newService(AlarmRelationModule.destination, AlarmRelationModule.src, AlarmRelationModule.endpoint, function(result:Object):void
+					{
+						logger.error(">>> 根据专业过滤设备类型：");
+						logger.warn(result);
+						neTypeDP.removeAll();
+						neTypeDP.addAll(result as IList);
+						neTypeDP.refresh();
+						tempArr.removeAll();
+						tempArr.addAll(result as IList);
+						tempArr.refresh();
+						neTypeComboBox.enabled = true;
+					}, function(event:FaultEvent):void
+					{
+						neTypeComboBox.enabled = true;
+						logger.error(">>> 根据专业过滤设备类型失败！错误如下 ：" + event.fault.faultString);
+					});
+				remoteService.getNeType(str);
+
+			}
+
+			[Bindable]
+			public function get neTypeDP():ArrayCollection
+			{
+				return _neTypeDP;
+			}
+
+			public function set neTypeDP(value:ArrayCollection):void
+			{
+				_neTypeDP = value;
+			}
+
+
+
+			private var tempArr:ArrayCollection = new ArrayCollection();
+
+//			protected function neTypeComboBox_textInputChangeHandler(event:Event):void
+//			{
+//				var searchText:String = MultiEditDropDownList(event.currentTarget).textDisplay.text;
+//				logger.info("过滤字段：" + searchText);
+//				logger.info("过滤字段：" + neTypeComboBox.textDisplay.text);
+//				logger.info(tempArr);
+//				var searchResults:ArrayCollection = new ArrayCollection();
+//				if (searchText.length > 0)
+//				{
+//					for each (var obj:Object in tempArr)
+//					{
+//						if (String(obj.label).indexOf(searchText) != -1)
+//						{
+//							searchResults.addItem(obj);
+//						}
+//					}
+//				}
+//				else
+//				{
+//					searchResults.addAll(tempArr);
+//				}
+//				logger.error(searchResults);
+//
+//				neTypeDP = searchResults;
+//
+////				var searchText:String = MultiEditDropDownList(event.currentTarget).textDisplay.text;
+////				neTypeDP.removeAll();
+////				logger.info("过滤字段：" + searchText);
+////				logger.info("过滤字段：" + neTypeComboBox.textDisplay.text);
+////				logger.info(tempArr);
+////				if (searchText.length > 0)
+////				{
+////					for each (var obj:Object in tempArr)
+////					{
+////						if (String(obj.label).indexOf(searchText) != -1)
+////						{
+////							neTypeDP.addItem(obj);
+////						}
+////					}
+////				}
+////				else
+////				{
+////					neTypeDP.addAll(tempArr);
+////				}
+////				logger.error(neTypeDP);
+////				neTypeDP.refresh();
+////				neTypeComboBox.dataProvider = neTypeDP;
+////				neTypeComboBox.validateNow();
+//
+//
+//			}
+		]]>
+	</fx:Script>
+	<s:Scroller horizontalScrollPolicy="auto"
+				id="mainScroller"
+				verticalScrollPolicy="auto"
+				width="100%"
+				height="100%">
+		<s:VGroup id="mainVGroup"
+				  horizontalAlign="right"
+				  left="5">
+			<s:Group height="10"/>
+			<s:HGroup>
+				<s:Label text="是否异常告警 ："/>
+				<s:DropDownList id="isExceComboBox"
+								width="190"
+								dataProvider="{this.isExceDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="时间类型 ："/>
+				<s:RadioButton id="timeType_faxian"
+							   groupName="timeType"
+							   label="发现时间"
+							   width="92"
+							   selected="true"/>
+				<s:RadioButton id="timeType_fasheng"
+							   groupName="timeType"
+							   label="发生时间"
+							   width="92"
+							   selected="false"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="开始时间 ："/>
+				<common:UXDateField focusOut="valiDate1()"
+									textAlign="right"
+									id="startDate"
+									labelFunction="formatDate"
+									yearNavigationEnabled="true"
+									width="190"
+									editable="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="结束时间 ："/>
+				<common:UXDateField focusOut="valiDate2()"
+									textAlign="right"
+									id="endDate"
+									labelFunction="formatDate"
+									yearNavigationEnabled="true"
+									width="190"
+									editable="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="地市 ："/>
+				<common:MyComboBox id="cityComboBox"
+								   width="190"
+								   dpHeight="300"
+								   promptDefault="选择地市"
+								   dataProvider="{this.cityDP}"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="厂家 ："/>
+				<common:MyComboBox id="vendorComboBox"
+								   dpHeight="300"
+								   width="190"
+								   promptDefault="选择厂家"
+								   dataProvider="{this.vendorDP}"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="专业 ："/>
+				<common:MyComboBox id="specComboBox"
+								   width="190"
+								   dpHeight="145"
+								   promptDefault="选择专业 "
+								   dataProvider="{this.specDP}"/>
+				<!--itemChange="specComboBox_changeHandler()"-->
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="设备类型 ："
+						 click="neTypeComboBoxMatchHandler(event)"/>
+				<common:MyComboBox id="neTypeComboBox"
+								   dpHeight="270"
+								   width="190"
+								   promptDefault="选择设备类型"
+								   dataProvider="{this.neTypeDP}"/>
+			</s:HGroup>
+			<!--<s:HGroup>
+				 <s:Label text="设备类型 ："/>
+				 <common:MultiEditDropDownList id="neTypeComboBox"
+				 allowMultipleSelecte="true"
+				 editable="true"
+				 requireSelection="false"
+				 labelField="label"
+				 width="190"
+				 prompt="选择设备类型"
+				 dataProvider="{this.neTypeDP}"
+				 textInputChange="neTypeComboBox_textInputChangeHandler(event)"/>
+				 </s:HGroup>-->
+
+
+			<s:HGroup>
+				<s:Label text="网元名称 ："/>
+				<s:TextInput id="neNameTextInput"
+							 width="110"
+							 toolTip="多个网元名称, 请用 :: 分隔！"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="neNameFlag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="告警级别 ："/>
+				<common:MyComboBox id="alarmLevelComboBox"
+								   width="190"
+								   promptDefault="选择告警级别"
+								   dataProvider="{this.alarmLevelDP}"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="告警状态 ："/>
+				<s:DropDownList id="alarmStatusComboBox"
+								width="190"
+								dataProvider="{this.alarmStatusDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="告警标题 ："/>
+				<s:TextInput id="alarmTitleTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="alarmTitleFlag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="确认状态 ："/>
+				<s:DropDownList id="ackStatusComboBox"
+								width="190"
+								dataProvider="{this.ackStatusDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="工单状态 ："/>
+				<common:MyComboBox id="sheetStatusComboBox"
+								   width="190"
+								   promptDefault="选择工单状态"
+								   dataProvider="{this.sheetStatusDP}"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="派单状态 ："/>
+				<common:MyComboBox id="dispStatusComboBox"
+								   width="190"
+								   promptDefault="选择派单状态"
+								   dataProvider="{this.dispStatusDP}"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="工程状态 ："/>
+				<s:DropDownList id="projectStatusComboBox"
+								width="190"
+								dataProvider="{this.projectStatusDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="告警流水号 ："/>
+				<s:TextInput id="alarmSNTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event, 90)"/>
+				<s:CheckBox id="alarmSNFlag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="厂家流水号 ："/>
+				<s:TextInput id="vendorserialnoTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event, 90)"/>
+				<s:CheckBox id="vendorserialnoFlag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="工单编号 ："/>
+				<s:TextInput id="sheetNoTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="sheetNoFlag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="过滤器名称 ："/>
+				<s:DropDownList id="filterNameComboBox"
+								width="190"
+								dataProvider="{this.filterNameDP}"
+								change="filterNameComboBox_changeHandler(event)"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="是否上报集团 ："/>
+				<s:DropDownList id="isGroupComboBox"
+								width="190"
+								dataProvider="{this.isGroupDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="是否声光告警 ："/>
+				<s:DropDownList id="isLightComboBox"
+								width="190"
+								dataProvider="{this.isLightDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="是否关联告警 ："/>
+				<s:DropDownList id="isRelaComboBox"
+								width="190"
+								dataProvider="{this.isRelaDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="告警来源 ："/>
+				<s:DropDownList id="systemNameComboBox"
+								width="190"
+								dataProvider="{this.systemNameDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="告警类别 ："/>
+				<s:DropDownList id="nmsalarmtypeComboBox"
+								width="190"
+								dataProvider="{this.nmsalarmtypeDP}"
+								contentBackgroundAlpha="1"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="业务系统 ："/>
+				<s:TextInput id="serviceSystemTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="serviceSystem_flag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup visible="{isRelaComboBox.selectedIndex == 3}"
+					  includeInLayout="{isRelaComboBox.selectedIndex == 3}">
+				<s:Label text="集客业务类型 ："/>
+				<s:TextInput id="businessSystemTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="businessSystem_flag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="工程编号 ："/>
+				<s:TextInput id="projectNoTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="projectno_flag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="告警对象名称 ："/>
+				<s:TextInput id="locatenenameTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event, 102)"/>
+				<s:CheckBox id="locatenename_flag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="电路名称 ："/>
+				<s:TextInput id="circ_nameTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="circ_name_flag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="场景名称 ："/>
+				<s:TextInput id="scene_nameTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="scene_name_flag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<s:HGroup>
+				<s:Label text="区域名称 ："/>
+				<s:TextInput id="area_nameTextInput"
+							 width="110"
+							 focusIn="textInput_focusInHandler(event)"/>
+				<s:CheckBox id="area_name_flag"
+							label="精确匹配"
+							width="74"
+							selected="true"/>
+			</s:HGroup>
+
+			<!-- 集客查询条件 -->
+			<s:VGroup horizontalAlign="right"
+					  visible="{isRelaComboBox.selectedIndex == 3}"
+					  includeInLayout="{isRelaComboBox.selectedIndex == 3}">
+				<s:HGroup>
+					<s:Label text="客户名称 ："/>
+					<s:TextInput id="groupcustomerTextInput"
+								 width="110"
+								 focusIn="textInput_focusInHandler(event)"/>
+					<s:CheckBox id="groupcustomer_flag"
+								label="精确匹配"
+								width="74"
+								selected="true"/>
+				</s:HGroup>
+
+				<s:HGroup>
+					<s:Label text="集客业务编号 ："/>
+					<s:TextInput id="cusbussIdTextInput"
+								 width="110"
+								 focusIn="textInput_focusInHandler(event, 102)"/>
+					<s:CheckBox id="cusbuss_id_flag"
+								label="精确匹配"
+								width="74"
+								selected="true"/>
+				</s:HGroup>
+
+				<s:HGroup>
+					<s:Label text="客户级别 ："/>
+					<common:MyComboBox id="customerclassComboBox"
+									   width="190"
+									   promptDefault="选择客户级别"
+									   dataProvider="{this.customerclassDP}"/>
+				</s:HGroup>
+
+				<s:HGroup>
+					<s:Label text="业务质量级别 ："/>
+					<common:MyComboBox id="businesslevelComboBox"
+									   width="190"
+									   promptDefault="选择业务质量级别"
+									   dataProvider="{this.businesslevelDP}"/>
+				</s:HGroup>
+
+				<s:HGroup>
+					<s:Label text="业务保障级别 ："/>
+					<common:MyComboBox id="safelevelComboBox"
+									   width="190"
+									   promptDefault="选择业务保障级别"
+									   dataProvider="{this.safelevelDP}"/>
+				</s:HGroup>
+
+				<s:HGroup>
+					<s:Label text="业务监控级别 ："/>
+					<common:MyComboBox id="businesscategoryComboBox"
+									   width="190"
+									   promptDefault="选择集团客户类型"
+									   dataProvider="{this.businesscategoryDP}"/>
+				</s:HGroup>
+			</s:VGroup>
+			<!-- 集客查询条件 -->
+
+			<mx:Spacer height="10"/>
+
+		</s:VGroup>
+	</s:Scroller>
+
+	<s:HGroup horizontalAlign="right"
+			  width="100%">
+		<s:Button id="queryBt"
+				  content="查询"
+				  click="queryBt_clickHandler()"/>
+		<s:Group width="15"/>
+		<s:Button content="取消查询"
+				  click="resetQuery()"/>
+		<s:Group width="15"/>
+		<s:Button content="重置"
+				  click="doReset()"/>
+		<s:Group width="20"/>
+	</s:HGroup>
+	<s:Group height="6"/>
+</s:VGroup>

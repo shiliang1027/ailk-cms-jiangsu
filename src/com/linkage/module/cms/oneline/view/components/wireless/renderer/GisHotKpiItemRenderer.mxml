@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				autoDrawBackground="false"
+				width="100%"
+				xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+				xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+
+			private var log:ILogger=Log.getLoggerByClass(GisHotKpiItemRenderer);
+			protected function advanceddatagrid_itemDoubleClickHandler(event:ListEvent):void
+			{
+				var param:Object=new Object();
+				param.def=data.def;
+				param.kpiId=data.kpiId;
+				param.kpiName=data.kpiName;
+				param.mo_id=AdvancedDataGrid(event.currentTarget).selectedItem.mo_id;
+				param.mo_name=AdvancedDataGrid(event.currentTarget).selectedItem.mo_name;
+				param.moTypeId=AdvancedDataGrid(event.currentTarget).selectedItem.mo_type_id;
+
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADKPILISTDATA);
+				evt.param=param;
+				dispatcher(evt);
+			}
+
+			protected function advanceddatagrid_itemClickHandler(event:ListEvent):void
+			{
+				log.info("data.infos");
+				log.info(data.infos);
+				if(event.columnIndex>2){
+					return;
+				}
+				var param:Object=new Object();
+				param.kpiId=data.kpiId;
+				param.mo_id=AdvancedDataGrid(event.currentTarget).selectedItem.mo_id;
+				param.mo_name=AdvancedDataGrid(event.currentTarget).selectedItem.mo_name;
+				param.city_id=AdvancedDataGrid(event.currentTarget).selectedItem.bcity_id;
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.LOADGISINFODATA);
+				evt.param=param;
+				dispatcher(evt);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<s:VGroup width="100%"
+			  gap="0">
+		<s:Group width="100%">
+			<s:Label text="{data.kpiName}"
+					 height="20"
+					 left="5"
+					 verticalAlign="middle"/>
+			<s:Label text="时间：2012-12-02 10:25"
+					 right="5"
+					 height="20"
+					 verticalAlign="middle" visible="false"/>
+		</s:Group>
+		<s:Scroller width="375" minHeight="180" maxHeight="500" styleName="sceneScroller">
+			<s:Group width="100%" height="100%">
+				<mx:AdvancedDataGrid width="100%"
+									 height="100%"
+									 verticalScrollPolicy="auto"
+									 horizontalScrollPolicy="auto"
+									 dataProvider="{data.infos}"
+									 styleName="sceneDG"
+									 itemClick="advanceddatagrid_itemClickHandler(event)"
+									 itemDoubleClick="advanceddatagrid_itemDoubleClickHandler(event)">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="cityName" dataTipField="cityName" showDataTips="true"
+												   headerText="地市"
+												   width="60" itemRenderer="mx.controls.Label"/>
+						<mx:AdvancedDataGridColumn dataField="mo_name" dataTipField="mo_name" showDataTips="true"
+												   width="140"
+												   headerText="热点区域" itemRenderer="mx.controls.Label"/>
+						<!--<mx:AdvancedDataGridColumn dataField="num" dataTipField="num" showDataTips="true"
+												   width="60"
+												   headerText="个数"/>-->
+						<mx:AdvancedDataGridColumn dataField="value" dataTipField="value" showDataTips="true"
+												   width="60"
+												   headerText="性能值"/>
+						<mx:AdvancedDataGridColumn dataField="threshold" dataTipField="threshold" showDataTips="true"
+												   width="60"
+												   headerText="门限"/>
+						<mx:AdvancedDataGridColumn dataField="specialPhone_name" dataTipField="specialPhone_name" showDataTips="true"
+												   width="60"
+												   headerText="特殊号码"/>
+						<mx:AdvancedDataGridColumn dataField="specialPhone_times" dataTipField="specialPhone_times" showDataTips="true"
+												   width="100"
+												   headerText="特殊号码发生次数"/>
+						<mx:AdvancedDataGridColumn dataField="specialPhone_eventTime" dataTipField="specialPhone_eventTime" showDataTips="true"
+												   width="160"
+												   headerText="特殊号码发生时间"/>
+					<!--	<mx:AdvancedDataGridColumn sortable="false"
+												   width="60"
+												   headerText="列表"
+												   itemRenderer="com.linkage.module.cms.oneline.view.components.wireless.renderer.GisHotKpisShowBtnRenderer"/>-->
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:Group>
+		</s:Scroller>
+	</s:VGroup>
+</s:ItemRenderer>

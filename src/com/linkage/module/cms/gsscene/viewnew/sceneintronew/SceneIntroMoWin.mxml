@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:PopUpCompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					titleIcon="@Embed(source='../../img/title_ico03.png')"
+					creationComplete="popupcompwindow1_creationCompleteHandler();"
+					resizable="true"
+					minimizableBottom="10"
+					title="网元级劣化详情"
+					width="470"
+					height="260">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.components.KpiAreaBadDetail;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.components.KpiMoBadDetail;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneIntroMoWin);
+			
+			protected function image2_clickHandler(event:MouseEvent):void
+			{
+				var headArr:Array = new Array;
+				log.info("劣化网元详情导出开始");
+				var data:Object = scenePM.sceneIntroDM.moBadList;
+				
+				if (data == null || data.length < 1)
+				{
+					Alert.show("没有数据");
+					return;
+				}
+				
+				var datas:ArrayCollection = new ArrayCollection();
+				
+				for each (var kpiInfo:Object in scenePM.sceneIntroDM.moBadList)
+				{
+					datas.addAll(kpiInfo["values"] as ArrayCollection);
+				}
+				
+				headArr.push({"id": "kpiName", "name": "指标名称"});
+				
+				for each (var col:AdvancedDataGridColumn in(moBadGroup.getElementAt(0) as KpiMoBadDetail).moDataGrid.columns)
+				{
+					if (col.dataField != "" && col.headerText != "")
+						headArr.push({"id": col.dataField, "name": col.headerText});
+				}
+				
+				log.info(datas);
+				ExcelUtil.exportSimpleExcel("劣化网元详情列表", headArr, datas);
+				log.info("劣化网元详情导出结束");
+			}
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				log.info("多网元gis定位", event);
+				moBadGroup.numElements;
+				var tempItem:Object;
+				var arr:ArrayCollection = new ArrayCollection();
+				
+				for (var i:int = 0; i < moBadGroup.numElements; i++)
+				{
+					var kmbd:KpiMoBadDetail = moBadGroup.getElementAt(i) as KpiMoBadDetail;
+					
+					for each (var item:Object in kmbd.moDataGrid.dataProvider)
+					{
+						if (item.selected)
+						{
+							tempItem = item;
+							tempItem.alarmLevel = item["warnLevel"];
+							arr.addItem(tempItem);
+						}
+					}
+				}
+				log.info(arr);
+				
+				if (arr.length > 0)
+				{
+					var evt:SceneEvent = new SceneEvent(SceneEvent.MOIDS_COORDINATE_SEARCH);
+					evt.param = new Object;
+					evt.param = arr;
+					dispatchMsg(evt);
+					requestServerUtil.addRequest(evt);
+				}
+			}
+			//全部gis定位
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				if (scenePM.sceneIntroDM.moBadList.length > 0)
+				{
+					var tempItem:Object;
+					
+					var evt:SceneEvent = new SceneEvent(SceneEvent.MOIDS_COORDINATE_SEARCH);
+					evt.param = new Object;
+					//					evt.param = sceneIntroPM.sceneIntroDM.moBadList;
+					var moBadList:ArrayCollection = new ArrayCollection;
+					
+					for each (var obj:Object in scenePM.sceneIntroDM.moBadList)
+					{
+						if ((obj["values"] as ArrayCollection).length > 0)
+						{
+							for each (var item:Object in obj["values"])
+							{
+								tempItem = item;
+								tempItem.alarmLevel = item["warnLevel"];
+								moBadList.addItem(tempItem);
+							}
+							
+						}
+					}
+					evt.param = moBadList;
+					//                    msgDispatcher(evt);
+					requestServerUtil.addRequest(evt);
+				}
+			}
+			
+			private function expandAllGridButton():void
+			{
+				var kmbd:KpiMoBadDetail;
+				
+				if (expBtn.label == "全部展开")
+				{
+					expBtn.label = "全部关闭";
+					
+					for (var i:int = 0; i < moBadGroup.numElements; i++)
+					{
+						kmbd = moBadGroup.getElementAt(i) as KpiMoBadDetail;
+						kmbd.height = 200;
+						kmbd.moDataGrid.dataProvider = kmbd.moDataList;
+						kmbd.moDataGrid.visible = true;
+						kmbd.moDataGrid.includeInLayout = true;
+					}
+				}
+				else
+				{
+					expBtn.label = "全部展开"
+					
+					for (i = 0; i < moBadGroup.numElements; i++)
+					{
+						kmbd = moBadGroup.getElementAt(i) as KpiMoBadDetail;
+						kmbd.height = 20;
+						kmbd.moDataGrid.visible = false;
+						kmbd.moDataGrid.includeInLayout = false;
+					}
+				}
+			}
+			[MessageHandler(selector = "SCENEINTROMO_SHOWDATA")]
+			public function popupcompwindow1_creationCompleteHandler(event:SceneIntroEvent=null):void
+			{
+				moBadGroup.removeAllElements();
+				if (scenePM.sceneIntroDM.moBadList.length > 0)
+				{
+					var serialNum:int = 1;
+					for each (var obj:Object in scenePM.sceneIntroDM.moBadList)
+					{
+						var kmbd:KpiMoBadDetail = new KpiMoBadDetail();
+						kmbd.moDataList = obj["values"] as ArrayCollection;
+						kmbd.label = obj["kpiName"] + "(" + kmbd.moDataList.length + ")";
+						kmbd.serialNum = String(serialNum++);
+						kmbd.addEventListener(SceneIntroEvent.CMS_SCENE_SCENEINTRO_AREAGETBADTREND, getBadTrend);
+						moBadGroup.addElement(kmbd);
+					}
+					
+					setTimeout(function():void
+					{
+						moBadGroup.validateNow();
+					}, 550);
+				}
+			}
+			public function getBadTrend(e:SceneIntroEvent):void
+			{
+				if (e.params.badType == "1")
+				{
+					e.params.sceneId = user.sceneId;
+				}
+				dispatchMsg(e);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+		<s:Scroller width="100%"
+					height="100%"
+					horizontalScrollPolicy="auto"
+					verticalScrollPolicy="auto"
+					styleName="sceneScroller">
+			<s:VGroup id="moBadGroup"
+					  width="100%"
+					  height="100%"
+					  gap="2">
+			</s:VGroup>
+		</s:Scroller>
+		<mx:Image source="@Embed('../../img/icon_export.png')"
+				  width="30"
+				  height="20"
+				  right="40"
+				  toolTip="导出"
+				  top="-23"
+				  buttonMode="true"
+				  click="image2_clickHandler(event)"/>
+		<s:Button label="GIS定位"
+				  top="-23"
+				  right="83"
+				  click="button1_clickHandler(event)"/>
+		<s:Button label="全部gis定位"
+				  top="-23"
+				  right="150"
+				  click="button2_clickHandler(event)"/>
+		<s:Button id="expBtn"
+				  label="全部展开"
+				  top="-23"
+				  right="240"
+				  click="expandAllGridButton()"/>
+</viewnew:PopUpCompWindow>

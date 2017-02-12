@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  width="100%"
+			  height="100%"
+			  minWidth="200"
+			  minHeight="30"
+			  minimizableLeft="10"
+			  minimizableBottom="10"
+			  closable="false"
+			  dragable="true"
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+			  creationComplete="window_creationCompleteHandler(event)"
+			  xmlns:pager="com.linkage.module.cms.components.pager.*"
+			  maximize="window_maximizeHandler(event)"
+			  restore="window_restoreHandler(event)">
+	<panel:layout>
+		<s:VerticalLayout/>
+	</panel:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<panel:states>
+		<s:State name="chartState"/>
+		<s:State name="datagridState"/>
+	</panel:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="citysQuery", type="com.linkage.module.cms.proactivemonitor.event.WlanRateEvent")]
+		[Event(name="chartDataQuery", type="com.linkage.module.cms.proactivemonitor.event.WlanRateEvent")]
+		[Event(name="dataQuery", type="com.linkage.module.cms.proactivemonitor.event.WlanRateEvent")]
+		[Event(name="gisQuery", type="com.linkage.module.cms.proactivemonitor.event.WlanRateEvent")]
+		[Event(name="moShow", type="com.linkage.module.cms.proactivemonitor.event.WlanRateEvent")]
+		[Event(name="moSite", type="com.linkage.module.cms.proactivemonitor.event.WlanRateEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.proactivemonitor.event.WlanRateEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import flash.utils.setTimeout;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.proactivemonitor.control.ProactiveMonitorControl");
+
+			[Bindable]
+			private var chartParams:ArrayCollection = new ArrayCollection([{caption: "忙时无线利用率小区统计"}, {numberSuffix: "个"}, {showValues: "0"}]);
+			[Bindable]
+			private var chartDataArray:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var cityList:ArrayCollection = new ArrayCollection([{city_id: "-1", city_name: "全省"}]);
+
+			private var queryParam:Object;
+
+			protected function window_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.x = (this.parent.width - this.width) / 2;
+				this.y = (this.parent.height - this.height) / 2;
+				this.currentState = "chartState";
+				this.addEventListener(WlanRateEvent.CITYSCHANGE, onCitysChange);
+				this.addEventListener(WlanRateEvent.CHARTDATACHANGE, onChartChange);
+				this.addEventListener(WlanRateEvent.DATACHANGE, onDatasChange);
+				this.addEventListener(WlanRateEvent.GISCHANGE, onGisChange);
+				var df:DateFormatter = new DateFormatter();
+				df.formatString = "YYYY-MM-DD";
+				var date:Date = new Date();
+				date.setDate(date.getDate() - 1);
+				dateChooser.text = df.format(date);
+				dateChooser.selectedDate = date;
+				this.dispatchEvent(new WlanRateEvent(WlanRateEvent.CITYSQUERY));
+				queryChartBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+			}
+
+			protected function window_maximizeHandler(event:WindowEvent):void
+			{
+				setTimeout(function():void{
+						chart.FCData = chartDataArray;
+					}, 10);
+			}
+
+
+			protected function window_restoreHandler(event:WindowEvent):void
+			{
+				setTimeout(function():void{
+						chart.FCData = chartDataArray;
+					}, 10);
+			}
+
+			private function chartBtn_clickHandler(event:MouseEvent):void
+			{
+				this.currentState = "chartState";
+			}
+
+			private function datagridBtn_clickHandler(event:MouseEvent):void
+			{
+				this.currentState = "datagridState";
+			}
+
+			protected function queryChartBtn_clickHandler(event:MouseEvent):void
+			{
+				queryChartBtn.enabled = false;
+				var chartEvt:WlanRateEvent = new WlanRateEvent(WlanRateEvent.CHARTDATAQUERY);
+				var queryParam:Object = new Object();
+				queryParam.queryTime = dateChooser.text;
+				if(dropDown.selectedIndex < 0)
+				{
+					queryParam.city_id = "-1";
+				}
+				else
+				{
+					queryParam.city_id = dropDown.selectedItem.city_id;
+				}
+				chartEvt.param = queryParam;
+				this.dispatchEvent(chartEvt);
+			}
+
+			protected function queryBtn_clickHandler(event:MouseEvent):void
+			{
+				queryParam = new Object();
+				queryParam.queryTime = dateChooser.text;
+				if(dropDown.selectedIndex < 0)
+				{
+					queryParam.city_id = "-1";
+				}
+				else
+				{
+					queryParam.city_id = dropDown.selectedItem.city_id;
+				}
+				queryParam.curPage_splitPage = String(1);
+				queryParam.num_splitPage = String(pager.pageSize);
+				pager.currentPage = 1;
+				var evt:WlanRateEvent = new WlanRateEvent(WlanRateEvent.DATAQUERY);
+				evt.param = queryParam;
+				this.dispatchEvent(evt);
+				queryBtn.enabled = false;
+			}
+
+			protected function gisQueryBtn_clickHandler(event:MouseEvent):void
+			{
+				if(!queryParam)
+				{
+					queryParam = new Object();
+					queryParam.queryTime = dateChooser.text;
+					if(dropDown.selectedIndex < 0)
+					{
+						queryParam.city_id = "-1";
+					}
+					else
+					{
+						queryParam.city_id = dropDown.selectedItem.city_id;
+					}
+					queryParam.curPage_splitPage = String(1);
+					queryParam.num_splitPage = String(pager.pageSize);
+				}
+				var evt:WlanRateEvent = new WlanRateEvent(WlanRateEvent.GISQUERY);
+				evt.param = queryParam;
+				this.dispatchEvent(evt);
+			}
+
+			private function onCitysChange(event:WlanRateEvent):void
+			{
+				var result:Object = event.param;
+				for each(var city:Object in result)
+				{
+					cityList.addItem(city);
+				}
+				dropDown.selectedIndex = 0;
+			}
+
+			private function onChartChange(event:WlanRateEvent):void
+			{
+				queryChartBtn.enabled = true;
+				var result:Object = event.param;
+				var chartData:Object = result.barData;
+				chartDataArray.removeAll();
+				if(chartData)
+				{
+					for each(var data:Object in chartData)
+					{
+						var obj:Object = new Object();
+						obj.label = String(data["city_name"]);
+						obj.value = String(data["num"]);
+						chartDataArray.addItem(obj);
+					}
+					chart.FCData = chartDataArray;
+				}
+			}
+
+			private function onDatasChange(event:WlanRateEvent):void
+			{
+				queryBtn.enabled = true;
+				var result:Object = event.param;
+				if(!result)
+				{
+					return;
+				}
+				datagrid.dataProvider = result.datagridData;
+				pager.totalRowCount = Number(result.pageInfo.totalCount);
+			}
+
+			private function onGisChange(event:WlanRateEvent):void
+			{
+				var result:Object = event.param;
+				var moList:Object = new Object;
+				moList = result.datagridData;
+				var evt:WlanRateEvent = new WlanRateEvent(WlanRateEvent.MOSHOW);
+				evt.param = moList;
+				this.dispatchEvent(evt);
+				if(!datagrid.dataProvider)
+				{
+					datagrid.dataProvider = result.datagridData;
+					pager.totalRowCount = Number(result.pageInfo.totalCount);
+				}
+			}
+
+
+			protected function pager_pageChangeHandler(event:PagerEvent):void
+			{
+				queryParam.curPage_splitPage = String(pager.currentPage);
+				var evt:WlanRateEvent = new WlanRateEvent(WlanRateEvent.DATAQUERY);
+				evt.param = queryParam;
+				this.dispatchEvent(evt);
+			}
+
+			protected function datagrid_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object = datagrid.dataProvider[event.rowIndex];
+				log.info("定位：" + data["longitude"] + "," + data["latitude"]);
+				var param:Object = new Object;
+				param.longitude = data["longitude"];
+				param.latitude = data["latitude"];
+				param.mo_id = data["mo_id"];
+				param.mo_type_id = data["mo_type_id"];
+				param.mo_name = data["mo_name"];
+				var evt:WlanRateEvent = new WlanRateEvent(WlanRateEvent.MOSITE);
+				evt.param = param;
+				this.dispatchEvent(evt);
+				this.minimizeButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Group width="100%">
+		<mx:Form minHeight="0">
+			<s:HGroup>
+				<mx:FormItem label="查询时间">
+					<mx:DateField id="dateChooser"
+								  formatString="YYYY-MM-DD"
+								  width="120"
+								  showToday="true"
+								  color="0x000000"/>
+				</mx:FormItem>
+				<s:DropDownList id="dropDown"
+								color="0x000000"
+								labelField="city_name"
+								dataProvider="{cityList}"
+								width="120"/>
+				<s:Button label="查询"
+						  buttonMode="true"
+						  id="queryChartBtn"
+						  visible.chartState="true"
+						  visible.datagridState="false"
+						  includeInLayout.chartState="true"
+						  includeInLayout.datagridState="false"
+						  click="queryChartBtn_clickHandler(event)"/>
+				<s:Button label="查询"
+						  buttonMode="true"
+						  id="queryBtn"
+						  visible.chartState="false"
+						  visible.datagridState="true"
+						  includeInLayout.chartState="false"
+						  includeInLayout.datagridState="true"
+						  click="queryBtn_clickHandler(event)"/>
+				<s:Button label="GIS分布"
+						  buttonMode="true"
+						  id="gisQueryBtn"
+						  visible.chartState="false"
+						  visible.datagridState="true"
+						  includeInLayout.chartState="false"
+						  includeInLayout.datagridState="true"
+						  click="gisQueryBtn_clickHandler(event)"/>
+			</s:HGroup>
+		</mx:Form>
+		<s:HGroup right="10"
+				  top="20">
+			<mx:Image source="@Embed(source='../../groupclient/assets/u557.png')"
+					  buttonMode="true"
+					  click="chartBtn_clickHandler(event)"
+					  toolTip="图表显示"/>
+			<mx:Image source="@Embed(source='../../groupclient/assets/u555.png')"
+					  buttonMode="true"
+					  click="datagridBtn_clickHandler(event)"
+					  toolTip="表格显示"/>
+		</s:HGroup>
+	</s:Group>
+	<fusioncharts:FusionChartsLK id="chart"
+								 width="{this.width-25}"
+								 height="{this.height-100}"
+								 FCChartType="Column3D"
+								 visible.datagridState="false"
+								 includeInLayout.datagridState="false"
+								 visible.chartState="true"
+								 includeInLayout.chartState="true"
+								 FCFolder="/cms/flex-release/FusionCharts"
+								 FCParams="{chartParams}"
+								 FCData="{chartDataArray}">
+	</fusioncharts:FusionChartsLK>
+	<mx:AdvancedDataGrid id="datagrid"
+						 width="100%"
+						 height="100%"
+						 visible.datagridState="true"
+						 includeInLayout.datagridState="true"
+						 visible.chartState="false"
+						 includeInLayout.chartState="false"
+						 itemClick="datagrid_itemClickHandler(event)">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="city_name"
+									   headerText="地市"/>
+			<mx:AdvancedDataGridColumn dataField="mo_name"
+									   headerText="名称"
+									   width="160"/>
+			<mx:AdvancedDataGridColumn dataField="wlan_8"
+									   headerText="8点"/>
+			<mx:AdvancedDataGridColumn dataField="wlan_9"
+									   headerText="9点"/>
+			<mx:AdvancedDataGridColumn dataField="wlan_10"
+									   headerText="10点"/>
+			<mx:AdvancedDataGridColumn dataField="wlan_18"
+									   headerText="18点"/>
+			<mx:AdvancedDataGridColumn dataField="wlan_19"
+									   headerText="19点"/>
+			<mx:AdvancedDataGridColumn dataField="wlan_20"
+									   headerText="20点"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+	<s:HGroup width="100%"
+			  horizontalAlign="right">
+		<pager:Pager id="pager"
+					 pageSize="20"
+					 visible.datagridState="true"
+					 includeInLayout.datagridState="true"
+					 visible.chartState="false"
+					 includeInLayout.chartState="false"
+					 pageChange="pager_pageChangeHandler(event)">
+		</pager:Pager>
+	</s:HGroup>
+</panel:Window>

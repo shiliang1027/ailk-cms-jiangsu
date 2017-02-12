@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:PopUpCompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					title="场景介绍编辑"
+					width="450"
+					height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import mx.managers.PopUpManager;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneIntroInfoWin);
+			
+			[Bindable]
+			public var stringStr:String;
+			protected function editSceneName_changeHandler():void
+			{
+				if (editSceneName.text.length > 30)
+				{
+					editSceneName.errorString = " 场景名称不能超过30个汉字!";
+					editSceneName.text = "";
+				}
+				else
+				{
+					editSceneName.errorString = null;
+				}
+			}
+			
+			protected function editSceneNameIntro_changeHandler():void
+			{
+				if (editSceneNameIntro.text.length > 200)
+				{
+					editSceneNameIntro.errorString = " 场景基本介绍不能超过200个汉字!";
+					editSceneNameIntro.text = "";
+				}
+				else
+				{
+					editSceneNameIntro.errorString = null;
+				}
+			}
+			protected function saveSceneInfo_clickHandler():void
+			{
+				//				var gameInfo:ArrayCollection = new ArrayCollection();
+				
+				var evt:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.SAVE_SCENEINFO);
+				evt.params = new Object;
+				evt.params.sceneId = user.sceneId;
+				evt.params.level = user.level;
+				evt.params.sceneName = editSceneName.text;
+				evt.params.cityId = user.cityId;
+				evt.params.sceneIntroStr = editSceneNameIntro.text;
+				
+				log.info("SAVE_SCENEINFO");
+				log.info(evt.params);
+				//                msgDispatcher(evt);
+				requestServerUtil.addRequest(evt);
+				
+				PopUpManager.removePopUp(this);
+			}
+			protected function cancelSceneInfo_clickHandler():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+		<mx:VBox>
+			<mx:HBox>
+				<s:Label id="sceneNameE"
+						 text="场景名称:"
+						 width="85"/>
+				<s:TextArea id="editSceneName"
+							width="350"
+							height="20"
+							text="{scenePM.sceneIntroDM.sceneInfo}"
+							change="editSceneName_changeHandler()"/>
+			</mx:HBox>
+			<mx:HBox>
+				<s:Label id="sceneNameIntro"
+						 text="场景基本介绍:"
+						 width="85"/>
+				<s:TextArea id="editSceneNameIntro"
+							width="350"
+							height="100"
+							text="{stringStr}"
+							change="editSceneNameIntro_changeHandler()"/>
+			</mx:HBox>
+			<mx:HBox horizontalAlign="right"
+					 width="300">
+				<s:Button id="saveSceneInfo"
+						  label="保存"
+						  click="saveSceneInfo_clickHandler()"/>
+				<s:Button id="cancelSceneInfo"
+						  label="取消"
+						  click="cancelSceneInfo_clickHandler()"/>
+			</mx:HBox>
+		</mx:VBox>
+</viewnew:PopUpCompWindow>

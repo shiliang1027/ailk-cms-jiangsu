@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  creationComplete="hgroup1_creationCompleteHandler(event)" verticalAlign="middle">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			[Bindable]
+			public var perf_type_id:String;
+			[Bindable]
+			public var show_name:String;
+			[Bindable]
+			public var unit:String;
+			[Bindable]
+			public var perfData:Object;
+			[Bindable]
+			private var operData:ArrayCollection = new ArrayCollection(
+				[{label:"大于等于",value:2},
+					{label:"大于",value:1},
+					{label:"小于等于",value:4},
+					{label:"小于",value:3}]);
+
+			protected function hgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				operDropDown.selectedIndex=0;
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Label text="{perfData.show_name}" width="200" maxDisplayedLines="1"/>
+	<s:DropDownList id="operDropDown" dataProvider="{operData}" width="100" labelField="label">
+	</s:DropDownList>
+	<s:TextInput id="perfValue" text="0" width="60"/>
+	<s:Label text="({perfData.unit})"/>
+</s:HGroup>

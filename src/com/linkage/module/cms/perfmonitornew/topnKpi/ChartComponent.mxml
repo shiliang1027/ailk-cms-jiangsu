@@ -1,0 +1,685 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    width="100%"
+                    height="100%"
+                    styleName="window"
+                    minimizable="false"
+                    closable="false"
+					maximizable="false"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+                    creationComplete="init()"
+                    xmlns:common="com.linkage.module.cms.perfmonitornew.common.*">
+
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.event.PrettyChartEvent;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.dao.TOPNMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.event.perfEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.charts.CategoryAxis;
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var log:ILogger = Log.getLoggerByClass(ChartComponent);
+
+            public var kpiId:String;
+            public var kpiName:String;
+            public var moTypeId:String;
+            public var sceneid:String;
+            public var areaid:String;
+            public var sortOrder:String;
+			
+			private var paramTopN:Object;
+			
+            [Bindable]
+            public var compareMoAC:ArrayCollection = new ArrayCollection;
+			
+            [Bindable]
+            public var compareCityMoAC:ArrayCollection = new ArrayCollection;
+
+            [Bindable]
+            public var cityAC:ArrayCollection = new ArrayCollection;
+			
+            [Bindable]
+            public var isFinishMakeParam:Boolean = false;
+
+			public var chartAC:ArrayCollection = new ArrayCollection;
+
+            private var chartParam:ChartParam = new ChartParam();
+            private var series:ArrayCollection = new ArrayCollection();
+            private var horizontalLines:ArrayCollection = new ArrayCollection();
+
+            public var dataClickCallback:Function;
+
+            public var paramChangeCallback:Function;
+            public var turnBackCallback:Function;
+			
+			private var param:Object;
+			
+			private var times:ArrayCollection = new ArrayCollection;
+
+            private var klist:ArrayCollection = new ArrayCollection;
+			
+			public var summaryM:SummaryMonitor = new SummaryMonitor();
+			
+			public var isBigChart:Boolean = false;
+			
+            //图表数据是否降序
+            private var sortFlag:Boolean = true;
+			private var intFlag:Boolean = true;
+			
+			private var isBadSortFlag:Boolean = false;
+			
+			public var level_pcm:String;
+			
+            private var lm:LoadManager = new LoadManager(this, "blue");
+
+            public function init():void
+            {
+//				log.info("init ~~"+this.currentState);
+                compareTimeDDL.reset();
+//                timeLabel.label = "今天";
+				
+            }
+
+			public function loadTopnData(paramS:Object):void
+			{
+//				lm.showLoading();
+				
+//				log.info("loadTopnData~~  scene_id:"+paramS.scene_id);
+//				log.info(paramS);
+				
+				if(paramS.scene_id != null && paramS.scene_id != "")
+				{
+					paramS.grading = "2"; //地市粒度
+					liduBut.visible = true;
+					liduBut.includeInLayout = true;
+					
+				}else{
+					paramS.grading = "1"; //网元粒度
+//					liduBut.visible = false;
+//					liduBut.includeInLayout = false;
+				}
+				
+				level_pcm = paramS.level_pcm;
+				
+				paramS.level = "1";
+				
+				param = paramS;
+				
+				sortOrder = paramS.sortorder;
+				if(paramS.sortorder == "1")
+				{
+					sortImg.toolTip = "最好网元排序";
+					isBadSortFlag = false;
+				}else{
+					sortImg.toolTip = "最差网元排序";
+					isBadSortFlag = true;
+				}
+				
+				log.info(paramS.kpi_name+"---------"+paramS.res_type);
+//				log.info(paramS);
+				PerfMonitorDAO.getInstance().getPerfHisKpi(
+					paramS,
+					function(result:Object):void
+					{
+						log.info(result);
+						showTopNData(result as IList);
+						lm.hideLoading();
+					}, 
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+					});
+				timeChartWinTitle.text = paramS.kpi_name;
+				log.info("timeChartWinTitle.text"+timeChartWinTitle.text);
+			}
+
+            public function showTopNData(data:IList):void
+            {
+//				log.info("showTopNData");
+//				log.info(data);
+                chartAC.removeAll();
+
+                if (data.length < 1)
+                {
+                    pc.chartData(chartAC);
+                    return;
+                }
+
+				var valuename:String = data.getItemAt(0)["time"];
+				var valuehisname:String = data.getItemAt(0)["histime"];
+                series.removeAll();
+				var colorColumnArray:Array = new Array;
+				var colorLineArray:Array = new Array;
+				
+				for each (var obj:Object in chartAC)
+				{
+					colorColumnArray.push("0x00FF00");
+					colorLineArray.push("0xFF0000");
+				}
+				
+                var sp:SerialParam = new SerialParam("kpi_value", valuename);
+                sp.chartType = "column";
+				sp.fillColorArray = colorColumnArray;
+                series.addItem(sp);
+				
+				if(data.getItemAt(0).hasOwnProperty("histime"))
+				{
+					var sp1:SerialParam = new SerialParam("kpi_history_value", valuehisname);
+					sp1.chartType = "line";
+					sp1.lineStrokeColor = 0XFF0000;
+					series.addItem(sp1);
+				}
+				
+                pc.series = series;
+
+                chartParam = new ChartParam();
+                chartParam.xAxisProperty = 'name';
+                chartParam.showLegend = true;
+                chartParam.legendPositon = "right";
+                chartParam.itemClickEnable = true;
+
+                pc.chartParam = chartParam;
+
+                chartAC.addAll(data);
+
+//				sortDataChart();
+                pc.chartData(chartAC, true)
+            }
+
+
+            protected function pc_DataClickHandler(event:PrettyChartEvent):void
+            {
+				log.info("pc_DataClickHandler  currentState:"+ currentState);
+                dataClickCallback.call(null, event.field, event.data)
+            }
+
+           
+
+            protected function refreshChart(sortFlag:Boolean = false,intFlag:Boolean = true):void
+            {
+                var newAC:ArrayCollection = new ArrayCollection(chartAC.toArray());
+				var colorColumnArray:Array = new Array;
+				var colorLineArray:Array = new Array;
+				for each (var obj:Object in newAC)
+				{
+					colorColumnArray.push("0x00FF00");
+					colorLineArray.push("0x00FF00");
+				}
+				
+                if (!sortFlag)
+				{
+					for each (var sp:SerialParam in pc.series)
+					{
+						sp.fillColorArray = colorColumnArray;
+					}
+					
+					for each (var sp1:SerialParam in pc.series)
+					{
+						sp1.fillColorArray = colorLineArray;
+					}
+				}
+				
+				pc.showXaxisTitle = intFlag;
+
+                pc.chartParam = chartParam;
+
+                log.debug("refreshChart 显示图表：");
+                log.debug(newAC);
+
+				
+				pc.chartData(newAC, true);
+				/* if(newAC.length>0){
+					
+				} */
+            }
+
+            protected function timeLabel_clickHandler(event:MouseEvent):void
+            {
+                compareTimeDDL.visible = !compareTimeDDL.visible;
+                compareTimeDDL.includeInLayout = !compareTimeDDL.includeInLayout;
+            }
+
+            protected function exportDatas():void
+            {
+				for each (var d:Object in chartAC){
+					for each (var name:String in klist)
+					{
+						if (!d.hasOwnProperty(name)){
+							log.info("-----k:{0}",name);
+							d[name] = "";
+						}
+					}
+					if(!d.hasOwnProperty("kpi_value")){
+						d["kpi_value"]="";
+					}
+					if(!d.hasOwnProperty("kpi_history_value")){
+						d["kpi_history_value"]="";
+					}
+					
+				}
+                var heads:Array = [];
+
+                for each (var key:String in klist)
+                    heads.push({"id": key, "name": key});
+					
+				heads.push({"id": "name", "name": "地市"});
+				heads.push({"id": "kpi_value", "name": "当前指标值"});
+				heads.push({"id": "kpi_history_value", "name": "历史指标值"});
+				log.info(chartAC);
+                ExcelUtil.exportSimpleExcel(kpiName, heads, chartAC);
+            }
+			
+            protected function sortChart():void
+            {
+				makeSure_clickHandler();
+				if(isBadSortFlag == false)
+				{
+					sortImg.toolTip = "最差网元排序";
+					param.order = "bad";
+					param.sortorder = "0";
+					isBadSortFlag = true;
+				}
+				else
+				{
+					sortImg.toolTip = "最好网元排序";
+					param.order = "good";
+					param.sortorder = "1";
+					isBadSortFlag = false;
+				}
+				
+				log.info(param);
+				
+				PerfMonitorDAO.getInstance().getPerfHisKpi(
+					param,
+					function(result:Object):void
+					{
+						log.info(result);
+						showTopNData(result as IList);
+						lm.hideLoading();
+					}, 
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+					});
+				
+				timeChartWinTitle.text =param.schemeName +" "+ param.kpi_name;
+            }
+			
+            protected function makeSureChart():void
+            {
+				makeSure_clickHandler();
+				
+				log.info(param);
+				
+				PerfMonitorDAO.getInstance().getPerfHisKpi(
+					param,
+					function(result:Object):void
+					{
+						log.info(result);
+						showTopNData(result as IList);
+						lm.hideLoading();
+					}, 
+					function(e:FaultEvent):void
+					{
+						lm.hideLoading();
+					});
+				
+				timeChartWinTitle.text =param.schemeName +" "+ param.kpi_name;
+				
+				quansheng.selected = false;
+				dishi.selected = false;
+				wangyuan.selected = false;
+            }
+			
+			protected function sortDataChart():void
+			{
+				var sort:Sort = new Sort;
+				sort.fields = [new SortField("kpi_value", true, sortFlag,true)];
+				chartAC.sort = sort;
+				chartAC.refresh();
+				
+				refreshChart(true,true);
+				sortFlag = !sortFlag;
+			}
+			
+			private function dataTipFormate(hd:HitData):String
+			{
+				var dd:String;
+				//data对应设置的数据集中的一个数据对象
+				var data:Object = hd.item;
+				dd = data['kpi_name'] + "\n" + data['time'] + "\n" + data['unit']+ "\n" + data['今日全省'] ;
+				return dd;
+			}
+			
+			protected function zhengdian_clickHandler(event:MouseEvent):void
+			{
+				chartAC.refresh();
+				if(intFlag  == true)
+				{
+					refreshChart(true,false);
+					intFlag  = false;
+				}else{
+					refreshChart(true,true);
+					intFlag  = true;
+				}
+					
+//				pc.showXaxisTitle = true;
+			}
+			
+			protected function level_changeHandler():void
+			{
+				
+				log.info("level_changeHandler");// TODO Auto-generated method stub
+				if(quansheng.selected){
+					
+				}else if(dishi.selected)
+				{
+					citytype.visible = true;
+					citytype.includeInLayout = true;
+					areatype.visible = false;
+					areatype.includeInLayout = false;
+					PerfMonitorDAO.getInstance().getAllCity(
+						{'parent_id':"00"},
+						function(result:Object):void
+						{
+							log.info(result);
+							if((result as IList).length > 0)
+							{
+								
+								citytype.dataProvider = result as IList;
+							}
+							lm.hideLoading();
+						}, 
+						function(e:FaultEvent):void
+						{
+							lm.hideLoading();
+						});
+				}else if(wangyuan.selected){
+					
+					areatype.visible = true;
+					areatype.includeInLayout = true;
+					citytype.visible = false;
+					citytype.includeInLayout = false;
+					PerfMonitorDAO.getInstance().getAreas(
+						{'sceneId':"1006"},
+						function(result:Object):void
+						{
+							log.info(result);
+							if((result as IList).length > 0)
+							{
+								
+								areatype.dataProvider = result as IList;
+							}
+							lm.hideLoading();
+						}, 
+						function(e:FaultEvent):void
+						{
+							lm.hideLoading();
+						});
+				}
+				
+			}
+			
+			private function makeParam():void
+			{
+				paramTopN = {};
+				
+				paramTopN.kpi_id = kpiId;
+				paramTopN.kpi_name = kpiName;
+				paramTopN.mo_type_id = moTypeId;
+				paramTopN.area_id = areaid;
+				paramTopN.scene_id = sceneid;
+				
+				times.removeAll();
+				
+				paramTopN.times = times;
+				
+				paramTopN.topn = 10;
+				
+				times.addItem({"name": "今天"});
+				
+				 if (compareTimeDDL.selectedItem != null)
+					times.addItem(compareTimeDDL.selectedItem); 
+				
+				if(dishiRB.selected)
+				{
+					paramTopN.grading = "1"; 
+					paramTopN.res_type = "1";
+				}else{
+					paramTopN.grading = "2"; 
+					paramTopN.res_type = "2";
+				}
+				
+			}
+			
+			protected function typeLabel_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				levelWin.visible = true;
+				levelWin.includeInLayout = true;
+			}
+			
+			protected function makeSure_clickHandler():void
+			{
+				//level 省1 地市2区域3
+				if(quansheng.selected){
+					param.type = "1";
+					param.city_id = "";
+					param.area_id = "";
+					param.res_type = "1";
+				}else if(dishi.selected){
+					param.type = "2";
+					param.res_type = "2";
+					param.city_id = citytype.selectedItem['city_id'];
+					param.area_id = "";
+				}else if(wangyuan.selected){
+					param.type = "3";
+					param.res_type = "2";
+					param.city_id = "";
+					param.area_id = areatype.selectedItem['areaid'];
+				}else{
+					param.area_id = "";
+				}
+				
+				log.info(param.res_type+"------确认res_type~~：" + param.res_type);
+				
+			}
+			
+			protected function lidu_clickHandler():void
+			{
+				// TODO Auto-generated method stub
+				liduWin.visible = true;
+				liduWin.includeInLayout = true;
+			}
+			
+			protected function lidu_changeHandler():void
+			{
+				
+				log.info("lidu_changeHandler");// TODO Auto-generated method stub
+				makeParam();
+				
+				log.info(paramTopN);
+				PerfMonitorDAO.getInstance().getPerTopnByKpi(
+					paramTopN,
+					function(result:Object):void
+					{
+						showTopNData(result as IList);
+						
+					});
+			}
+			
+			protected function showBigChart_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				summaryM.currentState = "province";
+				PopUpManager.addPopUp(summaryM.chartWin,this,true);
+				summaryM.chartWin.x = 450;
+				summaryM.chartWin.y = 20;
+				
+				if(showBigChart.visible == true)
+				{
+					//					log.info("true");
+					isBigChart = true;
+				}else{
+					//					log.info("false");
+					isBigChart = false;
+				}
+				
+				log.info("showBigChart kpiId:"+kpiId+"---kpiName:"+kpiName+"--moTypeId:"+moTypeId);
+				summaryM.startMonitorData(kpiId,kpiName,moTypeId,isBigChart,level_pcm,sortOrder);
+				summaryM.chartWin.visible = true;
+				summaryM.chartWin.includeInLayout = true;
+				summaryM.width = 550;
+				summaryM.height = 450;
+				summaryM.addEventListener(perfEvent.CHART_CLOSE,chartWinCloseHandler);
+			}
+			
+			protected function chartWinCloseHandler():void
+			{
+				PopUpManager.removePopUp(summaryM.chartWin);
+				summaryM.chartWin.visible = false;
+				summaryM.chartWin.includeInLayout = false;
+			}
+			
+		]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <ailk_chart:PrettyChart id="pc"
+                            DataClick="pc_DataClickHandler(event)"
+                            width="100%"
+                            canDropLabels="true"
+                            height="100%"/>
+	<s:Label id="timeChartWinTitle"
+			 left="2"
+			 top="-20"/>
+    <s:HGroup width="100%"
+              right="15"
+              horizontalAlign="right"
+              verticalAlign="middle"
+              top="-22">
+		<!--<s:CheckBox id="jixianCB"
+					label=""
+					change="refreshChart()"/>-->
+		<mx:Image source="@Embed('../img/areatype.png')"
+				  id="typeLabel"
+				  toolTip="统计范围"
+				  buttonMode="true"
+				  click="typeLabel_clickHandler(event)"/>
+		<mx:Image source="@Embed('../img/time.png')"
+				  id="timeLabel"
+				  toolTip="时间"
+				  buttonMode="true"
+				  click="timeLabel_clickHandler(event)"/>
+        <mx:Image buttonMode="true"
+                  click="exportDatas()"
+                  source="@Embed('../img/export.png')"/>
+        <mx:Image buttonMode="true"
+				  id="sortImg"
+                  click="sortChart()"
+				  toolTip="最好网元排序"
+                  source="@Embed('../img/sort.png')"/>
+		<mx:Image id="showBigChart"
+				  buttonMode="true"
+				  toolTip="大图"
+				  click="showBigChart_clickHandler(event)"
+				  source="@Embed('../img/full_screen.png')"/>
+		<s:Button id="liduBut" 
+				  label="网元" 
+				  click="lidu_clickHandler()"
+				  visible="false"
+				  includeInLayout="false"/>
+    </s:HGroup>
+
+	<ailk_compts:Window id="levelWin" 
+						close="{levelWin.visible = false; levelWin.includeInLayout=false;}"
+						minimizable="false"
+						maximizable="false"
+						visible="false"
+						right="58"
+						top="0"
+						styleName="window"
+						includeInLayout="false">
+		<s:VGroup width="100%"
+				  height="100%">
+			<s:RadioButton id="quansheng" 
+						   click="level_changeHandler()"
+						   label="全省" />
+			<s:RadioButton id="dishi" 
+						   click="level_changeHandler()"
+						   label="地市" />
+			<s:RadioButton id="wangyuan" 
+						   label="区域" 
+						   click="level_changeHandler()"/>
+			<s:DropDownList id="citytype"
+							visible="false"
+							includeInLayout="false"
+							labelField="label"
+							prompt="请选择地市"
+							width="150"/>
+			<s:DropDownList id="areatype"
+							visible="false"
+							includeInLayout="false"
+							labelField="areaname"
+							prompt="请选择区域"
+							width="200"/>
+			<s:Button id="makeSure" 
+					  label="确定"
+					  click="makeSureChart()"
+					  width="100%"/>
+		</s:VGroup>
+	</ailk_compts:Window>
+	<ailk_compts:Window id="liduWin" 
+						close="{liduWin.visible = false; liduWin.includeInLayout=false;}"
+						minimizable="false"
+						maximizable="false"
+						visible="false"
+						right="58"
+						top="0"
+						styleName="window"
+						includeInLayout="false">
+		<s:VGroup width="100%"
+				  height="100%">
+			<s:RadioButton id="dishiRB" 
+						   click="lidu_changeHandler()"
+						   label="地市" />
+			<s:RadioButton id="wangyuanRB" 
+						   label="网元" 
+						   selected="true" 
+						   click="lidu_changeHandler()"/>
+		</s:VGroup>
+		
+	</ailk_compts:Window>
+    <common:EasyDateNew id="compareTimeDDL"
+                     visible="false"
+                     right="58"
+                     top="0"
+                     change="{paramChangeCallback}"
+                     includeInLayout="false"/>
+</ailk_compts:Window>

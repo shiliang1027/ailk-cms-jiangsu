@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          minHeight="20"
+          gap="0"
+          width="100%">
+
+    <fx:Script>
+        <![CDATA[
+            import mx.collections.ArrayCollection;
+            [Bindable]
+            public var kpiName:String;
+
+            public var kpiId:String;
+            public var moTypeId:String;
+
+            public var delEleCallback:Function;
+
+            public var editCallback:Function;
+
+            [Bindable]
+            public var moList:ArrayCollection = new ArrayCollection;
+
+            protected function kpiNameBtn_clickHandler(event:MouseEvent):void
+            {
+                moNameList.visible = !moNameList.visible;
+                moNameList.includeInLayout = !moNameList.includeInLayout;
+            }
+
+            private function getMoIds():String
+            {
+                var ids:String = "";
+
+                for each (var mo:Object in moList)
+                {
+                    ids = ids + mo['mo_id'] + ",";
+                }
+
+                return ids.substr(0, ids.length - 1);
+            }
+        ]]>
+    </fx:Script>
+
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+
+    <s:Group width="100%">
+        <s:Button id="kpiNameBtn"
+                  width="100%"
+                  textAlignLast="left"
+                  click="kpiNameBtn_clickHandler(event)"
+                  label="{kpiName}"/>
+        <mx:Image source="@Embed('../img/delete.png')"
+                  buttonMode="true"
+                  toolTip="{'删除 ' +　kpiName}"
+                  right="5"
+                  top="3"
+                  click="{(parent as VGroup).removeElement(this);delEleCallback.call(null, kpiId);}"/>
+        <mx:Image source="@Embed('../img/edit.png')"
+                  buttonMode="true"
+                  toolTip="{'编辑 ' +　kpiName}"
+                  left="5"
+                  top="3"
+                  click="{editCallback.call(null,this);}"/>
+    </s:Group>
+    <s:List id="moNameList"
+            left="5"
+            labelField="label"
+            visible="false"
+            includeInLayout="false"
+            minHeight="20"
+            maxHeight="100"
+            width="100%"
+            dataProvider="{moList}"/>
+</s:VGroup>

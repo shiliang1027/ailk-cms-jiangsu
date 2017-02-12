@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:alarmSearch="com.linkage.module.cms.specialty.alarmSearch.*"
+		 preinitialize="init(event)"
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 width="100%"
+		 height="100%">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			import com.linkage.system.rpc.remoting.BlazeDSUtil;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			//日志
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.specialty.alarmSearch");
+			
+			private var loadFlag:Boolean = false;
+			
+			public var loadManger:LoadManager;
+			
+			public static var destination:String  = "flexdestination_cms_warn_report_query_WarnQueryServImp";
+			public static var src:String  = "com.linkage.module.cms.warn.report.query.serv.WarnQueryServImp";
+			public static var endpoint:String = "/cms/messagebroker/amf";
+			
+			protected function init(event:FlexEvent):void
+			{
+				//初始化日志
+				var target:ILoggingTarget = new DeMonsterTarget();
+				target.level = LogEventLevel.DEBUG;
+				target.filters = ["com.linkage.module.cms.specialty.*","com.linkage.system.*"];
+				Log.addTarget(target);
+				
+				logger.info(">>> 初始化日志组建完成 ......");
+				
+			}
+			
+			
+			public function doQuery(scObj:Object):void
+			{
+				logger.info(">>> 查询告警");
+//				var scObj:Object = new Object();
+				
+				scObj['beginRowNum'] = "0";
+				scObj['endRowNum'] = "10000000";
+				scObj['maxnum'] = "10";
+				scObj['queryType'] = "1";
+				
+//				scObj['isExce'] = this.parameters.isExce;
+//				scObj['startTime'] = this.parameters.startTime;
+//				scObj['endTime'] = this.parameters.endTime;
+//				scObj['alarmregion'] = this.parameters.alarmregion;
+//				scObj['vendor'] = this.parameters.vendor;
+//				scObj['specialty'] = this.parameters.specialty;
+//				scObj['equipmentclass'] = this.parameters.equipmentclass;
+//				scObj['nename'] = this.parameters.nename;
+//				scObj['neId'] = this.parameters.neId;
+//				scObj['alarmseverity'] = this.parameters.alarmseverity;
+//				scObj['alarmStatus'] = this.parameters.alarmStatus;
+//				scObj['alarmtitle'] = this.parameters.alarmtitle;
+//				scObj['ackStatus'] = this.parameters.ackStatus;
+//				scObj['sheetStatus'] = this.parameters.sheetStatus;
+//				scObj['dispStatus'] = this.parameters.dispStatus;
+//				scObj['projectStatus'] = this.parameters.projectStatus;
+//				scObj['sheetno'] = this.parameters.sheetno;
+//				scObj['rule_id'] = this.parameters.rule_id;
+//				scObj['isGroup'] = this.parameters.isGroup;
+//				scObj['isLight'] = this.parameters.isLight;
+//				scObj['isRela'] = this.parameters.isRela;
+//				scObj['login_name'] = this.parameters.login_name;
+//				scObj['customerFlag'] = this.parameters.customerFlag;
+				
+				
+				var remoteService:RemoteObject = BlazeDSUtil.newService(destination, src, endpoint,
+					function(result:Object):void
+					{
+						logger.info(">>> 查询告警成功");
+						loadManger.hideLoading();
+						if(null == result || result['datas'] == null)
+						{
+							logger.error(">>> 查询告警为null");
+							Alert.show("没有记录！");
+							return;
+						}
+						
+						resultPanel.setData(result['datas'], scObj['startTime'] as String, scObj['endTime'] as String, result['maxnum'], scObj);
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error(">>> 查询告警失败！ ：", event.fault.faultString);
+						loadManger.hideLoading();
+					});
+				
+				logger.info(">>> 查询条件=========================");
+				logger.info(">>> scObj['beginRowNum']:" + scObj['beginRowNum']);
+				logger.info(">>> scObj['endRowNum']:" + scObj['endRowNum']);
+				logger.info(">>> scObj['maxnum']:" + scObj['maxnum']);
+				logger.info(">>> scObj['queryType']:" + scObj['queryType']);
+				logger.info(">>> scObj['isExce']:" + scObj['isExce']);
+				logger.info(">>> scObj['startTime']:" + scObj['startTime']);
+				logger.info(">>> scObj['endTime']:" + scObj['endTime']);
+				logger.info(">>> scObj['alarmregion']:" + scObj['alarmregion']);
+				logger.info(">>> scObj['vendor']:" + scObj['vendor']);
+				logger.info(">>> scObj['specialty']:" + scObj['specialty']);
+				logger.info(">>> scObj['equipmentclass']:" + scObj['equipmentclass']);
+				logger.info(">>> scObj['nename']:" + scObj['nename']);
+				logger.info(">>> scObj['neId']:" + scObj['neId']);
+				logger.info(">>> scObj['alarmseverity']:" + scObj['alarmseverity']);
+				logger.info(">>> scObj['alarmStatus']:" + scObj['alarmStatus']);
+				logger.info(">>> scObj['alarmtitle']:" + scObj['alarmtitle']);
+				logger.info(">>> scObj['ackStatus']:" + scObj['ackStatus']);
+				logger.info(">>> scObj['sheetStatus']:" + scObj['sheetStatus']);
+				logger.info(">>> scObj['dispStatus']:" + scObj['dispStatus']);
+				logger.info(">>> scObj['projectStatus']:" + scObj['projectStatus']);
+				logger.info(">>> scObj['sheetno']:" + scObj['sheetno']);
+				logger.info(">>> scObj['rule_id']:" + scObj['rule_id']);
+				logger.info(">>> scObj['isGroup']:" + scObj['isGroup']);
+				logger.info(">>> scObj['isLight']:" + scObj['isLight']);
+				logger.info(">>> scObj['isRela']:" + scObj['isRela']);
+				logger.info(">>> scObj['login_name']:" + scObj['login_name']);
+				logger.info(">>> 查询条件=========================");
+				
+				remoteService.getWarnDatas(scObj);
+				loadManger.showLoading(" 正在查询，请稍后 ");
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				resultPanel.hidePage();
+			}
+
+		]]>
+	</fx:Script>
+	
+	<alarmSearch:AlarmSearchResultPanel 
+		id="resultPanel" 
+		width="100%" 
+		height="100%"
+		columnCfg="false"
+		creationComplete="initResultPanel()"
+		userName="{this.parameters.login_name}"
+		/>
+</s:Group>

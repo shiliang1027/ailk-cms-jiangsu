@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+			  xmlns:component="com.linkage.module.cms.general.regional.main.multiview.component.*"
+			  creationComplete="initApp()"
+			  title="上传照片"
+			  width="100%"
+			  height="100%"
+			  dragable="true"
+			  closable="false"
+			  maximizable="false"
+			  minimizable="false">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.mss.common.event.MssUpLoadEvent;
+			import com.linkage.module.cms.general.regional.mss.view.upload.MultiFileUpload;
+
+			import mx.controls.Alert;
+			import mx.core.SoundAsset;
+			import mx.managers.PopUpManager;
+
+			public var multiFileUpload:MultiFileUpload;
+			[Embed(source="com/linkage/module/cms/general/regional/mss/view/resource/audio/Ding.mp3")]
+			public var soundClass:Class;
+			public var snd:SoundAsset=new soundClass() as SoundAsset;
+			public var sndChannel:SoundChannel;
+			public var imageTypes:FileFilter=new FileFilter("图片(*.jpg; *.jpeg; *.gif; *.png)", "*.jpg; *.jpeg; *.gif; *.png");
+			public var filesToFilter:Array=new Array(imageTypes);
+			private var windowShow:Boolean=false;
+			private var _url:String="/cms/";
+			private var _monitorId:String;
+			private var _msgTempId:String;
+			private var _msgTempType:String;
+
+			//初始化窗口
+			public function initApp():void
+			{
+				multiFileUpload=new MultiFileUpload(filesDG, browseBTN, clearButton, delButton, upload_btn, progressbar, 35, filesToFilter);
+				multiFileUpload.addEventListener(Event.COMPLETE, uploadsfinished);
+				multiFileUpload.url=_url;
+				multiFileUpload.msgTempId=_msgTempId;
+				multiFileUpload.monitorId=_monitorId;
+				multiFileUpload.msgTempType=_msgTempType;
+			}
+
+			//关闭事件
+			public function showHideWindow(displayObject:DisplayObject=null):void
+			{
+				if (windowShow)
+				{
+					windowShow=false;
+					PopUpManager.removePopUp(this);
+				}
+				else
+				{
+					windowShow=true;
+					PopUpManager.addPopUp(this, displayObject, true);
+					PopUpManager.centerPopUp(this);
+				}
+			}
+
+			//初始化上传照片
+			public function uploadsfinished(event:Event):void
+			{
+				Alert.show("上传照片成功!");
+				sndChannel=snd.play();
+				dispatchEvent(new MssUpLoadEvent(MssUpLoadEvent.MSS_UPLOAD, multiFileUpload.fileNameArray));
+			}
+
+			public function setParams(monitorId:String, msgTempId:String, msgTempType:String, url:String):void
+			{
+				_url=url;
+				_monitorId=monitorId;
+				_msgTempId=msgTempId;
+				_msgTempType=msgTempType;
+				if (multiFileUpload)
+				{
+					multiFileUpload.url=url;
+					multiFileUpload.msgTempId=msgTempId;
+					multiFileUpload.monitorId=monitorId;
+					multiFileUpload.msgTempType=msgTempType;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup top="-22"
+			  width="100%"
+			  height="29"
+			  horizontalAlign="right">
+		<s:Button label="选择照片"
+				  buttonMode="true"
+				  id="browseBTN"/>
+	</s:HGroup>
+	<s:VGroup width="100%"
+			  height="100%">
+		<mx:AdvancedDataGrid id="filesDG"
+							 width="100%"
+							 left="0"
+							 right="0"
+							 bottom="30"
+							 top="5"/>
+		<mx:ProgressBar id="progressbar"
+						labelPlacement="center"
+						trackHeight="15"
+						left="0"
+						right="0"
+						bottom="5"
+						width="333"
+						height="20"/>
+		<s:HGroup width="100%"
+				  horizontalAlign="center">
+			<s:Button label="开始上传"
+					  buttonMode="true"
+					  id="upload_btn"/>
+			<s:Button label="移除照片"
+					  buttonMode="true"
+					  id="delButton"/>
+			<s:Button label="移除所有"
+					  buttonMode="true"
+					  id="clearButton"/>
+			<s:Button label="关闭上传"
+					  buttonMode="true"
+					  click="showHideWindow()"/>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

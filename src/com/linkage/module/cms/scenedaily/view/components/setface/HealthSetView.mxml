@@ -1,0 +1,1814 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  width="100%"
+		  height="100%"
+		  gap="0"
+		  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+		  xmlns:layout="flexlib.scheduling.scheduleClasses.layout.*">
+
+	<!--
+		 ***************************************
+		 This is Content
+		 @author huawei (Ailk No.69088)
+		 @version 1.0
+		 @date 2012-9-3
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.event.setface.SetFaceEvent;
+			import com.linkage.module.cms.scenedaily.view.components.util.ValidateUtil;
+
+			private var log:ILogger = Log.getLoggerByClass(HealthSetView);
+
+			[Inject("healthSetViewPM")]
+			[Bindable]
+			public var pm:HealthSetViewPM;
+
+			public function init():void
+			{
+				pm.loadData();
+			}
+
+			[Inject("validateUtil")]
+			public var validate:ValidateUtil;
+
+			[MessageHandler(selector="loadHealthSetDataComp")]
+			public function setData(event:SetFaceEvent):void
+			{
+				log.info("健康算法设置  setData开始");
+				//日第一行
+				health1.text = pm.dm.healthSetMap.day.health1;
+				for each (var temphealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.health2 == temphealth2.key)
+					{
+						health2.selectedItem = temphealth2;
+					}
+				}
+				health3.text = pm.dm.healthSetMap.day.health3;
+				for each (var temphealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.health4 == temphealth4.key)
+					{
+						health4.selectedItem = temphealth4;
+					}
+				}
+				health5.text = pm.dm.healthSetMap.day.health5;
+				//ri  di er hang 
+				subhealth1.text = pm.dm.healthSetMap.day.subhealth1;
+				for each (var tempsubhealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.subhealth2 == tempsubhealth2.key)
+					{
+						subhealth2.selectedItem = tempsubhealth2;
+					}
+				}
+				subhealth3.text = pm.dm.healthSetMap.day.subhealth3;
+				for each (var tempsubhealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.subhealth4 == tempsubhealth4.key)
+					{
+						subhealth4.selectedItem = tempsubhealth4;
+					}
+				}
+				subhealth5.text = pm.dm.healthSetMap.day.subhealth5;
+				//日第三行
+				nohealth1.text = pm.dm.healthSetMap.day.nohealth1;
+				for each (var tempnohealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.nohealth2 == tempnohealth2.key)
+					{
+						nohealth2.selectedItem = tempnohealth2;
+					}
+				}
+				nohealth3.text = pm.dm.healthSetMap.day.nohealth3;
+				for each (var tempnohealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.nohealth4 == tempnohealth4.key)
+					{
+						nohealth4.selectedItem = tempnohealth4;
+					}
+				}
+				nohealth5.text = pm.dm.healthSetMap.day.nohealth5;
+
+
+				//日第4行
+				prehealth1.text = pm.dm.healthSetMap.day.prehealth1;
+				for each (var tempprehealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.prehealth2 == tempprehealth2.key)
+					{
+						prehealth2.selectedItem = tempprehealth2;
+					}
+				}
+				prehealth3.text = pm.dm.healthSetMap.day.prehealth3;
+				for each (var tempprehealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.prehealth4 == tempprehealth4.key)
+					{
+						prehealth4.selectedItem = tempprehealth4;
+					}
+				}
+				prehealth5.text = pm.dm.healthSetMap.day.prehealth5;
+				//日第5行
+				presubhealth1.text = pm.dm.healthSetMap.day.presubhealth1;
+				for each (var temppresubhealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.presubhealth2 == temppresubhealth2.key)
+					{
+						presubhealth2.selectedItem = temppresubhealth2;
+					}
+				}
+				presubhealth3.text = pm.dm.healthSetMap.day.presubhealth3;
+				for each (var temppresubhealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.presubhealth4 == temppresubhealth4.key)
+					{
+						presubhealth4.selectedItem = temppresubhealth4;
+					}
+				}
+				presubhealth5.text = pm.dm.healthSetMap.day.presubhealth5;
+				//日第6行
+				presubhealthand1.text = pm.dm.healthSetMap.day.presubhealthand1;
+				for each (var temppresubhealthand2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.presubhealthand2 == temppresubhealthand2.key)
+					{
+						presubhealthand2.selectedItem = temppresubhealthand2;
+					}
+				}
+				presubhealthand3.text = pm.dm.healthSetMap.day.presubhealthand3;
+				for each (var temppresubhealthand4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.presubhealthand4 == temppresubhealthand4.key)
+					{
+						presubhealthand4.selectedItem = temppresubhealthand4;
+					}
+				}
+
+				presubhealthand5.text = pm.dm.healthSetMap.day.presubhealthand5;
+				//日第7行
+				prenohealth1.text = pm.dm.healthSetMap.day.prenohealth1;
+				for each (var tempprenohealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.prenohealth2 == tempprenohealth2.key)
+					{
+						prenohealth2.selectedItem = tempprenohealth2;
+					}
+				}
+				prenohealth3.text = pm.dm.healthSetMap.day.prenohealth3;
+				for each (var tempprenohealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.day.prenohealth4 == tempprenohealth4.key)
+					{
+						prenohealth4.selectedItem = tempprenohealth4;
+					}
+				}
+				prenohealth5.text = pm.dm.healthSetMap.day.prenohealth5;
+
+				//周第一行
+				whealth1.text = pm.dm.healthSetMap.week.health1;
+				for each (var wtemphealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.health2 == wtemphealth2.key)
+					{
+						whealth2.selectedItem = wtemphealth2;
+					}
+				}
+				whealth3.text = pm.dm.healthSetMap.week.health3;
+				for each (var wtemphealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.health4 == wtemphealth4.key)
+					{
+						whealth4.selectedItem = wtemphealth4;
+					}
+				}
+				whealth5.text = pm.dm.healthSetMap.week.health5;
+				//ri  di er hang 
+				wsubhealth1.text = pm.dm.healthSetMap.week.subhealth1;
+				for each (var wtempsubhealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.subhealth2 == wtempsubhealth2.key)
+					{
+						wsubhealth2.selectedItem = wtempsubhealth2;
+					}
+				}
+				wsubhealth3.text = pm.dm.healthSetMap.week.subhealth3;
+				for each (var wtempsubhealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.subhealth4 == wtempsubhealth4.key)
+					{
+						wsubhealth4.selectedItem = wtempsubhealth4;
+					}
+				}
+				wsubhealth5.text = pm.dm.healthSetMap.week.subhealth5;
+				//周第三行
+				wnohealth1.text = pm.dm.healthSetMap.week.nohealth1;
+				for each (var wtempnohealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.nohealth2 == wtempnohealth2.key)
+					{
+						wnohealth2.selectedItem = wtempnohealth2;
+					}
+				}
+				wnohealth3.text = pm.dm.healthSetMap.week.nohealth3;
+				for each (var wtempnohealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.nohealth4 == wtempnohealth4.key)
+					{
+						wnohealth4.selectedItem = wtempnohealth4;
+					}
+				}
+				wnohealth5.text = pm.dm.healthSetMap.week.nohealth5;
+
+
+				//周第4行
+				wprehealth1.text = pm.dm.healthSetMap.week.prehealth1;
+				for each (var wtempprehealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.prehealth2 == wtempprehealth2.key)
+					{
+						wprehealth2.selectedItem = wtempprehealth2;
+					}
+				}
+				wprehealth3.text = pm.dm.healthSetMap.week.prehealth3;
+				for each (var wtempprehealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.prehealth4 == wtempprehealth4.key)
+					{
+						wprehealth4.selectedItem = wtempprehealth4;
+					}
+				}
+				wprehealth5.text = pm.dm.healthSetMap.week.prehealth5;
+				//周第5行
+				wpresubhealth1.text = pm.dm.healthSetMap.week.presubhealth1;
+				for each (var wtemppresubhealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.presubhealth2 == wtemppresubhealth2.key)
+					{
+						wpresubhealth2.selectedItem = wtemppresubhealth2;
+					}
+				}
+				wpresubhealth3.text = pm.dm.healthSetMap.week.presubhealth3;
+				for each (var wtemppresubhealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.presubhealth4 == wtemppresubhealth4.key)
+					{
+						wpresubhealth4.selectedItem = wtemppresubhealth4;
+					}
+				}
+				wpresubhealth5.text = pm.dm.healthSetMap.week.presubhealth5;
+				//周第7行
+				wprenohealth1.text = pm.dm.healthSetMap.week.prenohealth1;
+				for each (var wtempprenohealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.prenohealth2 == wtempprenohealth2.key)
+					{
+						wprenohealth2.selectedItem = wtempprenohealth2;
+					}
+				}
+				wprenohealth3.text = pm.dm.healthSetMap.week.prenohealth3;
+				for each (var wtempprenohealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.week.prenohealth4 == wtempprenohealth4.key)
+					{
+						wprenohealth4.selectedItem = wtempprenohealth4;
+					}
+				}
+				wprenohealth5.text = pm.dm.healthSetMap.week.prenohealth5;
+
+				//月第一行
+				mhealth1.text = pm.dm.healthSetMap.month.health1;
+				for each (var mtemphealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.health2 == mtemphealth2.key)
+					{
+						mhealth2.selectedItem = mtemphealth2;
+					}
+				}
+				mhealth3.text = pm.dm.healthSetMap.month.health3;
+				for each (var mtemphealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.health4 == mtemphealth4.key)
+					{
+						mhealth4.selectedItem = mtemphealth4;
+					}
+				}
+				mhealth5.text = pm.dm.healthSetMap.month.health5;
+				//ri  di er hang 
+				msubhealth1.text = pm.dm.healthSetMap.month.subhealth1;
+				for each (var mtempsubhealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.subhealth2 == mtempsubhealth2.key)
+					{
+						msubhealth2.selectedItem = mtempsubhealth2;
+					}
+				}
+				msubhealth3.text = pm.dm.healthSetMap.month.subhealth3;
+				for each (var mtempsubhealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.subhealth4 == mtempsubhealth4.key)
+					{
+						msubhealth4.selectedItem = mtempsubhealth4;
+					}
+				}
+				msubhealth5.text = pm.dm.healthSetMap.month.subhealth5;
+				//月第三行
+				mnohealth1.text = pm.dm.healthSetMap.month.nohealth1;
+				for each (var mtempnohealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.nohealth2 == mtempnohealth2.key)
+					{
+						mnohealth2.selectedItem = mtempnohealth2;
+					}
+				}
+				mnohealth3.text = pm.dm.healthSetMap.month.nohealth3;
+				for each (var mtempnohealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.nohealth4 == mtempnohealth4.key)
+					{
+						mnohealth4.selectedItem = mtempnohealth4;
+					}
+				}
+				mnohealth5.text = pm.dm.healthSetMap.month.nohealth5;
+
+
+				//月第4行
+				mprehealth1.text = pm.dm.healthSetMap.month.prehealth1;
+				for each (var mtempprehealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.prehealth2 == mtempprehealth2.key)
+					{
+						mprehealth2.selectedItem = mtempprehealth2;
+					}
+				}
+				mprehealth3.text = pm.dm.healthSetMap.month.prehealth3;
+				for each (var mtempprehealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.prehealth4 == mtempprehealth4.key)
+					{
+						mprehealth4.selectedItem = mtempprehealth4;
+					}
+				}
+				mprehealth5.text = pm.dm.healthSetMap.month.prehealth5;
+				//月第5行
+				mpresubhealth1.text = pm.dm.healthSetMap.month.presubhealth1;
+				for each (var mtemppresubhealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.presubhealth2 == mtemppresubhealth2.key)
+					{
+						mpresubhealth2.selectedItem = mtemppresubhealth2;
+					}
+				}
+				mpresubhealth3.text = pm.dm.healthSetMap.month.presubhealth3;
+				for each (var mtemppresubhealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.presubhealth4 == mtemppresubhealth4.key)
+					{
+						mpresubhealth4.selectedItem = mtemppresubhealth4;
+					}
+				}
+				mpresubhealth5.text = pm.dm.healthSetMap.month.presubhealth5;
+				//月第7行
+				mprenohealth1.text = pm.dm.healthSetMap.month.prenohealth1;
+				for each (var mtempprenohealth2:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.prenohealth2 == mtempprenohealth2.key)
+					{
+						mprenohealth2.selectedItem = mtempprenohealth2;
+					}
+				}
+				mprenohealth3.text = pm.dm.healthSetMap.month.prenohealth3;
+				for each (var mtempprenohealth4:Object in pm.characterList)
+				{
+					if (pm.dm.healthSetMap.month.prenohealth4 == mtempprenohealth4.key)
+					{
+						mprenohealth4.selectedItem = mtempprenohealth4;
+					}
+				}
+				mprenohealth5.text = pm.dm.healthSetMap.month.prenohealth5;
+				log.info("健康算法设置  setData结束");
+
+			}
+
+			protected function saveDay_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				pm.param.savetype = "day";
+				var day:Object = new Object();
+				//日第一行
+				if (validate.validateNumber(health1.text, "健康数据"))
+				{
+					day.health1 = health1.text;
+				}
+				else
+				{
+					return;
+				}
+				day.health2 = health2.selectedItem.key;
+				if (validate.validateNumber(health3.text, "健康数据"))
+				{
+					day.health3 = health3.text;
+				}
+				else
+				{
+					return;
+				}
+				day.health4 = health4.selectedItem.key;
+				if (validate.validateNumber(health5.text, "健康数据"))
+				{
+					day.health5 = health5.text;
+				}
+				else
+				{
+					return;
+				}
+				//日第2行
+				if (validate.validateNumber(subhealth1.text, "亚健康数据"))
+				{
+					day.subhealth1 = subhealth1.text;
+				}
+				else
+				{
+					return;
+				}
+				day.subhealth2 = subhealth2.selectedItem.key;
+				if (validate.validateNumber(subhealth3.text, "亚健康数据"))
+				{
+					day.subhealth3 = subhealth3.text;
+				}
+				else
+				{
+					return;
+				}
+				day.subhealth4 = subhealth4.selectedItem.key;
+				if (validate.validateNumber(subhealth5.text, "亚健康数据"))
+				{
+					day.subhealth5 = subhealth5.text;
+				}
+				else
+				{
+					return;
+				}
+				//日第3行
+				if (validate.validateNumber(nohealth1.text, "不健康数据"))
+				{
+					day.nohealth1 = nohealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				day.nohealth2 = nohealth2.selectedItem.key;
+				if (validate.validateNumber(nohealth3.text, "不健康数据"))
+				{
+					day.nohealth3 = nohealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				day.nohealth4 = nohealth4.selectedItem.key;
+				if (validate.validateNumber(nohealth5.text, "不健康数据"))
+				{
+					day.nohealth5 = nohealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//日第4行
+				if (validate.validateNumber(prehealth1.text, "预测健康数据"))
+				{
+					day.prehealth1 = prehealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				day.prehealth2 = prehealth2.selectedItem.key;
+				if (validate.validateNumber(prehealth3.text, "预测健康数据"))
+				{
+					day.prehealth3 = prehealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				day.prehealth4 = prehealth4.selectedItem.key;
+				if (validate.validateNumber(prehealth5.text, "预测健康数据"))
+				{
+					day.prehealth5 = prehealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//日第5行
+				if (validate.validateNumber(presubhealth1.text, "预测亚健康数据"))
+				{
+					day.presubhealth1 = presubhealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				day.presubhealth2 = presubhealth2.selectedItem.key;
+				if (validate.validateNumber(presubhealth3.text, "预测亚健康数据"))
+				{
+					day.presubhealth3 = presubhealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				day.presubhealth4 = presubhealth4.selectedItem.key;
+				if (validate.validateNumber(presubhealth5.text, "预测亚健康数据"))
+				{
+					day.presubhealth5 = presubhealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//日第6行
+				if (validate.validateNumber(presubhealthand1.text, "预测亚健康数据"))
+				{
+					day.presubhealthand1 = presubhealthand1.text;
+				}
+				else
+				{
+					return;
+				}
+				day.presubhealthand2 = presubhealthand2.selectedItem.key;
+				if (validate.validateNumber(presubhealthand3.text, "预测亚健康数据"))
+				{
+					day.presubhealthand3 = presubhealthand3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				day.presubhealthand4 = presubhealthand4.selectedItem.key;
+				if (validate.validateNumber(presubhealthand5.text, "预测亚健康数据"))
+				{
+					day.presubhealthand5 = presubhealthand5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//日第7行
+				if (validate.validateNumber(prenohealth1.text, "预测不健康数据"))
+				{
+					day.prenohealth1 = prenohealth1.text;
+				}
+				else
+				{
+					return;
+				}
+				day.prenohealth2 = prenohealth2.selectedItem.key;
+				if (validate.validateNumber(prenohealth3.text, "预测不健康数据"))
+				{
+					day.prenohealth3 = prenohealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				day.prenohealth4 = prenohealth4.selectedItem.key;
+				if (validate.validateNumber(prenohealth5.text, "预测不健康数据"))
+				{
+					day.prenohealth5 = prenohealth5.text;
+				}
+				else
+				{
+					return;
+				}
+				pm.param.data = day;
+				pm.saveDaySet();
+			}
+
+			protected function saveWeek_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				pm.param.savetype = "week";
+				var week:Object = new Object();
+				//周第一行
+				if (validate.validateNumber(whealth1.text, "健康数据"))
+				{
+					week.health1 = whealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.health2 = whealth2.selectedItem.key;
+				if (validate.validateNumber(whealth3.text, "健康数据"))
+				{
+					week.health3 = whealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.health4 = whealth4.selectedItem.key;
+				if (validate.validateNumber(whealth5.text, "健康数据"))
+				{
+					week.health5 = whealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//周第2行
+				if (validate.validateNumber(wsubhealth1.text, "亚健康数据"))
+				{
+					week.subhealth1 = wsubhealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.subhealth2 = wsubhealth2.selectedItem.key;
+				if (validate.validateNumber(wsubhealth3.text, "亚健康数据"))
+				{
+					week.subhealth3 = wsubhealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.subhealth4 = wsubhealth4.selectedItem.key;
+				if (validate.validateNumber(wsubhealth5.text, "亚健康数据"))
+				{
+					week.subhealth5 = wsubhealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//周第3行
+				if (validate.validateNumber(wnohealth1.text, "不健康数据"))
+				{
+					week.nohealth1 = wnohealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.nohealth2 = wnohealth2.selectedItem.key;
+				if (validate.validateNumber(wnohealth3.text, "不健康数据"))
+				{
+					week.nohealth3 = wnohealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.nohealth4 = wnohealth4.selectedItem.key;
+				if (validate.validateNumber(wnohealth5.text, "不健康数据"))
+				{
+					week.nohealth5 = wnohealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//周第4行
+				if (validate.validateNumber(wprehealth1.text, "预测健康数据"))
+				{
+					week.prehealth1 = wprehealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.prehealth2 = wprehealth2.selectedItem.key;
+				if (validate.validateNumber(wprehealth3.text, "预测健康数据"))
+				{
+					week.prehealth3 = wprehealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.prehealth4 = wprehealth4.selectedItem.key;
+				if (validate.validateNumber(wprehealth5.text, "预测健康数据"))
+				{
+					week.prehealth5 = wprehealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//周第5行
+				if (validate.validateNumber(wpresubhealth1.text, "预测亚健康数据"))
+				{
+					week.presubhealth1 = wpresubhealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.presubhealth2 = wpresubhealth2.selectedItem.key;
+				if (validate.validateNumber(wpresubhealth3.text, "预测亚健康数据"))
+				{
+					week.presubhealth3 = wpresubhealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.presubhealth4 = wpresubhealth4.selectedItem.key;
+				if (validate.validateNumber(wpresubhealth5.text, "预测亚健康数据"))
+				{
+					week.presubhealth5 = wpresubhealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+
+				//周第7行
+				if (validate.validateNumber(wprenohealth1.text, "预测不健康数据"))
+				{
+					week.prenohealth1 = wprenohealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.prenohealth2 = wprenohealth2.selectedItem.key;
+				if (validate.validateNumber(wprenohealth3.text, "预测不健康数据"))
+				{
+					week.prenohealth3 = wprenohealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				week.prenohealth4 = wprenohealth4.selectedItem.key;
+				if (validate.validateNumber(wprenohealth5.text, "预测不健康数据"))
+				{
+					week.prenohealth5 = wprenohealth5.text;
+				}
+				else
+				{
+					return;
+				}
+				pm.param.data = week;
+				pm.saveDaySet();
+			}
+
+			protected function saveMonth_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				pm.param.savetype = "month";
+				var month:Object = new Object();
+				//月第一行
+				if (validate.validateNumber(mhealth1.text, "健康数据"))
+				{
+					month.health1 = mhealth1.text;
+				}
+				else
+				{
+					return;
+				}
+				month.health2 = mhealth2.selectedItem.key;
+				if (validate.validateNumber(mhealth3.text, "健康数据"))
+				{
+					month.health3 = mhealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.health4 = mhealth4.selectedItem.key;
+				if (validate.validateNumber(mhealth5.text, "健康数据"))
+				{
+					month.health5 = mhealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//月第2行
+				if (validate.validateNumber(msubhealth1.text, "亚健康数据"))
+				{
+					month.subhealth1 = msubhealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.subhealth2 = msubhealth2.selectedItem.key;
+				if (validate.validateNumber(msubhealth3.text, "亚健康数据"))
+				{
+					month.subhealth3 = msubhealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.subhealth4 = msubhealth4.selectedItem.key;
+				if (validate.validateNumber(msubhealth5.text, "亚健康数据"))
+				{
+					month.subhealth5 = msubhealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//月第3行
+				if (validate.validateNumber(mnohealth1.text, "不健康数据"))
+				{
+					month.nohealth1 = mnohealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.nohealth2 = mnohealth2.selectedItem.key;
+				if (validate.validateNumber(mnohealth3.text, "不健康数据"))
+				{
+					month.nohealth3 = mnohealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.nohealth4 = mnohealth4.selectedItem.key;
+				if (validate.validateNumber(mnohealth5.text, "不健康数据"))
+				{
+					month.nohealth5 = mnohealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//月第4行
+				if (validate.validateNumber(mprehealth1.text, "预测健康数据"))
+				{
+					month.prehealth1 = mprehealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.prehealth2 = mprehealth2.selectedItem.key;
+				if (validate.validateNumber(mprehealth3.text, "预测健康数据"))
+				{
+					month.prehealth3 = mprehealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.prehealth4 = mprehealth4.selectedItem.key;
+				if (validate.validateNumber(mprehealth5.text, "预测健康数据"))
+				{
+					month.prehealth5 = mprehealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				//月第5行
+				if (validate.validateNumber(mpresubhealth1.text, "预测亚健康数据"))
+				{
+					month.presubhealth1 = mpresubhealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.presubhealth2 = mpresubhealth2.selectedItem.key;
+				if (validate.validateNumber(mpresubhealth3.text, "预测亚健康数据"))
+				{
+					month.presubhealth3 = mpresubhealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.presubhealth4 = mpresubhealth4.selectedItem.key;
+				if (validate.validateNumber(mpresubhealth5.text, "预测亚健康数据"))
+				{
+					month.presubhealth5 = mpresubhealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+
+				//月第7行
+				if (validate.validateNumber(mprenohealth1.text, "预测不健康数据"))
+				{
+					month.prenohealth1 = mprenohealth1.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.prenohealth2 = mprenohealth2.selectedItem.key;
+				if (validate.validateNumber(mprenohealth3.text, "预测不健康数据"))
+				{
+					month.prenohealth3 = mprenohealth3.text;
+				}
+				else
+				{
+					return;
+				}
+
+				month.prenohealth4 = mprenohealth4.selectedItem.key;
+				if (validate.validateNumber(mprenohealth5.text, "预测不健康数据"))
+				{
+					month.prenohealth5 = mprenohealth5.text;
+				}
+				else
+				{
+					return;
+				}
+
+				pm.param.data = month;
+				pm.saveDaySet();
+			}
+		]]>
+	</fx:Script>
+	<s:TabBar dataProvider="{healthSet}"
+			  styleName="sceneTabBar1"
+			  left="10"/>
+	<mx:ViewStack id="healthSet"
+				  width="100%"
+				  creationPolicy="all"
+				  height="100%">
+		<s:NavigatorContent width="100%"
+							height="100%"
+							label="日粒度">
+			<s:VGroup width="100%"
+					  gap="5"
+					  height="100%"
+					  left="10">
+				<ailk_compts:Window width="100%"
+									height="30%"
+									styleName="window"
+									maximizable="false"
+									minimizable="false"
+									closable="false"
+									title="健康度算法">
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="health1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="小时内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="health2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="health3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="health4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="health5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="亚健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="subhealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="小时内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="subhealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="subhealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="subhealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="subhealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="不健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="nohealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="小时内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="nohealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="nohealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="nohealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="nohealth5"/>
+								<s:Label text="网元不健康度，网元属于最差网元也算不健康；省、地市健康度算法不管最差网元"
+										 color="red"/>
+							</s:HGroup>
+						</s:HGroup>
+					</s:VGroup>
+				</ailk_compts:Window>
+
+				<ailk_compts:Window width="100%"
+									height="40%"
+									styleName="window"
+									maximizable="false"
+									minimizable="false"
+									closable="false"
+									title="健康预测算法">
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="prehealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="小时内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="prehealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="prehealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="prehealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="prehealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="亚健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:VGroup>
+								<s:HGroup gap="10"
+										  width="100%"
+										  height="100%"
+										  verticalAlign="middle">
+									<s:TextInput id="presubhealth1"
+												 restrict="0-9"
+												 width="40"/>
+									<s:Label text="小时内病例记录数"/>
+									<s:DropDownList dataProvider="{pm.characterList}"
+													labelField="character"
+													width="80"
+													requireSelection="true"
+													selectedIndex="0"
+													id="presubhealth2"/>
+									<s:TextInput width="40"
+												 restrict="0-9"
+												 id="presubhealth3"/>
+									<s:Label text="且"/>
+									<s:DropDownList dataProvider="{pm.characterList}"
+													labelField="character"
+													width="80"
+													requireSelection="true"
+													selectedIndex="0"
+													id="presubhealth4"/>
+									<s:TextInput width="40"
+												 restrict="0-9"
+												 id="presubhealth5"/>
+									<s:Label text="且"/>
+								</s:HGroup>
+								<s:HGroup gap="10"
+										  width="100%"
+										  height="100%"
+										  verticalAlign="middle">
+									<s:TextInput id="presubhealthand1"
+												 restrict="0-9"
+												 width="40"/>
+									<s:Label text="小时内病例记录数"/>
+									<s:DropDownList dataProvider="{pm.characterList}"
+													labelField="character"
+													width="80"
+													requireSelection="true"
+													selectedIndex="0"
+													id="presubhealthand2"/>
+									<s:TextInput width="40"
+												 restrict="0-9"
+												 id="presubhealthand3"/>
+									<s:Label text="且"/>
+									<s:DropDownList dataProvider="{pm.characterList}"
+													labelField="character"
+													width="80"
+													requireSelection="true"
+													selectedIndex="0"
+													id="presubhealthand4"/>
+									<s:TextInput width="40"
+												 restrict="0-9"
+												 id="presubhealthand5"/>
+								</s:HGroup>
+							</s:VGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="不健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="prenohealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="小时内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="prenohealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="prenohealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="prenohealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="prenohealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+					</s:VGroup>
+				</ailk_compts:Window>
+
+				<s:HGroup width="100%"
+						  horizontalAlign="right">
+					<s:Button label="保存"
+							  click="saveDay_clickHandler(event)"/>
+				</s:HGroup>
+			</s:VGroup>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent width="100%"
+							height="100%"
+							label="周粒度">
+			<s:VGroup width="100%"
+					  height="100%"
+					  gap="5"
+					  left="10">
+				<ailk_compts:Window width="100%"
+									height="30%"
+									styleName="window"
+									maximizable="false"
+									minimizable="false"
+									closable="false"
+									title="健康度算法">
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="whealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="周内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="whealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="whealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="whealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="whealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="亚健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="wsubhealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="周内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wsubhealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wsubhealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wsubhealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wsubhealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="不健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="wnohealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="周内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wnohealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wnohealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wnohealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wnohealth5"/>
+								<s:Label text="网元不健康度，网元属于最差网元也算不健康；省、地市健康度算法不管最差网元"
+										 color="red"/>
+							</s:HGroup>
+						</s:HGroup>
+					</s:VGroup>
+				</ailk_compts:Window>
+
+				<ailk_compts:Window width="100%"
+									height="30%"
+									styleName="window"
+									maximizable="false"
+									minimizable="false"
+									closable="false"
+									title="健康预测算法">
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="wprehealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="周内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wprehealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wprehealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wprehealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wprehealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="亚健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="wpresubhealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="周内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wpresubhealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wpresubhealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wpresubhealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wpresubhealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="不健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="wprenohealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="周内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wprenohealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wprenohealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="wprenohealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="wprenohealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+					</s:VGroup>
+				</ailk_compts:Window>
+
+				<s:HGroup width="100%"
+						  horizontalAlign="right">
+					<s:Button label="保存"
+							  click="saveWeek_clickHandler(event)"/>
+				</s:HGroup>
+			</s:VGroup>
+		</s:NavigatorContent>
+		<s:NavigatorContent width="100%"
+							height="100%"
+							label="月粒度">
+			<s:VGroup width="100%"
+					  height="100%"
+					  gap="5"
+					  left="10">
+				<ailk_compts:Window width="100%"
+									height="30%"
+									styleName="window"
+									maximizable="false"
+									minimizable="false"
+									closable="false"
+									title="健康度算法">
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="mhealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="月内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mhealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mhealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mhealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mhealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="亚健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="msubhealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="月内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="msubhealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="msubhealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="msubhealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="msubhealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="不健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="mnohealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="月内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mnohealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mnohealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mnohealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mnohealth5"/>
+								<s:Label text="网元不健康度，网元属于最差网元也算不健康；省、地市健康度算法不管最差网元"
+										 color="red"/>
+							</s:HGroup>
+						</s:HGroup>
+					</s:VGroup>
+				</ailk_compts:Window>
+
+				<ailk_compts:Window width="100%"
+									height="30%"
+									styleName="window"
+									maximizable="false"
+									minimizable="false"
+									closable="false"
+									title="健康预测算法">
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="mprehealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="月内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mprehealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mprehealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mprehealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mprehealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="亚健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="mpresubhealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="月内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mpresubhealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mpresubhealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mpresubhealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mpresubhealth5"/>
+							</s:HGroup>
+
+						</s:HGroup>
+						<s:HGroup width="100%"
+								  height="100%"
+								  verticalAlign="middle"
+								  gap="30">
+							<s:Label text="不健康"
+									 textAlign="center"
+									 width="50"/>
+							<s:HGroup gap="10"
+									  width="100%"
+									  height="100%"
+									  verticalAlign="middle">
+								<s:TextInput id="mprenohealth1"
+											 restrict="0-9"
+											 width="40"/>
+								<s:Label text="月内病例记录数"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												selectedIndex="0"
+												requireSelection="true"
+												id="mprenohealth2"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mprenohealth3"/>
+								<s:Label text="且"/>
+								<s:DropDownList dataProvider="{pm.characterList}"
+												labelField="character"
+												width="80"
+												requireSelection="true"
+												selectedIndex="0"
+												id="mprenohealth4"/>
+								<s:TextInput width="40"
+											 restrict="0-9"
+											 id="mprenohealth5"/>
+							</s:HGroup>
+						</s:HGroup>
+					</s:VGroup>
+				</ailk_compts:Window>
+
+				<s:HGroup width="100%"
+						  horizontalAlign="right">
+					<s:Button label="保存"
+							  click="saveMonth_clickHandler(event)"/>
+				</s:HGroup>
+			</s:VGroup>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+
+</s:VGroup>

@@ -1,0 +1,594 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:kpi="com.linkage.module.cms.perfmonitornew.kpi.*"
+          width="100%"
+          height="100%"
+          paddingTop="6"
+          paddingRight="6"
+          paddingBottom="6"
+          paddingLeft="6" 
+          creationComplete="creationCompleteHandler()" 
+		  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.event.perfEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+
+            private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.kpi.SummaryMonitor");
+
+            private var perfMonitorDAO:PerfMonitorDAO = PerfMonitorDAO.getInstance();
+
+            private var kpiId:String;
+            private var kpiName:String;
+            private var moTypeId:String;
+            private var isLevel_pcm:String;
+			private var isFirstTime:Boolean = true;
+			public var SortOrder:String;
+            private var cityId:String = "00";
+            private var cityName:String = "全省";
+            private var schemeName:String = "";
+
+            private var times:ArrayCollection = new ArrayCollection;
+            private var citys:ArrayCollection = new ArrayCollection;
+            private var mos:ArrayCollection = new ArrayCollection;
+
+            private var param:Object;
+            private var paramTopN:Object;
+
+            private var lm:LoadManager = new LoadManager(this, "blue");
+
+            private var levelMap:Object = {"province": "city", "city": "device"};
+            private var levelReverseMap:Object = {"city": "province", "device": "city"};
+			
+            private var lteLevelMap:Object = {"province": "device"};
+            private var lteLevelReverseMap:Object = {"device": "province"};
+			
+            private var levelCache:ArrayCollection = new ArrayCollection;
+			
+            private var cityCache:ArrayCollection = new ArrayCollection;
+            private var moCache:ArrayCollection = new ArrayCollection;
+
+            private var df:DateFormatter = new DateFormatter;
+
+            protected function creationCompleteHandler():void
+            {
+                this.currentState = "province";
+                df.formatString = "YYYY-MM-DD JJ:NN";
+            }
+
+
+            public function startMonitor(schemeId:String, sn:String):void
+            {
+                timeChartWin.init();
+
+                schemeName = sn;
+
+				winLable.text = cityName + schemeName  ;
+//                timeChartWin.title = schemeName + " - " + cityName;
+                timeChartWin.title = "实时趋势";
+				
+                perfMonitorDAO.getMoAndKpiByScheme(
+                    {"scheme_id": schemeId},
+                    function(result:Object):void
+                    {
+                        var list:IList = result as IList;
+
+                        kpiId = list.getItemAt(0).kpi_id;
+                        kpiName = list.getItemAt(0).kpi_name;
+                        moTypeId = list.getItemAt(0).mo_type_id;
+
+                        timeChartWin.kpiName = kpiName;
+                        topnChartWin.kpiName = kpiName;
+
+                        makeParam();
+
+                        loadKpiData();
+                    });
+            }
+			
+            private function makeParam():void
+            {
+                param = {};
+                paramTopN = {};
+
+                param.kpi_id = kpiId;
+                param.kpi_name = kpiName;
+                param.mo_type_id = moTypeId;
+
+                paramTopN.kpi_id = kpiId;
+                paramTopN.kpi_name = kpiName;
+                paramTopN.mo_type_id = moTypeId;
+
+                paramTopN.topn = 13;
+                paramTopN.city_id = cityId;
+
+
+                times.removeAll();
+                citys.removeAll();
+                mos.removeAll();
+				if (timeChartWin.compareTimeDDL.selectedItemArr.length > 0)
+					times.addAll(timeChartWin.compareTimeDDL.selectedItemArr as IList); 
+				
+
+                param.times = times;
+
+                times.addItem({"name": "今天"});
+
+              /*   if (timeChartWin.compareTimeDDL.selectedItem != null)
+                    times.addItem(timeChartWin.compareTimeDDL.selectedItem); */
+
+                if (currentState == "province")
+                {
+                    //查全省的指标数据
+                    param.res_type = "1";
+
+                    param.citys = citys;
+                    citys.addItem({"city_id": "00", "city_name": "全省"});
+
+					log.info("isLevel_pcm:"+isLevel_pcm+"=-----type:"+typeof(isLevel_pcm));
+                    //查地市维度TOPN
+					if(isLevel_pcm == "1")
+					{
+						paramTopN.res_type = "1";
+					}else
+					{
+						paramTopN.res_type = "2";
+					} 
+                   
+
+                }
+                else if (currentState == "city")
+                {
+                    param.citys = citys;
+                    citys.addItem({"city_id": cityId, "city_name": cityName});
+
+                    param.res_type = "2";
+
+                    //区县TOPN暂时没统计 
+                    paramTopN.res_type = "2";
+                }
+                else if (currentState == "country")
+                {
+                    param.citys = citys;
+                    citys.addItem({"city_id": cityId, "city_name": cityName});
+
+                    param.res_type = "9";
+
+                    //查网元TOPN
+                    paramTopN.res_type = "2";
+                }
+                else if (currentState == "device")
+                {
+                    param.mos = mos;
+                    mos.addItem({"mo_id": cityId, "name": cityName});
+                    param.res_type = "3";
+
+                }
+
+            }
+
+            private function loadKpiData(autoLoadTopnFlag:Boolean = true):void
+            {
+				log.info("loadKpiData ~~~ kpiId:"+kpiId+"---kpiName:"+kpiName+"--moTypeId:"+moTypeId+"cityId:"+cityId+"---cityName:"+cityName);
+                lm.showLoading();
+//				log.info("currentState:{0}",this.currentState);
+				timeChartWin.currentState="time"+this.currentState;
+				timeChartWin.kpiId = kpiId;
+				timeChartWin.kpiName = kpiName;
+				timeChartWin.moTypeId = moTypeId;
+				timeChartWin.cityId = cityId;
+				timeChartWin.cityName = cityName;
+				timeChartWin.isLevel_pcm = isLevel_pcm;
+				
+//				log.info("timeChartWin。currentState:{0}",timeChartWin.currentState);
+				
+                timeChartWin.setCityId(cityId);
+                perfMonitorDAO.lm = lm;
+				
+				log.info(param);
+                //指标数据
+                perfMonitorDAO.getPerfomanceByKpi(
+                    param,
+                    function(result:Object):void
+                    {
+						
+                        var firstTime:Object = timeChartWin.showData(result as IList);
+						paramTopN.time = firstTime;
+						log.info("start大图 topn ");
+						loadTopNData(firstTime);
+						
+						log.info("end大图 topn ");
+						
+                        /*if (autoLoadTopnFlag)
+                         {
+//							log.info("firstTime:"+firstTime);
+                            //第一个数据点对应的时间，去加载对应时间的topn数据
+                            paramTopN.time = firstTime;
+
+                            loadTopNData(firstTime);
+                        } */
+                    });
+            }
+			
+            private function loadDeKpiData(autoLoadTopnFlag:Boolean = true):void
+            {
+				log.info("loadDeKpiData");
+                lm.showLoading();
+//				log.info("currentState:{0}",this.currentState);
+				timeChartWin.currentState="time"+this.currentState;
+//				log.info("timeChartWin。currentState:{0}",timeChartWin.currentState);
+				
+                timeChartWin.setCityId(cityId);
+                perfMonitorDAO.lm = lm;
+                //指标数据
+				log.info(param);
+                perfMonitorDAO.getPerfomanceByKpi(
+                    param,
+                    function(result:Object):void
+                    {
+						
+                        timeChartWin.showData(result as IList);
+                    });
+				
+				if(currentState == "device")
+				{
+					timeChartWin.compareCityMoDDL.clear(true);
+					timeChartWin.compareCityMoAC.removeAll();
+					if(isLevel_pcm == "1")
+					{
+						timeChartWin.compareCityMoAC.addAll(moCache);
+						
+					}else
+					{
+						timeChartWin.compareCityMoAC.addAll(cityCache);
+					}
+					timeChartWin.compareCityMoAC.refresh();
+					
+					log.info("timeChartWin.compareCityMoAC device ");
+					log.info(timeChartWin.compareCityMoAC);
+					
+				}
+            }
+
+            private function loadTopNData(time:Object):void
+            {
+				log.info(time);
+                var date:Date = new Date;
+                date.setTime(Number(time) * 1000);
+                var timeStr:String = df.format(date);
+
+                lm.showLoading();
+
+                perfMonitorDAO.lm = lm;
+
+//                topnChartWin.title = "TOPN - " + kpiName + " - " + timeStr;
+                topnChartWin.title = "TOPN - " + timeStr;
+                topnChartWin.time = timeStr;
+				paramTopN.sortorder = SortOrder;
+				log.info("SortOrder11........." + SortOrder);
+				
+				if(SortOrder == "0"){
+					topnChartWin.isBadSortFlag = false;
+					topnChartWin.sortImg.toolTip = "最好网元排序";
+					topnChartWin.sortorder = "1";
+				}else{
+					topnChartWin.isBadSortFlag = true;
+					topnChartWin.sortImg.toolTip = "最差网元排序";
+					topnChartWin.sortorder = "0";
+					
+				}
+				
+				if(paramTopN.scene_id != null && paramTopN.scene_id != "")
+				{
+					paramTopN.grading = "2"; //地市粒度
+					
+				}else{
+					paramTopN.grading = "1"; //网元粒度
+				}
+				
+				
+				topnChartWin.time = timeStr;
+
+				if(isFirstTime){
+					paramTopN.time = null;
+					isFirstTime = false;
+				}else{
+					log.info("......");
+				}
+				
+				log.info("paramTopN  ~~~~");
+				topnChartWin.SumParam = paramTopN;
+//                perfMonitorDAO.getPerTopnByKpi(
+                perfMonitorDAO.getPerfHisKpi(
+                    paramTopN,
+                    function(result:Object):void
+                    {
+						/* if ((result as IList).length == 0 )
+						{
+							topnChartWin.visible = false;
+							topnChartWin.includeInLayout = false;
+						}else
+						{ */
+						if(currentState == "device" && IList(result).length<1){
+							return;
+						}
+							topnChartWin.visible = true;
+							topnChartWin.includeInLayout = true;
+							topnChartWin.showTopNData(result as IList);
+//						}
+                       
+
+                        log.info("显示topn数据：" + currentState);
+						
+						//缓存topn网元 用于网元视图的对比列表
+						if (currentState == "province")
+						{
+							cityCache.removeAll();
+							cityCache.addAll(result as IList);
+							
+							for each (var mo:Object in cityCache)
+							mo.label = mo.name;
+						} 
+						else if (currentState == "city")
+                        {
+							timeChartWin.compareCityMoDDL.clear(true);
+							timeChartWin.compareCityMoAC.removeAll();
+							timeChartWin.compareCityMoAC.addAll(cityCache);
+							timeChartWin.compareCityMoAC.refresh();
+							
+							moCache.removeAll();
+							moCache.addAll(result as IList);
+							
+                            for each (var mo:Object in moCache)
+                                mo.label = mo.name;
+                        }
+                    });
+            }
+			
+			private var systime:Number = 0;
+            //趋势图点击，加载对应的topn数据
+            public function lineClickCallback(field:String, data:Object):void
+            {
+                log.info("曲线图点击：加载对应时间的TOPN数据," + field);
+				if(systime==0){
+					systime = (new Date()).getTime();
+				}else{
+					var num = (new Date()).getTime() - systime;
+					systime = (new Date()).getTime();
+					if(num<300){//屏蔽双击时间300ms
+						return;
+					}
+				}
+
+                makeParam();
+
+                paramTopN.time = data[field + "_time"];
+
+                loadTopNData(data[field + "_time"]);
+            }
+
+//			private var timer:Timer = new Timer(1000*60*5); 
+			private var dateCount:Number= 0;
+            public function topnClickCallbakc(field:String, data:Object):void
+            {
+//				timeChartWin.compareTimeDDL.reset();
+				log.info(data);
+				log.info("topnClickCallbakc:"+currentState +"-----------timeChartWin:"+timeChartWin.currentState);
+				log.info("topnClickCallbakc isLevel_pcm:"+isLevel_pcm+"=-----type:"+typeof(isLevel_pcm));
+				 if(isLevel_pcm == "1")
+				{
+					 if(timeChartWin.currentState =="timedevice")
+					 {
+						 currentState = "city";
+					 }
+					currentState = levelMap[currentState];
+				}else{
+					currentState = lteLevelMap[currentState];
+				} 
+                
+//				log.info("topnClickCallbakc currentState:"+currentState);
+				if(currentState != "province" && timeChartWin.currentState  !="timedevice")
+				{
+					levelCache.addItemAt({"cityId": cityId + "", "cityName": cityName + ""}, 0);
+				}
+
+                cityId = data.id;
+                cityName = data.name;
+				
+				log.info("返回 层次缓存数据：" + levelCache.length + " currentState:" + currentState);
+				log.info(levelCache);
+				log.info("cityId:" + cityId + " cityName:" + cityName);
+				
+				timeChartWin.cityId = cityId;
+				timeChartWin.cityName = cityName;
+				
+				winLable.text = cityName + schemeName  ;
+				timeChartWin.title = "实时趋势";
+
+				makeParam();
+				
+				
+				var date:Number = new Date().getTime();
+					if(currentState == "device")
+					{
+						loadDeKpiData();
+					} else if(currentState == "province")
+					{
+						
+						
+						currentState = "device";
+						if(isLevel_pcm == "1")
+						{
+							log.info("不做任何操作");
+						}
+						else
+						{
+							makeParam();
+							loadDeKpiData();
+						}
+					} else
+					{
+						loadKpiData();
+					}
+					
+            }
+
+            public function paramChangeCallback():void
+            {
+                makeParam();
+
+                loadKpiData(false);
+            }
+
+            public function turnBack():void
+            {
+				cityId = levelCache.getItemAt(0).cityId;
+				cityName = levelCache.getItemAt(0).cityName;
+				
+				 if(isLevel_pcm == "1")
+				{
+					currentState = levelReverseMap[currentState];
+				}else
+				{
+					currentState = lteLevelReverseMap[currentState];
+				} 
+
+                if (currentState != "device")
+                    mos.removeAll();
+
+                levelCache.removeItemAt(0);
+
+                log.info("返回 层次缓存数据：" + levelCache.length + " currentState:" + currentState);
+                log.info(levelCache);
+                log.info("cityId:" + cityId + " cityName:" + cityName);
+
+                lm.showLoading();
+				
+				winLable.text = cityName + schemeName ;
+				timeChartWin.title = "实时趋势";
+
+                makeParam();
+                loadKpiData();
+            }
+			
+			public function startMonitorData(snkpiId:String, snkpiName:String,snmoTypeId:String,isBigChart:Boolean,level_pcm:String,lineChartState:Boolean,isTimeChange:Boolean,jixianC:Boolean,intFlag:Boolean,selectedItemArr:ArrayCollection,cb1:Boolean,cb2:Boolean,cb3:Boolean,cb4:Boolean,cb5:Boolean,dateText:String):void
+			{
+				log.info("ll   startMonitorData  level_pcm"+level_pcm+"--currentState:"+currentState);
+				timeChartWin.isBigChart = isBigChart;
+				timeChartWin.lineChartState = lineChartState;
+				timeChartWin.isTimeChange = isTimeChange;
+				timeChartWin.intFlag = intFlag;
+				timeChartWin.jixianCB.selected = jixianC;
+				log.info(selectedItemArr);
+				log.info("cb1:"+cb1+"cb2:"+cb2+"cb3:"+cb3+"cb4:"+cb4+"cb5:"+cb5);
+				timeChartWin.compareTimeDDL.selectedItemArr = selectedItemArr;
+				timeChartWin.compareTimeDDL.c1 = cb1;
+				timeChartWin.compareTimeDDL.c2 = cb2;
+				timeChartWin.compareTimeDDL.c3 = cb3;
+				timeChartWin.compareTimeDDL.c4 = cb4;
+				timeChartWin.compareTimeDDL.c5 = cb5;
+				timeChartWin.compareTimeDDL.dateField.text = dateText;
+				timeChartWin.init();
+				schemeName = snkpiName;
+				
+				cityName = "全省";
+				cityId = "00";
+				currentState = "province"
+				winLable.text = cityName + schemeName  ;
+				timeChartWin.title = "实时趋势";
+//				winLable.text = schemeName;
+//				timeChartWin.title =  cityName;
+				kpiId = snkpiId;
+				kpiName = snkpiName;
+				moTypeId = snmoTypeId;
+				isLevel_pcm = level_pcm;
+				timeChartWin.kpiName = kpiName;
+				topnChartWin.kpiName = kpiName;
+				
+				topnChartWin.visible = true;
+				topnChartWin.includeInLayout = true;
+				makeParam();
+				loadKpiData();
+				
+				chartWin.addEventListener(perfEvent.CHART_CLOSE,chartWin_closeHandler);
+			}
+			
+			protected function chartWin_closeHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(chartWin);
+				chartWin.visible = false;
+				chartWin.includeInLayout=false; 
+			}
+			
+		]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+
+    <s:states>
+        <s:State name="province"/>
+        <s:State name="city"/>
+        <s:State name="country"/>
+        <s:State name="device"/>
+    </s:states>
+	
+		<ailk_compts:Window id="chartWinLableTip"
+							minimizable="false"
+							maximizable="false"
+							closable="false"
+							visible="false"
+							includeInLayout="false"
+							width="100%"
+							height="100%">
+			<s:VGroup width="100%"
+					  height="100%">
+				<s:Label text="{kpiName}"/>
+				<s:Label text="{cityName}"/>
+			</s:VGroup>
+			
+		</ailk_compts:Window>
+	
+		<ailk_compts:Window id="chartWin"
+							width="100%"
+							height="100%"
+							styleName="window"
+							minimizable="false"
+							maximizable="false"
+							visible="false"
+							includeInLayout="false"
+							dragable="true"
+							close="chartWin_closeHandler(event)">
+			<s:Label id="winLable"
+					 top="-15"/>
+			<s:VGroup>
+				<kpi:ChartComponent id="timeChartWin"
+									width="700"
+									height="230"
+									turnBackCallback="{turnBack}"
+									dataClickCallback="{lineClickCallback}"
+									paramChangeCallback="{paramChangeCallback}"
+									currentState="time{this.currentState}"
+									restore="{topnChartWin.visible = currentState != 'device'; topnChartWin.includeInLayout =  currentState != 'device';}"
+									maximize="{topnChartWin.visible=false; topnChartWin.includeInLayout = false;}"/>
+				<kpi:ChartComponent id="topnChartWin"
+									width="700"
+									height="230"
+									currentState="topn"
+									dataClickCallback="{topnClickCallbakc}"
+									restore="{timeChartWin.visible=true; timeChartWin.includeInLayout = true;}"
+									maximize="{timeChartWin.visible=false; timeChartWin.includeInLayout = false;}"
+									visible.device="false"/>
+			</s:VGroup>
+		</ailk_compts:Window>
+</s:VGroup>

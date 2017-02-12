@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" height="30" xmlns:view="com.linkage.module.cms.baseline.dynamic.view.*">
+	
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Text;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.events.TextOperationEvent;
+			
+			[Bindable]
+			public var btnLable:String="删除";
+			public var btnClick:Function=null;
+			[Bindable]
+			public var data:FormitemTolerancePO = new FormitemTolerancePO("0","0","0","0","0");
+			
+			
+			private var alarmLevel:ArrayCollection = new ArrayCollection(
+				[
+					{label: '告警级别', value: '0'},
+					{label: '一级告警', value: '1'},
+					{label: '二级告警', value: '2'},
+					{label: '三级告警', value: '3'},
+					{label: '四级告警', value: '4'}
+				]
+			);
+			
+			private function btn_click(event:MouseEvent):void{
+				if(btnClick!=null && btnClick is Function){
+					btnClick.call(null,this);
+				}
+			}
+			
+			protected function alarmCombox_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.alarmLevel = alarmCombox.selectedItem.value;
+			}
+			
+			protected function toleranceUp_changeHandler(event:TextOperationEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.up = toleranceUp.text;
+			}
+			
+			protected function toleranceDown_changeHandler(event:TextOperationEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.down  = toleranceDown.text;
+			}
+			
+			protected function activeLimit_changeHandler(event:TextOperationEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.activeLimit = activeLimitTe.text;
+			}
+			
+			protected function clearLimitTe_changeHandler(event:TextOperationEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.clearLimit = clearLimitTe.text;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<s:HGroup height="30" >
+		<s:Label text="上容忍线容忍度："/>
+		<s:TextInput id="toleranceUp"  restrict="0-9\." width="40" text="{data.up}" change="toleranceUp_changeHandler(event)"/>
+		<s:Label text="下容忍线容忍度："/>
+		<s:TextInput id="toleranceDown"  restrict="0-9\." width="40" text="{data.down}" change="toleranceDown_changeHandler(event)"/>
+		<s:Label text="活动告警观察期："/>
+		<s:TextInput id="activeLimitTe"  restrict="0-9" maxChars="2" width="40" text="{data.activeLimit}" change="activeLimit_changeHandler(event)"/>
+		<s:Label text="清除告警观察期："/>
+		<s:TextInput id="clearLimitTe"  restrict="0-9" maxChars="2" width="40" text="{data.clearLimit}" change="clearLimitTe_changeHandler(event)"/>
+		
+		<s:DropDownList id="alarmCombox" width="90" selectedIndex="{int(data.alarmLevel)}" 
+						contentBackgroundAlpha="1" contentBackgroundColor="#c8deec" color="#000000"
+						dataProvider="{alarmLevel}" change="alarmCombox_changeHandler(event)"/>
+		<s:Button label="{btnLable}" click="btn_click(event)"/>
+	</s:HGroup>
+</s:Group>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" creationComplete="group1_creationCompleteHandler(event)">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			
+			private var testData:ArrayCollection = new ArrayCollection([{"mo_id":"1","mo_name":"test","perf_type_name":"掉话率","perf_value":"2%"}]);
+			
+			//数据
+			private var dataArr:ArrayCollection = new ArrayCollection();
+			private var filterMoList:ArrayCollection;
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//生成列
+				var arr:Array = new Array();
+				
+				var column:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+				column.dataField = "mo_name";
+				column.headerText = "网元名称";
+				arr = arr.concat(column);
+				
+				column = new AdvancedDataGridColumn();
+				column.dataField = "perf_type_name";
+				column.headerText = "性能名称";
+				arr = arr.concat(column);
+				
+				column = new AdvancedDataGridColumn();
+				column.dataField = "perf_value";
+				column.headerText = "性能值";
+				arr = arr.concat(column);
+				
+				this.grid.columns = arr;
+			}
+
+			public function initData(obj:Object):void
+			{
+				if (obj == null)
+				{
+					obj = testData;
+				}
+				dataArr.removeAll();
+				for each (var o:Object in obj)
+				{
+					dataArr.addItem(o);
+				}
+				
+				this.grid.dataProvider = dataArr;
+			}
+			
+			//刷新页面数据
+			public function reloadData(moList:ArrayCollection):void
+			{
+				filterMoList = moList;
+				dataArr.filterFunction = filterMo;
+				
+				dataArr.refresh();
+			}
+			
+			private function filterMo(obj:Object):Boolean
+			{
+				if (filterMoList != null && filterMoList.length > 0)
+				{
+					for each (var moId:String in filterMoList)
+					{
+						if (moId == obj.mo_id)
+						{
+							return true;
+						}
+					}
+					
+					return false;
+				}
+				else
+				{
+					return true;
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:AdvancedDataGrid id="grid" width="100%" height="100%" sortableColumns="false">
+	</mx:AdvancedDataGrid>
+</s:Group>

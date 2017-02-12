@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 xmlns:resource="com.linkage.module.cms.perfmonitor.subject.flow.resource.*"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 xmlns:perf="com.linkage.module.cms.perfmonitor.subject.flow.perf.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectPowerService;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.events.IndexChangeEvent;
+
+			private var _commonService:SubjectInterfaceCommService;
+
+			private var _btsService:SubjectPowerService;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subject.flow.BtsDataFlow");
+
+			//参数对象
+			private var _param:Object = null;
+
+			private var isInit:Boolean = false;
+
+			private var _isDebug:Boolean = false;
+
+//			public var alarmRule:String =  '((nmsalarmtype=3)&(buss_id=63))|((systemname="动环网管")&(alarmtitle%="节点停电告警"|alarmtitle%="市电停电告警"|alarmtitle%="电池组总电压过低告警"|alarmtitle%="基站停电告警"|alarmtitle%="一级低压脱离断开告警")&(sheetsendstatus=1|sheetsendstatus=2|sheetsendstatus=3|sheetsendstatus=5))';
+			public var alarmRule:String = '((nmsalarmtype=3)&(buss_id=63))|((systemname="动环网管")&(alarmtitle="节点停电告警"|alarmtitle="市电停电告警"|alarmtitle="电池组总电压过低告警"|alarmtitle="基站停电告警"|alarmtitle="一级低压脱离断开告警"))';
+
+			private var paramMap:Object = null;
+
+			private var moDataArr:ArrayCollection = new ArrayCollection();
+
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+
+			public function get param():Object
+			{
+				return _param;
+			}
+
+			public function set param(value:Object):void
+			{
+				_param = value;
+			}
+
+			public function get btsService():SubjectPowerService
+			{
+				return _btsService;
+			}
+
+			public function set btsService(value:SubjectPowerService):void
+			{
+				_btsService = value;
+			}
+
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+
+			private var ruleStr:String;
+
+			public function initData(cityId:String, layer:String, cityName:String):void
+			{
+				log.info('流水参数 cityId:' + cityId + ' layer:' + layer + ' cityName:' + cityName);
+				if(cityName != null && cityName != "")
+				{
+					if(layer == '2')
+					{
+						ruleStr = '(' + alarmRule + ")&(alarmregion=\"" + cityName + "\")";
+					}
+					else if(layer == '3')
+					{
+						ruleStr = '(' + alarmRule + ")&(alarmcounty=\"" + cityName + "\")";
+					}
+					else
+					{
+						ruleStr = alarmRule;
+					}
+				}
+				else
+				{
+					ruleStr = alarmRule;
+				}
+
+				log.info('加载流水 ruleStr:' + ruleStr);
+				if(!isInit)
+				{
+					this.alarmFlow.params = _param;
+					this.alarmFlow.ruleContent = ruleStr;
+					this.alarmFlow.initInfo();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(alarmFlow);
+					//-------------------------------------历史回退修改------------------------------------
+					isInit = true;
+				}
+				else
+				{
+					this.alarmFlow.reload(ruleStr);
+				}
+//				if (!isInit)
+//				{
+				//初始化告警
+//					this.alarmFlow.params = _param;
+//					var ruleStr:String = '((nmsalarmtype=3)&(buss_id=63))|((systemname="动环网管")&(alarmtitle%="节点停电告警"|alarmtitle%="市电停电告警"|alarmtitle%="电池组总电压过低告警"|alarmtitle%="基站停电告警"|alarmtitle%="一级低压脱离断开告警")&(sheetsendstatus=1|sheetsendstatus=2|sheetsendstatus=3|sheetsendstatus=5))';
+//					alarmRule = ruleStr;
+//					if (cityName != null && cityName != "")
+//					{
+//						if(layer == '2')
+//							ruleStr = '(' + ruleStr + ")&(alarmregion=\"" + cityName + "\")";
+//						else if(layer == '3')
+//							ruleStr = '(' + ruleStr + ")&(alarmcounty=\"" + cityName + "\")";
+//					}
+//					this.alarmFlow.ruleContent = ruleStr;
+//					this.alarmFlow.initInfo();
+//					isInit = true;
+//				}
+//				else
+//				{
+//					if (cityName != null && cityName != "")
+//					{
+//						if(layer == '2')
+//							this.alarmFlow.reload('(' + alarmRule + ")&(alarmregion=\"" + cityName + "\")");
+//						else if(layer == '3')
+//							this.alarmFlow.reload('(' + alarmRule + ")&(alarmcounty=\"" + cityName + "\")");
+//						else
+//							this.alarmFlow.reload(alarmRule);
+//					}
+//					else
+//					{
+//						this.alarmFlow.reload(alarmRule);
+//					}
+//				}
+
+				//初始化资源和性能
+				paramMap = new Object();
+				if(cityId != "")
+				{
+					paramMap.city_id = cityId;
+					paramMap.city_layer = layer;
+				}
+
+				_btsService.btsNoPowerGisInfo(paramMap, loadResDataSucc, null, loadResDataErr);
+//				_btsService.btsNoPowerPerfList(paramMap,loadPerfDataSucc,null,loadPerfDataErr);
+			}
+
+			private function loadResDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载资源列表成功！");
+
+					moDataArr = new ArrayCollection();
+					for each(var tmp:Object in obj)
+					{
+						moDataArr.addItem(tmp);
+					}
+
+					//成功后再调蓄电池的
+					_btsService.lowPowerGisInfo(paramMap, loadPowerResDataSucc, null, loadPowerResDataErr);
+				}
+				else
+				{
+					log.info("加载资源列表为空！");
+					if(_isDebug)
+					{
+						this.resourceFlow.initData(null);
+					}
+				}
+			}
+
+			private function loadResDataErr(obj:Object):void
+			{
+				log.info("加载资源列表失败！" + obj);
+				if(_isDebug)
+				{
+					this.resourceFlow.initData(null);
+				}
+
+				//成功后再调蓄电池的
+				_btsService.lowPowerGisInfo(paramMap, loadPowerResDataSucc, null, loadPowerResDataErr);
+			}
+
+			private function loadPowerResDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载蓄电池资源列表成功！");
+					for each(var tmp:Object in obj)
+					{
+						moDataArr.addItem(tmp);
+					}
+					this.resourceFlow.initData(moDataArr);
+				}
+				else
+				{
+					log.info("加载蓄电池资源列表为空！");
+					if(_isDebug)
+					{
+						this.resourceFlow.initData(null);
+					}
+				}
+
+				_btsService.btsNoPowerPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+			}
+
+			private function loadPowerResDataErr(obj:Object):void
+			{
+				log.info("加载蓄电池资源列表失败！" + obj);
+				if(_isDebug)
+				{
+					this.resourceFlow.initData(null);
+				}
+
+				_btsService.btsNoPowerPerfList(paramMap, loadPerfDataSucc, null, loadPerfDataErr);
+			}
+
+			private function loadPerfDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载性能列表成功！");
+					this.perfFlow.initData(obj);
+				}
+				else
+				{
+					log.info("加载性能列表为空！");
+					if(_isDebug)
+					{
+						this.perfFlow.initData(null);
+					}
+				}
+			}
+
+			private function loadPerfDataErr(obj:Object):void
+			{
+				log.info("加载性能列表失败！" + obj);
+				if(_isDebug)
+				{
+					this.perfFlow.initData(null);
+				}
+			}
+
+			protected function tabBar1_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+//				if(event.newIndex==1){
+//					log.info('加载流水 ruleStr:' + ruleStr);
+//					if (!isInit){
+//						this.alarmFlow.params = _param;
+//						this.alarmFlow.ruleContent = ruleStr;
+//						this.alarmFlow.initInfo();
+//						isInit = true;
+//					}else{
+//						this.alarmFlow.reload(ruleStr);
+//					}
+//				}else{
+//					this.alarmFlow.stopLoad();
+//				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:ViewStack id="flowViewStack"
+				  width="100%"
+				  height="100%"
+				  top="23"
+				  paddingBottom="2"
+				  paddingLeft="2"
+				  paddingRight="2"
+				  paddingTop="2"
+				  creationPolicy="all">
+		<s:NavigatorContent id="alarmNav"
+							label="资源信息">
+			<resource:MoResourceStat id="resourceFlow"
+									 width="100%"
+									 height="100%">
+			</resource:MoResourceStat>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="sheetNav"
+							label="性能告警">
+			<pubflow:alarm id="alarmFlow"
+						   moduleKey="categoriesflowalarm"
+						   width="100%"
+						   height="100%">
+			</pubflow:alarm>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="workStateNav"
+							label="性能信息">
+			<perf:MoPerfStat id="perfFlow"
+							 width="100%"
+							 height="100%">
+			</perf:MoPerfStat>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	<s:TabBar dataProvider="{flowViewStack}"
+			  id="tabBar1"
+			  styleName="commonTabBar">
+	</s:TabBar>
+</s:Group>

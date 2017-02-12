@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx" 
+					 xmlns:datashow="com.linkage.module.cms.perfmonitor.subject.datashow.*" 
+					 width="100%" height="100%"
+					 minimizable="false" maximizable="false" 
+					 restorable="false" configable="true" xmlns:fusioncharts="com.linkage.common.fusioncharts.*" title="零业务热点统计">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			private var testData:ArrayCollection = new ArrayCollection([{title:"零业务热点统计"
+				,name:["地市","零业务热点数","零业务热点比例"]
+				,column:["city","zero_wlan","zero_rate"]
+				,datalist:[{city:"全省", zero_wlan:"10", zero_rate:"2%"}
+					, {city:"南京", zero_wlan:"10", zero_rate:"2%"}]}
+]);
+			
+			private var _wlanMonitor:Object;
+			
+			private var chartParams:ArrayCollection=new ArrayCollection([     
+				{caption:"热点专题监控"},
+				{numberPrefix:""},
+				{showValues:"0"}]); 
+			
+			private var chartData:ArrayCollection = new ArrayCollection([
+				{label:'南京'},{label:'苏州'},{label:'无锡'},{label:'常州'},{label:'镇江'},
+				{seriesName:'最差小区统计'},
+				{value:'96'},{value:'90'},{value:'58'},{value:'50'},{value:'28'}]);
+			
+			public function get wlanMonitor():Object
+			{
+				return _wlanMonitor;
+			}
+			
+			public function set wlanMonitor(value:Object):void
+			{
+				_wlanMonitor = value;
+			}
+
+			protected function grid_itemClickHandler(e:ListEvent):void
+			{
+				var cityName:String = e.target.dataProvider[e.rowIndex].city;
+				var cityId:String = e.target.dataProvider[e.rowIndex].city_id;
+				
+				if (e.rowIndex > 0)
+				{
+					_wlanMonitor.showCityMap(cityId,cityName);
+				}
+			}
+			
+			public function initData(obj:Object):void
+			{
+				if (obj == null)
+				{
+					obj = testData;
+				}
+				
+				//初始化
+				var dataObj:Object = obj[0];
+				
+				var arr:Array = new Array();
+				for (var index:String in dataObj.column)
+				{
+					var column:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+					column.dataField = dataObj.column[index];
+					column.headerText = dataObj.name[index];
+					column.width = column.headerText.length*15 + 30;
+					arr = arr.concat(column);
+				}
+				this.grid.columns = arr;
+				
+				this.grid.dataProvider = dataObj.datalist;
+				
+				createChart(dataObj);
+			}
+
+			private function createChart(obj:Object):void
+			{
+				var data:ArrayCollection = new ArrayCollection();
+				var column1:String = obj.column[0];
+				var column2:String = obj.column[1];
+				
+				//行
+				for each (var labelObj:Object in obj.datalist)
+				{
+					var tmp:Object = new Object();
+					tmp.label = labelObj[column1];
+					data.addItem(tmp);
+				}
+				
+				//标题
+				var tmp2:Object = new Object();
+				tmp2.seriesName = obj.title;
+				data.addItem(tmp2);
+				
+				//值
+				for each (var valueObj:Object in obj.datalist)
+				{
+					var tmp1:Object = new Object();
+					tmp1.value = valueObj[column2];
+					tmp1.link = "E-showChart," + valueObj[column1];
+					data.addItem(tmp1);
+				}
+				
+				if (data.length >= 3)
+				{
+					this.chart.FCParams = chartParams;
+					this.chart.FCData = data;
+					this.chart.FCRender();
+				}
+			}
+
+			protected function datawindow1_configHandler():void
+			{
+				if (this.grid.visible)
+				{
+					this.grid.visible = false;
+					this.grid.includeInLayout = false;
+					
+					this.chart.visible = true;
+					this.chart.includeInLayout = true;
+				}
+				else
+				{
+					this.grid.visible = true;
+					this.grid.includeInLayout = true;
+					
+					this.chart.visible = false;
+					this.chart.includeInLayout = false;
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group id="showGroup" width="100%" height="100%">
+		<mx:AdvancedDataGrid id="grid" height="100%" width="100%" sortableColumns="false" itemClick="grid_itemClickHandler(event)">
+		</mx:AdvancedDataGrid>
+		<fusioncharts:FusionChartsLK id="chart" width="350" height="280" FCFolder="/cms/flex-release/FusionCharts" FCChartType="MSColumn3D" FCData="{new ArrayCollection()}" FCParams="{new ArrayCollection()}" visible="false" includeInLayout="false">
+		</fusioncharts:FusionChartsLK>
+	</s:Group>
+	<mx:Image source="{chartImg}" right="1" top="-18" id="listChartSwitchImg" click="datawindow1_configHandler()" buttonMode="true" toolTip="图标切换"/>
+</datashow:DataWindow>

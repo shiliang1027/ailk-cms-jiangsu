@@ -1,0 +1,1621 @@
+<?xml version="1.0" encoding="utf-8"?>
+<monitor:CommonGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%" 
+		 height="100%"
+		 xmlns:core="com.linkage.module.supermap.core.*" 
+		 xmlns:common="com.linkage.module.cms.general.monitor.common.*"
+		 xmlns:district="com.linkage.module.cms.general.monitor.district.*" 
+		 xmlns:gis="com.linkage.gis.*" 
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 xmlns:monitor="com.linkage.module.cms.general.monitor.*"
+		 creationComplete="initView();">
+	<monitor:layout>
+		<s:VerticalLayout>
+		</s:VerticalLayout>
+	</monitor:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.metry.GisLine;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.metry.GisRegion;
+			import com.linkage.gis.core.styles.GisFillPredefinedStyle;
+			import com.linkage.gis.core.styles.GisLinePredefinedStyle;
+			import com.linkage.gis.core.styles.GisLineStyle;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.gis.event.GisFeatureEvent;
+			import com.linkage.gis.event.MapEvent;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManagerImp;
+			import com.linkage.system.component.panel.Window;
+			import com.linkage.system.logging.targets.DeMonsterTarget;
+			import com.linkage.system.rpc.remoting.BlazeDSUtil;
+			import com.supermap.web.core.Feature;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.ILoggingTarget;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.remoting.RemoteObject;
+			
+			import spark.components.Button;
+			
+			[Embed(source="img/JIZHAN0.png")]
+			private static var JIZHAN:Class;
+			
+			[Embed(source="img/JIZHAN1.png")]
+			private static var JIZHAN1:Class;
+			
+			[Embed(source="img/JIZHAN2.png")]
+			private static var JIZHAN2:Class;
+			
+			[Embed(source="img/JIZHAN3.png")]
+			private static var JIZHAN3:Class;
+			
+			[Embed(source="img/JIZHAN4.png")]
+			private static var JIZHAN4:Class;
+			
+			[Embed(source="img/CELL.png")]
+			private static var CELL:Class;
+			
+			[Embed(source="img/CELL1.png")]
+			private static var CELL1:Class;
+			
+			[Embed(source="img/CELL2.png")]
+			private static var CELL2:Class;
+			
+			[Embed(source="img/CELL3.png")]
+			private static var CELL3:Class;
+			
+			[Embed(source="img/CELL4.png")]
+			private static var CELL4:Class;
+			
+			[Embed(source="img/2G.png")]
+			private static var G2:Class;
+			
+			[Embed(source="img/3G.png")]
+			private static var G3:Class;
+			
+			[Embed(source="img/VIP.png")]
+			private static var VIP:Class;
+			
+			[Embed(source="img/VVIP.png")]
+			private static var VVIP:Class;
+			
+			[Embed(source="img/SUPER.png")]
+			private static var SUPER:Class;
+			
+			[Embed(source="img/W.png")]
+			private static var W:Class;
+			
+			[Embed(source="img/D.png")]
+			private static var D:Class;
+			
+			[Embed(source="img/C.png")]
+			private static var C:Class;
+			
+			[Embed(source="img/bad.png")]
+			private static var bad:Class;
+			
+			[Embed(source="img/worst.png")]
+			private static var worst:Class;
+			
+			
+			
+			private static var destination:String = "flexdestination_cms_general_level3_level3service";
+			private static var src:String = "com.linkage.module.cms.general.level3.serv.Level3ServImp";
+			private static var endPoint:String = "/cms/messagebroker/amf";
+			
+			private static var cellDetailURL:String = "/cms/cms/resource/moinfo/ResourceMoInfo!queryMoInfo.action?qryMoId=";
+			private static var perfDetailURL:String = "/cms/cms/performance/permsg!initForm.action";
+			private static var alarmDetailURL:String = "http://cn.bing.com/";
+			private static var logicTopoURL:String = "http://www.baidu.com/";
+			
+			private var logger:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.district.DistrictMonitorGis");
+			
+			//缓存已经显示过覆盖区域的网元id
+			private var neIdCatcheObj:Object = new Object();
+			
+			//网元的右键菜单
+			private var cellContextMenu:ContextMenu;
+			
+			//当前视图的属地id
+			private var _cityId:String = "";
+			
+			public var url:String = "";
+			
+			
+			//入参 有   属地id  属地名称   属地全称 网元ID
+			private var _params:Object;
+			
+			[Bindable]
+			private var defaultCityId:Object;
+			
+			//退服统计报表数据集
+			private var ofsArrc:ArrayCollection = new ArrayCollection();
+			private var ofsColumnArrc:Array = ['区域,city_name', '基站总数,bts_num', '基站退服数,bts_quit_num', 'TD退服数,td_quit_num', '下电机房,power_cut_num', '蓄电池电压低,voltage_low_num', '蓄电池供电,accumulator_num', '传输中断,transfer_off_num'];
+			
+			//劣化小区列表数据集
+			private var perfDownArrc:ArrayCollection = new ArrayCollection();
+			private var perfDownColumnArrc:Array = ['序号,index', '地区,city', '县市,district', 'LAC,lac', 'CI,ci', '时间,time'];
+			
+			//基站标识图标偏移量配置
+			private var TYPE_OFFSETS_CATCHE:Object = {'2G':[19,-11], 
+													  '3G':[19,-11], 
+													  'VIP':[-15,-13], 
+													  'VVIP':[-15,-13], 
+													  'SUPER':[-15,-13], 
+													  'bad':[-15,-13], 
+													  'worst':[-15,-13], 
+													  'D':[0, -30], 
+													  'W':[0, -30], 
+													  'C':[0, -30]};
+			//告警等级对应的颜色
+			private var ALARM_LEVEL_COLOR:Object = {'1':0xFF0000, 
+												    '2':0xFFB366, 
+												    '3':0xFFFF4A, 
+												    '4':0x5555FF, 
+												    '0':0x00FF00};
+			
+			private var dataCache:Object;
+			
+			
+			private var statusCacheObj:Object = new Object();
+//			private var featureCacheObj:Object = new Object();
+			
+			//当前视图的属地信息
+			private var _curCityId:String = "";
+			private var _curCityName:String = "";
+			private var _curParentId:String = "";
+			private var _locationNeId:String = "";
+			
+			public function get curCityId():String
+			{
+				return _curCityId;
+			}
+
+			public function set curCityId(value:String):void
+			{
+				_curCityId = value;
+			}
+
+			public function get locationNeId():String
+			{
+				return _locationNeId;
+			}
+
+			public function set locationNeId(value:String):void
+			{
+				_locationNeId = value;
+			}
+
+			public function get curParentId():String
+			{
+				return _curParentId;
+			}
+
+			public function set curParentId(value:String):void
+			{
+				_curParentId = value;
+				defaultCityId = value;
+			}
+
+			public function get curCityName():String
+			{
+				return _curCityName;
+			}
+
+			public function set curCityName(value:String):void
+			{
+				_curCityName = value;
+			}
+
+
+			private function initCaches():void
+			{
+				statusCacheObj['2G基站'] = true;
+				statusCacheObj['2G基站_VVIP基站'] = false;
+				statusCacheObj['2G基站_VIP基站'] = false;
+				statusCacheObj['2G基站_党政军'] = false;
+				statusCacheObj['2G基站_高校'] = false;
+				statusCacheObj['2G基站_非VIP基站'] = false;
+				statusCacheObj['2G基站_超级基站'] = false;
+				
+				statusCacheObj['3G基站'] = true;
+				statusCacheObj['3G基站_VVIP基站'] = false;
+				statusCacheObj['3G基站_VIP基站'] = false;
+				statusCacheObj['3G基站_党政军'] = false;
+				statusCacheObj['3G基站_高校'] = false;
+				statusCacheObj['3G基站_非VIP基站'] = false;
+				statusCacheObj['3G基站_超级基站'] = false;
+				
+				statusCacheObj['2G小区'] = true;
+				statusCacheObj['2G小区_最差小区'] = false;
+				statusCacheObj['2G小区_劣化小区'] = false;
+				
+				statusCacheObj['3G小区'] = true;
+				statusCacheObj['3G小区_最差小区'] = false;
+				statusCacheObj['3G小区_劣化小区'] = false;
+				
+				statusCacheObj['机楼机房'] = false;
+				statusCacheObj['机楼机房_核心网设备'] = false;
+				statusCacheObj['机楼机房_数据网设备'] = false;
+				statusCacheObj['机楼机房_动环设备'] = false;
+				statusCacheObj['机楼机房_传输设备'] = false;
+				
+				statusCacheObj['应急资源'] = false;
+				statusCacheObj['应急资源_油机'] = false;
+				statusCacheObj['应急资源_应急通信车'] = false;
+				
+				statusCacheObj['wlan热点'] = false;
+				
+				statusCacheObj['网元状态'] = false;
+				statusCacheObj['网元状态_故障'] = true;
+				statusCacheObj['网元状态_正常'] = false;
+				
+				statusCacheObj['工程状态'] = false;
+				statusCacheObj['工程状态_工程'] = false;
+				statusCacheObj['工程状态_非工程'] = false;
+				
+				statusCacheObj['退服原因'] = false;
+				statusCacheObj['退服原因_基站故障'] = false;
+				statusCacheObj['退服原因_停电'] = false;
+				statusCacheObj['退服原因_一次下电'] = false;
+				statusCacheObj['退服原因_低电压'] = false;
+				statusCacheObj['退服原因_传输中断'] = false;
+				
+				statusCacheObj['覆盖范围'] = false;
+				statusCacheObj['覆盖范围_MSC'] = false;
+				statusCacheObj['覆盖范围_BSC'] = false;
+				statusCacheObj['覆盖范围_RNC'] = false;
+				statusCacheObj['覆盖范围_BTS'] = false;
+				statusCacheObj['覆盖范围_NodeB'] = false;
+				
+				statusCacheObj['性能渲染指标'] = false;
+				statusCacheObj['性能渲染指标_用户数'] = false;
+				statusCacheObj['性能渲染指标_话务量'] = false;
+				statusCacheObj['性能渲染指标_接通率'] = false;
+				statusCacheObj['性能渲染指标_无线利用率'] = false;
+				statusCacheObj['性能渲染指标_拥塞率'] = false;
+				
+				statusCacheObj['保障情况'] = false;
+				statusCacheObj['保障情况_概况信息'] = false;
+				statusCacheObj['保障情况_保障简讯'] = false;
+				statusCacheObj['保障情况_天气情况'] = false;
+				statusCacheObj['保障情况_倒计时'] = false;
+				statusCacheObj['保障情况_历史回放'] = false;
+				
+//				featureCacheObj['2G基站'] = new ArrayCollection();
+//				featureCacheObj['2G基站_VVIP基站'] = new ArrayCollection();
+//				featureCacheObj['2G基站_党政军'] = new ArrayCollection();
+//				featureCacheObj['2G基站_高校'] = new ArrayCollection();
+//				featureCacheObj['2G基站_非VIP基站'] = new ArrayCollection();
+//				featureCacheObj['2G基站_超级基站'] = new ArrayCollection();
+//				
+//				featureCacheObj['3G基站'] = new ArrayCollection();
+//				featureCacheObj['3G基站_VVIP基站'] = new ArrayCollection();
+//				featureCacheObj['3G基站_党政军'] = new ArrayCollection();
+//				featureCacheObj['3G基站_高校'] = new ArrayCollection();
+//				featureCacheObj['3G基站_非VIP基站'] = new ArrayCollection();
+//				featureCacheObj['3G基站_超级基站'] = new ArrayCollection();
+//				
+//				featureCacheObj['2G小区'] = new ArrayCollection();
+//				featureCacheObj['2G小区_最差小区'] = new ArrayCollection();
+//				featureCacheObj['2G小区_劣化小区'] = new ArrayCollection();
+//				
+//				featureCacheObj['3G小区'] = new ArrayCollection();
+//				featureCacheObj['3G小区_最差小区'] = new ArrayCollection();
+//				featureCacheObj['3G小区_劣化小区'] = new ArrayCollection();
+//				
+//				featureCacheObj['机楼机房'] = new ArrayCollection();
+//				featureCacheObj['机楼机房_核心网设备'] = new ArrayCollection();
+//				featureCacheObj['机楼机房_数据网设备'] = new ArrayCollection();
+//				featureCacheObj['机楼机房_动环设备'] = new ArrayCollection();
+//				featureCacheObj['机楼机房_传输设备'] = new ArrayCollection();
+//				
+//				featureCacheObj['应急资源'] = new ArrayCollection();
+//				featureCacheObj['应急资源_油机'] = new ArrayCollection();
+//				featureCacheObj['应急资源_应急通信车'] = new ArrayCollection();
+//				
+//				featureCacheObj['wlan热点'] = new ArrayCollection();
+//				
+//				featureCacheObj['网元状态'] = new ArrayCollection();
+//				featureCacheObj['网元状态_故障'] = new ArrayCollection();
+//				featureCacheObj['网元状态_正常'] = new ArrayCollection();
+//				
+//				featureCacheObj['工程状态'] = new ArrayCollection();
+//				featureCacheObj['工程状态_工程'] = new ArrayCollection();
+//				featureCacheObj['工程状态_非工程'] = new ArrayCollection();
+//				
+//				featureCacheObj['退服原因'] = new ArrayCollection();
+//				featureCacheObj['退服原因_基站故障'] = new ArrayCollection();
+//				featureCacheObj['退服原因_停电'] = new ArrayCollection();
+//				featureCacheObj['退服原因_一次下电'] = new ArrayCollection();
+//				featureCacheObj['退服原因_低电压'] = new ArrayCollection();
+//				featureCacheObj['退服原因_传输中断'] = new ArrayCollection();
+//				
+//				featureCacheObj['覆盖范围'] = new ArrayCollection();
+//				featureCacheObj['覆盖范围_MSC'] = new ArrayCollection();
+//				featureCacheObj['覆盖范围_BSC'] = new ArrayCollection();
+//				featureCacheObj['覆盖范围_RNC'] = new ArrayCollection();
+//				featureCacheObj['覆盖范围_BTS'] = new ArrayCollection();
+//				featureCacheObj['覆盖范围_NodeB'] = new ArrayCollection();
+//				
+//				featureCacheObj['性能渲染指标'] = new ArrayCollection();
+//				featureCacheObj['性能渲染指标_用户数'] = new ArrayCollection();
+//				featureCacheObj['性能渲染指标_话务量'] = new ArrayCollection();
+//				featureCacheObj['性能渲染指标_接通率'] = new ArrayCollection();
+//				featureCacheObj['性能渲染指标_无线利用率'] = new ArrayCollection();
+//				featureCacheObj['性能渲染指标_拥塞率'] = new ArrayCollection();
+//				
+//				featureCacheObj['保障情况'] = new ArrayCollection();
+//				featureCacheObj['保障情况_概况信息'] = new ArrayCollection();
+//				featureCacheObj['保障情况_保障简讯'] = new ArrayCollection();
+//				featureCacheObj['保障情况_天气情况'] = new ArrayCollection();
+//				featureCacheObj['保障情况_倒计时'] = new ArrayCollection();
+//				featureCacheObj['保障情况_历史回放'] = new ArrayCollection();
+				
+			}
+			
+			private function dealViewLevelChange(typeName:String, flag:Boolean):void
+			{
+//				if(flag)//选中则展示
+//				{
+//					for each(var f:GisFeature in featureCacheObj[typeName])
+//					{
+//						mapWork.map.addGisFeature(f);
+//					}
+//				}
+//				else//去选中则隐藏
+//				{
+//					for each(var f:GisFeature in featureCacheObj[typeName])
+//					{
+//						mapWork.map.removeGisFeature(f);
+//					}
+//				}
+			}
+			
+			private function selectedChanged(typeName:String, flag:Boolean):void
+			{
+				statusCacheObj[typeName] = flag;
+//				dealViewLevelChange(typeName, flag);
+				refreshFeatures();
+			}
+			
+			
+			public function initView():void
+			{
+				logger.info("initView()");
+				
+				initCaches();
+				
+				//图层事件处理函数
+				viewLevelDiv.callBack = selectedChanged;
+				
+				//根据区域设置表头和面板标题
+				setTitiles();
+				
+				//初始化网元右键菜单
+				initCellContextMenu();
+				
+				//图例标题
+				initLegend();
+
+				initTableData();
+			}
+			
+			private function setTitiles():void
+			{
+				logger.info("setTitiles()");
+				
+				mapPanel.title = _curCityName + "地图";
+				
+				ofstable.setTitle("退服统计");
+				pdtable.setTitle( _curCityName + "劣化小区列表");
+				
+			}
+			
+			//cell 右键菜单
+			private function initCellContextMenu():void
+			{
+				logger.info("开始初始化右键菜单...");
+				
+				cellContextMenu = new ContextMenu();
+				var cellDetail:ContextMenuItem = new ContextMenuItem("资源信息");
+				cellDetail.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, popupDealer);
+				
+				var alarmDetail:ContextMenuItem = new ContextMenuItem("告警信息");
+				alarmDetail.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, popupDealer);
+				
+				var perfDetail:ContextMenuItem = new ContextMenuItem("性能信息");
+				perfDetail.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, popupDealer);
+				
+				var logicTopo:ContextMenuItem = new ContextMenuItem("关联拓扑");
+				logicTopo.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, popupDealer);
+				
+				var transferLine:ContextMenuItem = new ContextMenuItem("传输管线");
+				transferLine.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, popupDealer);
+				
+				var coverRegion:ContextMenuItem = new ContextMenuItem("覆盖范围");
+				coverRegion.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, popupDealer);
+				
+				cellContextMenu.hideBuiltInItems();
+				cellContextMenu.customItems.push(cellDetail);
+				cellContextMenu.customItems.push(alarmDetail);
+				cellContextMenu.customItems.push(perfDetail);
+				cellContextMenu.customItems.push(logicTopo);
+				cellContextMenu.customItems.push(transferLine);
+				cellContextMenu.customItems.push(coverRegion);
+				logger.info("初始化右键菜单结束。");
+			}
+			
+			//右键菜单处理函数
+			private function popupDealer(gisFeature:GisFeature):void
+			{
+				logger.info("popupDealer() menu name:{0}", gisFeature.attributes.selectMenuName);
+				
+//				var cellFeature:Feature = e.contextMenuOwner as Feature;
+				
+				//根据网元id加载相关页面
+				var cellId:Object = gisFeature.attributes['mo_id'];
+				var mo_type:Object = gisFeature.attributes['mo_type'];
+				var alarmLevel:Object = gisFeature.attributes['alarmLevel'];
+				if(!alarmLevel)
+					alarmLevel = "0";
+				
+				var x:Number = gisFeature.attributes['longitude'];
+				var y:Number = gisFeature.attributes['latitude'];
+				
+				logger.info("popupDealer(), cell:{0}", gisFeature.attributes);
+				
+				//TODO 覆盖区域信息可能需要单独加载
+//				var coverRegion:ArrayCollection = cellFeature.attributes['coverRegion'];
+				
+				//菜单名称
+				switch(gisFeature.attributes.selectMenuName)
+				{
+					case "资源信息":
+						cellDetailURL = (cellDetailURL + cellId).replace(/\$/g, "&");
+						logger.debug("cellDetailURL:" + cellDetailURL);
+						navigateToURL(new URLRequest(cellDetailURL));
+						break;
+					
+					case "告警信息":
+						alarmDetailURL = (alarmDetailURL + "?neId=" + cellId).replace(/\$/g, "&");
+						logger.debug("alarmDetailURL" + alarmDetailURL);
+						navigateToURL(new URLRequest(alarmDetailURL));
+						break;
+					
+					case "性能信息":
+						perfDetailURL = (perfDetailURL + "?moId=" + cellId + "&moTypeId=" + mo_type).replace(/\$/g, "&");
+						logger.debug("perfDetailURL" + perfDetailURL);
+						navigateToURL(new URLRequest(perfDetailURL));
+						break;
+					
+					case "关联拓扑":
+						//加载逻辑topo
+						logicTopoURL = logicTopoURL.replace(/\$/g, "&");
+						logger.debug("logicTopoURL : " + logicTopoURL);
+						navigateToURL(new URLRequest(logicTopoURL), "_self");
+						break;
+					
+					case "传输管线":
+						//todo 加载传输网络信息，点击网络信息后画链路路。
+						showLineMsg(gisFeature.attributes, contentMouseX, contentMouseY)
+						break;
+					
+					case "覆盖范围":
+						if(neIdCatcheObj.hasOwnProperty(cellId))
+						{
+							break;
+						}
+						else
+						{
+							neIdCatcheObj[cellId] = null;
+						}
+						
+						//覆盖范围的点坐标集合
+						var parts:Array = new Array();
+						
+//						for each(var point:Object in coverRegion)
+//						{
+//							parts.push(new GisPoint(point.x, point.y));
+//						}
+						
+//						var nowScale:Number = mapWork.map.scale;
+						parts = [new GisPoint(x - 0.03, y + 0.04),new GisPoint(x + 0.03, y + 0.04),new GisPoint(x + 0.05, y),new GisPoint(x + 0.03, y - 0.04),new GisPoint(x - 0.03, y - 0.04),new GisPoint(x - 0.05, y)];
+						
+						//多边形样式
+						var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, getColorByAlarmLevel(alarmLevel),1,null);
+						var hexFeature:GisFeature = new GisFeature(new GisRegion(parts),polygonStyle);
+						hexFeature.alpha = 0.3;
+						hexFeature.autoMoveToTop = false;
+						mapWork.map.addGisFeatureAt(hexFeature,0);
+						break;
+				}
+			}
+			
+			private function getColorByAlarmLevel(alarmLevel:Object):Number
+			{
+				return ALARM_LEVEL_COLOR[alarmLevel];
+			}
+			
+			private function initMap():void
+			{
+				logger.info("initMap()");
+				
+				//根据当前区域加载基站信息 撒点用。
+				loadCellData(false);
+			}
+			
+			private function adjustMapCenterAndScale():void
+			{
+				//加载当前地市中心点和经纬度
+				var remoteObj:RemoteObject = BlazeDSUtil.newService(destination, src, endPoint, 
+					function(result:Object):void
+					{
+						logger.info("加载当前地市中心点和经纬度  比例尺：" + result['scale'] + " 经度：" + result['longitude'] + " 纬度：" + result['latitude']);
+						if(null != result && result['scale'] != null && result['longitude'] != null && result['latitude'] != null)
+						{
+							logger.info("加载当前地市中心点和经纬度成功！");
+							mapWork.map.zoomToScale(
+								Number(result['scale']),
+								new GisPoint(Number(result['longitude']), Number(result['latitude']))
+							);
+						}
+						else
+						{
+							logger.error("加载地市中心经纬度和比例尺数据为null！");
+						}
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error("加载地市中心经纬度和比例尺数据失败！:" + event.fault.faultString);
+					});
+				
+				logger.info("加载当前地市中心点和经纬度  cityId:" + _curCityId);
+				remoteObj.getCitySite({'city_id': _curCityId});
+				
+				//注册刷新数据定时器
+				var timer:Timer = new Timer(60000);
+				timer.addEventListener(TimerEvent.TIMER, function():void
+				{
+					logger.info("定时刷新数据 开始...");
+					loadTableData();
+					loadCellData(true);
+					logger.info("定时刷新数据 结束...");
+				});
+				timer.start();
+                //-------------------------------------历史回退修改------------------------------------
+                this.parentApplication.add(timer);
+                //-------------------------------------历史回退修改------------------------------------
+			}
+			
+			//根据用户选择的图层选项 刷新 地图信息。
+			private function refreshFeatures():void
+			{
+				logger.info("清除所有 feature......");
+				mapWork.map.clearAll();
+				
+				logger.info("重新撒点......");
+				initCellOnMap(dataCache, true);
+				
+			}
+			
+			//加载当前区域所有基站信息
+			private function loadCellData(refreshFlag:Boolean):void
+			{
+				logger.info("loadCellData()");
+				if(refreshFlag)
+				{
+					logger.info("清除所有 feature...");
+					mapWork.map.clearAll();
+				}
+				
+				var remoteObj:RemoteObject = BlazeDSUtil.newService(destination, src, endPoint, 
+				function(result:Object):void
+				{
+					if(null == result)
+					{
+						logger.error("加载当前区县所有基站、小区数据为null！");
+					}
+					else
+					{
+						logger.info("加载当前区县所有基站、小区数据成功！");
+						dataCache = copyObject(result);
+						initCellOnMap(dataCache, refreshFlag);
+					}
+				},
+				function(event:FaultEvent):void
+				{
+					logger.error("加载当前区县所有基站、小区数据失败！:" + event.fault.faultString);
+				});
+				
+				logger.info("加载当前区县所有基站、小区数据， cityId:" + _curCityId);
+				remoteObj.getResInfo({'city_id':_curCityId});
+					
+			}
+			
+			private function copyObject(ob:*):*  
+			{  
+				var byteData:ByteArray = new ByteArray();  
+				
+				byteData.writeObject(ob);  
+				
+				byteData.position = 0;  
+				
+				return byteData.readObject();  
+			} 
+
+			
+			//基站撒点
+			private function initCellOnMap(data:Object, refreshFlag:Boolean):void
+			{
+				logger.info("开始撒点基站小区信息到地图。。。");
+				//基站
+				initFeatrue2Map(data['bts']);
+				initFeatrue2Map(data['nodeb']);
+				
+				//2G 劣化小区
+				initFeatrue2MapCell(data['bad_cell'], '2G', 'bad');
+				//2G 最差小区
+				initFeatrue2MapCell(data['worst_cell'], '2G', 'worst');
+				
+				//3G 劣化小区
+				initFeatrue2MapCell(data['bad_ucell'], '3G', 'bad');
+				//3G 最差小区
+				initFeatrue2MapCell(data['worst_ucell'], '3G', 'worst');
+				
+				//小区统计数据
+				initQuitStat(data['quit_stat']);
+				logger.info("撒点基站小区信息到地图结束。");
+				
+				data = null;
+				
+				if(!refreshFlag)
+					adjustMapCenterAndScale();
+			}
+			
+			private function initQuitStat(data:Object):void
+			{
+				logger.info("基站退服统计数据展示， data:" + (data == null ? null : data.length));
+				
+				for each(var obj:Object in data)
+				{
+					if(obj.hasOwnProperty("1"))
+					{
+						logger.info("msgDiv1：" +　obj['1']);
+						var msgDiv1:MessageDiv = new MessageDiv();
+						msgDiv1.initMessager(obj['1']);
+						msgVg.addElement(msgDiv1);
+						
+					}
+					else if(obj.hasOwnProperty("2"))
+					{
+						logger.info("msgDiv2：" +　obj['2']);
+						var msgDiv2:MessageDiv = new MessageDiv();
+						msgDiv2.initMessager(obj['2']);
+						msgVg.addElement(msgDiv2);
+					}
+					else if(obj.hasOwnProperty("3"))
+					{
+						logger.info("msgDiv3：" +　obj['3']);
+						var msgDiv3:MessageDiv = new MessageDiv();
+						msgDiv3.initMessager(obj['3']);
+						msgVg.addElement(msgDiv3);
+					}
+				}
+			}
+			
+			//基站撒点
+			private function initFeatrue2Map(data:Object):void
+			{
+				logger.info("initFeatrue2Map() 数据量：" + (data == null ? null : data.length));
+				for each(var cell:Object in data)
+				{
+					//如果是通过快速定位进来的  则参数里有neId属性  则只显示那个网元
+					if(_locationNeId != null && _locationNeId != cell['mo_id'])
+					{
+						continue;
+					}
+					
+					//告警等级是否和图层中的网元状态选择一致。
+					var statusFlag:Boolean = false;
+					switch(cell['alarmLevel'])
+					{
+						case "1":
+						case "2":
+						case "3":
+						case "4":
+							statusFlag = true;
+							break;
+						default:
+							statusFlag = false;
+					}
+					
+					//如果基站有告警  但是图层中的故障状态没有勾选 则不显示
+					if(statusFlag &&　!statusCacheObj['网元状态_故障'])
+						continue;
+					//如果基站没有告警  但是图层中的正常状态没有勾选 则不显示
+					if(!statusFlag &&　!statusCacheObj['网元状态_正常'])
+						continue;
+					
+					//撒点基站的类型：2G基站 16  3G基站28
+					var moType:String = get2G3G(cell['mo_type']);
+					//撒点基站的vip类型
+					var vipType:String = getVIPType(cell['vip_type']);
+					
+					if(moType == "2G")
+					{
+						if(!statusCacheObj['2G基站'])
+						{
+							if("VVIP" == vipType && !statusCacheObj['2G基站_VVIP基站'])
+								continue;
+							if("VIP" == vipType && !statusCacheObj['2G基站_VIP基站'])
+								continue;
+							if("" == vipType && !statusCacheObj['2G基站_非VIP基站'])
+								continue;
+							if("SUPER" == vipType && !statusCacheObj['2G基站_超级基站'])
+								continue;
+						}
+							
+					}
+					else if(moType == "3G")
+					{
+						if(!statusCacheObj['3G基站'])
+						{
+							if("VVIP" == vipType && !statusCacheObj['3G基站_VVIP基站'])
+								continue;
+							if("VIP" == vipType && !statusCacheObj['3G基站_VIP基站'])
+								continue;
+							if("" == vipType && !statusCacheObj['3G基站_非VIP基站'])
+								continue;
+							if("SUPER" == vipType && !statusCacheObj['3G基站_超级基站'])
+								continue;
+						}
+					}
+					
+					var point:GisPoint  = new GisPoint(cell['longitude'], cell['latitude']);
+//					logger.info("cell cell['longitude']:" + cell['longitude']);
+//					logger.info("cell cell['latitude']:" + cell['latitude']);
+					//撒点基站  图片名称根据网元类型和最高告警等级定位      例如：img/JIZHAN1.png   （有1级告警）
+					
+					//TODO开始只显示有告警的基站和小区
+//					var firstShowFlag:Boolean = getShowFlagByAlarmLevel(cell['alarmLevel']);
+//					if(!firstShowFlag)
+//						continue;
+					
+					var icon:Class = getJizhanIcon(cell['alarmLevel']);
+					
+					var jizhanFeature:GisFeature = new GisFeature(point, new GisMarkerPictureStyle(icon));
+					
+//					logger.info("cell alarmLevel:{0}", al);
+					jizhanFeature.attributes = cell;
+//					jizhanFeature.addEventListener(GisFeatureEvent.GISFEATURE_OVER, 
+//						function (event:GisFeatureEvent):void
+//						{
+//							//网元信息悬浮框//
+//							loadCellMsg(event.gisFeature.attributes,(event.targetEvent as MouseEvent).stageX,(event.targetEvent as MouseEvent).stageY);
+//						});
+//					
+//					jizhanFeature.addEventListener(GisFeatureEvent.GISFEATURE_OUT, 
+//						function():void
+//						{
+//							flowMsgDiv.visible = false;
+//						});
+					
+					jizhanFeature.onMouseOver = function(gisFeature:GisFeature,event:MouseEvent):void{
+						loadCellMsg(gisFeature.attributes,event.stageX,event.stageY);
+					}
+					jizhanFeature.onMouseOut = function(gisFeature:GisFeature,event:MouseEvent):void{
+						flowMsgDiv.visible = false;
+					}
+					//网元右键菜单。
+//					jizhanFeature.contextMenu = cellContextMenu;
+					
+					//不自动置顶
+					jizhanFeature.autoMoveToTop = false;
+					
+					//添加到地图上
+					mapWork.map.addGisFeatureAt(jizhanFeature);
+					//网元右键菜单。
+					mapWork.map.addGisFeatureMenu(jizhanFeature, "资源信息", popupDealer); 
+					mapWork.map.addGisFeatureMenu(jizhanFeature, "告警信息", popupDealer); 
+					mapWork.map.addGisFeatureMenu(jizhanFeature, "性能信息", popupDealer); 
+					mapWork.map.addGisFeatureMenu(jizhanFeature, "关联拓扑", popupDealer); 
+					mapWork.map.addGisFeatureMenu(jizhanFeature, "传输管线", popupDealer); 
+					mapWork.map.addGisFeatureMenu(jizhanFeature, "覆盖范围", popupDealer); 
+					
+//					logger.info("cell vipType:{0}", vipType);
+					if("" != vipType)
+					{
+						var vipIcon:Class = getVIPIcon(cell['vip_type']);
+						var pstyle:GisMarkerPictureStyle = new GisMarkerPictureStyle(vipIcon);
+						
+						var xyArr:Array = getXYOffsets(vipType);
+						pstyle.xOffset = xyArr[0] as Number;
+						pstyle.yOffset = xyArr[1] as Number;
+						var VIPTypeFeature:GisFeature = new GisFeature(point,pstyle);
+						VIPTypeFeature.autoMoveToTop = false;
+						mapWork.map.addGisFeatureAt(VIPTypeFeature);
+					}
+					
+//					logger.info("cell moType:{0}", moType);
+					if("" != moType)
+					{
+						var moTypeIcon:Class = get2G3GIcon(cell['mo_type']);
+						var pstyle3:GisMarkerPictureStyle = new GisMarkerPictureStyle(moTypeIcon);
+						
+						var xyArr3:Array = getXYOffsets(moType);
+						pstyle3.xOffset = xyArr3[0] as Number;
+						pstyle3.yOffset = xyArr3[1] as Number;
+						var gTypeFeature:GisFeature = new GisFeature(point,pstyle3);
+						gTypeFeature.autoMoveToTop = false;
+						mapWork.map.addGisFeatureAt(gTypeFeature);
+					}
+					
+					
+					//撒点该网元的网络类型：无线3   传输2    动环1
+					var specType:String = getSpecType(cell['quitreason']);
+//					logger.info("cell specType:{0}", specType);
+//					logger.info("cell specType:{0}", specType);
+					if("" != specType)
+					{
+						var specTypeIcon:Class = getSpecTypeIcon(cell['quitreason']);
+						var pstyle2:GisMarkerPictureStyle = new GisMarkerPictureStyle(specTypeIcon);
+						
+						var xyArr2:Array = getXYOffsets(getSpecType);
+						pstyle2.xOffset = xyArr2[0] as Number;
+						pstyle2.yOffset = xyArr2[1] as Number;
+						var specTypeFeature:GisFeature = new GisFeature(point, pstyle2);
+						specTypeFeature.autoMoveToTop = false;
+						mapWork.map.addGisFeatureAt(specTypeFeature);
+					}
+					
+//					addFeature2Cache({"specType":specType, "vipType":vipType, "moType":moType, "type":type, "alarmLevel":cell['alarmLevel']},[jizhanFeature, VIPTypeFeature, gTypeFeature, specTypeFeature]);
+				}
+			}
+			
+			//小区撒点
+			private function initFeatrue2MapCell(data:Object, moType:String, type:String):void
+			{
+				logger.info("initFeatrue2MapCell() 数据量：" + (data == null ? null : data.length) + " moType:" + moType + " type:" + type);
+				for each(var cell:Object in data)
+				{
+					//如果是通过快速定位进来的  则参数里有neId属性  则只显示那个网元
+					if(_locationNeId != null && _locationNeId != cell['mo_id'])
+					{
+						continue;
+					}
+					
+					//告警等级是否和图层中的网元状态选择一致。
+					var statusFlag:Boolean = false;
+					switch(cell['alarmLevel'])
+					{
+						case "1":
+						case "2":
+						case "3":
+						case "4":
+							statusFlag = true;
+							break;
+						default:
+							statusFlag = false;
+							
+					}
+					
+					//如果基站有告警  但是图层中的故障状态没有勾选 则不显示
+					if(statusFlag &&　!statusCacheObj['网元状态_故障'])
+						continue;
+					//如果基站没有告警  但是图层中的正常状态没有勾选 则不显示
+					if(!statusFlag &&　!statusCacheObj['网元状态_正常'])
+						continue;
+					
+					
+					if(moType == "2G")
+					{
+						if(!statusCacheObj['2G小区'])
+						{
+							if("bad" == type && !statusCacheObj['2G小区_劣化小区'])
+								continue;
+							if("worst" == type && !statusCacheObj['2G小区_最差小区'])
+								continue;
+						}
+						
+					}
+					else if(moType == "3G")
+					{
+						if(!statusCacheObj['3G小区'])
+						{
+							if("bad" == type && !statusCacheObj['3G小区_劣化小区'])
+								continue;
+							if("worst" == type && !statusCacheObj['3G小区_最差小区'])
+								continue;
+						}
+					}
+					
+					
+					
+					
+					var point:GisPoint  = new GisPoint(cell['longitude'], cell['latitude']);
+					//撒点小区  图片名称根据网元类型和最高告警等级定位      例如：img/JIZHAN1.png   （有1级告警）
+					
+//					var firstShowFlag:Boolean = getShowFlagByAlarmLevel(cell['alarmLevel']);
+//					if(!firstShowFlag)
+//						continue;
+					
+					var cellIcon:Class = getCellIcon(cell['alarmLevel']);
+					
+					var cellFeature:GisFeature = new GisFeature(point, new GisMarkerPictureStyle(cellIcon));
+					
+//					logger.info("cell alarmLevel:{0}", alarmLevel);
+					cellFeature.attributes = cell;
+//					cellFeature.addEventListener(GisFeatureEvent.GISFEATURE_OVER, 
+//						function (event:GisFeatureEvent):void
+//						{
+//							//网元信息悬浮框//
+//							loadCellMsg(event.gisFeature.attributes,(event.targetEvent as MouseEvent).stageX,(event.targetEvent as MouseEvent).stageY);
+//						});
+//					
+//					cellFeature.addEventListener(GisFeatureEvent.GISFEATURE_OUT, 
+//						function():void
+//						{
+//							flowMsgDiv.visible = false;
+//						});
+					cellFeature.onMouseOver = function(gisFeature:GisFeature,event:MouseEvent):void{
+						loadCellMsg(gisFeature.attributes,event.stageX,event.stageY);
+					};
+						
+					cellFeature.onMouseOut = function(gisFeature:GisFeature,event:MouseEvent):void{
+						flowMsgDiv.visible = false;
+					}
+					
+					//不自动置顶
+					cellFeature.autoMoveToTop = false;
+					
+					//添加到地图上
+					mapWork.map.addGisFeatureAt(cellFeature);
+					//网元右键菜单。
+					mapWork.map.addGisFeatureMenu(cellFeature, "资源信息", popupDealer); 
+					mapWork.map.addGisFeatureMenu(cellFeature, "告警信息", popupDealer); 
+					mapWork.map.addGisFeatureMenu(cellFeature, "性能信息", popupDealer); 
+					mapWork.map.addGisFeatureMenu(cellFeature, "关联拓扑", popupDealer); 
+					mapWork.map.addGisFeatureMenu(cellFeature, "传输管线", popupDealer); 
+					mapWork.map.addGisFeatureMenu(cellFeature, "覆盖范围", popupDealer); 
+					
+					//撒点小区的类型：2G小区 101   3G小区102
+//					var moType:String = get2G3G(cell['mo_type']);
+//					logger.info("小区类型 moType:{0}", moType);
+					if("" != moType)
+					{
+						var moTypeIcon:Class = get2G3GIcon(cell['mo_type']);
+						var pstyle:GisMarkerPictureStyle = new GisMarkerPictureStyle(moTypeIcon);
+						
+						var xyArr:Array = getXYOffsets(moType);
+						pstyle.xOffset = xyArr[0] as Number;
+						pstyle.yOffset = xyArr[1] as Number;
+						var gTypeFeature:GisFeature = new GisFeature(point,pstyle);
+						gTypeFeature.autoMoveToTop = false;
+						mapWork.map.addGisFeatureAt(gTypeFeature);
+					}
+					
+					//撒点劣化小区  最差小区
+//					var type:String = getType(cell['type']);
+//					logger.info("cell type:{0}", type);
+					if("" != type)
+					{
+						var typeIcon:Class = getTypeIcon(cell['type']);
+						var pstyle2:GisMarkerPictureStyle = new GisMarkerPictureStyle(typeIcon);
+						
+						var xyArr2:Array = getXYOffsets(type);
+						pstyle2.xOffset = xyArr2[0] as Number;
+						pstyle2.yOffset = xyArr2[1] as Number;
+						var badWorstFeature:GisFeature = new GisFeature(point, pstyle2);
+						badWorstFeature.autoMoveToTop = false;
+						mapWork.map.addGisFeatureAt(badWorstFeature);
+					}
+					
+//					addFeature2CacheCell({"moType":moType, "type":type, "alarmLevel":cell['alarmLevel']}, [cellFeature, gTypeFeature, badWorstFeature]);
+				}
+			}
+			
+//			private function addFeature2Cache(param:Object, features:Array):void
+//			{
+//				var statusFlag:Boolean = false;
+//				switch(param['alarmLevel'])
+//				{
+//					case "1":
+//					case "2":
+//					case "3":
+//					case "4":
+//						statusFlag = true;
+//				}
+//				
+//				switch(param['type'])
+//				{
+//					
+//					case "bad":
+//					{
+//						for each(var f:GisFeature in features)
+//						{
+//							featureCacheObj['网元状态'].addItem(f);
+//							featureCacheObj[param['moType'] + "基站"].addItem(f);
+//							
+//							featureCacheObj[param['moType'] + "小区_劣化小区"].addItem(f);
+//							
+//							if(statusFlag)
+//								featureCacheObj['网元状态_故障'].addItem(f);
+//							else
+//								featureCacheObj['网元状态_正常'].addItem(f);
+//						}
+//						break;
+//					}
+//					case "worst":
+//					{
+//						for each(var f1:GisFeature in features)
+//						{
+//							featureCacheObj['网元状态'].addItem(f1);
+//							featureCacheObj[param['moType'] + "基站"].addItem(f1);
+//							
+//							featureCacheObj[param['moType'] + "小区_最差小区"].addItem(f1);
+//							
+//							if(statusFlag)
+//								featureCacheObj['网元状态_故障'].addItem(f1);
+//							else
+//								featureCacheObj['网元状态_正常'].addItem(f1);
+//						}
+//						break;
+//					}
+//				}
+//			}
+			
+//			private function addFeature2CacheCell(param:Object, features:Array):void
+//			{
+//				var statusFlag:Boolean = false;
+//				switch(param['alarmLevel'])
+//				{
+//					case "1":
+//					case "2":
+//					case "3":
+//					case "4":
+//						statusFlag = true;
+//				}
+//				
+//				switch(param['type'])
+//				{
+//					
+//					case "bad":
+//					{
+//						for each(var f:GisFeature in features)
+//						{
+//							featureCacheObj['网元状态'].addItem(f);
+//							featureCacheObj[param['moType'] + "小区"].addItem(f);
+//							
+//							featureCacheObj[param['moType'] + "小区_劣化小区"].addItem(f);
+//							
+//							if(statusFlag)
+//								featureCacheObj['网元状态_故障'].addItem(f);
+//							else
+//								featureCacheObj['网元状态_正常'].addItem(f);
+//						}
+//						break;
+//					}
+//					case "worst":
+//					{
+//						for each(var f1:GisFeature in features)
+//						{
+//							featureCacheObj['网元状态'].addItem(f1);
+//							featureCacheObj[param['moType'] + "小区"].addItem(f1);
+//							
+//							featureCacheObj[param['moType'] + "小区_最差小区"].addItem(f1);
+//							
+//							if(statusFlag)
+//								featureCacheObj['网元状态_故障'].addItem(f1);
+//							else
+//								featureCacheObj['网元状态_正常'].addItem(f1);
+//						}
+//						break;
+//					}
+//				}
+//			}
+			
+			private function getShowFlagByAlarmLevel(alarmLevel:Object):Boolean
+			{
+				//过滤需要展示的告警等级
+				switch(alarmLevel)
+				{
+					case "1":
+					case "2":
+					case "3":
+					case "4":
+						return true;
+					default:
+						return false;
+				}
+			}
+			
+			private function getJizhanIcon(alarmLevel:Object):Class
+			{
+				//告警等级对应的基站图标对象
+				switch(alarmLevel)
+				{
+					case "1":
+						return JIZHAN1;
+					case "2":
+						return JIZHAN2;
+					case "3":
+						return JIZHAN3;
+					case "4":
+						return JIZHAN4;
+					default:
+						return JIZHAN;
+				}
+			}
+			
+			private function getCellIcon(alarmLevel:Object):Class
+			{
+				//告警等级对应的小区图标对象
+				switch(alarmLevel)
+				{
+					case "1":
+						return CELL1;
+					case "2":
+						return CELL2;
+					case "3":
+						return CELL3;
+					case "4":
+						return CELL4;
+					default:
+						return CELL;
+				}
+			}
+			private function get2G3G(moType:Object):String
+			{
+				//根据网元类型获取类别标识（2G 3G）， 类别标识用于获取 撒点偏移量
+				switch(moType)
+				{
+					case "16":
+					case "101":
+						return "2G";
+					case "28":
+					case "102":
+						return "3G";
+					default:
+						return "";
+				}
+			}
+			private function get2G3GIcon(moType:Object):Class
+			{
+				//根据网元类型获取对应的图标对象
+				switch(moType)
+				{
+					case "16":
+					case "101":
+						return G2;
+					case "28":
+					case "102":
+						return G3;
+					default:
+						return null;
+				}
+			}
+			
+			private function getSpecType(specType:Object):String
+			{
+				//获取退服专业类型：（d:数据，c:传输    w:无线）
+				switch(specType)
+				{
+					case "1":
+						return "D";
+					case "2":
+						return "C";
+					case "3":
+						return "W";
+					default:
+						return "";
+				}
+			}
+			
+			private function getSpecTypeIcon(specType:Object):Class
+			{
+				//获取退服专业类型：（d:数据，c:传输    w:无线）对应的图标对象
+				switch(specType)
+				{
+					case "1":
+						return D;
+					case "2":
+						return C;
+					case "3":
+						return W;
+					default:
+						return null;
+				}
+			}
+			
+			private function getType(type:Object):String
+			{
+				//小区类型：1：劣化小区、0：最差小区
+				switch(type)
+				{
+					case "1":
+						return "bad";
+					case "0":
+						return "worst";
+					default:
+						return "";
+				}
+			}
+			
+			private function getTypeIcon(type:Object):Class
+			{
+				//小区类型：1：劣化小区、0：最差小区   对应的图标对象
+				switch(type)
+				{
+					case "1":
+						return bad;
+					case "0":
+						return worst;
+					default:
+						return null;
+				}
+			}
+			
+			private function getVIPType(vipType:Object):String
+			{
+				//获取VIP类型标识
+				switch(vipType)
+				{
+					case "3":
+						return "VIP";
+					case "4":
+						return "VVIP";
+					case "5":
+						return "SUPER";
+					default:
+						return "";
+				}
+			}
+			
+			private function getVIPIcon(vipType:Object):Class
+			{
+				//vip类型图标对象
+				switch(vipType)
+				{
+					case "3":
+						return VIP;
+					case "4":
+						return VVIP;
+					case "5":
+						return SUPER;
+					default:
+						return null;
+				}
+			}
+
+			private function getXYOffsets(type:Object):Array
+			{
+				//撒点图标用的偏移量
+				return TYPE_OFFSETS_CATCHE[type];
+			}
+			
+			private function loadCellMsg(cell:Object, lx:Number, ly:Number):void
+			{
+				var remoteObj:RemoteObject = BlazeDSUtil.newService(destination, src, endPoint,
+					function(result:Object):void
+					{
+						logger.info("加载基站数据结束。");
+						if(null == result)
+						{
+							logger.error("加载基站数据为null！");
+						}
+						else
+						{
+							logger.info("#    处理基站数据...");
+							
+							var msg:String = "告警\n";
+							msg += "原因:" + result['alarm']['reason'] + "\n";
+							msg += "------------------\n";
+							msg += "性能\n";
+							msg += "指标统计时间：" + result['perf']['stat_time'] + "\n";
+							msg +=  result['perf']['perf_info'] + "\n";
+							msg += "------------------\n";
+							msg += "资源\n";
+							msg += "网元名：" + result['res']['down_mo'] + "\n";
+							msg += "归属网元：" + result['res']['mo_name'] + "\n";
+							msg += "描述：" + result['res']['down_desc'] + "\n";
+							
+							showMsgDiv(msg, lx, ly);
+							logger.info("#    处理基站数据结束。");
+							result = null;
+						}
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error("加载基站数据失败！:" + event.fault.faultString);
+						showMsgDiv("\n加载基站数据失败！", lx, ly);
+						setTimeout(function():void
+						{
+							flowMsgDiv.visible = false;
+						}, 1000);
+					});
+				
+				logger.info("加载基站数据  mo_id:" + cell['mo_id'] + " mo_type：" + cell['mo_type'] + " mo_name：" + cell['mo_name']);
+				remoteObj.getSingleBtsInfo({'mo_id':cell['mo_id'], 'mo_type':cell['mo_type'], 'mo_name':cell['mo_name']});
+				flowMsgDiv.visible = true;
+				showMsgDiv("\n正在加载，请稍候。。。", lx, ly);
+			}
+			
+			private function showMsgDiv(msg:String, lx:Number, ly:Number):void
+			{
+				var x:Number = lx + 10;
+				var y:Number = ly - flowMsgDiv.height/2;
+				
+				if(x > mapPanel.width - flowMsgDiv.width)
+					x = lx - flowMsgDiv.width - 10;
+				
+				if(y < 0)
+					y = 5;
+				
+				if(y + flowMsgDiv.height + 30 > mapPanel.height)
+					y = mapPanel.height - flowMsgDiv.height - 30;
+				
+				flowMsgDiv.x = x;
+				flowMsgDiv.y = y;
+				flowMsgDiv.setMsg(msg);
+			}
+			
+			private function showLineMsg(cell:Object, lx:Number, ly:Number):void
+			{
+				var cellId:Object = cell['mo_id'];
+				
+				cellIdText.text = cellId.toString();
+				
+				lineMsgWindow.visible = true;
+				
+				var x:Number = lx + 10;
+				var y:Number = ly - lineMsgWindow.height/2;
+				
+				if(x > mapPanel.width - lineMsgWindow.width)
+					x = lx - lineMsgWindow.width - 10;
+				
+				if(y < 0)
+					y = 5;
+				
+				if(y + lineMsgWindow.height + 30 > mapPanel.height)
+					y = mapPanel.height - lineMsgWindow.height - 30;
+				
+				lineMsgWindow.x = x;
+				lineMsgWindow.y = y;
+				
+				//TODO 加载网元链路相关信息再展示。
+				var neLineInfo:Object = null;
+				var remoteObj:RemoteObject = BlazeDSUtil.newService(destination, src, endPoint,
+					function(result:Object):void
+					{
+						logger.info("load cell line data result: {0}", result);
+						if(null == result)
+						{
+							logger.error("加载基站链路数据为null！");
+						}
+						else
+						{
+							neLineInfo = result;
+						}
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error("加载基站链路数据失败！:" + event.fault.faultString);
+					});
+				
+				logger.info("加载链路信息：mo_id:" + cellId);
+				remoteObj.getTransferInfo({'mo_id':cellId});
+				
+				var msg:String = "南京市区应天西路机楼-南京市区仙林东一体化基站30N0001";
+				nowNeLineLabel.text = msg;
+			}
+			
+			private function initLegend():void
+			{
+				legendDiv.setTitle("图例");
+			}
+			
+			private function initTableData():void
+			{
+				logger.info("设置表格数据集和列信息...");
+				ofstable.initTable(ofsArrc, ofsColumnArrc);
+				pdtable.initTable(perfDownArrc, perfDownColumnArrc);
+				
+				loadTableData();
+			}
+			
+			private function loadTableData():void
+			{
+				var remoteObj:RemoteObject = BlazeDSUtil.newService(destination, src, endPoint,
+					function(result:Object):void
+					{
+						if(null == result)
+						{
+							logger.error("加载退服基站统计数据为null！");
+						}
+						else
+						{
+							logger.error("加载退服基站统计数据成功！");
+							ofsArrc.removeAll();
+							for each (var tmp:Object in result)
+							{
+								ofsArrc.addItem(tmp);
+							}
+							result = null;
+						}
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error("加载退服基站统计数据失败！: " + event.fault.faultString);
+					});
+				
+				logger.info("加载退服基站数据， cityId:" + _curCityId);
+				remoteObj.getQuitBtsStat({'city_id':_curCityId});
+				
+				
+				
+				var remoteObj2:RemoteObject = BlazeDSUtil.newService(destination, src, endPoint,
+					function(result:Object):void
+					{
+						logger.info("加载劣化小区统计数据。");
+						if(null == result)
+						{
+							logger.error("加载劣化小区统计数据为null！");
+						}
+						else
+						{
+							logger.info("加载劣化小区统计数据成功。");
+							perfDownArrc.removeAll();
+							for each (var tmp:Object in result)
+							{
+								perfDownArrc.addItem(tmp);
+							}
+							result = null;
+						}
+					},
+					function(event:FaultEvent):void
+					{
+						logger.error("加载劣化小区统计数据失败！:" + event.fault.faultString);
+					});
+				
+				logger.info("加载劣化小区统计数据， cityId:" + _curCityId);
+				remoteObj2.getBadCellStat({'city_id':_curCityId});
+			}
+			
+			protected function hideWindow():void
+			{
+				lineMsgWindow.visible = false;
+			}
+			
+			protected function showAllLines(event:MouseEvent):void
+			{
+				// TODO 加载当前区域内所有网元的链路信息
+				var allCellLineList:ArrayCollection = null;
+				for each(var pointArr:Array in allCellLineList)
+				{
+					drawLineOnMap(pointArr);
+				}
+			}
+			
+			protected function showLine(event:MouseEvent):void
+			{
+				var cellId:String = cellIdText.text;
+				// TODO 加载当前网元的链路信息。
+				
+				drawLineOnMap(null);
+			}
+			
+			private function drawLineOnMap(pointArr:Array):void
+			{
+				//test
+				var parts:Array = [new GisPoint(112, 23.5),new GisPoint(112.5, 23.5),new GisPoint(113, 24),new GisPoint(113.5, 23.5),new GisPoint(113, 23),new GisPoint(112, 23.5)];
+				//test
+				var lineStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0x00000,1,4);
+				
+				var geoLine:GisLine = new GisLine(parts);
+				
+				var lineFeature:GisFeature = new GisFeature(geoLine,lineStyle);
+				lineFeature.autoMoveToTop = false;
+				mapWork.map.addGisFeatureAt(lineFeature, 0);
+				
+			}
+			
+			public function get params():Object
+			{
+				return _params;
+			}
+
+			public function set params(value:Object):void
+			{
+				_params = value;
+			}
+			
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				
+			}
+			
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				
+			}
+
+			protected function showHideViewLevel():void
+			{
+				viewLevelDiv.visible = viewLevelDiv.hideWindow();
+			}
+
+		]]>
+	</fx:Script>
+	
+	
+	<fx:Declarations>
+	</fx:Declarations>
+	
+	<s:Panel id="mapPanel" width="100%" height="100%" top="5" left="5" right="5" backgroundAlpha="0">
+		
+		<!-- map -->
+		<gis:MapWork id="mapWork" 
+					 width="100%" 
+					 height="100%" 
+					 defaultMapId="{defaultCityId}"
+					 toolbar_picLayer="showHideViewLevel()"
+					 mapCreationComplete="initMap()" 
+					 showOverView="false"/>
+		
+		<!--图例侧边框-->
+		<district:LegendDiv id="legendDiv" top="{mapPanel.height - legendDiv.height - 38}"/>
+		
+		<!--基站统计信息，悬浮DIV显示-->
+		<s:VGroup id="msgVg" right="20" bottom="50"/>
+		
+		<!-- 退服统计、劣化小区列表-->
+		<s:VGroup id="vg" x="{mapPanel.width - ofstable.width}" top="20">
+			<district:ShrinkTable id="ofstable" />
+			<district:ShrinkTable id="pdtable"/>
+		</s:VGroup>
+		
+		<!--网元信息展示框-->
+		<district:FlowMessageDiv id="flowMsgDiv" visible="false"/>
+		
+		<district:ViewLevelDiv id="viewLevelDiv" top="50" left="50" visible="false"/>
+		
+		<!--网元链路信息展示框-->
+		<panel:Window id="lineMsgWindow" 
+					  visible="false" 
+					  maximizable="false" 
+					  closable="true" 
+					  minimizable="false"
+					  dragable="true"
+					  alpha="0.6"  
+					  width="300" 
+					  height="200" 
+					  close="hideWindow()">
+			
+			<s:SkinnableContainer width="100%" height="100%" backgroundColor="0x8DCBFE">
+				<s:VGroup width="100%" left="15">
+					<s:Button content="显示所有管线链路信息" click="showAllLines(event)"/>
+					<s:Label text="根据电路编码查询链路信息"/>
+					<mx:HRule width="100%" height="2"/>
+					<s:Label id="nowNeLineLabel" click="showLine(event)" useHandCursor="true" buttonMode="true" width="100%"/>
+					<mx:Text id="cellIdText" visible="false"/>
+				</s:VGroup>
+			</s:SkinnableContainer>
+		</panel:Window>
+	</s:Panel>
+</monitor:CommonGroup>

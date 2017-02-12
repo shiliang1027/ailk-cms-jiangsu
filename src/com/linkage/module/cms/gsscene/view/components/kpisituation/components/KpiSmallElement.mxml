@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 maxHeight="60"
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author Administrator (Ailk No.)
+		 @version 1.0
+		 @date 2012-10-15
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneResource;
+			
+			import mx.events.FlexEvent;
+			[Bindable]
+			public var kpiName:String;
+			[Bindable]
+			public var kpiValue:String;
+			[Bindable]
+			public var dateTime:String;
+			[Bindable]
+			public var isup:String;
+			[Bindable]
+			public var rate:String;
+			[Bindable]
+			public var color:uint;
+			private var log:ILogger=Log.getLoggerByClass(KpiSmallElement);
+
+			[Bindable]
+			public var moId:String="";
+			;
+			[Bindable]
+			public var perfId:String="";
+
+			public var param:Object;
+
+			[Bindable]
+			public var showDetial:String="";
+
+			[Bindable]
+			public var isSceneArea:String="0";
+			
+			[Bindable]
+			private var _warnLevel:Class;
+			
+			public function set warnLevel(value:String):void
+			{
+				if("1"==value){
+					_warnLevel = GsSceneResource.gaojin_1;
+				}else if("2"==value){
+					_warnLevel = GsSceneResource.gaojin_2;					
+				}else if("3"==value){
+					_warnLevel = GsSceneResource.gaojin_3;					
+				}else if("4"==value){
+					_warnLevel = GsSceneResource.gaojin_4;				
+				}else{
+					_warnLevel = GsSceneResource.gaojin_0;
+				}
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				try
+				{
+					if (isup)
+					{
+						if (isup == "1")
+							isup="/cms/cms/img/kpi/up.png";
+						else if (isup == "0")
+							isup="/cms/cms/img/kpi/ping.png";
+						else if (isup == "-1")
+							isup="/cms/cms/img/kpi/down.png";
+						img.source=isup;
+					}
+				}
+				catch (e:Error)
+				{
+					log.debug(e);
+				}
+
+			}
+		]]>
+	</fx:Script>
+	<s:SkinnableContainer width="100%"
+						  buttonMode="true"
+						  styleName="sceneKpiBG"
+						  minHeight="0">
+		<s:layout>
+			<s:VerticalLayout gap="0"
+							  paddingLeft="2"
+							  paddingRight="2"
+							  paddingTop="2"
+							  paddingBottom="2"/>
+		</s:layout>
+		<s:SkinnableContainer width="100%"
+							  styleName="sceneKpiItemBg">
+			<s:VGroup width="100%">
+
+				<s:HGroup width="100%" verticalAlign="middle">
+
+					<s:HGroup width="100%"
+							  verticalAlign="middle"
+							  horizontalAlign="right">
+						<s:Label text="{kpiName}"
+								 width="100%"
+								 styleName="sceneKpiLabel1"/>
+						<mx:Image source="{_warnLevel}"/>
+					</s:HGroup>
+
+					<s:SkinnableContainer width="120"
+										  styleName="sceneKpiItemValueBg">
+						<s:layout>
+							<s:HorizontalLayout gap="2"
+												verticalAlign="middle"
+												horizontalAlign="center"
+												paddingLeft="5"
+												paddingRight="5"/>
+						</s:layout>
+						<s:Label text="{kpiValue}"
+								 styleName="sceneKpiLabel4"
+								 color="{color}"/>
+						<mx:Image id="img"/>
+						<s:Label text="{rate}"
+								 styleName="sceneKpiLabel4"/>
+					</s:SkinnableContainer>
+
+				</s:HGroup>
+				<s:HGroup width="100%"
+						  height="16"
+						  verticalAlign="middle"
+						  paddingLeft="10">
+					<s:Label text="{dateTime}"
+							 styleName="sceneKpiLabel6"/>
+					<mx:Spacer width="15"/>
+					<s:Label text="说明"
+							 toolTip="{showDetial}"
+							 buttonMode="true"/>
+				</s:HGroup>
+
+
+			</s:VGroup>
+
+		</s:SkinnableContainer>
+
+	</s:SkinnableContainer>
+</s:Group>

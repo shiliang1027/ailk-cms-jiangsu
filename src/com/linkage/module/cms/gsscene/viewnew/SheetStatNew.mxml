@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:CompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+					title="故障工单"
+					titleIcon="@Embed(source='../img/title_ico01.png')">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.SheetStatDM;
+			import com.linkage.module.cms.gsscene.view.components.sheetstat.event.SheetStatEvent;
+			import com.linkage.module.cms.gsscene.viewnew.sheetstat.CitySheetStatNew;
+			
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			private var log:ILogger = Log.getLoggerByClass(SheetStatNew);
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			
+			[Inject("citySheetStatNew")]
+			[Bindable]
+			public var citySheetStatNew:CitySheetStatNew;
+			
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			
+			[MessageHandler(selector = "COMPONENT_REFRESH_DATA")]
+			public function loadData(e:SceneEvent = null):void
+			{
+				log.info("开始加载工单数据。");
+				requestServerUtil.addRequest(new SheetStatEvent(SheetStatEvent.LOAD_SHEET_DATA));
+			}
+			
+			protected function showSheetOfMotype(event:ListEvent):void
+			{
+				var cityname:String = sheetStatCityDG.selectedItem.CITYNAME;
+				log.info("工单　击：" +　cityname);
+				var evt:SheetStatEvent = new SheetStatEvent(SheetStatEvent.LOAD_SHEET_DATA_MOTYPE);
+				evt.param = cityname;
+				this.scenePM.sheetStatDM.cityName = cityname;
+				requestServerUtil.addRequest(evt);
+			}
+			[MessageHandler(selector = "LOAD_SHEET_DATA_MOTYPE_SUCC")]
+			public function showSheetMotype(evt:SheetStatEvent):void
+			{
+				PopUpManager.addPopUp(citySheetStatNew, this.parentApplication as DisplayObject);
+				PopUpManager.centerPopUp(citySheetStatNew);
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<mx:AdvancedDataGrid width="100%"
+						 height="100%"
+						 styleName="sceneDG"
+						 id="sheetStatCityDG"
+						 verticalAlign="middle"
+						 doubleClickEnabled="true"
+						 horizontalScrollPolicy="auto"
+						 itemClick="showSheetOfMotype(event)"
+						 dataProvider="{this.scenePM.sheetStatDM.sheetListCity}">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="CITYNAME"
+									   headerText="属地"/>
+			<mx:AdvancedDataGridColumn dataField="SHEETNUM"
+									   headerText="工单数"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</viewnew:CompWindow>

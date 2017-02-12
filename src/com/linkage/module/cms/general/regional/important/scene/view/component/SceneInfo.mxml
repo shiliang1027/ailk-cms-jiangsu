@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:navbar="com.linkage.module.cms.components.navbar.*"
+		 xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		 width="100%"
+		 height="100%"
+		 xmlns:panel="com.linkage.system.component.panel.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.important.scene.Container;
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.core.IFlexDisplayObject;
+			import mx.core.IVisualElement;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+
+			/**
+			 * 日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.important.scene.view.component.SceneInfo");
+			/**
+			 * 场馆监控控制器
+			 */
+			private var _monitorAction:MonitorAction=null;
+			/**
+			 * 弹出窗口
+			 */
+			private var _window:IVisualElement=null;
+			/**
+			 * 是否初始化
+			 */
+			private var _isInit:Boolean=false;
+			/**
+			 * 规则
+			 */
+			private var _rule:String=null;
+
+			//初始化列表
+			public function initInfo(venueId:String, histroyTime:String):void
+			{
+				//1.加载数据
+				monitorAction.getVenueOutlineInfo(venueId, histroyTime, function(result:Object):void
+					{
+						resouceInfo.dataProvider=result["res_info"];
+						ServersInfo.dataProvider=result["serv_info"];
+						proInfo.dataProvider=result["perf_info"];
+					});
+
+				//2.初始化告警
+				var local:Boolean=monitorAction.monitorFO.local;
+				var mapInfo:Object=monitorAction.monitorFO.mapInfo;
+				if (!_isInit)
+				{
+					_isInit=true;
+					monitorAction.getVenueAlarmFilter(venueId, function(result:String):void
+						{
+							_rule=String(result);
+							var params:Object=new Object();
+							params[Container.PARAMKEY_LOCAL]=local;
+							params[Container.PARAMKEY_MAPINFO]=mapInfo;
+							flowAlarm.params=params;
+							flowAlarm.ruleContent=result;
+							log.info("告警过滤器=================>" + result);
+							if (local)
+							{
+								flowAlarm.localTest();
+							}
+							else
+							{
+								flowAlarm.initInfo();
+							}
+						});
+				}
+				else
+				{
+					monitorAction.getVenueAlarmFilter(venueId, function(result:String):void
+						{
+							log.info("告警过滤器=================>" + result);
+							flowAlarm.reload(result);
+						});
+				}
+			}
+
+			//展示告警
+			public function showAlarm():void
+			{
+				if (_isInit && flowAlarm != null)
+				{
+					flowAlarm.reload(_rule);
+				}
+			}
+
+			//隐藏告警
+			public function hideAlarm():void
+			{
+				if (_isInit && flowAlarm != null)
+				{
+					flowAlarm.stopLoad();
+				}
+			}
+
+			//最大化
+			protected function window_maximizeHandler(event:WindowEvent):void
+			{
+				_window=infoNavBar.removeElementAt(0);
+				PopUpManager.addPopUp(_window as IFlexDisplayObject, parentApplication as DisplayObject, false);
+				_window.width=(parentApplication as DisplayObject).width;
+				_window.height=(parentApplication as DisplayObject).height;
+			}
+
+			//还原
+			protected function window_restoreHandler(event:WindowEvent):void
+			{
+				PopUpManager.removePopUp(_window as IFlexDisplayObject);
+				infoNavBar.addElement(_window);
+				_window.width=390;
+				_window.height=230;
+			}
+
+			public function set monitorAction(monitorAction:MonitorAction):void
+			{
+				_monitorAction=monitorAction;
+			}
+
+			public function get monitorAction():MonitorAction
+			{
+				return _monitorAction;
+			}
+		]]>
+	</fx:Script>
+	<navbar:NavBar id="infoNavBar"
+				   title="信息呈现"
+				   location="right"
+				   width="390"
+				   top="139"
+				   titleLocation="bottom">
+		<panel:Window width="390"
+					  height="230"
+					  closable="false"
+					  minimizable="false"
+					  restore="window_restoreHandler(event)"
+					  maximize="window_maximizeHandler(event)">
+			<s:Group top="-25"
+					 width="100%"
+					 height="100%">
+				<mx:ViewStack id="myViewStack"
+							  width="100%"
+							  height="100%"
+							  top="23"
+							  creationPolicy="all"
+							  paddingBottom="2"
+							  paddingLeft="2"
+							  paddingRight="2"
+							  paddingTop="2">
+					<s:NavigatorContent label="资源信息">
+						<mx:AdvancedDataGrid id="resouceInfo"
+											 width="100%"
+											 height="100%">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn headerText="资源名称"
+														   dataField="res_name"/>
+								<mx:AdvancedDataGridColumn headerText="资源量"
+														   dataField="res_num"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</s:NavigatorContent>
+					<s:NavigatorContent label="业务量">
+						<mx:AdvancedDataGrid id="ServersInfo"
+											 width="100%"
+											 height="100%">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn headerText="业务名称"
+														   dataField="show_name"/>
+								<mx:AdvancedDataGridColumn headerText="统计时间"
+														   dataField="gather_time"/>
+								<mx:AdvancedDataGridColumn headerText="统计值"
+														   dataField="perf_value"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</s:NavigatorContent>
+					<s:NavigatorContent label="性能信息">
+						<mx:AdvancedDataGrid id="proInfo"
+											 width="100%"
+											 height="100%">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn headerText="业务名称"
+														   dataField="show_name"/>
+								<mx:AdvancedDataGridColumn headerText="统计时间"
+														   dataField="gather_time"/>
+								<mx:AdvancedDataGridColumn headerText="统计值"
+														   dataField="perf_value"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</s:NavigatorContent>
+					<s:NavigatorContent label="告警信息">
+						<pubflow:alarm id="flowAlarm"
+									   moduleKey="regionalviewflow"/>
+					</s:NavigatorContent>
+				</mx:ViewStack>
+				<s:TabBar dataProvider="{myViewStack}"
+						  buttonMode="true"
+						  styleName="commonTabBar"/>
+			</s:Group>
+		</panel:Window>
+	</navbar:NavBar>
+</s:Group>

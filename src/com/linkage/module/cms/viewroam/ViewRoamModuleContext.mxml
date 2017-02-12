@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.viewroam.dao.ViewRoamDAOImp;
+			import com.linkage.module.cms.viewroam.domain.ViewRoamDM;
+			import com.linkage.module.cms.viewroam.serv.ViewRoamCMD;
+			import com.linkage.module.cms.viewroam.serv.ViewRoamWorkStatCMD;
+			import com.linkage.module.cms.viewroam.view.ViewRoamPM;
+			
+			import mx.rpc.remoting.RemoteObject;
+		]]>
+	</fx:Script><!--http://10.40.9.185:22222/cms/messagebroker/amf-->
+	<fx:Declarations>
+		<parsley:Object id="remoteObject" type="{RemoteObject}">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_scene_report_viewroam_ViewRoamService"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		<parsley:Object id="remoteObjectResourceMoInfo" type="{RemoteObject}">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_resource_moinfo_ResourceMoInfoService"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		<parsley:Object id="viewRoamDAO" type="{ViewRoamDAOImp}"/>
+		<parsley:Object id="viewRoamDM" type="{ViewRoamDM}"/>
+		<parsley:Object id="viewRoamPM" type="{ViewRoamPM}"/>
+		
+		<parsley:MapCommand selector="LOAD_DATA">
+			<parsley:Command type="{ViewRoamCMD}"/>
+		</parsley:MapCommand>
+		
+		
+		<parsley:MapCommand selector="LOAD_DATA_WORKSTAT">
+			<parsley:Command type="{ViewRoamWorkStatCMD}"/>
+		</parsley:MapCommand>
+	</fx:Declarations>
+</fx:Object>

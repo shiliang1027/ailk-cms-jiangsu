@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewnew:PopUpCompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+							 xmlns:s="library://ns.adobe.com/flex/spark"
+							 xmlns:mx="library://ns.adobe.com/flex/mx"
+							 xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+							 maximizable="false"
+							 close="{PopUpManager.removePopUp(this);this.visible = false;}"
+							 width="600"
+							 height="350">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.PrettyChartType;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.importantKPI.ImportantKPIPM;
+			import com.linkage.module.cms.gsscene.view.components.importantKPI.event.ImportantKPIEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			[Bindable]
+			public var pieChartLabel:String;
+			[Bindable]
+			public var historyChartLabel:String;
+			
+			private var log:ILogger = Log.getLoggerByClass(SceneIntroKPIDetailNew);
+			
+			[Bindable]
+			private var currentPage:int = 1;
+			[Bindable]
+			private var pageSize:int = 10;
+			/*查询参数 */
+			public var queryParams:Object = {};
+			/***
+			 * 查询数据
+			 **/
+			public function queryFirstPageData(params:Object):void
+			{
+				currentPage = 1;
+				queryParams = params;
+				queryParams.pageSize = pageSize;
+				this.queryData();
+			}
+			public function queryData():void
+			{
+				queryParams.curPage = currentPage;
+				var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_SCENE_QUIT_DETAIL_DATA);
+				e.params = queryParams;
+				requestServerUtil.addRequest(e);
+			}
+			//* 级联告警流水 */
+			protected function quitServiceDG_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object = AdvancedDataGrid(event.currentTarget).selectedItem;
+				var ruleContent:String = 'alarmneid="' + data.moId + '"';
+				var param:Object = {};
+				param.ruleContent = ruleContent;
+				var e:SceneIntroEvent = new SceneIntroEvent(SceneIntroEvent.LOAD_REFRESH_ALARM_FLOW);
+				e.params = param;
+				dispatchMsg(e);
+				log.info("加载告警！ruleContent:" + ruleContent);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" >
+		<s:Scroller	width="100%" height="100%" styleName="sceneScroller">
+			<s:Group width="100%"  height="100%">
+				<mx:AdvancedDataGrid id="quitServiceDG" width="100%"
+									 dataProvider="{scenePM.sceneIntroDM.sceneIntroQuitDetailData['datas']}"
+									 height="100%" itemClick="quitServiceDG_itemClickHandler(event)"
+									 styleName="sceneDG"
+									 verticalAlign="middle"
+									 horizontalScrollPolicy="auto">
+					<mx:columns>
+						<mx:AdvancedDataGridColumn dataField="moName"
+												   headerText="基站名称"/>
+						<mx:AdvancedDataGridColumn dataField="moTypeName"
+												   headerText="基站类型"/>
+						<mx:AdvancedDataGridColumn dataField="quitCause"
+												   headerText="退服原因"/>
+						<mx:AdvancedDataGridColumn dataField="quitAlarms"
+												   headerText="退服告警数"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+			</s:Group>
+		</s:Scroller>
+		<!--<s:HGroup width="100%" horizontalAlign="center">
+			<ailk:Pager id="quitPager" pageSize="{pageSize}" currentPage="{currentPage}" 
+						pageChange="queryData()"/>
+		</s:HGroup>-->
+	</s:VGroup>
+</viewnew:PopUpCompWindow>

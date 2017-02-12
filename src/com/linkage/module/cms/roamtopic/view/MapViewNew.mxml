@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:linkage_compts="http://www.ailk.com/2011/ailk/components"
+		 width="100%" height="100%"
+		 creationComplete="MapViewComplete()">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.StringUtils;
+			import com.linkage.gis.core.GisLayer;
+			import com.linkage.module.cms.components.dummymap.MapNode;
+			import com.linkage.module.cms.components.dummymap.MapNodeEvent;
+			import com.linkage.module.cms.general.monitor.district.MapView;
+			import com.linkage.module.cms.roamtopic.RoamTopicModuleContext;
+			import com.linkage.module.cms.roamtopic.event.RoamTopicEvent;
+			import com.linkage.module.cms.roamtopic.utils.MapBean;
+			import com.linkage.module.cms.roamtopic.utils.VectorMapFactory; 
+			
+			import flashx.textLayout.formats.Float;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import spark.components.BorderContainer;
+			
+			[Inject("roamTopicPM")]
+			[Bindable]
+			public var pm:RoamTopicPM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			private var mapBean:MapBean;
+			[Bindable]
+			private var mapTitle:String = new String();
+			
+			private var log:ILogger=Log.getLoggerByClass(MapViewNew);
+			
+			//动态生成表格
+			[MessageHandler(selector="REFRESH_ROMTOPIC")]
+			public function refreshRoamMap(event:RoamTopicEvent):void{
+				//2014-09-30 12:00漫入江苏省用户分布
+				if("2" == pm.dm.roamTopicType){
+					mapTitle = pm.dm.parameters.time + "漫入漫出" + pm.dm.provinceName + "用户分布";
+					getVectorMap(pm.dm.provinceId);
+				}
+				if("1" == pm.dm.roamTopicType){
+					if(pm.dm.selectIndex == 0)
+						mapTitle = pm.dm.parameters.time + "省际漫入" + pm.dm.provinceName + "用户分布";
+					else
+						mapTitle = pm.dm.parameters.time + "省际漫出" + pm.dm.provinceName + "用户分布（天粒度）";
+					if("1" != pm.dm.parameters.type){
+						getVectorMap(pm.dm.provinceId);
+					}else{
+						getVectorMap("0");
+					}
+				}
+			}
+			private function getVectorMap(city:String):void{
+				var factory:VectorMapFactory = VectorMapFactory.getFactory(mapWork);
+				mapBean = factory.getMapBean(city);
+				//通过http请求xml文件
+				var httpService:HTTPService=new HTTPService();
+				httpService.method="get";
+				httpService.resultFormat="e4x";
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				httpService.url=mapBean.XML_URL;//"demo/dymap/map_qindao.xml";
+				httpService.send();
+			}
+			
+			//加载xml文件地图生成
+			private function httpService_resultHandler(event:ResultEvent):void
+			{
+				mapWork.xmlData=event.result as XML;
+				mapWork.mapObjArray=mapBean.VcetorArr;
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOVER, onMapNodeOverHandler);
+				//				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOUT, onMapNodeOutHandler);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onMapNodeClickHandler);
+				
+				mapWork.showMap();
+				dispatchMsg(new RoamTopicEvent("RSFRESH_MAPCOLOR"));
+			}
+			
+			private function onMapNodeOverHandler(event:MapNodeEvent):void{
+				if((pm.dm.provinceId +"_a")==event.mapNode.id && "1" == pm.dm.roamTopicType){
+					event.mapNode.buttonMode = true;
+				}
+			}
+			
+			private function onMapNodeClickHandler(event:MapNodeEvent):void
+			{
+				//				Alert.show(mapWork.getAreaId(event.mapNode.id));
+				//				mapWork.fillMapById(mapWork.getAreaId(event.mapNode.id), 0xff0000);
+				//var factory:VectorMapFactory = VectorMapFactory.getFactory(mapWork);
+				if((pm.dm.provinceId +"_a")==event.mapNode.id && "1" == pm.dm.roamTopicType){
+					pm.dm.type = "5";
+					log.info("pm.dm.parameters.type="+pm.dm.parameters.type);
+					pm.dm.parameters.selectIndex = pm.dm.selectIndex;
+					dispatchMsg(new RoamTopicEvent("ROAMTOPIC_CONFIG_INIT"));
+					dispatchMsg(new RoamTopicEvent("LOAD_DATA"));
+					
+				}else{
+					pm.dm.type = "";
+				}
+			}
+			
+			[Bindable]
+			private var tipDatas:ArrayCollection = new ArrayCollection();
+			//地图颜色的搭配
+			[MessageHandler(selector="RSFRESH_MAPCOLOR")]
+			public function refreshRoamMapColor(event:RoamTopicEvent):void{
+				var user_num_flag = pm.dm.selectIndex==0 ? "user_num" : "user_num_out";
+				//				var dian:BorderContainer;
+				tipDatas.removeAll();
+				if("2"==pm.dm.roamTopicType){
+					log.info("222");
+					datagroup.itemRenderer = new ClassFactory(TipRenderer);
+					log.info("222 end");
+				}else{
+					log.info("111");
+					datagroup.itemRenderer = new ClassFactory(Tip_shengRenderer);
+					log.info("111 end");
+				}
+				for each (var obj:Object in mapWork.elementBox.elements){
+					var mn:MapNode = obj as MapNode;
+					var id:String = mn.id.split("_")[0];
+					
+					var length = pm.dm.roamTopicDG.length;
+					if(pm.dm.roamTopicType == "1" || pm.dm.type == "4"){
+						length = pm.dm.inDatas.length;
+					}
+					if(obj is MapNode && String(obj.id).indexOf("_a") != -1 && length != 0){
+						var objq:Object = getObject(mapBean.cityMapping[id]);
+						if(!isNaN(parseFloat(objq[user_num_flag]))){
+							if(pm.dm.roamTopicType == "2"){
+								var user_num:String = Math.floor(parseFloat(objq[user_num_flag])/1000)/10 + "万";
+							}
+							else{
+								var user_num:String ="入"+ Math.floor(parseFloat(objq["user_num"])/1000)/10 + "万/出" + Math.floor(parseFloat(objq["user_num_out"])/1000)/10 +"万";
+								//								var user_num:String ="入"+ Math.floor(parseFloat(objq["user_num"])/1000)/10 + "/出" + Math.floor(parseFloat(objq["user_num_out"])/1000)/10;
+							}
+							
+							var huanbi1:Number = Math.abs(parseFloat(objq["huanbi"]));
+							var login_num:String = Math.floor(parseFloat(objq["login_num"])/1000)/10 + "万";
+							if("NaN万"==login_num){
+								login_num = "0万";
+							} 
+							tipDatas.addItem({"x":MapNode(obj).centerPoint.x,"y":MapNode(obj).centerPoint.y,"log_nums":login_num,"huanbi":huanbi1,"user_num":user_num});
+						}
+					}
+					
+					
+					//					if("1200_b" == mn.id){
+					//						mn.buttonMode = true;
+					//					}
+					
+					if("2"==pm.dm.roamTopicType){
+						//						log.info("huanbi:"+huanbi);
+						//						log.info("num:"+num +"===text1:"+Number(pm.dm.text1)+"===text2:"+Number(pm.dm.text2)+"===text3:"+Number(pm.dm.text3));
+						//var definition:Class = getDefinitionByName("com.linkage.module.cms.roamtopic.view.Dian") as Class; 
+						//dian = new definition();
+						var huanbi:Number = getHuanBi(mapBean.cityMapping[id]);
+						if(huanbi>= Number(pm.dm.text1)){
+							mn.fillColor(0xEB5151);
+						}else if(huanbi>= Number(pm.dm.text2)){
+							mn.fillColor(0xFEA20A);
+						}else if(huanbi>=Number(pm.dm.text3)){
+							mn.fillColor(0xFED91C);
+						}else{
+							mn.fillColor(0x44DC56);
+						}
+					}
+					
+					
+					if("1"==pm.dm.roamTopicType || pm.dm.type == "4"){
+						var num:Number = getNums(mapBean.cityMapping[id]);
+						//						log.info("num:"+num +"===text1:"+Number(pm.dm.text1)+"===text2:"+Number(pm.dm.text2)+"===text3:"+Number(pm.dm.text3));
+						if(num>= Number(pm.dm.text1)){
+							mn.fillColor(0xEB5151);
+						}else if(num>= Number(pm.dm.text2)){
+							mn.fillColor(0xFEA20A);
+						}else if(num>=Number(pm.dm.text3)){
+							mn.fillColor(0xFED91C);
+						}else{
+							mn.fillColor(0x44DC56);
+						}
+					}
+				}
+			}
+			
+			//根据城市ID获取环比
+			public function getHuanBi(value:String = null):Number{
+				var huanbi:Number = parseFloat("0");
+				var arr:ArrayCollection = new ArrayCollection();
+				if(pm.dm.roamTopicType == "1" || pm.dm.type == "4"){
+					arr = pm.dm.inDatas;
+				}else{
+					arr = pm.dm.roamTopicDG;
+				}
+				for each(var obj:Object in arr){
+					if(value==obj.city_name){
+						huanbi = parseFloat(obj["huanbi"]);
+						break;
+					}
+				}
+				return huanbi;
+			}
+			
+			
+			//根据城市ID获取环比
+			public function getNums(value:String = null):Number{
+				var user_num_flag = pm.dm.selectIndex==0 ? "user_num" : "user_num_out";
+				var num:Number = parseFloat("0");
+				
+				var arr:ArrayCollection = new ArrayCollection();
+				if(pm.dm.roamTopicType == "1" || pm.dm.type == "4"){
+					arr = pm.dm.inDatas;
+				}else{
+					arr = pm.dm.roamTopicDG;
+				}
+				for each(var obj:Object in arr){
+					if(value==obj.city_name){
+						num = parseFloat(obj[user_num_flag]);
+						break;
+					}
+				}
+				return num;
+			}
+			//获取点数据
+			public function getObject(value:String = null):Object{
+				var object:Object = new Object();
+				var arr:ArrayCollection = new ArrayCollection();
+				if(pm.dm.roamTopicType == "1" || pm.dm.type == "4"){
+					arr = pm.dm.inDatas;
+				}else{
+					arr = pm.dm.roamTopicDG;
+				}
+				for each(var obj:Object in arr){
+					if(value==obj.city_name){
+						object = obj;
+						break;
+					}
+				}
+				return object;
+			}
+			
+			/**
+			 * 按住地图停止移动时调用
+			 */
+			private function dragStop(event:Event):void
+			{
+				mapGroup.stopDrag();
+				systemManager.removeEventListener(MouseEvent.MOUSE_UP, dragStop);
+				systemManager.stage.removeEventListener(Event.MOUSE_LEAVE, dragStop);
+			}
+			
+			/**
+			 * 按住地图移动时调用
+			 */
+			private function dragStart(event:MouseEvent):void
+			{
+				mapGroup.startDrag(false, new Rectangle(0, 0, parent.width, parent.height));
+				systemManager.addEventListener(MouseEvent.MOUSE_UP, dragStop);
+				systemManager.stage.addEventListener(Event.MOUSE_LEAVE, dragStop);
+			}
+			
+			private function MapViewComplete():void{
+				mapContainer.addEventListener(MouseEvent.MOUSE_DOWN, dragStart);
+				mapContainer.addEventListener(MouseEvent.MOUSE_UP, dragStop);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<s:Label text="{mapTitle}" 
+			 horizontalCenter="0" 
+			 fontFamily="微软雅黑" 
+			 fontSize="16" 
+			 fontStyle="normal"/>
+	<s:Scroller id="mapScroller"
+				width="100%"
+				height="100%"
+				horizontalScrollPolicy="auto"
+				verticalScrollPolicy="auto" styleName="sceneScroller">
+		<s:Group width="100%"
+				 height="100%">
+			<s:HGroup width="100%" height="100%" horizontalAlign="center" id="mapContainer">
+				<s:Group width="700" height="550" id="mapGroup">
+					<linkage_compts:MapWork id="mapWork"/>
+					<s:DataGroup id="datagroup" dataProvider="{tipDatas}">
+						
+					</s:DataGroup>
+				</s:Group>
+				
+			</s:HGroup>
+		</s:Group>
+	</s:Scroller>
+</s:Group>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   width="100%"
+				   cornerRadius="10"
+				   borderStyle="solid"
+				   borderAlpha=".5"
+				   borderWeight="5"
+				   height="100%">
+	<s:backgroundFill>
+		<s:LinearGradient rotation="90">
+			<s:entries>
+				<s:GradientEntry id="c1"
+								 ratio="0"/>
+				<s:GradientEntry id="c2"
+								 ratio="1"/>
+			</s:entries>
+		</s:LinearGradient>
+	</s:backgroundFill>
+	<fx:Script>
+		<![CDATA[
+			import mx.core.mx_internal;
+			import mx.events.FlexEvent;
+			import mx.utils.ColorUtil;
+
+			private var _bgColor:uint = 0x808000;
+
+			private var _bgColor2:uint = ColorUtil.adjustBrightness(_bgColor, 25);
+
+			private var _text:String = "";
+
+			private var _kpiId:String;
+
+			private var _moTypeId:String;
+
+			[Bindable]
+			public function get bgColor():uint
+			{
+				return _bgColor;
+			}
+
+			public function set bgColor(value:uint):void
+			{
+				_bgColor = value;
+				_bgColor2 = ColorUtil.adjustBrightness(_bgColor, 25);
+
+				c1.color = _bgColor;
+				c2.color = _bgColor2;
+			}
+
+			public function set alarmColor(c:uint):void
+			{
+				this.setStyle("borderColor", c);
+			}
+
+			[Bindable]
+			public function get text():String
+			{
+				return _text;
+			}
+
+			public function set text(value:String):void
+			{
+				_text = value;
+			}
+
+			public function get kpiId():String
+			{
+				return _kpiId;
+			}
+
+			public function set kpiId(value:String):void
+			{
+				_kpiId = value;
+			}
+
+			public function get moTypeId():String
+			{
+				return _moTypeId;
+			}
+
+			public function set moTypeId(value:String):void
+			{
+				_moTypeId = value;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:HGroup width="100%"
+			  height="100%"
+			  horizontalAlign="center"
+			  verticalAlign="middle">
+		<s:Label id="l"
+				 width="100%"
+				 textAlign="center"
+				 text="{text}"/>
+	</s:HGroup>
+</s:BorderContainer>

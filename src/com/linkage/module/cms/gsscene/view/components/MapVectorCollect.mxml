@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window 
+	 xmlns:fx="http://ns.adobe.com/mxml/2009"
+	 xmlns:s="library://ns.adobe.com/flex/spark"
+	 xmlns:mx="library://ns.adobe.com/flex/mx"
+	 xmlns:parsley="http://www.spicefactory.org/parsley"
+	 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+	 styleName="windowSceneGisBottom"
+	 minimizable="false"
+	 closable="false"
+	 dragable="false"
+	 maximizable="false"
+	 width="132" >
+	<fx:Declarations>
+		<parsley:Configure/>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.util.GsSceneConts;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.MapVectorCompPM;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.event.MapVectorEvent;
+			
+			[Inject("mapVectorCompPM")]
+			[Bindable]
+			public var pm:MapVectorCompPM;
+			
+			private var log:ILogger = Log.getLoggerByClass(MapVectorCollect);
+			
+			
+			[Bindable]
+			private var isLTEflag:Boolean = false;
+			
+			[Bindable]
+			private var allEqAlarms:String = "";
+			[Bindable]
+			private var allPerfAlarms:String = "";
+			
+			
+			[Bindable]
+			private var gmsQuits:String = "";
+			[Bindable]
+			private var tdQuits:String = "";
+			[Bindable]
+			private var lteQuits:String = "";
+			
+			[Inject("user")]
+			public var user:IUser;
+			
+			[MessageHandler(selector="CMS_SCENE_GENERAL_MAPVECTOR_DYEMAP")]
+			public function dyeMapHandler(e:MapVectorEvent = null):void
+			{
+				if ("2" == user.logicalType)
+				{//LTE
+					isLTEflag = true;
+				}
+				log.info("准备加载数据Tips!");
+				seeMapCollectTips();
+			}
+			public function seeMapCollectTips():void
+			{
+				log.info("[矢量地图]传过来的数据集为map");
+				var gisMap:Object = pm.dm.dyeMap;
+				log.info(gisMap);
+				if(pm.dm.loadMapInfoType==GsSceneConts.loadMapInfoType_alarm){
+					this.currentState = "alarmState";
+					this.height=45;
+					var data:Object = gisMap["total"];
+					log.info("设备性能告警");
+					log.info(data);
+					allEqAlarms = data.eqValue;
+					allPerfAlarms = data.perfValue;
+				}
+//				else if(pm.dm.loadMapInfoType==GsSceneConts.loadMapInfoType_quit){
+//					this.currentState = "quitState";
+//					var data:Object = gisMap["total"];
+//					gmsQuits = data.gms;
+//					tdQuits = data.td;
+//					lteQuits = data.lte;
+//					if (isLTEflag)
+//					{//LTE
+//						this.height=25;
+//					}else
+//					{//非LTE
+//						this.height=65;
+//					}
+//				}
+			}
+		]]>
+	</fx:Script>
+	<ailk_compts:states>
+		<s:State name="alarmState"/>
+		<s:State name="quitState"/>
+	</ailk_compts:states>
+	<s:VGroup width="90%" height="90%" verticalCenter="-16" horizontalCenter="0" includeIn="alarmState" visible="false">
+		<s:HGroup width="100%" height="50%" verticalAlign="middle">
+			<s:Label text="设备告警："  styleName="sceneNewsLable3"/>
+			<s:Label text="{allEqAlarms}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+		<s:HGroup width="100%" height="50%" verticalAlign="middle">
+			<s:Label text="性能告警："  styleName="sceneNewsLable3"/>
+			<s:Label text="{allPerfAlarms}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+	</s:VGroup>
+	<s:VGroup width="90%" height="90%" verticalCenter="-16" horizontalCenter="0" verticalAlign="top" includeIn="quitState">
+		<s:HGroup width="100%" height="50%" verticalAlign="middle" visible="{!isLTEflag}" includeInLayout="{!isLTEflag}">
+			<s:Label text="GSM退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{gmsQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+		<s:HGroup width="100%" height="50%" verticalAlign="middle" visible="{!isLTEflag}" includeInLayout="{!isLTEflag}">
+			<s:Label text="TD退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{tdQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+		<s:HGroup width="100%" height="50%" verticalAlign="middle">
+			<s:Label text="LTE退服基站:"  styleName="sceneNewsLable3"/>
+			<s:Label text="{lteQuits}"  styleName="sceneNewsLable4"/>
+		</s:HGroup>
+	</s:VGroup>
+
+</ailk_compts:Window>

@@ -1,0 +1,1012 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+                    xmlns:s="library://ns.adobe.com/flex/spark"
+                    xmlns:mx="library://ns.adobe.com/flex/mx"
+                    width="100%"
+                    height="100%"
+                    styleName="window"
+                    minimizable="false"
+                    closable="false"
+					maximizable="false"
+                    xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+                    xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+                    xmlns:common="com.linkage.module.cms.perfmonitornew.common.*"> 
+
+	<!--creationComplete="creationCompleteHandler()"-->
+    <fx:Script>
+        <![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.chart.core.ChartParam;
+			import com.ailk.common.ui.chart.core.SerialParam;
+			import com.ailk.common.ui.chart.event.PrettyChartEvent;
+			import com.ailk.common.ui.chart.renderer.HorizontalLine;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitornew.dao.PerfMonitorDAO;
+			import com.linkage.module.cms.perfmonitornew.event.perfEvent;
+			import com.linkage.module.cms.perfmonitornew.kpi.SummaryMonitor;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.charts.CategoryAxis;
+			import mx.charts.HitData;
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitornew.kpi.ChartComponent");
+
+		 /* 	[Bindable]
+			public var data:Object;  */
+			
+            private var kpiId:String;
+			private var kpiName:String;
+			private var kpiUnit:String;
+			private var moTypeId:String;
+			private var level_pcm:String;
+			private var cityId:String;
+			private var cityName:String;
+			private var isLevel_pcm:String;
+			
+			private var resultArr:ArrayCollection = new ArrayCollection();
+			
+            [Bindable]
+			private var compareMoAC:ArrayCollection = new ArrayCollection;
+			
+			[Bindable]
+			private var lineChartState:Boolean=true;
+			
+			[Bindable]
+			private var isTimeChange:Boolean=true;
+			
+            [Bindable]
+			private var compareCityMoAC:ArrayCollection = new ArrayCollection;
+
+            [Bindable]
+			private var cityAC:ArrayCollection = new ArrayCollection;
+			
+            [Bindable]
+			private var isFinishMakeParam:Boolean = false;
+
+            private var chartAC:ArrayCollection = new ArrayCollection;
+
+            private var chartParam:ChartParam = new ChartParam();
+            private var series:ArrayCollection = new ArrayCollection();
+            private var horizontalLines:ArrayCollection = new ArrayCollection();
+			
+			private var colorArray:Array = new Array("0x00FF00","0xFF0000","0x0000FF","0xA020F0","0xA0522D","0xFFFF00","0x00FFFF");
+
+			private var dataClickCallback:Function;
+
+//			public var paramChangeCallback:Function;
+			private var turnBackCallback:Function;
+			
+			[Bindable]
+			private var normalKPIflag:Boolean=false;
+			
+			private var param:Object;
+			
+			[Embed(source="../img/line.png")]
+			private var lineIcon:Class;
+			[Embed(source="../img/column.png")]
+			private var columnIcon:Class;
+			[Embed(source="../img/12hours.png")]
+			private var shoursIcon:Class;
+			[Embed(source="../img/24hours.png")]
+			private var dhoursIcon:Class; 
+			 [Embed(source="../img/easypoint.png")]
+			private var showpointIcon:Class; 
+			
+			private var times:ArrayCollection = new ArrayCollection;
+			private var citys:ArrayCollection = new ArrayCollection;
+			private var mos:ArrayCollection = new ArrayCollection;
+			private var citysAdd:ArrayCollection = new ArrayCollection;
+			private var mosAdd:ArrayCollection = new ArrayCollection;
+
+            private var klist:ArrayCollection = new ArrayCollection;
+			
+			public var summaryM:SummaryMonitor = new SummaryMonitor();
+            //图表数据是否降序
+            private var sortFlag:Boolean = false;
+			private var intFlag:Boolean = true;
+			
+			private var isBigChart:Boolean = false;
+			
+//            private var lm:LoadManager = new LoadManager(this, "blue");
+
+			[Bindable]
+			private var _item:*;
+			
+			public function set item(value:Object):void
+			{
+				log.info("1");
+				_item=value;
+				
+//				creationCompleteHandler();
+				loadData(item);
+			}
+			
+			public function get item():*
+			{
+				return _item;
+			}
+				
+		 	private function loadData(data:Object):void
+            {
+				log.info("3");
+				makeParam();
+				kpiName = data.kpi_name;
+				kpiId = data.kpi_id;
+				moTypeId = data.mo_type_id;
+				level_pcm = data.level_pcm;
+				
+				param.level_pcm = data.level_pcm;
+				param.kpi_name = data.kpi_name;
+				param.kpi_id = data.kpi_id;
+				param.mo_type_id = data.mo_type_id;
+				
+				if(data.level_pcm == "1")
+					normalKPIflag = true;
+				else
+					normalKPIflag = false;
+				
+//				log.info("normalKPIflag:"+normalKPIflag);
+//				log.info(param);
+				loadSummaryMonitorData(param);
+            }
+			 
+			private function creationCompleteHandler():void{
+				log.info("2");
+				/* lineChartState = true;
+				lRcImg.source = lineIcon;
+                compareTimeDDL.reset();
+				if(currentState == "topn")
+				{
+					lineChartState = false;
+					lRcImg.source = columnIcon;
+				}
+			
+				if(isBigChart == true)
+				{
+					showBigChart.visible = false;
+					showBigChart.includeInLayout = false;
+				}
+				 */
+			 	/* makeParam();
+				kpiName = data.kpi_name;
+				kpiId = data.kpi_id;
+				moTypeId = data.mo_type_id;
+				level_pcm = data.level_pcm;
+				
+				param.level_pcm = data.level_pcm;
+				param.kpi_name = data.kpi_name;
+				param.kpi_id = data.kpi_id;
+				param.mo_type_id = data.mo_type_id;
+				
+				if(data.level_pcm == "1")
+					normalKPIflag = true;
+				else
+					normalKPIflag = false;
+				
+				log.info("normalKPIflag:"+normalKPIflag);
+				log.info(param);
+				loadSummaryMonitorData(param); */
+			/* 	loadData(item); */
+			}
+
+            private function showData(data:IList):Object
+            {
+			
+//				log.info("showData kpiId:"+kpiId+"---kpiName:"+kpiName+"--moTypeId:"+moTypeId);
+                chartAC.removeAll();
+
+                if (data.length < 1)
+                {
+//					Alert.show("抱歉，没有数据");
+                    pc.chartData(new ArrayCollection());
+                    return "";
+                }
+
+                chartAC.addAll(data);
+                klist.removeAll();
+
+                var kObj:Object = {};
+
+//				log.info(data);
+                for each (var d:Object in data)
+                    for (var k:Object in d)
+                        if (k != "time" && k != "kpi_name" && k != "calcute" && k != "origin"  && k != "up_threshold" && k != "down_threshold" && k != "kpi_id" && k != "unit" && k != "experience" && k.toString().indexOf('_time') < 0)
+                            if (!kObj.hasOwnProperty(k))
+                            {
+//								  
+                                klist.addItem(k);
+                                kObj[k] = "";
+                            }
+					
+
+//                log.info("序列：");
+//                log.info(klist);
+
+                series.removeAll();
+
+				var i:int = 0;
+                for each (var name:String in klist)
+                {
+                    var sp:SerialParam = new SerialParam(name, name);
+//                    sp.chartType = chartTypeDDL.selectedItem.id;
+                    sp.chartType = "line";
+					sp.lineStrokeColor = colorArray[i];
+					sp.strokeColor = colorArray[i];
+					sp.lineStrokeWeight = 1;
+                    sp.radius = 3;
+                    series.addItem(sp);
+					i++;
+                }
+
+                pc.series = series;
+
+                chartParam = new ChartParam();
+                chartParam.xAxisProperty = 'time';
+                chartParam.showLegend = false;
+//                chartParam.legendPositon = "right";
+                chartParam.itemClickEnable = true;
+
+                horizontalLines = new ArrayCollection();
+                var hlUp:HorizontalLine = new HorizontalLine();
+				hlUp.yValue = Number(data.getItemAt(0).up_threshold);
+				hlUp.dashedLine = true;
+				
+				var hlDown:HorizontalLine = new HorizontalLine();
+				hlDown.yValue = Number(data.getItemAt(0).down_threshold);
+				hlDown.dashedLine = true;
+				
+				hlUp.lineThickness = 2;
+				hlUp.displayName = "门限";
+				hlDown.lineThickness = 2;
+				hlDown.displayName = "门限";
+
+                if (hlUp.yValue == 0)
+					hlUp.lineThickness = 3;
+				
+                if (hlDown.yValue == 0)
+					hlDown.lineThickness = 3;
+
+				if(data.getItemAt(0).up_threshold){
+					horizontalLines.addItem(hlUp);
+				}
+				if(data.getItemAt(0).down_threshold){
+					horizontalLines.addItem(hlDown);
+				}
+				
+                if (jixianCB.selected)
+                {
+                    chartParam.horizontalLines = horizontalLines;
+                }
+
+                chartParam.leftYaxisSuffix = " " + data.getItemAt(0).unit;
+                pc.chartParam = chartParam;
+
+                log.info("显示图表：");
+//                log.info(chartAC);
+
+				if(chartAC.length>1){
+					pc.chartData(chartAC, true);
+				}
+
+                return chartAC.getItemAt(0)[klist.getItemAt(0) + "_time"];
+            }
+
+            private function showTopNData(data:IList):void
+            {
+				var colorTopnArray:Array = new Array();
+                chartAC.removeAll();
+
+                if (data.length < 1)
+                {
+                    pc.chartData(chartAC);
+                    return;
+                }
+
+                series.removeAll();
+				
+				 for each (var obj:Object in chartAC)
+				{
+					colorTopnArray.push("0x00FF00");
+				} 
+                var sp:SerialParam = new SerialParam("kpi_value", kpiName);
+                sp.chartType = "column";
+				sp.fillColorArray = colorTopnArray;
+                series.addItem(sp);
+				
+                pc.series = series;
+
+                chartParam = new ChartParam();
+                chartParam.xAxisProperty = 'name';
+                chartParam.showLegend = true;
+//                chartParam.legendPositon = "right";
+                chartParam.itemClickEnable = true;
+                pc.chartParam = chartParam;
+
+                chartAC.addAll(data);
+
+                pc.chartData(chartAC, true)
+            }
+
+			private function setCityId(cityId:String):void
+            {
+                if (compareCityMoDDL.visible)
+                    PerfMonitorDAO.getInstance().getAllCity(
+                        {"parent_id": cityId},
+                        function(result:Object):void
+                        {
+                            cityAC.removeAll();
+                            cityAC.addAll(result as IList);
+                        });
+            }
+
+			private function pc_DataClickHandler(event:PrettyChartEvent):void
+            {
+				log.info("pc_DataClickHandler  currentState:"+ currentState);
+                if (currentState != "kpimo")
+                    dataClickCallback.call(null, event.field, event.data)
+            }
+
+			private function makeParam():void
+			{
+//				log.info("makeParam kpiId:"+kpiId+"---kpiName:"+kpiName+"-----mo_type_id:"+moTypeId+"---city_id:"+cityId+"----cityName:"+cityName+"cu:"+currentState);
+				param = {};
+				
+				param.kpi_id = kpiId;
+				param.kpi_name = kpiName;
+				param.mo_type_id = moTypeId;
+				
+				times.removeAll();
+				citys.removeAll();
+				mos.removeAll();
+				citysAdd.removeAll();
+				mosAdd.removeAll();
+				
+				param.times = times;
+				
+				times.addItem({"name": "今天"});
+				
+			/* 	if (compareTimeDDL.selectedItem != null)
+					times.addItem(compareTimeDDL.selectedItem); */
+				
+				if (compareTimeDDL.selectedItemArr.length > 0)
+					times.addAll(compareTimeDDL.selectedItemArr);
+				
+				if(compareCityMoDDL.selectedItems.toArray().length > 0 )
+				{
+					for each(var o:Object in compareCityMoDDL.selectedItems.toArray())
+					{
+						if(currentState == "timecity")
+							citysAdd.addItem({"city_id": o.id, "city_name": o.name});
+						else if(currentState == "timedevice")
+							mosAdd.addItem({"mo_id": o.id, "mo_name": o.name});
+					}
+				}
+				
+				
+				if(currentState == "timecity")
+				{
+					citysAdd.addItem({"city_id": cityId, "city_name": cityName});
+					citysAdd.refresh();
+				}
+				else if(currentState == "timedevice")
+				{
+					mosAdd.addItem({"mo_id": cityId, "mo_name": cityName});
+					mosAdd.refresh();
+				}
+				
+//				log.info(citysAdd);
+//				log.info(mosAdd);
+				if (currentState == "timeprovince")
+				{
+					//查全省的指标数据
+					param.res_type = "1";
+					param.citys = citys;
+					citys.addItem({"city_id": "00", "city_name": "全省"});
+					
+				} 
+				else if (currentState == "timecity")
+				{
+					citys.addAll(citysAdd); 
+					citys.refresh();
+					param.citys = citys;
+					param.res_type = "2";
+				}
+				else if (currentState == "timecountry")
+				{
+					citys.addAll(citysAdd); 
+					citys.refresh();
+					param.citys = citys;
+					
+					param.res_type = "9";
+					
+				}
+				else if (currentState == "timedevice")
+				{
+					mos.addAll(mosAdd);  
+					mos.refresh();
+					param.mos = mos;
+					param.res_type = "3";
+				}
+				
+				isFinishMakeParam = true;
+				
+			}
+			
+			private function loadCityMoMonitorData(initFlag:Boolean = false):void
+            {
+//                lm.showLoading();
+
+				log.info("loadCityMoMonitorData   "+currentState);
+				
+				makeParam();
+				
+				log.info(param);
+				PerfMonitorDAO.getInstance().getPerfomanceByKpi(
+					param,
+					function(result:Object):void
+					{
+//						showData(result as IList);
+//						lm.hideLoading();
+					},
+					function(e:FaultEvent):void
+					{
+//						lm.hideLoading();
+					});
+               
+            }
+			private function loadMoMonitorData(initFlag:Boolean = false):void
+            {
+//                lm.showLoading();
+
+				log.info("loadMoMonitorData new   "+currentState);
+				log.info(compareMoDDL.selectedItems.toArray());
+				
+				
+				var param:Object = {};
+				param.kpi_id = kpiId;
+				param.kpi_name = kpiName;
+				param.mo_type_id = moTypeId;
+				param.res_type = "3";
+				
+				param.times = new ArrayCollection([{"name": "今天"}]);
+				
+				if (initFlag)
+					param.mos = new ArrayCollection(compareMoAC.toArray());
+				else
+				{
+					mosAdd.removeAll();
+					mosAdd.addItem({"mo_id": cityId, "mo_name": cityName});
+					mosAdd.refresh();
+					param.mos = new ArrayCollection(compareMoDDL.selectedItems.toArray());
+				}
+					
+				log.info(param);
+				
+				PerfMonitorDAO.getInstance().getPerfomanceByKpi(
+					param,
+					function(result:Object):void
+					{
+//						showData(result as IList);
+//						lm.hideLoading();
+					},
+					function(e:FaultEvent):void
+					{
+//						lm.hideLoading();
+					});
+               
+            }
+			
+			private function loadSummaryMonitorData(paramS:Object):void
+            {
+				log.info("4");
+//                lm.showLoading();
+				kpiId = paramS.kpi_id;
+				kpiName = paramS.kpi_name;
+				moTypeId = paramS.mo_type_id; 
+				level_pcm = paramS.level_pcm
+				
+//				log.info(paramS);
+				
+//				PerfMonitorDAO.getInstance().lm = lm;
+				
+                PerfMonitorDAO.getInstance().getPerfomanceByKpi(
+					paramS,
+                    function(result:Object):void
+                    {
+						resultArr.removeAll();
+						resultArr.addAll(result as IList);
+						resultArr.refresh();
+						try{
+							showData(result as IList);
+						}catch(e:Error){
+							log.error(e.getStackTrace());
+						}
+                       
+						
+						label1.text = "指标名称:" + kpiName;
+						label2.text = "指标算法:" +resultArr[0].calcute;
+						label3.text = "指标来源:" +resultArr[0].origin;
+//                        lm.hideLoading();
+                    },
+                    function(e:FaultEvent):void
+                    {
+//                        lm.hideLoading();
+                    });
+				
+				timeChartWinTitle.text = paramS.kpi_name;
+				timeChartWinTitle.addEventListener(MouseEvent.MOUSE_OVER,timeChartWinTitleMouseOver);
+				timeChartWinTitle.addEventListener(MouseEvent.MOUSE_OUT,timeChartWinTitleMouseOut);
+            }
+
+			private function refreshChart():void
+            {
+                var newAC:ArrayCollection = new ArrayCollection(chartAC.toArray().slice(0, 24));
+				var i:int=0;
+                if (!sortFlag)
+                    for each (var sp:SerialParam in pc.series)
+                    {
+						if(lineChartState == true)
+							sp.chartType = "line";
+						else{
+							sp.chartType = "column";
+						}
+						
+						if(intFlag == false)
+							sp.showDataDot = false;
+						else 
+							sp.showDataDot = true;
+//						sp.fillColorArray = colorArray;
+						sp.fillColor = colorArray[i];
+						i++;
+                    }
+				i=0;
+				
+                if (jixianCB.selected)
+                {
+                    chartParam.horizontalLines = horizontalLines;
+                }
+                else
+                {
+                    chartParam.horizontalLines = null;
+                }
+				
+				if(isTimeChange == true)
+					chartParam.labelStep = 1;
+				else
+					chartParam.labelStep = 2;
+				
+				chartParam.showLegend = false;
+
+                pc.chartParam = chartParam;
+
+                log.debug("refreshChart 显示图表：");
+                log.debug(newAC);
+
+                pc.chartData(newAC, true);
+            }
+
+             protected function compareMoDDL_changeHandler():void
+            {
+                /* if (this.currentState == "timedevice")
+                    paramChangeCallback.call();
+                else */
+				 loadMoMonitorData();
+
+            } 
+			
+			private function compareCityMoDDL_changeHandler():void
+            {
+				log.info("compareCityMoDDL_changeHandler");
+				
+				loadCityMoMonitorData();
+//				compareCityMoDDL.clear(true);
+
+            }
+
+			private function timeLabel_clickHandler(event:MouseEvent):void
+            {
+                compareTimeDDL.visible = !compareTimeDDL.visible;
+                compareTimeDDL.includeInLayout = !compareTimeDDL.includeInLayout;
+            }
+
+			private function exportDatas():void
+            {
+                var heads:Array = [];
+
+                for each (var key:String in klist)
+                    heads.push({"id": key, "name": key});
+					
+				if(currentState == "topn")
+				{
+					heads.push({"id": "name", "name": "地市"});
+					heads.push({"id": "kpi_value", "name": "指标值"});
+					
+				}else{
+					heads.push({"id": "time", "name": "时间"});
+				}
+				log.info(chartAC);
+                ExcelUtil.exportSimpleExcel(kpiName, heads, chartAC);
+            }
+
+			private function sortChart():void
+            {
+                var sort:Sort = new Sort;
+                sort.fields = [new SortField("kpi_value", true, sortFlag)];
+                chartAC.sort = sort;
+                chartAC.refresh();
+
+                refreshChart();
+                sortFlag = !sortFlag;
+            }
+			
+			private function showBigChart_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				summaryM.currentState = "province";
+				PopUpManager.addPopUp(summaryM.chartWin,this,true);
+				summaryM.chartWin.x = 450;
+				summaryM.chartWin.y = 20;
+				
+				if(showBigChart.visible == true)
+				{
+//					log.info("true");
+					isBigChart = true;
+				}else{
+//					log.info("false");
+					isBigChart = false;
+				}
+				
+				log.info("showBigChart kpiId:"+kpiId+"---kpiName:"+kpiName+"--moTypeId:"+moTypeId);
+				summaryM.startMonitorData(kpiId,kpiName,moTypeId,isBigChart,level_pcm);
+				summaryM.chartWin.visible = true;
+				summaryM.chartWin.includeInLayout = true;
+				summaryM.width = 550;
+				summaryM.height = 450;
+				summaryM.addEventListener(perfEvent.CHART_CLOSE,chartWinCloseHandler);
+			}
+			
+			
+			private function chartWinCloseHandler():void
+			{
+				PopUpManager.removePopUp(summaryM.chartWin);
+				summaryM.chartWin.visible = false;
+				summaryM.chartWin.includeInLayout = false;
+			}
+			
+			
+			private function dataTipFormate(hd:HitData):String
+			{
+				var dd:String;
+				//data对应设置的数据集中的一个数据对象
+				var data:Object = hd.item;
+				
+				dd = data['kpi_name'] + "\n" + data['time'] + "\n" + data['unit']+ "\n" + data['今日全省'] ;
+				
+				return dd;
+			}
+			
+			protected function zhengdian_clickHandler(type:int):void
+			{
+				log.info("type:"+type);
+				chartAC.refresh();
+				if(type == 1 || type == 2)
+				{
+					intFlag  = true;
+				}else if(type == 3){
+					
+					intFlag  = false;
+				}
+				
+				refreshChart();
+					
+			}
+			
+			protected function show_zhengdian():void
+			{
+				dianWin.visible = true;
+				dianWin.includeInLayout = true;
+			}
+			
+			protected function timeChartWinTitleMouseOver(event:MouseEvent):void
+			{
+				timeChartWinTitleDetails.visible = true;
+				timeChartWinTitleDetails.includeInLayout = true;
+				timeChartWinTitleDetails.x = timeChartWinTitle.width + 2;
+				timeChartWinTitleDetails.y = timeChartWinTitle.y + 5;
+			}
+			
+			protected function timeChartWinTitleMouseOut(event:MouseEvent):void
+			{
+				timeChartWinTitleDetails.visible = false;
+				timeChartWinTitleDetails.includeInLayout = false;
+			}
+			
+			
+			 private function showTip(value:Object):String{
+				 var tip:String="";
+				 for(var k:* in value.item){
+					 if(k !="down_threshold" && k != "kpi_id" && k != "kpi_name" && k != "up_threshold" && k != "up_threshold" && k.toString().indexOf('_time') < 0)
+					 {
+						 if(k == "time")
+						 	tip += "时间:"+value.item[k]+"\n";
+						 else if(k == "calcute")
+						 	tip += "算法:"+value.item[k]+"\n";
+						 else if(k == "origin")
+						 	tip += "来源:"+value.item[k]+"\n";
+						 else if(k == "unit")
+						 	tip += "单位:"+value.item[k]+"\n";
+						 else 
+							 tip += k +":"+value.item[k]+"\n";
+					 }
+				 }
+				 return tip;
+			} 
+			
+			private function showChartType():void
+			{
+				
+				if(lineChartState == true)
+				{
+					lRcImg.source = columnIcon;
+					lineChartState = false;
+					
+				}else
+				{
+					lRcImg.source = lineIcon;
+					lineChartState = true;
+				}
+
+				refreshChart();
+			}
+			
+			private function showTimeRange():void
+			{
+				if(isTimeChange == true)
+					isTimeChange = false;
+				else
+					isTimeChange = true;
+				
+				refreshChart();
+				
+			}
+			
+			protected function timeRangeImg_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(isTimeChange == true)
+				{
+					timeRangeImg.source = shoursIcon;
+					isTimeChange = false;
+					
+				}else
+				{
+					timeRangeImg.source = dhoursIcon;
+					isTimeChange = true;
+				}
+				
+				refreshChart();
+			}
+			
+			
+			public function paramChangeCallback():void
+			{
+				log.info("first  paramChangeCallback");
+				makeParam();
+				param.level_pcm = level_pcm;
+				param.kpi_name = kpiName;
+				param.kpi_id  = kpiId;
+				param.mo_type_id = moTypeId;
+				log.info(param);
+				loadSummaryMonitorData(param);
+			}
+			
+		]]>
+    </fx:Script>
+
+    <ailk_compts:states>
+        <s:State name="timeprovince"/>
+        <s:State name="timecity"/>
+        <s:State name="timecountry"/>
+        <s:State name="timedevice"/>
+        <s:State name="topn"/>
+        <s:State name="kpimo"/>
+    </ailk_compts:states>
+
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+	
+    <ailk_chart:PrettyChart id="pc" 
+                            DataClick="pc_DataClickHandler(event)"
+                            width="100%"
+							dataTipFunc="showTip"
+                            canDropLabels="true"
+                            height="100%"/>
+<!--	dataTipFunc="showTip"-->
+	<s:Label id="timeChartWinTitle"
+			 left="2"
+			 top="-20"/>
+    <s:HGroup width="100%"
+              right="15"
+              horizontalAlign="right"
+              verticalAlign="middle"
+              top="-22">
+       <!-- <s:DropDownList id="chartTypeDDL"
+                        dataProvider="{chartTypeAC}"
+                        labelField="name"
+                        change="refreshChart()"
+                        width="85"/>-->
+		<mx:Image buttonMode="true"
+				  id="lRcImg"
+				  click="showChartType()"
+				  visible.topn="false"
+				  includeInLayout.topn="false"
+				  toolTip="曲线图"
+				  source="@Embed('../img/line.png')"/>
+     <!--   <s:DropDownList id="compareCityDDL"
+                        dataProvider="{cityAC}"
+                        change="{paramChangeCallback.call()}"
+                        visible.timeprovince="false"
+                        includeInLayout.timeprovince="false"
+                        visible.timedevice="false"
+                        includeInLayout.timedevice="false"
+                        visible.kpimo="false"
+                        includeInLayout.kpimo="false"
+                        labelField="label"
+                        width="90"
+						prompt="区域"
+                        visible.topn="false"
+                        includeInLayout.topn="false"/>-->
+        <ailk_compts:PrettyComboBox id="compareMoDDL"
+                                    labelField="name"
+                                    width="130"
+                                    multiSlecteEnabled="true"
+                                    dataProvider="{compareMoAC}"
+                                    change="{compareMoDDL_changeHandler}"
+                                    visible.kpimo="true"
+                                    includeInLayout.kpimo="true"
+                                    visible="false"
+                                    includeInLayout="false"/>
+        <ailk_compts:PrettyComboBox id="compareCityMoDDL"
+                                    labelField="name"
+                                    width="130"
+                                    multiSlecteEnabled="true"
+                                    dataProvider="{compareCityMoAC}"
+                                    change="{compareCityMoDDL_changeHandler}"
+                                    visible.timedevice="true"
+                                    includeInLayout.timedevice="true"
+                                    visible.timecity="true"
+                                    includeInLayout.timecity="true"
+                                    visible="false"
+                                    includeInLayout="false"/>
+
+        <!--<s:DropDownList id="timeRangeDDL"
+                        dataProvider="{timeRangeAC}"
+                        change="showTimeRange()"
+                        labelField="name"
+                        width="55"
+                        visible.topn="false"
+                        includeInLayout.topn="false"/>-->
+		<mx:Image id="timeRangeImg" 
+				  toolTip="粒度"
+				  source="@Embed('../img/24hours.png')"
+				  click="timeRangeImg_clickHandler(event)" 
+				  visible.topn="false"
+				  includeInLayout.topn="false"/>
+        <s:CheckBox id="jixianCB"
+                    label="门限"
+                    change="refreshChart()"/>
+<!--      <s:Button id="timeLabel"
+		label="{compareTimeDDL.selectedItem.name}"
+		visible.topn="false"
+		width="100"
+		click="timeLabel_clickHandler(event)"
+		visible.kpimo="false"
+		includeInLayout.kpimo="false"
+		includeInLayout.topn="false"/>-->
+		<mx:Image source="@Embed('../img/time.png')"
+				  id="timeLabel"
+				  toolTip="时间"
+				  buttonMode="true"
+				  visible.topn="false"
+				  click="timeLabel_clickHandler(event)"
+				  visible.kpimo="false"
+				  includeInLayout.kpimo="false"
+				  includeInLayout.topn="false"/>
+        <mx:Image source="@Embed('../img/back.png')"
+                  toolTip="返回上一层"
+                  buttonMode="true"
+                  click="turnBackCallback()"
+                  visible.timeprovince="false"
+                  includeInLayout.timeprovince="false"
+                  visible.kpimo="false"
+                  includeInLayout.kpimo="false"
+                  visible.topn="false"
+                  includeInLayout.topn="false"/>
+        <mx:Image buttonMode="true"
+                  click="exportDatas()"
+                  source="@Embed('../img/export.png')"/>
+        <mx:Image buttonMode="true"
+                  click="sortChart()"
+                  visible="false"
+				  toolTip="排序"
+                  includeInLayout="false"
+                  visible.topn="true"
+                  includeInLayout.topn="true"
+                  source="@Embed('../img/sort.png')"/>
+		<mx:Image source="@Embed('../img/easypoint.png')"
+				  toolTip="点显示"
+				  buttonMode="true"
+				  visible.topn="false"
+				  includeInLayout.topn="false"
+				  visible.kpimo="false"
+				  includeInLayout.kpimo="false"
+				  click="show_zhengdian()"/>
+		<mx:Image id="showBigChart"
+				  buttonMode="true"
+				  toolTip="大图"
+				  visible.topn="false"
+				  includeInLayout.topn="false"
+				  visible.kpimo="false"
+				  includeInLayout.kpimo="false"
+				  click="showBigChart_clickHandler(event)"
+				  source="@Embed('../img/full_screen.png')"/>
+		<!--<s:Label id="zhengdian"
+				 text="●"
+				 toolTip="点显示"
+				 buttonMode="true"
+				 visible.topn="false"
+				 includeInLayout.topn="false"
+				 visible.kpimo="false"
+				 includeInLayout.kpimo="false"
+				 click="show_zhengdian()"/>-->
+    </s:HGroup>
+
+    <common:EasyDate id="compareTimeDDL"
+                     visible="false"
+                     right="58"
+                     top="0"
+                     change="{paramChangeCallback}"
+                     includeInLayout="false" normalKPIflag="{normalKPIflag}"/>
+	<ailk_compts:Window id="timeChartWinTitleDetails"
+						styleName="window"
+						minimizable="false"
+						maximizable="false"
+						closable="false"
+						visible="false"
+						includeInLayout="false">
+		<s:VGroup>
+			<s:Label id="label1"/>
+			<s:Label id="label2"/>
+			<s:Label id="label3"/>
+		</s:VGroup>
+	</ailk_compts:Window>
+	<ailk_compts:Window id="dianWin"
+						right="58"
+						top="0"
+						styleName="window"
+						minimizable="false"
+						maximizable="false"
+						close="{dianWin.visible=false,dianWin.includeInLayout=false}"
+						visible="false"
+						includeInLayout="false">
+		<s:VGroup>
+			<s:RadioButton id="zd" label="整点" click="zhengdian_clickHandler(1)"/>
+			<s:RadioButton id="buxianshi" label="不标点" click="zhengdian_clickHandler(3)"/>
+			<s:RadioButton id="qbxs"  label="全部显示" click="zhengdian_clickHandler(2)"/>
+		</s:VGroup>
+	</ailk_compts:Window>
+</ailk_compts:Window>

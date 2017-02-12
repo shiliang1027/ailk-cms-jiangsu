@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  gap="0"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  xmlns:components="com.linkage.module.cms.quitstatnew.view.components.*">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-10-22
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.quitstatnew.domain.QuitDataListDM;
+			import com.linkage.module.cms.quitstatnew.event.QuitStatEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			private var log:ILogger=Log.getLoggerByClass(QuitDataView);
+			
+			[Inject("quitDataViewPM")]
+			[Bindable]
+			public var pm:QuitDataViewPM;
+			
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+
+			[MessageHandler(selector="QUITSTAT_LOADDATA_COMPLETE")]
+			public function quitStatLoadDataComplete(e:QuitStatEvent):void
+			{
+				pm.kpis.removeAll();
+				for (var key:String in pm.kpisMap)
+				{
+					delete pm.kpisMap[key];
+//					QuitDataListDM(pm.kpisMap[key]).kpiList.removeAll();
+				}
+				for each (var data:Object in pm.dm.kpisData.dataList)
+				{
+					var quitDataList:QuitDataListDM=pm.kpisMap[data.kpiType];
+					if (!quitDataList)
+					{
+						quitDataList=new QuitDataListDM(data.kpiType, new ArrayCollection());
+						pm.kpis.addItem(quitDataList);
+						pm.kpisMap[data.kpiType]=quitDataList;
+					}
+					quitDataList.kpiList.addItem(data);
+				}
+				var evt:QuitStatEvent = new QuitStatEvent(QuitStatEvent.MAPCOLOR_DYEING);
+				var dataList:Object = pm.kpis.getItemAt(0);
+				evt.param = dataList.kpiList.getItemAt(0);
+				dispatchMsg(evt);
+			}
+			
+			protected function quitdatatitlecomp_clickHandler(event:MouseEvent):void
+			{
+				dispatchMsg(new QuitStatEvent(QuitStatEvent.QUITSTAT_LOADDATA_MAP_COMPLETE));
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<components:QuitDataTitleComp click="quitdatatitlecomp_clickHandler(event)"/>
+
+	<s:Scroller width="100%"
+				height="100%"
+				styleName="quitScroller">
+		<s:VGroup width="100%"
+				  id="dataGroup">
+
+			<s:DataGroup width="100%"
+						 dataProvider="{pm.kpis}"
+						 itemRenderer="com.linkage.module.cms.quitstatnew.view.renderer.QuitDataListRender">
+				<s:layout>
+					<s:VerticalLayout gap="5"/>
+				</s:layout>
+			</s:DataGroup>
+		</s:VGroup>
+	</s:Scroller>
+</s:VGroup>

@@ -1,0 +1,78 @@
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					title="网元信息"
+					dragable="true"
+					visible="false"
+					styleName="window"
+					minimizable="false"
+					maximizable="false"
+					width="380"
+					height="250"
+					close="gisSearchWindow_closeHandler()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.mapview.MapViewPM;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.SceneIntroPM;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[Inject("mapViewPM")]
+			[Bindable]
+			public var mapViewPM:MapViewPM;
+			
+			private var log:ILogger = Log.getLoggerByClass(GisSearchWindow);
+			protected function gisSearchWindow_closeHandler():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			protected function advanceddatagrid1_itemClickHandler(event:ListEvent):void
+			{
+				log.debug("列表定位网元信息....");
+				//				sourceLayer.clear();
+				log.debug("选择行：" + event.rowIndex);
+				var data:Object = mapViewPM.mapViewDM.selectMoList[event.rowIndex];
+				log.debug(data);
+				var e:SceneEvent = new SceneEvent(SceneEvent.SHOWMO2GIS);
+				e.param = new Object();
+				e.param.moId = data.moId;
+				e.param.moTypeId = data.moTypeId;
+				e.param.sceneId = user.initSceneId;
+				log.debug("参数信息：...");
+				log.debug(e.param);
+				//	msgDispatcher(e);
+				requestServerUtil.addRequest(e);
+			}
+		]]>
+	</fx:Script>
+		<mx:AdvancedDataGrid width="100%"
+							 height="100%"
+							 dataProvider="{mapViewPM.mapViewDM.selectMoList}"
+							 itemClick="advanceddatagrid1_itemClickHandler(event)"
+							 horizontalScrollPolicy="on">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="areaName"
+										   headerText="区域名称"/>
+				<mx:AdvancedDataGridColumn dataField="moTypeName"
+										   headerText="网元类型"/>
+				<mx:AdvancedDataGridColumn dataField="moName"
+										   headerText="网元名称"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</ailk_compts:Window>

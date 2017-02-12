@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" title="集客告警列表"
+			  minWidth="200"
+			  minHeight="30" minimizableLeft="10" minimizableBottom="10"
+			  visible="false"
+			  close="this.visible=false"
+			  width="600"
+			  dragable="true" creationComplete="alarmListWindow_creationCompleteHandler(event)">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="custShow", type="com.linkage.module.cms.groupclientalarm.event.AlarmListWindowEvent")]
+		[Event(name="alarmExport", type="com.linkage.module.cms.groupclientalarm.event.AlarmListWindowEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.advanceddatagrid.SubClasses.AdvancedDataGridColumn;
+			import com.linkage.module.cms.groupclientalarm.event.AlarmListWindowEvent;
+			import com.linkage.module.cms.groupclientalarm.renderer.CustAlarmGroupWarnRenderer;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.ExcelUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalCollectionView;
+			import mx.collections.HierarchicalData;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			import spark.components.Label;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientalarm.control.AlarmListWindow");
+			
+			protected function alarmListWindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(AlarmListWindowEvent.DATACHANGE,onDataChange);
+			}
+			private var alarmListWindowTitle:String;
+			
+			private var advanceddatagrid:AdvancedDataGrid;
+			
+			private var exportLabel:Label;
+			
+			[Bindable]
+			private var headerArrColumns:Array = new Array();
+			[Bindable]
+			private var dataColumns:ArrayCollection = new ArrayCollection();
+			
+			[Embed(source="com/linkage/module/cms/groupclientalarm/assets/icon_export.png")]
+			[Bindable]
+			private static var imgPath:Class;
+			
+			private function onDataChange(event:AlarmListWindowEvent):void{
+				var result:Object = event.param;
+				log.info("业务概况告警列表 ->dataList size:"+result.dataList.length);
+				this.removeAllElements();
+			 	
+				exportLabel = new Label();
+				exportLabel.text = "导出";
+				exportLabel.top = -15;
+				exportLabel.right = 50;
+				exportLabel.toolTip = "导出";
+				this.addElement(exportLabel); 
+				
+				advanceddatagrid = new AdvancedDataGrid();
+				advanceddatagrid.top = 15;
+				advanceddatagrid.percentHeight=100;
+				advanceddatagrid.percentWidth=100;
+				advanceddatagrid.minHeight=300;
+				advanceddatagrid.horizontalScrollPolicy="auto";
+				this.addElement(advanceddatagrid);
+				advanceddatagrid.addEventListener(ListEvent.ITEM_CLICK,alarmListDG_itemClickHandler);
+//				advanceddatagrid.addEventListener(ListEvent.ITEM_DOUBLE_CLICK,onItemDoubleClick);
+				var columns:Array = new Array();
+				var i:Number=0;
+				for each(var name:String in result.name){
+					log.info("[业务概况告警列表]name:"+name+",column:"+result.colum[i]);
+					var dataGridColumn:CustAlarmAdvancedDGColumn = new CustAlarmAdvancedDGColumn();
+					dataGridColumn.width=150;
+					dataGridColumn.headerText = name;
+					dataGridColumn.dataField = result.colum[i];
+					if(result.colum[i]=="alarm_num"){
+						dataGridColumn.itemRenderer =  new ClassFactory(CustAlarmGroupWarnRenderer);
+						dataGridColumn.sortCompareFunction = function(obj1:Object,obj2:Object):int{
+							if(int(obj1["alarm_level_num"])>int(obj2["alarm_level_num"])){
+								return -1;
+							}else if(int(obj1["alarm_level_num"])<int(obj2["alarm_level_num"])){
+								return 1;
+							}
+							return 0;
+						}
+					}else{
+						dataGridColumn.itemRenderer =  new ClassFactory(com.linkage.module.cms.groupclientalarm.renderer.AdvancedDataGridCopyRenderer);
+					}
+					columns.push(dataGridColumn);
+					i++;
+				}
+				advanceddatagrid.columns = columns;
+				headerArrColumns = columns;
+				var dataList:ArrayCollection = ArrayCollection(result.dataList);
+//				var dataList1:ArrayCollection = ArrayCollection();
+				
+				var sort:Sort=new Sort();
+				sort.fields=[new SortField("alarm_level_num", true)];
+				dataList.sort = sort;
+				dataList.refresh();
+				dataColumns = ArrayCollection(dataList);
+				
+				advanceddatagrid.dataProvider = dataList;
+				exportLabel.addEventListener(MouseEvent.CLICK,export_clickHandler);
+				
+//				if(!alarmListWindowTitle){
+//					alarmListWindowTitle = this.title;
+//				}
+//				this.title = alarmListWindowTitle+" "+result.title;
+				if(!this.visible){
+					this.visible=true;
+					this.x=(this.parent.width-this.width)/2;
+					this.y=50;
+				}
+			}
+			
+			protected function alarmListDG_itemClickHandler(event:ListEvent):void
+			{
+				var data:Object = event.target.selectedItem;
+				var evt:AlarmListWindowEvent = new AlarmListWindowEvent(AlarmListWindowEvent.CUSTSHOW);
+				var param:Object = new Object;
+				param.custId=encodeURI(data.groupcustomerid);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+
+			protected function alarmListDG_doubleClickHandler(event:MouseEvent):void
+			{
+				
+			}
+			
+			private function onItemDoubleClick(event:ListEvent):void{
+				var data:Object = event.target.selectedItem;
+				var evt:AlarmListWindowEvent = new AlarmListWindowEvent(AlarmListWindowEvent.CUSTSHOW);
+				var param:Object = new Object;
+				param.custId=encodeURI(data.groupcustomerid);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			 protected function export_clickHandler(event:MouseEvent):void
+			{
+				 var evt:AlarmListWindowEvent = new AlarmListWindowEvent(AlarmListWindowEvent.ALARMEXPROT);
+				 var param:Object = new Object;
+//				 param.custId=encodeURI(data.groupcustomerid);
+//				 evt.param = param;
+				 this.dispatchEvent(evt);
+				/* var data:ArrayCollection = dataColumns as ArrayCollection;
+				if (data == null || data.length < 1)
+				{
+					Alert.show("没有数据需要导出");
+					return;
+				}
+				
+				var headerArr:Array = new Array();
+				for each (var col:AdvancedDataGridColumn in headerArrColumns)
+				{
+					if (col.dataField != "" && col.headerText != "")
+						headerArr.push({"id": col.dataField, "name": col.headerText});
+				}
+				
+				var date:Date = new Date();
+				var time:String = date.getFullYear()+"-"+ date.getMonth() + "-"+date.getDate();
+				ExcelUtil.exportSimpleExcel("业务概况_集客告警列表_" + time, headerArr, data); */
+			} 
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--<s:HGroup>
+		<s:Label text="导出" id="export" click="export_clickHandler()" toolTip="导出"/>
+	</s:HGroup> -->
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<!--
+	<mx:AdvancedDataGrid id="alarmListDG"
+						 width="100%"
+						 height="100%" minHeight="300" doubleClick="alarmListDG_doubleClickHandler(event)"
+						 horizontalScrollPolicy="auto" itemClick="alarmListDG_itemClickHandler(event)" disclosureClosedIcon="@Embed('com/linkage/module/cms/groupclient/assets/+.png')"
+						 defaultLeafIcon="{null}"
+						 disclosureOpenIcon="@Embed('com/linkage/module/cms/groupclientalarm/assets/-.png')"
+						 folderClosedIcon="{null}"
+						 folderOpenIcon="{null}">
+		
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="city_name"
+									   headerText="地市"/>
+			<mx:AdvancedDataGridColumn dataField="groupcustomer" width="150"
+									   headerText="客户名称"/>
+			<mx:AdvancedDataGridColumn dataField="vendor_name"
+									   headerText="厂家"/>
+			<mx:AdvancedDataGridColumn dataField="serv_type"
+									   headerText="业务"/>
+			<mx:AdvancedDataGridColumn dataField="mo_name"
+									   headerText="网元名称"/>
+			<mx:AdvancedDataGridColumn dataField="equipmentclass"
+									   headerText="网元类型"/>
+			<mx:AdvancedDataGridColumn dataField="alarm_level" itemRenderer="com.linkage.module.cms.groupclientalarm.renderer.CustAlarmGroupWarnRenderer"
+									   headerText="告警级别"/>
+			<mx:AdvancedDataGridColumn dataField="alarm_stat"
+									   headerText="告警状态"/>
+			<mx:AdvancedDataGridColumn dataField="alarm_title"
+									   headerText="告警标题"/>
+			<mx:AdvancedDataGridColumn dataField="ackflag"
+									   headerText="确认状态"/>
+			<mx:AdvancedDataGridColumn dataField="sheetstatus"
+									   headerText="工单状态"/>
+			<mx:AdvancedDataGridColumn dataField="sheetsendstatus"
+									   headerText="派单状态"/>
+			<mx:AdvancedDataGridColumn dataField="project_stat"
+									   headerText="工程状态"/>
+			<mx:AdvancedDataGridColumn dataField="vendorserialno"
+									   headerText="告警流水号"/>
+			<mx:AdvancedDataGridColumn dataField="sheetno"
+									   headerText="工单编号"/>
+			<mx:AdvancedDataGridColumn dataField="filter_name"
+									   headerText="过滤器名称"/>
+			<mx:AdvancedDataGridColumn dataField="sendgroupflag"
+									   headerText="是否集团上报"/>
+			<mx:AdvancedDataGridColumn dataField="ifsoundalarm"
+									   headerText="是否声光告警"/>
+			<mx:AdvancedDataGridColumn dataField="is_related"
+									   headerText="是否关联告警"/>
+			<mx:AdvancedDataGridColumn dataField="ifabnormal"
+									   headerText="是否异常告警"/>
+			<mx:AdvancedDataGridColumn dataField="start_time"
+									   headerText="开始时间"/>
+			<mx:AdvancedDataGridColumn dataField="end_time"
+									   headerText="结束时间"/>
+		</mx:columns>
+		
+	</mx:AdvancedDataGrid>-->
+</panel:Window>

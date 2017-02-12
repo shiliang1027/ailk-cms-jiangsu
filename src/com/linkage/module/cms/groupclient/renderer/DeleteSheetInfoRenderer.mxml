@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+								  xmlns:s="library://ns.adobe.com/flex/spark" 
+								  xmlns:mx="library://ns.adobe.com/flex/mx" 
+								  focusEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.groupclient.event.AlarmSheetNoticeEvent;
+			
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.DeleteSheetInfoRenderer");
+			[Embed(source="com/linkage/module/cms/groupclient/assets/delete.png")]
+			[Bindable]
+			private static var _delete:Class;
+			
+			protected function delete_clickHandler(event:MouseEvent):void
+			{
+				log.info("delete_clickHandler  "+ data['uniq_id']);
+				log.info(data);
+				// TODO Auto-generated method stub
+				var evt:AlarmSheetNoticeEvent = new AlarmSheetNoticeEvent(AlarmSheetNoticeEvent.DELETESHEETINFO,true,true);
+				var param:Object = new Object();
+//				evt.param = data["sheet_no"];
+				evt.param = data["uniq_id"];
+				dispatchEvent(evt);
+				
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:HBox  width="100%" paddingTop="2" paddingBottom="2" textAlign="center">
+		<mx:Spacer width="50%"/>
+		<mx:Image id="deleteImg" 
+				  source="{_delete}"
+				  click="delete_clickHandler(event)"
+				  verticalAlign="middle" 
+				  toolTip="删除"
+				  buttonMode="true"/>
+		<mx:Spacer width="50%"/>
+	</mx:HBox>
+	
+</s:MXAdvancedDataGridItemRenderer>

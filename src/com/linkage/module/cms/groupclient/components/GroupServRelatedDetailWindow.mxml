@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		 xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		 creationComplete="realMonitorCustListGroup_creationCompleteHandler(event)">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="queryAllCust", type="com.linkage.module.cms.groupclient.event.RealMonitorCustListGroupEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.event.RealMonitorCustListGroupEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			
+			[Bindable]
+			private var reportNums:Number = 0;
+			//报表数据
+			[Bindable]
+			private var reportDatas:ArrayCollection = new ArrayCollection();
+			
+			private var param:Object = new Object();
+			
+			protected function realMonitorCustListGroup_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener(RealMonitorCustListGroupEvent.REFRESH,onRefresh);
+			}
+			private function onRefresh(event:RealMonitorCustListGroupEvent):void{
+				param = event.param;
+				custServInfoPager.currentPage = 1;
+				param.curPage_splitPage = String(custServInfoPager.currentPage);
+				param.num_splitPage = String(custServInfoPager.pageSize);
+				dispatchQueryEvent(param);
+			}
+			protected function custServInfoPager_pageChangeHandler(event:PagerEvent):void
+			{
+				param.curPage_splitPage = String(custServInfoPager.currentPage);
+				param.num_splitPage = String(custServInfoPager.pageSize);
+				dispatchQueryEvent(param);
+			}
+			private function dispatchQueryEvent(params:Object):void{
+				var evt:RealMonitorCustListGroupEvent = new RealMonitorCustListGroupEvent(RealMonitorCustListGroupEvent.QUERYALLCUST);
+				evt.param = params;
+				this.dispatchEvent(evt);
+			}
+			public function set dataProvider(result:Object):void{
+				reportDatas = ArrayCollection(result.datas);
+				reportNums = Number(result.totalRowCount);
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup width="100%" height="100%">
+		<mx:AdvancedDataGrid id="reportList" 
+							 dataProvider="{reportDatas}"
+							 width="100%" height="100%"
+							 rowCount="13"
+							 columnWidth="200">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn width="100"
+										   dataField="cityName"
+										   headerText="地市"/>
+				<mx:AdvancedDataGridColumn width="100"
+										   dataField="countyName"
+										   headerText="区县"/>
+				<mx:AdvancedDataGridColumn width="100"
+										   dataField="custName"
+										   headerText="客户名称"/>
+				<mx:AdvancedDataGridColumn width="100"
+										   dataField="servLevel"
+										   headerText="客户服务等级"/>
+				<mx:AdvancedDataGridColumn width="100"
+										   dataField="servType"
+										   headerText="业务类型"/>
+				<mx:AdvancedDataGridColumn width="100" 
+										   dataField="prodNo"
+										   headerText="产品实例标识"/>
+				<mx:AdvancedDataGridColumn width="100" 
+										   dataField="safeLevel"
+										   headerText="业务保障级别"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<!--</s:Group>
+		</s:Scroller>-->
+		<s:HGroup width="100%" id="custServPageGroup" horizontalAlign="right">
+			<pager:Pager id="custServInfoPager" totalRowCount="{reportNums}" pageSize="50"
+						 pageChange="custServInfoPager_pageChangeHandler(event)">
+			</pager:Pager>
+		</s:HGroup>
+	</s:VGroup>
+	
+	
+</s:Group>

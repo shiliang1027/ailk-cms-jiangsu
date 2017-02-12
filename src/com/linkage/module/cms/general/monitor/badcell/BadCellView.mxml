@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  minimizable="false" maximizable="false" dragable="true"
+			  close="hideWindow()" closable="true" title="图层">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+
+			private var _callBack:Function = null;
+			
+			public function get callBack():Function
+			{
+				return _callBack;
+			}
+
+			public function set callBack(value:Function):void
+			{
+				_callBack = value;
+			}
+
+			protected function hideWindow():void
+			{
+				this.visible = false;
+			}
+			
+			protected function dealClick(name:String, type:String, id:String, event:MouseEvent, isAll:Boolean = false):void
+			{
+				var isSelected:Boolean = (event.target as CheckBox).selected;
+				
+				//是否全选
+				if (isAll)
+				{
+					var obj:CheckBox = (event.target as CheckBox);
+					
+					//取父节点下所有的内容
+					var num:int = obj.parent.numChildren;
+					for (var i:int=0;i<num;i++)
+					{
+						var tmp:CheckBox = (obj.parent.getChildAt(i) as CheckBox);
+						tmp.selected = isSelected;
+					}
+				}
+				
+				if (_callBack != null)
+				{
+					_callBack.call(null, name, type, id, isSelected);
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:Accordion id="dataAccordion" creationPolicy="all">
+		<mx:Canvas id="badCellCvs" label="劣化小区" width="100%" height="100%" verticalScrollPolicy="off" backgroundAlpha="0">
+			<s:VGroup width="548" height="40">
+				<s:HGroup verticalAlign="middle">
+					<s:CheckBox width="75" selected="true" click="dealClick('劣化小区','badcell','', event,true)" label="劣化小区" styleName="fristCB"/>
+					<s:CheckBox width="75" selected="true" click="dealClick('一级高掉话小区','badcell','1', event)" label="一级高掉话小区"/>
+					<s:CheckBox width="75" selected="true" click="dealClick('二级高掉话小区','badcell','2', event)" label="二级高掉话小区"/>
+					<s:CheckBox width="75" selected="true" click="dealClick('三级高掉话小区','badcell','3', event)" label="三级高掉话小区"/>
+					<s:CheckBox width="75" selected="true" click="dealClick('高TCH拥塞小区','badcell','4', event)" label="高TCH拥塞小区"/>
+					<s:CheckBox width="75" selected="true" click="dealClick('高SDCCH拥塞小区','badcell','5', event)" label="高SDCCH拥塞小区"/>
+					<s:CheckBox width="75" selected="true" click="dealClick('高语音负荷小区','badcell','6', event)" label="高语音负荷小区"/>
+				</s:HGroup>
+			</s:VGroup>
+		</mx:Canvas>
+	</mx:Accordion>
+</panel:Window>

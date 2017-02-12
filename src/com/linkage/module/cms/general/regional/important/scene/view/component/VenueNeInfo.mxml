@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="276"
+		  height="116"
+		  gap="-2">
+
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.regional.important.scene.common.util.SceneUtil;
+			import com.linkage.module.cms.general.regional.important.scene.controller.MonitorAction;
+			import com.linkage.module.cms.general.regional.important.scene.view.resource.imagesclass.IconParam;
+			import com.linkage.system.structure.map.Map;
+
+			import spark.components.Label;
+			/**
+			 * 场馆监控控制器
+			 */
+			private var _monitorAction:MonitorAction=null;
+			/**
+			 * 网元指标设置
+			 */
+			private var neSegmentSet:NeSegmentSet=null;
+			/**
+			 * 场馆监控控制器
+			 */
+			private var segmentMap:Map=new Map();
+
+			//初始化网元信息
+			public function initNeInfo(sceneId:String, histroyTime:String, data:Object, sceneWin:SceneWindow):void
+			{
+				var moId:String=data["mo_id"];
+				var moType:String=data["mo_type_name"];
+				var alarmLevel:String=data["alarmLevel"];
+				top=SceneUtil.getCroodXY(data["y"]);
+				left=SceneUtil.getCroodXY(data["x"]);
+
+				//2.初始化网元图标
+				neImage.source=IconParam.getIconByLevelAndNeType(moType, alarmLevel);
+
+				//3.初始化当前网元的指标信息
+				loadNeSegmentData(moId, sceneId, histroyTime);
+
+				//4.加载指标配置信息
+				loadNeSegment(moId, sceneId, sceneWin);
+			}
+
+			//加载当前网元的指标信息
+			private function loadNeSegmentData(moId:String, sceneId:String, histroyTime:String):void
+			{
+				monitorAction.getNeSegmentData(moId, sceneId, histroyTime, function(result:Object):void
+					{
+						initNeSegmentData(result);
+					});
+			}
+
+			//初始化当前网元的指标信息
+			private function initNeSegmentData(data:Object):void
+			{
+				segmentMap.clear();
+				var label:Label=null;
+				var index:Boolean=true;
+				for each (var obj:Object in data)
+				{
+					//添加统计时间
+					if (index)
+					{
+						index=false;
+						label=new Label();
+						label.text="统计时间：" + obj["gather_time"];
+						segmentData.addElement(label);
+					}
+					//添加指标信息
+					label=new Label();
+					label.text=obj["show_name"] + "：" + obj["perf_value"];
+					segmentMap.put(obj["show_name"], label);
+					segmentData.addElement(label);
+				}
+			}
+
+			//加载网元指标信息
+			private function loadNeSegment(moId:String, sceneId:String, sceneWin:SceneWindow):void
+			{
+				monitorAction.getNeSegment(moId, sceneId, function(result:Object):void
+					{
+						initNeSegment(result, sceneWin);
+					});
+			}
+
+			//设置指标信息
+			public function initNeSegment(result:Object, sceneWin:SceneWindow):void
+			{
+				neSegmentSet=new NeSegmentSet();
+				neSegmentSet.initSegmentSet(result, function(result:Map):void
+					{
+						segmentMap.forEach(function(key:String, label:Label):void
+							{
+								var name:String=result.get(key);
+								if (name)
+								{
+									label.visible=true;
+									label.includeInLayout=true;
+								}
+								else
+								{
+									label.visible=false;
+									label.includeInLayout=false;
+								}
+							});
+					});
+
+				sceneWin.initNeSegment(neSegmentSet);
+			}
+
+			//设置指标
+			protected function button_clickHandler(event:MouseEvent):void
+			{
+				neSegmentSet.windowOpenClose();
+			}
+
+			public function set monitorAction(monitorAction:MonitorAction):void
+			{
+				_monitorAction=monitorAction;
+			}
+
+			public function get monitorAction():MonitorAction
+			{
+				return _monitorAction;
+			}
+		]]>
+	</fx:Script>
+	<s:Group width="19%"
+			 height="100%">
+		<s:Rect width="100%"
+				height="100%">
+			<s:stroke>
+				<s:SolidColorStroke color="0xffffff"/>
+			</s:stroke>
+			<s:fill>
+				<s:RadialGradient>
+					<s:entries>
+						<s:GradientEntry color="0x0056ff"
+										 ratio="0.00"
+										 alpha="0.5"/>
+						<s:GradientEntry color="0x00cc99"
+										 ratio="0.33"
+										 alpha="0.5"/>
+						<s:GradientEntry color="0xecec21"
+										 ratio="0.66"
+										 alpha="0.5"/>
+					</s:entries>
+				</s:RadialGradient>
+			</s:fill>
+		</s:Rect>
+		<s:VGroup width="100%"
+				  height="100%"
+				  verticalAlign="middle">
+			<mx:Image id="neImage"/>
+		</s:VGroup>
+	</s:Group>
+	<s:Group width="81%"
+			 height="100%">
+		<s:Rect width="100%"
+				height="100%"
+				top="0"
+				left="0"
+				right="0"
+				bottom="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0xffffff"/>
+			</s:stroke>
+			<s:fill>
+				<s:RadialGradient>
+					<s:entries>
+						<s:GradientEntry color="0x0056ff"
+										 ratio="0.00"
+										 alpha="0.5"/>
+						<s:GradientEntry color="0x00cc99"
+										 ratio="0.33"
+										 alpha="0.5"/>
+						<s:GradientEntry color="0xecec21"
+										 ratio="0.66"
+										 alpha="0.5"/>
+					</s:entries>
+				</s:RadialGradient>
+			</s:fill>
+		</s:Rect>
+		<s:VGroup gap="0"
+				  width="100%"
+				  height="100%">
+			<s:Group width="100%"
+					 height="30">
+				<s:Rect width="100%"
+						height="100%"
+						left="0"
+						right="0"
+						bottom="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0xffffff"/>
+					</s:stroke>
+				</s:Rect>
+				<s:HGroup width="100%"
+						  height="100%"
+						  paddingRight="10"
+						  verticalAlign="middle"
+						  horizontalAlign="right">
+					<s:Button label="选择指标"
+							  click="button_clickHandler(event)"/>
+				</s:HGroup>
+			</s:Group>
+			<s:Scroller width="100%"
+						height="100%"
+						horizontalScrollPolicy="off"
+						verticalScrollPolicy="auto">
+				<s:VGroup id="segmentData"
+						  width="100%"
+						  height="100%"
+						  paddingTop="6"
+						  paddingLeft="10"
+						  paddingBottom="6"
+						  verticalAlign="top">
+
+				</s:VGroup>
+			</s:Scroller>
+		</s:VGroup>
+	</s:Group>
+</s:HGroup>

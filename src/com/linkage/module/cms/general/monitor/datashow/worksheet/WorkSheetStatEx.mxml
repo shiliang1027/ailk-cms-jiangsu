@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					 xmlns:s="library://ns.adobe.com/flex/spark"
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					 width="100%"
+					 height="100%">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.Canvas;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.Group;
+			import spark.components.NavigatorContent;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.workSheetStat");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时调度
+			private var t:Timer = new Timer(300000);
+
+			public var sheetArray:ArrayCollection = new ArrayCollection([
+				{title: "总览", column: ["city", "core", "wire_2g", "wire_td"], name: ["区域", "核心网", "2G无线网", "TD无线网"],
+					datalist: [{city: "全省", core: "1", wire_2g: "10", wire_td: "2"}, {city: "南京", core: "1", wire_2g: "8", wire_td: "2"}, {city: "苏州", core: "1", wire_2g: "2", wire_td: "0"}]}
+				, {title: "核心网", column: ["city", "MSC", "HLR"], name: ["区域", "MSC", "HLR"],
+					datalist: [{city: "全省", MSC: "10", HLR: "2"}, {city: "南京", MSC: "8", HLR: "2"}, {city: "苏州", MSC: "2", HLR: "0"}]}
+				, {title: "2G无线网", column: ["city", "BSC", "RNC"], name: ["区域", "MSC", "HLR"],
+					datalist: [{city: "全省", BSC: "8", RNC: "2"}, {city: "南京", BSC: "6", RNC: "1"}, {city: "苏州", BSC: "2", RNC: "1"}]}
+				, {title: "TD无线网", column: ["city", "BTS", "CELL"], name: ["区域", "MSC", "HLR"],
+					datalist: [{city: "全省", BTS: "12", CELL: "2"}, {city: "南京", BTS: "8", CELL: "0"}, {city: "苏州", BTS: "4", CELL: "2"}]}
+				]);
+
+			//排序用
+			private var orderMap:Object = ["总览", "核心网", "2G无线", "TD无线", "传输网", "数据网", "动环网"];
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			override public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				log.info("查询故障工单参数 _cityId=" + _cityId);
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityDispatchData(_cityId, _specList, getResInfo, null, getResInfoErr);
+				}
+				else
+				{
+					_remoteData.getAllProvinceDispatchData(_specList, getResInfo, null, getResInfoErr);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("故障工单统计结果：" + obj);
+				if(obj != null)
+				{
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+				else
+				{
+					log.info("故障工单统计：查询无数据");
+					//createTable(sheetArray);
+					Alert.show("查询工单统计数据为空！");
+				}
+
+				//loadInfo.hideLoading();
+			}
+
+			//缓存表格
+			private var tableMap:Dictionary = new Dictionary();
+
+			private function createTable(obj:Object):void
+			{
+				var refresh:Boolean = false;
+				var grid:AdvancedDataGrid = null;
+
+				//取当前有几个TAB
+				var curTabArr:ArrayCollection = new ArrayCollection();
+				for each(var tmp:Object in obj)
+				{
+					curTabArr.addItem(tmp.title);
+				}
+
+				for each(var sheetTable:Object in obj)
+				{
+					//如果没有当前的TABLE，则重新生成
+					if(tableMap[sheetTable.title] == null)
+					{
+						//生成列
+						grid = new AdvancedDataGrid();
+						grid.horizontalScrollPolicy = "off";
+						grid.verticalScrollPolicy = "auto";
+						grid.sortableColumns = false;
+						grid.percentHeight = 100;
+
+						var colArr:Array = new Array();
+						for(var i:String in sheetTable.column)
+						{
+							var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+
+							if(sheetTable.title == "总览" && sheetTable.name[i] != "区域")
+							{
+								if(curTabArr.contains(sheetTable.name[i]))
+								{
+									col.dataField = sheetTable.column[i];
+									col.headerText = sheetTable.name[i];
+									if(sheetTable.column[i] == "city")
+									{
+										col.width = 80;
+									}
+									else
+									{
+										col.width = 150;
+									}
+									colArr = colArr.concat(col);
+								}
+							}
+							else
+							{
+								col.dataField = sheetTable.column[i];
+								col.headerText = sheetTable.name[i];
+								if(sheetTable.column[i] == "city")
+								{
+									col.width = 80;
+								}
+								else
+								{
+									col.width = 150;
+								}
+								colArr = colArr.concat(col);
+							}
+						}
+						grid.columns = colArr;
+
+						tableMap[sheetTable.title] = grid;
+						refresh = true;
+
+						//添加点击事件
+						grid.addEventListener(ListEvent.ITEM_CLICK, showWorkSheet);
+					}
+					//否则直接赋值
+					else
+					{
+						grid = (tableMap[sheetTable.title] as AdvancedDataGrid);
+					}
+
+					//数据
+					grid.dataProvider = sheetTable.datalist;
+				}
+
+				//将表格添加到页面
+				if(refresh)
+				{
+					this.sheetTab.removeAllElements();
+					for each(var str:String in orderMap)
+					{
+						if(tableMap[str] != null)
+						{
+							grid = (tableMap[str] as AdvancedDataGrid);
+							var n:NavigatorContent = new NavigatorContent();
+							n.label = str;
+							n.addElement(grid);
+
+							this.sheetTab.addElement(n);
+						}
+					}
+				}
+
+				obj = null;
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("故障工单统计：查询数据异常");
+				Alert.show("查询工单统计数据异常！");
+				//createTable(sheetArray);
+				//loadInfo.hideLoading();
+			}
+
+			protected function showWorkSheet(e:ListEvent):void
+			{
+				var cityName:String = e.target.dataProvider[e.rowIndex].city;
+				log.info("定位属地：" + cityName);
+
+				//取当前点击的属地和网元类型
+				if(e.rowIndex > 0 && e.columnIndex == 0)
+				{
+					if(this._cityId == "")
+					{
+						general.locationView(cityName, "2");
+						general.showFlowInfo(2);
+					}
+					else
+					{
+						general.locationView(cityName, "3");
+					}
+				}
+				else if(e.columnIndex > 0 && e.rowIndex == 0)
+				{
+					if(this._cityId == "")
+					{
+						general.reloadFlowData(2, cityName, "1");
+					}
+					else
+					{
+						general.reloadFlowData(2, cityName, "2");
+					}
+				}
+				else if(e.columnIndex > 0)
+				{
+					if(this._cityId == "")
+					{
+						general.reloadFlowData(2, cityName, "2");
+					}
+					else
+					{
+						general.reloadFlowData(2, cityName, "3");
+					}
+				}
+			}
+
+			override public function hideDataGroup():void
+			{
+				this.showGroup.visible = false;
+				this.showGroup.includeInLayout = false;
+			}
+
+			override public function showDataGroup():void
+			{
+				this.showGroup.visible = true;
+				this.showGroup.includeInLayout = true;
+			}
+
+			override public function showGroupInfo():Group
+			{
+				return this.showGroup;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group id="showGroup"
+			 width="100%"
+			 height="100%"
+			 visible="false"
+			 includeInLayout="false">
+		<s:Scroller width="100%"
+					height="100%"
+					verticalScrollPolicy="auto"
+					horizontalScrollPolicy="auto">
+			<s:Group>
+				<mx:ViewStack id="sheetTab"
+							  height="100%"
+							  top="23"
+							  paddingBottom="2"
+							  paddingLeft="2"
+							  paddingRight="2"
+							  paddingTop="2">
+				</mx:ViewStack>
+				<s:TabBar dataProvider="{sheetTab}"
+						  styleName="commonTabBar"
+						  buttonMode="true">
+				</s:TabBar>
+			</s:Group>
+		</s:Scroller>
+	</s:Group>
+</datashow:DataWindow>

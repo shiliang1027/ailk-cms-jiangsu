@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  width="350"
+			  height="200"
+			  title="光路信息"
+			  dragable="true"
+			  closable="true"
+			  maximizable="true"
+			  minimizable="true"
+			  close="window1_closeHandler(event)"
+			  creationComplete="window1_creationCompleteHandler(event)"
+			  resizable="true">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeService;
+			import com.linkage.module.cms.general.monitor.district.tools.renderer.RouteAlarmItemRenderer;
+			import com.linkage.system.component.panel.events.WindowEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			private var _fun:Function = null;
+
+			//数据接口
+			private var _dataService:LevelThreeService = null;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.district.tools.RouteList");
+
+			public function get dataService():LevelThreeService
+			{
+				return _dataService;
+			}
+
+			public function set dataService(value:LevelThreeService):void
+			{
+				_dataService = value;
+			}
+
+			public function get fun():Function
+			{
+				return _fun;
+			}
+
+			public function set fun(value:Function):void
+			{
+				_fun = value;
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				this.visible = false;
+				this.includeInLayout = false;
+			}
+
+			public function initRouteGrid(routeList:ArrayCollection):void
+			{
+				var arr:ArrayCollection = new ArrayCollection();
+
+				for(var route:String in routeList)
+				{
+					var tmp:Object = new Object();
+					tmp.optic_name = route;
+					arr.addItem(tmp);
+				}
+
+				this.routeList.dataProvider = arr;
+				this.visible = true;
+				this.includeInLayout = true;
+			}
+
+			public function loadRouteGrid(circuitName:String):void
+			{
+				log.info("加载光路信息，电路编号为：" + circuitName);
+				_dataService.getOpticAlarmInfo(circuitName, loadRouteGridSucc, null, loadRouteGridErr);
+				this.visible = true;
+				this.includeInLayout = true;
+			}
+
+			private function loadRouteGridSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("加载光路信息成功！");
+					this.routeList.dataProvider = obj;
+				}
+				else
+				{
+					log.info("加载光路信息为空！");
+					this.routeList.dataProvider = null;
+				}
+			}
+
+			private function loadRouteGridErr(obj:Object):void
+			{
+				log.error("加载光路信息失败！" + obj);
+				this.routeList.dataProvider = null;
+			}
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				routeList.addEventListener(ListEvent.ITEM_CLICK, showRouteInfo);
+			}
+
+			private function showRouteInfo(e:ListEvent):void
+			{
+				var lineName:String = e.target.dataProvider[e.rowIndex].lineName;
+				if(_fun != null)
+				{
+					_fun.call(null, lineName);
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:AdvancedDataGrid id="routeList"
+						 width="100%"
+						 height="100%"
+						 verticalScrollPolicy="auto">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="optic_name"
+									   headerText="光路名称"
+									   width="230">
+			</mx:AdvancedDataGridColumn>
+			<!--<mx:AdvancedDataGridColumn dataField="hasAlarm" headerText="是否有告警" width="120" itemRenderer="{new ClassFactory(RouteAlarmItemRenderer)}">
+				 </mx:AdvancedDataGridColumn>-->
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</panel:Window>

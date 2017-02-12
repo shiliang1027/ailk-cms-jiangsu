@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Skin xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		xmlns:mx="library://ns.adobe.com/flex/mx">
+	<!-- host component -->
+	<fx:Metadata>
+		[HostComponent("com.linkage.module.cms.components.navbar.NavBar")]
+	</fx:Metadata>
+	
+	<fx:Script>
+		<![CDATA[
+			/**
+			 *  @private
+			 */
+			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number) : void
+			{
+				var locationStr:String = getStyle("location");
+				var titleLocation:String = getStyle("titleLocation");
+				if(locationStr == "left"){
+					content.left=21;
+					titleLine.right=0;
+				}else if(locationStr == "right"){
+					content.left=-content.width+1;
+					titleRect.topLeftRadiusX=0;
+					titleRect.bottomLeftRadiusX=0;
+					titleRect.topRightRadiusX=6;
+					titleRect.bottomRightRadiusX=6;
+					titleLineRect.topLeftRadiusX=0;
+					titleLineRect.bottomLeftRadiusX=0;
+					titleLineRect.topRightRadiusX=6;
+					titleLineRect.bottomRightRadiusX=6;
+					titleLine.left=0;
+				}
+				if(titleLocation == "top"){
+					titleGroup.top = 10;
+					
+				}else if(titleLocation == "bottom"){
+					titleGroup.bottom = 10;
+				}else{
+					titleGroup.top=10;
+				}
+				content.setStyle("cornerRadius",6);
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				
+			}
+		]]>
+	</fx:Script>
+	<!-- states -->
+	<s:states>
+		<s:State name="disabled" />
+		<s:State name="normal" />
+	</s:states>
+	
+	<s:Group left="0"
+			 right="0"
+			 top="0"
+			 bottom="0">
+		<s:BorderContainer id="content" minHeight="150" minWidth="0" cornerRadius="6" borderColor="0xe0e0e0" backgroundAlpha="0.8" backgroundColor="0x2187ba">
+			<s:layout>
+				<s:VerticalLayout paddingTop="5" paddingLeft="10" paddingRight="10" paddingBottom="5"/>
+			</s:layout>
+			<s:Group id="contentGroup" minWidth="0"
+					 width="100%"
+					 height="100%">
+			</s:Group>
+		</s:BorderContainer>
+		<s:Group id="titleGroup" width="22" minHeight="50" buttonMode="true">
+			<s:Rect id="titleRect" left="0" right="0" top="0" bottom="0" topLeftRadiusX="6" bottomLeftRadiusX="6">
+				<s:fill>
+					<s:SolidColor color="0x2187ba" alpha="0.8"/>
+				</s:fill>
+			</s:Rect>
+			<s:Rect id="titleLineRect" left="0" right="0" top="0" bottom="0" topLeftRadiusX="6" bottomLeftRadiusX="6">
+				<s:stroke>
+					<s:LinearGradientStroke rotation="90" weight="1">
+						<s:GradientEntry color="0xe0e0e0" 
+										 alpha="0.8"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect>
+			<s:Line id="titleLine" top="0" bottom="0">
+				<s:stroke>
+					<s:SolidColorStroke weight="1" 
+										color="0x2187ba"
+										alpha="1"/>
+				</s:stroke>
+			</s:Line>
+			<s:VGroup width="100%" height="100%" paddingBottom="20" paddingLeft="5" paddingRight="5" paddingTop="8" horizontalAlign="center">
+				<mx:Image id="icon"/>
+				<s:Label id="titleDisplay" width="12" fontFamily="宋体"/>
+			</s:VGroup>
+		</s:Group>
+	</s:Group>
+</s:Skin>

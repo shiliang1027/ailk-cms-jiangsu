@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					width="100%"
+					height="100%"
+					styleName="windowScene"
+					minimizable="false"
+					maximizable="false"
+					closable="false"
+					dragable="true"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:components="com.linkage.module.cms.scenedaily.view.components.*"
+					xmlns:kqikpipi="com.linkage.module.cms.scenedaily.view.components.kqikpipi.*">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.event.kqikpipi.KQIKPIPIEvent;
+
+			private var log:ILogger = Log.getLoggerByClass(KQIKPIPI);
+
+			public var kpiId:String;
+
+			[Inject("kQIKPIPIPM")]
+			public var pm:KQIKPIPIPM;
+
+			//标签的宽度
+			private var w:Number = 90;
+			//标签的高度
+			private var h:Number = 60;
+			private var hinterval:Number = 8;
+			private var vinterval:Number = 80;
+
+
+			public function loadData(event:KQIKPIPIEvent = null):void
+			{
+				log.info("KQIKPIPI 初始化开始！" + kpiId);
+				pm.loadData(kpiId);
+			}
+
+			[MessageHandler(selector="DEAL_KQIKPIPI_DATA")]
+			public function showKpiRelation(e:KQIKPIPIEvent):void
+			{
+				log.debug("处理指标关联数据:");
+				log.debug(pm.dm.xmlData);
+
+				var label:KpiLabel = new KpiLabel();
+				label.text = pm.dm.xmlData.@name;
+				label.kpiId = pm.dm.xmlData.@id;
+				label.moTypeId = pm.dm.xmlData.@moTypeId;
+
+				this.title = pm.dm.xmlData.@name;
+
+				label.alarmColor = uint(pm.dm.xmlData.@color);
+				label.bgColor = uint(pm.dm.colorMap[pm.dm.xmlData.@type]);
+				label.width = w;
+				label.height = h;
+
+				label.x = (this.width - label.width) / 2;
+				label.y = 40;
+
+				if(Number(pm.dm.xmlData.@color) > 0)
+				{
+					label.addEventListener(MouseEvent.CLICK, showMoList);
+					label.buttonMode = true;
+				}
+
+				var wt:Number = Number(pm.dm.xmlData.@leafNum) * (w + hinterval);
+
+				if(this.width < wt)
+				{
+					labelGroup.x = (wt - this.width) / 2;
+					lineGroup.x = labelGroup.x;
+				}
+
+				labelGroup.addElement(label);
+
+				dealLegends();
+
+				forEachTree(pm.dm.xmlData, label.x + label.width / 2, label.y + label.height / 2);
+			}
+
+			private function dealLegends():void
+			{
+				var label:KpiLabel = new KpiLabel();
+				label.text = "KQI";
+				label.width = 40;
+				label.height = 30;
+				label.left = 15;
+				label.top = 5;
+				label.bgColor = uint(pm.dm.colorMap["KQI"]);
+
+				labelGroup.addElement(label);
+
+				label = new KpiLabel();
+				label.text = "KPI";
+				label.width = 40;
+				label.height = 30;
+				label.left = 40 + hinterval + 15;
+				label.top = 5;
+				label.bgColor = uint(pm.dm.colorMap["KPI"]);
+				labelGroup.addElement(label);
+
+				label = new KpiLabel();
+				label.text = "PI";
+				label.width = 40;
+				label.height = 30;
+				label.left = 40 + hinterval + 40 + hinterval + 15;
+				label.top = 5;
+				label.bgColor = uint(pm.dm.colorMap["PI"]);
+
+				labelGroup.addElement(label);
+			}
+
+			private function forEachTree(node:XML, px:Number, py:Number):void
+			{
+				//处理当前节点的直接子节点
+				var g:Graphics = lineGroup.graphics;
+				g.lineStyle(3, 0x808000, 1);
+
+				//当前根节点宽度
+				var pw:Number = Number(node.@leafNum) * (w + hinterval) - hinterval;
+
+				var numLeft:int = 0;
+				for each(var child:XML in node.children())
+				{
+					var l:KpiLabel = new KpiLabel();
+					l.width = w;
+					l.height = h;
+					l.text = child.@name;
+					l.kpiId = child.@id;
+					l.moTypeId = child.@moTypeId;
+
+//					if(uint(child.@color))
+					l.alarmColor = uint(child.@color);
+//					else
+					l.bgColor = uint(pm.dm.colorMap[child.@type]);
+
+
+					if(Number(child.@color) > 0)
+					{
+						l.addEventListener(MouseEvent.CLICK, showMoList);
+						l.buttonMode = true;
+					}
+
+					//计算当前节点的宽度
+					var lw:Number = w;
+
+					if(Number(child.@leafNum) > 1)
+						lw = Number(child.@leafNum) * (w + hinterval) - hinterval;
+
+					//定位坐标
+					l.x = (px - pw / 2) + lw / 2 - w / 2 + numLeft;
+					l.y = py + vinterval;
+					labelGroup.addElement(l);
+
+					var lx:Number = l.x + l.width / 2;
+					var ly:Number = l.y + l.height / 2;
+
+					if(Number(node.@leafNum) > 1)
+					{
+						g.moveTo(px, py);
+						g.lineTo(px, py + vinterval / 2 + h / 4);
+						g.lineTo(lx, py + vinterval / 2 + h / 4);
+						g.lineTo(lx, ly);
+					}
+					else
+					{
+						g.moveTo(px, py);
+						g.lineTo(lx, ly);
+					}
+
+					numLeft += lw + hinterval;
+
+					//递归子节点
+					if(child.hasComplexContent())
+					{
+						forEachTree(child, lx, ly);
+					}
+				}
+			}
+
+			private function showMoList(e:MouseEvent):void
+			{
+
+				moList.kpiName = (e.currentTarget as KpiLabel).text;
+				moList.kpiId = (e.currentTarget as KpiLabel).kpiId;
+				moList.moTypeId = (e.currentTarget as KpiLabel).moTypeId;
+
+				pm.loadKpiMoList((e.currentTarget as KpiLabel).kpiId, (e.currentTarget as KpiLabel).moTypeId);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<s:Scroller width="100%"
+				height="100%"
+				horizontalScrollPolicy="auto"
+				verticalScrollPolicy="auto">
+		<s:Group id="mainGroup">
+			<s:Group id="lineGroup"/>
+			<s:Group id="labelGroup"/>
+		</s:Group>
+	</s:Scroller>
+	<kqikpipi:KpiFloatMoList id="moList"
+							 width="460"
+							 height="280"
+							 x="100"
+							 y="80"
+							 styleName="windowScene"
+							 visible="false"
+							 includeInLayout="false"/>
+</ailk_compts:Window>

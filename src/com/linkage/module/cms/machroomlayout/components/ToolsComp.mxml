@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TileGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			 xmlns:s="library://ns.adobe.com/flex/spark" 
+			 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:components="com.linkage.module.cms.machroomlayout.components.*">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.machroomlayout.util.Conts;
+			
+			import mx.core.DragSource;
+			import mx.managers.DragManager;
+			
+			protected function roomDoor_mouseDownHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var dragInitiator:EditorComp=EditorComp(event.currentTarget); 
+				var ds:DragSource = new DragSource(); 
+				ds.addData(dragInitiator, Conts.FORMAT_DOOR); 
+				DragManager.doDrag(dragInitiator, ds, event); 
+			}
+			
+			protected function wallcomp_mouseDownHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var dragInitiator:EditorComp=EditorComp(event.currentTarget); 
+				var ds:DragSource = new DragSource(); 
+				ds.addData(dragInitiator, Conts.FORMAT_WALL); 
+				DragManager.doDrag(dragInitiator, ds, event); 
+			}
+			
+			protected function machcomp_mouseDownHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var dragInitiator:EditorComp=EditorComp(event.currentTarget); 
+				var ds:DragSource = new DragSource(); 
+				ds.addData(dragInitiator, Conts.FORMAT_MACH); 
+				DragManager.doDrag(dragInitiator, ds, event); 
+			}
+
+			protected function roadComp_mouseDownHandler(event:MouseEvent):void
+			{
+				var dragInitiator:EditorComp=EditorComp(event.currentTarget); 
+				var ds:DragSource = new DragSource(); 
+				ds.addData(dragInitiator, Conts.FORMAT_ROAD); 
+				DragManager.doDrag(dragInitiator, ds, event); 
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup horizontalAlign="center" verticalAlign="middle">
+		<components:WallComp width="4" height="40" mouseDown="wallcomp_mouseDownHandler(event)"/>
+	</s:HGroup>
+	<components:RoomDoorComp mouseDown="roomDoor_mouseDownHandler(event)" skinClass="com.linkage.module.cms.machroomlayout.skins.RoomDoorSkin">
+	</components:RoomDoorComp>
+	<s:HGroup horizontalAlign="center" verticalAlign="middle">
+		<components:MachComp width="40" height="20" mouseDown="machcomp_mouseDownHandler(event)"/>
+	</s:HGroup>
+	<components:RoadComp mouseDown="roadComp_mouseDownHandler(event)"/>
+</s:TileGroup>

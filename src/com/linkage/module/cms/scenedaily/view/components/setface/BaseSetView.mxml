@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:parsley="http://www.spicefactory.org/parsley"
+		  width="100%"
+		  height="100%"
+		  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scenedaily.event.setface.SetFaceEvent;
+			import com.linkage.module.cms.scenedaily.view.components.util.ValidateUtil;
+
+			import mx.controls.Alert;
+
+			private var log:ILogger = Log.getLoggerByClass(BaseSetView);
+
+			[Inject("baseSetViewPM")]
+			[Bindable]
+			public var pm:BaseSetViewPM;
+
+			[Inject("validateUtil")]
+			public var validate:ValidateUtil;
+
+			public function init():void
+			{
+				pm.loadData();
+			}
+
+			[MessageHandler(selector="loadBaseSetDataComp")]
+			public function setData(event:SetFaceEvent):void
+			{
+				log.info("基本设置  setData");
+				log.info("NValue" + pm.dm.baseSetMap.NValue);
+				log.info("kqiColorPicker" + uint(pm.dm.baseSetMap.kqiColorPicker));
+				log.info("kpiColorPicker" + pm.dm.baseSetMap.kpiColorPicker);
+				log.info("piColorPicker" + pm.dm.baseSetMap.piColorPicker);
+				kqiColorPicker.selectedColor = uint("0x" + pm.dm.baseSetMap.kqiColorPicker);
+				kpiColorPicker.selectedColor = uint("0x" + pm.dm.baseSetMap.kpiColorPicker);
+				piColorPicker.selectedColor = uint("0x" + pm.dm.baseSetMap.piColorPicker);
+				NValue.text = pm.dm.baseSetMap.NValue;
+
+			}
+
+			protected function save_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (int(NValue.text) > 50)
+				{
+					Alert.show("N数值不能大于50");
+					return;
+				}
+				pm.param.NValue = NValue.text;
+				pm.param.kqiColorPicker = kqiColorPicker.selectedColor.toString(16);
+				pm.param.kpiColorPicker = kpiColorPicker.selectedColor.toString(16);
+				pm.param.piColorPicker = piColorPicker.selectedColor.toString(16);
+				pm.saveSetData();
+			}
+		]]>
+	</fx:Script>
+
+	<!--
+		 ***************************************
+		 This is Content
+		 @author huawei (Ailk No.69088)
+		 @version 1.0
+		 @date 2012-9-3
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<ailk_compts:Window id="kpiColorSetPal"
+						width="100%"
+						styleName="window"
+						maximizable="false"
+						minimizable="false"
+						closable="false"
+						height="40%"
+						title="KQI/KPI/PI颜色设置">
+		<s:HGroup width="100%"
+				  gap="30"
+				  height="100%"
+				  verticalAlign="middle">
+			<s:Label text="KQI指标渲染颜色："/>
+			<mx:ColorPicker id="kqiColorPicker"/>
+			<s:Label text="KPI指标渲染颜色："/>
+			<mx:ColorPicker id="kpiColorPicker"/>
+			<s:Label text="PI指标渲染颜色："/>
+			<mx:ColorPicker id="piColorPicker"/>
+		</s:HGroup>
+	</ailk_compts:Window>
+
+	<ailk_compts:Window id="topnSetPal"
+						width="100%"
+						styleName="window"
+						maximizable="false"
+						minimizable="false"
+						closable="false"
+						height="40%"
+						title="TOPN网元设置">
+		<s:HGroup verticalAlign="middle"
+				  width="100%"
+				  gap="20"
+				  height="100%">
+			<s:Label text="N数值："/>
+			<s:TextInput id="NValue"
+						 restrict="0-9"/>
+			<s:Label text="N值&lt;=50"/>
+		</s:HGroup>
+	</ailk_compts:Window>
+
+	<s:HGroup horizontalAlign="right"
+			  width="100%">
+		<s:Button label="保存"
+				  click="save_clickHandler(event)"/>
+	</s:HGroup>
+
+</s:VGroup>

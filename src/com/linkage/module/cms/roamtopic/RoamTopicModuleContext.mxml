@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.roamtopic.dao.RoamTopicDAOImpl;
+			import com.linkage.module.cms.roamtopic.domain.RoamTopicDM;
+			import com.linkage.module.cms.roamtopic.serv.RoamConfigCMD;
+			import com.linkage.module.cms.roamtopic.serv.RoamConfigSaveCMD;
+			import com.linkage.module.cms.roamtopic.serv.RoamTopicCMD;
+			import com.linkage.module.cms.roamtopic.view.RoamTopicPM;
+			
+			import mx.rpc.remoting.RemoteObject;
+		]]>
+	</fx:Script><!--http://10.40.9.185:54321/cms/messagebroker/amf http://211.103.0.102:8080-->
+	<fx:Declarations>
+		<parsley:Object id="remoteObject" type="{RemoteObject}">
+			<parsley:Property name="destination"
+							  value="flexdestination_cms_roamingnew_roamingnewservice"/>
+			<parsley:Property name="endpoint"
+							  value="/cms/messagebroker/amf"/>
+		</parsley:Object>
+		<parsley:Object id="roamTopicDAO" type="{RoamTopicDAOImpl}"/>
+		<parsley:Object id="roamTopicDM" type="{RoamTopicDM}"/>
+		<parsley:Object id="roamTopicPM" type="{RoamTopicPM}"/>
+		
+		<parsley:MapCommand selector="LOAD_DATA">
+			<parsley:Command type="{RoamTopicCMD}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="ROAMTOPIC_CONFIG_INIT">
+			<parsley:Command type="{RoamConfigCMD}"/>
+		</parsley:MapCommand>
+		<parsley:MapCommand selector="ROAMTOPIC_CONFIG_SAVE">
+			<parsley:Command type="{RoamConfigSaveCMD}"/>
+		</parsley:MapCommand>
+	</fx:Declarations>
+</fx:Object>

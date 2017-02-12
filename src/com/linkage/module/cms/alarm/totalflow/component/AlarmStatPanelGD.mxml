@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:AlarmStatPanel xmlns:fx="http://ns.adobe.com/mxml/2009"
+						  xmlns:s="library://ns.adobe.com/flex/spark"
+						  xmlns:mx="library://ns.adobe.com/flex/mx"
+						  xmlns:component="com.linkage.module.cms.alarm.totalflow.component.*"
+						  width="400"
+						  height="300">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.alarm.totalflow.event.StatEvent;
+
+			import mx.events.ListEvent;
+
+			/**
+			 * 告警点击事件
+			 */
+			override protected function alarms_itemClickHandler(e:ListEvent):void
+			{
+				if (!_isAlarmLoad)
+				{
+					_isAlarmLoad=true;
+					_freshTimer.start();
+					var column:Object=new Object();
+					column[StatEvent.XIDVALUE]=e.target.columns[e.columnIndex].dataField;
+					column[StatEvent.XNAMEVALUE]=e.target.columns[e.columnIndex].headerText;
+					column[StatEvent.YIDVALUE]=e.target.selectedItem[columnKeyUnique];
+					dispatchEvent(new StatEvent(StatEvent.STAT_CLICK, column));
+				}
+				else
+				{
+					AlarmUtil.showMessage("告警预装中，请" + _nextTimer + "s后重试！");
+				}
+			}
+		]]>
+	</fx:Script>
+</component:AlarmStatPanel>

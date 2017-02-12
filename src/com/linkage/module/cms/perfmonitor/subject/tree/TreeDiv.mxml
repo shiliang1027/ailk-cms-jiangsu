@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:navbar="com.linkage.module.cms.components.navbar.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.perfmonitor.subject.data.SubjectInterfaceCommService;
+			import com.linkage.system.rpc.http.HttpUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			[Embed(source="../img/treeOpen.png")]
+			[Bindable]
+			public static var treeOpen:Class;
+			
+			[Embed(source="../img/treeClose.png")]
+			[Bindable]
+			public static var treeClose:Class;
+			
+			private var callBack:Function;
+			
+			//属地名称映射
+			public var cityNameMap:Dictionary = new Dictionary();
+			public var cityObjMap:Dictionary = new Dictionary();
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.subjec.tree.TreeDiv");
+			
+			private var _commonService:SubjectInterfaceCommService;
+			
+			//当前用户属地
+			private var userCItyId:String = "";
+			
+			private var testData:ArrayCollection = new ArrayCollection([{"city_id":"0","city_name":"江苏省","city_layer":"1","parent_id":"-1"},
+				{"city_id":"001","city_name":"南京市","city_layer":"2","parent_id":"0"},
+				{"city_id":"002","city_name":"淮安市","city_layer":"2","parent_id":"0"},
+				{"city_id":"001001","city_name":"雨花区","city_layer":"3","parent_id":"001"},
+				{"city_id":"001002","city_name":"鼓楼区","city_layer":"3","parent_id":"001"}]);
+			
+			private var txmlStr:String = 
+				'<node label="江苏省" id="0" fullName="江苏省" level="1"> '+
+				'<node label="南京市" id="001" fullName="江苏省南京市" level="2">'+
+				'<node label="雨花区" id="001001" fullName="江苏省南京市雨花区" level="3"/>'+
+				'<node label="鼓楼区" id="001002" fullName="江苏省南京市鼓楼区" level="3"/>'+
+				'<node label="白下区" id="001003" fullName="江苏省南京市白下区" level="3"/>'+
+				'<node label="秦淮区" id="001004" fullName="江苏省南京市秦淮区" level="3"/>'+
+				'</node>'+
+				'<node label="淮安市" id="002" fullName="江苏省淮安市" level="2"/>'+
+				'<node label="徐州市" id="003" fullName="江苏省徐州市" level="2"/>'+
+				'<node label="盐城市" id="004" fullName="江苏省盐城市" level="2"/>'+
+				'<node label="常州市" id="005" fullName="江苏省常州市" level="2"/>'+
+				'<node label="南通市" id="006" fullName="江苏省南通市" level="2"/>'+
+				'<node label="镇江市" id="007" fullName="江苏省镇江市" level="2"/>'+
+				'<node label="无锡市" id="008" fullName="江苏省无锡市" level="2"/>'+
+				'<node label="苏州市" id="009" fullName="江苏省苏州市" level="2"/>'+
+				'<node label="江阴市" id="010" fullName="江苏省江阴市" level="2"/>'+
+				'<node label="泰州市" id="011" fullName="江苏省泰州市" level="2"/>'+
+				'<node label="宿迁市" id="012" fullName="江苏省宿迁市" level="2"/>'+
+				'<node label="扬州市" id="013" fullName="江苏省扬州市" level="2"/>'+
+				'</node>';
+			
+			private var _isDebug:Boolean = false;
+			
+			public function get isDebug():Boolean
+			{
+				return _isDebug;
+			}
+			
+			public function set isDebug(value:Boolean):void
+			{
+				_isDebug = value;
+			}
+			
+			public function get commonService():SubjectInterfaceCommService
+			{
+				return _commonService;
+			}
+			
+			public function set commonService(value:SubjectInterfaceCommService):void
+			{
+				_commonService = value;
+			}
+			
+			public function initTree(cityId:String, title:String, func:Function):void
+			{
+				userCItyId = cityId;
+				callBack = func;
+				legendBar.title = title;
+				
+				_commonService.getAllCityTree(loadData, null, errData);
+				//createTree(txmlStr);
+			}
+			
+			public function loadData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询属地信息成功！");
+					createTreeData(obj);
+				}
+				else
+				{
+					log.info("没有查询到属地数据！");
+					if (_isDebug)
+					{
+						createTreeData(testData);
+					}
+				}
+			}
+			
+			public function errData(obj:Object):void
+			{
+				log.info("查询属地数据失败！");
+				if (_isDebug)
+				{
+					createTreeData(testData);
+				}
+			}
+			
+			private function createTreeData(obj:Object):void
+			{
+				//取出省中心的属地信息
+				var provinceCity:Object = null;
+				for each (var city:Object in obj)
+				{
+					if (userCItyId != null && userCItyId != "")
+					{
+						if (city.city_id == userCItyId)
+						{
+							provinceCity = city;
+						}
+					}
+					else
+					{
+						if (city.city_layer == "1")
+						{
+							provinceCity = city;
+						}
+					}
+					
+					cityNameMap[city.city_name] = city.city_id;
+					cityObjMap[city.city_id] = city;
+				}
+				
+				if (provinceCity != null)
+				{
+					createTree(parseXML(obj,provinceCity));
+				}
+				else
+				{
+					log.info("数据异常，缺少省中心");
+					if (_isDebug)
+					{
+						createTree(txmlStr);
+					}
+				}
+			}
+			
+			private function parseXML(obj:Object, curCity:Object):String
+			{
+				var str:String = "";
+				//生成当前属地的XML
+				str += '<node label="' + curCity.city_name + '" id="' + curCity.city_id + '" fullName="' + curCity.city_name + '" level="' + curCity.city_layer + '" p_id="' + curCity.parent_id + '">';
+				
+				//只有一级和二级属地有下级
+				if (curCity.city_layer == "1")
+				{
+					for each (var city:Object in obj)
+					{
+						if (city.parent_id == curCity.city_id)
+						{
+							if (curCity.city_id != "0000")
+							{
+								str += parseXML(obj, city);
+							}
+						}
+					}
+				}
+				
+				str += "</node>";
+				return str;
+			}
+			
+			private function createTree(txmlStr:String):void
+			{
+				var txml:XML = new XML(txmlStr);
+				tree.dataProvider = txml;
+				tree.openItems = txml;
+			}
+
+			protected function tree_changeHandler(event:ListEvent):void
+			{
+				callBack.call(null, 
+					event.currentTarget.selectedItem.@id, 
+					event.currentTarget.selectedItem.@label, 
+					event.currentTarget.selectedItem.@fullName, 
+					event.currentTarget.selectedItem.@level,
+					event.currentTarget.selectedItem.@p_id
+				);
+			}
+		]]>
+	</fx:Script>
+	
+	<navbar:NavBar id="legendBar" location="right" top="10" x="0">
+		<s:Group id="gp" width="140" height="350">
+			<fx:Script>
+				<![CDATA[
+					import mx.events.ListEvent;
+				]]>
+			</fx:Script>
+			<mx:Tree id="tree" 
+					 labelField="@label"  
+					 showRoot="true" 
+					 width="100%" 
+					 height="100%" 
+					 borderStyle="none" 
+					 folderClosedIcon="{null}" 
+					 folderOpenIcon="{null}" 
+					 defaultLeafIcon="{null}" 
+					 disclosureClosedIcon="{treeClose}" 
+					 disclosureOpenIcon="{treeOpen}"
+					 itemClick="tree_changeHandler(event)"
+					 />
+		</s:Group>
+	</navbar:NavBar>
+</s:Group>

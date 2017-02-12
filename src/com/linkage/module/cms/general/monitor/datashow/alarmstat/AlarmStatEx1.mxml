@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					 xmlns:s="library://ns.adobe.com/flex/spark"
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					 width="100%"
+					 height="100%">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+
+			import mx.collections.ArrayList;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.alarmstat");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时调度
+			private var t:Timer = new Timer(5000);
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			override public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			public function loadData(event:TimerEvent = null):void
+			{
+				var param:Object = new Object();
+				param.city_id = _cityId;
+				if(_cityId != null && _cityId != "")
+				{
+					param.level = "2";
+				}
+				else
+				{
+					param.level = "1";
+				}
+
+				general.dataService.getQuitBtsStat(param, loadDataSucc, null, loadDataErr);
+			}
+
+			private function loadDataSucc(obj:Object):void
+			{
+				if(obj != null)
+				{
+					log.info("查询告警统计数据成功！");
+					initColumn();
+					this.grid.dataProvider = obj;
+					this.grid.visible = true;
+				}
+				else
+				{
+					log.info("查询告警统计数据为空！");
+				}
+			}
+
+			private function loadDataErr(obj:Object):void
+			{
+				log.info("查询告警统计数据失败！");
+			}
+
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			override public function hideDataGroup():void
+			{
+				this.showGroup.visible = false;
+				this.showGroup.includeInLayout = false;
+			}
+
+			override public function showDataGroup():void
+			{
+				this.showGroup.visible = true;
+				this.showGroup.includeInLayout = true;
+			}
+
+			override public function showGroupInfo():Group
+			{
+				return this.showGroup;
+			}
+
+			protected function initColumn():void
+			{
+				var arr:Array = new Array();
+				var col:AdvancedDataGridColumn = null;
+
+				col = new AdvancedDataGridColumn();
+				col.headerText = "区域";
+				col.dataField = "city_name";
+				arr = arr.concat(col);
+
+				col = new AdvancedDataGridColumn();
+				col.headerText = "基站总数";
+				col.dataField = "bts_num";
+				arr = arr.concat(col);
+
+				col = new AdvancedDataGridColumn();
+				col.headerText = "基站退服数";
+				col.dataField = "bts_quit_num";
+				arr = arr.concat(col);
+
+				col = new AdvancedDataGridColumn();
+				col.headerText = "TD退服数";
+				col.dataField = "td_quit_num";
+				arr = arr.concat(col);
+
+				col = new AdvancedDataGridColumn();
+				col.headerText = "下电机房";
+				col.dataField = "power_cut_num";
+				arr = arr.concat(col);
+
+				col = new AdvancedDataGridColumn();
+				col.headerText = "蓄电池电压低";
+				col.dataField = "voltage_low_num";
+				arr = arr.concat(col);
+
+				col = new AdvancedDataGridColumn();
+				col.headerText = "蓄电池供电";
+				col.dataField = "accumulator_num";
+				arr = arr.concat(col);
+
+				col = new AdvancedDataGridColumn();
+				col.headerText = "传输中断";
+				col.dataField = "transfer_off_num";
+				arr = arr.concat(col);
+
+				this.grid.columns = arr;
+			}
+
+
+			protected function grid_itemClickHandler(e:ListEvent):void
+			{
+				var cityName:String = e.target.dataProvider[e.rowIndex].city_name;
+
+				//取当前点击的属地和网元类型
+				if(e.rowIndex > 0)
+				{
+					if(e.columnIndex > 0)
+					{
+						general.reloadAlarm(cityName, "", "", "68,69,70,71");
+					}
+					else
+					{
+						if(this._cityId == "")
+						{
+							general.locationView(cityName, "2");
+						}
+						else
+						{
+							general.locationView(cityName, "3");
+						}
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%"
+			  height="100%"
+			  id="showGroup"
+			  visible="false"
+			  includeInLayout="false">
+		<s:Scroller width="100%"
+					height="100%"
+					verticalScrollPolicy="auto"
+					horizontalScrollPolicy="auto">
+			<s:Group>
+				<mx:AdvancedDataGrid id="grid"
+									 height="100%"
+									 sortableColumns="false"
+									 horizontalScrollPolicy="off"
+									 verticalScrollPolicy="auto"
+									 itemClick="grid_itemClickHandler(event)"
+									 visible="false">
+				</mx:AdvancedDataGrid>
+			</s:Group>
+		</s:Scroller>
+	</s:VGroup>
+</datashow:DataWindow>

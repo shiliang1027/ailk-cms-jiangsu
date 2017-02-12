@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="30" height="100%"
+		 >
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			private var _selectColor:String;
+			//改变bar的事件回调函数
+			private var _changeTab:Function = null;
+			
+			public function get selectColor():String
+			{
+				return _selectColor;
+			}
+			public function set selectColor(value:String):void
+			{
+				_selectColor = value;
+				setSelectColor(_selectColor);
+			}
+			public function get changeTab():Function
+			{
+				return _changeTab;
+			}
+			public function set changeTab(value:Function):void
+			{
+				_changeTab = value;
+			}
+			protected function group_clickHandler(event:MouseEvent):void
+			{
+				var group:Group = Group(event.currentTarget);
+				loadDatas(group.id);
+				setBarStyles(group.id);
+			}
+			private function loadDatas(colorGroup:String):void
+			{
+				if("redGroup"==colorGroup){
+					_selectColor ="red";
+				}else if("orangeGroup"==colorGroup){
+					_selectColor ="orange";
+				}else if("yellowGroup"==colorGroup){
+					_selectColor ="yellow";
+				}else if("blueGroup"==colorGroup){
+					_selectColor ="blue";
+				}
+				_changeTab(_selectColor);
+			}
+			private function setBarStyles(colorGroup:String):void
+			{
+				var redArrs:Array;
+				var orangeArrs:Array;
+				var yellowArrs:Array;
+				var blueArrs:Array;
+				if("redGroup"==colorGroup){
+					redArrs = [0XFF0000,0XFF0207,0xFFAAAA];
+					orangeArrs = [0XEE9800,0XDD6700,0xB3540C];
+					yellowArrs = [0XFED701,0XE2CA03,0xCAA103];
+					blueArrs = [0X4169E1,0X0049E1,0x011DBB];
+				}else if("orangeGroup"==colorGroup){
+					redArrs = [0XFF0000,0XBD0207,0x773938];
+					orangeArrs = [0XEE9800,0XEE6700,0xDDDDDD];
+					yellowArrs = [0XFED701,0XE2CA03,0xCAA103];
+					blueArrs = [0X4169E1,0X0049E1,0x011DBB];
+				}else if("yellowGroup"==colorGroup){
+					redArrs = [0XFF0000,0XBD0207,0x773938];
+					orangeArrs = [0XEE9800,0XDD6700,0xB3540C];
+					yellowArrs = [0XFED701,0XE8CD03,0xFFEEAB];
+					blueArrs = [0X4169E1,0X0049E1,0x011DBB];
+				}else if("blueGroup"==colorGroup){
+					redArrs = [0XFF0000,0XBD0207,0x773938];
+					orangeArrs = [0XEE9800,0XDD6700,0xB3540C];
+					yellowArrs = [0XFED701,0XE2CA03,0xCAA103];
+					blueArrs = [0X4169E1,0X1B63F7,0xADB8F7];
+				}
+				setLinearGradientColorArr(redArrs,redLinearGradient);
+				setLinearGradientColorArr(orangeArrs,orangeLinearGradient);
+				setLinearGradientColorArr(yellowArrs,yellowLinearGradient);
+				setLinearGradientColorArr(blueArrs,blueLinearGradient);
+				
+			}
+			private function setLinearGradientColorArr(colorArrs:Array,linearGradient:LinearGradient):void
+			{
+				var GradientEntryArrs:Array = [];
+				for(var i:int;i<colorArrs.length;i++){
+					var color:uint = colorArrs[i];
+					var gradientEntry:GradientEntry = new GradientEntry(color,i/(colorArrs.length-1));
+					GradientEntryArrs.push(gradientEntry);
+				}
+				linearGradient.entries = GradientEntryArrs;
+			}
+			
+			public function setSelectColor(color:String):void{
+				var event:MouseEvent = new MouseEvent(MouseEvent.CLICK);
+				var groupname:String = color+"Group";
+				if("redGroup"==groupname){
+					redGroup.dispatchEvent(event);
+				}else if("orangeGroup"==groupname){
+					orangeGroup.dispatchEvent(event);
+				}else if("yellowGroup"==groupname){
+					yellowGroup.dispatchEvent(event);
+				}else if("blueGroup"==groupname){
+					blueGroup.dispatchEvent(event);
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%" gap="5">
+		<s:Group id="redGroup" width="100%" height="25%"  useHandCursor="true" buttonMode="true" click="group_clickHandler(event)">
+			<s:Rect alpha="1" x="0" y="0" width="100%" height="100%" 
+					topLeftRadiusX="10" topLeftRadiusY="10" 
+					bottomLeftRadiusX="10" bottomLeftRadiusY="10">
+				<s:fill>
+					<s:LinearGradient id="redLinearGradient">
+						<s:GradientEntry color="0XFF0000" ratio="0"/> 
+						<s:GradientEntry color="0XBD0207" ratio="0.5"/> 
+						<s:GradientEntry color="0x773938" ratio="1"/> 
+					</s:LinearGradient>
+				</s:fill>
+				<s:stroke>
+					<s:LinearGradientStroke weight="1" >
+						<s:GradientEntry color="0xffffff" alpha="0.5"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect> 
+		</s:Group>
+		<s:Group id="orangeGroup" width="100%" height="25%"  useHandCursor="true" buttonMode="true" click="group_clickHandler(event)">
+			<s:Rect alpha="1" x="0" y="0" width="100%" height="100%" 
+					topLeftRadiusX="10" topLeftRadiusY="10" 
+					bottomLeftRadiusX="10" bottomLeftRadiusY="10">
+				<s:fill>
+					<s:LinearGradient id="orangeLinearGradient">
+						<s:GradientEntry color="0XEE9800" ratio="0"/> 
+						<s:GradientEntry color="0XDD6700" ratio="0.5"/> 
+						<s:GradientEntry color="0xB3540C" ratio="1"/> 
+					</s:LinearGradient>
+				</s:fill>
+				<s:stroke>
+					<s:LinearGradientStroke weight="1" >
+						<s:GradientEntry color="0xffffff" alpha="0.5"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect> 
+		</s:Group>
+		<s:Group id="yellowGroup" width="100%" height="25%"  useHandCursor="true" buttonMode="true" click="group_clickHandler(event)">
+			<s:Rect alpha="1" x="0" y="0" width="100%" height="100%" 
+					topLeftRadiusX="10" topLeftRadiusY="10" 
+					bottomLeftRadiusX="10" bottomLeftRadiusY="10">
+				<s:fill> 
+					<s:LinearGradient id="yellowLinearGradient">
+						<s:GradientEntry color="0XFED701" ratio="0"/>
+						<s:GradientEntry color="0XE2CA03" ratio="0.5"/> 
+						<s:GradientEntry color="0xCAA103" ratio="1"/> 
+					</s:LinearGradient>
+				</s:fill>
+				<s:stroke>
+					<s:LinearGradientStroke weight="1" >
+						<s:GradientEntry color="0xffffff" alpha="0.5"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect> 
+		</s:Group>
+		<s:Group id="blueGroup" width="100%" height="25%" useHandCursor="true" buttonMode="true" click="group_clickHandler(event)">
+			<s:Rect alpha="1" x="0" y="0" width="100%" height="100%" 
+					topLeftRadiusX="10" topLeftRadiusY="10" 
+					bottomLeftRadiusX="10" bottomLeftRadiusY="10">
+				<s:fill> 
+					<s:LinearGradient id="blueLinearGradient">
+						<s:GradientEntry color="0X4169E1" ratio="0"/> 
+						<s:GradientEntry color="0X0049E1" ratio="0.5"/> 
+						<s:GradientEntry color="0x011DBB" ratio="1"/> 
+					</s:LinearGradient>
+				</s:fill>
+				<s:stroke>
+					<s:LinearGradientStroke weight="1" >
+						<s:GradientEntry color="0xffffff" alpha="0.5"/>
+					</s:LinearGradientStroke>
+				</s:stroke>
+			</s:Rect> 
+		</s:Group>
+	</s:VGroup>
+	
+</s:Group>

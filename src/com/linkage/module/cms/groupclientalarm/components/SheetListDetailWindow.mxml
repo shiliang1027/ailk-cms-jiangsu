@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components" 
+			  title="工单详情列表"
+			  minHeight="30" minimizableLeft="10" minimizableBottom="10"
+			  close="this.visible=false" visible="false"
+			  width="600"
+			  dragable="true" creationComplete="sheetListDetailWindow_custShowHandler(event)">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="sheetdetailShow", type="com.linkage.module.cms.groupclientalarm.event.SheetWindowEvent")]
+		[Event(name="sheetDetailSendShow", type="com.linkage.module.cms.groupclientalarm.event.SheetWindowEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.groupclientalarm.event.SheetWindowEvent;
+			import com.linkage.module.cms.groupclientalarm.renderer.CustAlarmGroupWarnRenderer;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.ExcelUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			[Bindable]
+			private var headerArrColumns:Array = new Array();
+			[Bindable]
+			private var dataColumns:ArrayCollection = new ArrayCollection();
+			
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.control.sheetDetailWindows");
+			
+			[Embed(source="com/linkage/module/cms/groupclientalarm/assets/icon_export.png")]
+			[Bindable]
+			private static var imgPath:Class;
+			
+			private var exportLabel:Label;
+			
+			protected function sheetListDetailWindow_custShowHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("sheetListDetailWindow_custShowHandler");
+				this.addEventListener(SheetWindowEvent.SHEETDETAILSHOWDATA,onDataChange);
+				this.addEventListener(SheetWindowEvent.MGNSEND,onMgnOpen);
+				this.addEventListener(SheetWindowEvent.SHEETDETAILSHOWSENDDATA,onSheetdetailSendDataChange);
+			}
+			
+			private var advanceddatagrid:AdvancedDataGrid;
+			
+			private function onDataChange(event:SheetWindowEvent):void{
+				log.info("工单详情");
+				var result:Object = event.param;
+				
+				exportLabel = new Label();
+				exportLabel.text = "导出";
+				exportLabel.top = -15;
+				exportLabel.right = 50;
+				exportLabel.toolTip = "导出";
+				this.addElement(exportLabel); 
+				
+				districtCustInfoDG.dataProvider = result;
+				
+				exportLabel.addEventListener(MouseEvent.CLICK,export_clickHandler);
+				/* var dataList1:ArrayCollection =new ArrayCollection();
+				dataList1.removeAll();
+				
+				log.info("111日志！！！！@！！！！！！");
+				log.info(result);
+				for each (var obj:Object in result)
+				{
+					log.info(obj);
+					if(obj["pro_no"])
+						obj["pro_no"] = "'"+obj["pro_no"];
+					dataList1.addItem(obj);
+				}
+				dataList1.refresh(); */
+				
+				/*  headerArrColumns = districtCustInfoDG.columns;
+				dataColumns = ArrayCollection(dataList1);  */
+				
+				if(!this.visible){
+					this.visible=true;
+					this.x=(this.parent.width-this.width)/2;
+					this.y=50;
+				}
+			}
+			
+			private function onMgnOpen(event:SheetWindowEvent):void{
+				log.info("打开短信编辑窗口");
+				msgWin.visible = true;
+				msgWin.includeInLayout = true;
+			}
+			
+			protected function districtCustInfoDG_itemClickHandler(event:ListEvent):void
+			{
+				log.info("districtCustInfoDG_itemClickHandler");
+				var data:Object=districtCustInfoDG.dataProvider[event.rowIndex];
+				var columDataField:String=String((districtCustInfoDG.columns[event.columnIndex] as AdvancedDataGridColumn).dataField);
+				var columDataheaderText:String=String((districtCustInfoDG.columns[event.columnIndex] as AdvancedDataGridColumn).headerText);
+				var columdata:String=String(data[columDataField]);
+				var alarmNum:Number=Number(columdata.substr(0, columdata.indexOf("/")));
+				var cityId:String=String(data["city_id"]);
+				var sheetno:String=String(data["sheetno"]);
+				log.info(data);
+				
+				log.info("columDataField = "+columDataField+"`````````sheetno = "+sheetno+"====alarmNum="+alarmNum);
+				if(columDataField == "sheetno")
+				{
+					var url_1:String = "/cms/cms/groupsupport/alarm/general/totalMonitor!getSheetInfo.action?sheetno="+sheetno;
+					navigateToURL(new URLRequest(url_1));  
+				}
+				
+				if (alarmNum == 16)
+				{
+					var servLevel:Number = Number(columdata.substr(columdata.lastIndexOf("_")+1));
+					//					control.getCustAlarm(cityId, servLevel);
+					var evt:SheetWindowEvent = new SheetWindowEvent(SheetWindowEvent.SHEETDETAILWSENDSHOW);
+					var param:Object = new Object;
+					param.cityId=cityId;
+					param.serv_level=servLevel;
+					if(cityId == "000" )
+					{
+						param.is_szx = "1";
+					}else if(cityId == "0000" )
+					{
+						param.is_szx = "2";
+					}else
+					{
+						param.is_szx = "0";
+					}
+					evt.param = param;
+					this.dispatchEvent(evt);
+				}
+			}
+			
+			public function msgWin_clickHandler():void{
+				var evt:SheetWindowEvent = new SheetWindowEvent(SheetWindowEvent.SHEETDETAILWSENDSHOW);
+				var param:Object = new Object;
+				param.msgAcser = msgAcser.text;
+				param.phonenum = phonenum.text;
+				param.msg = msgInfo.text;
+				evt.param = param;
+				log.info("evt.param");
+				log.info(evt.param);
+				this.dispatchEvent(evt);
+			}
+			
+			private function onSheetdetailSendDataChange(event:SheetWindowEvent):void{
+				//				buildAlarmCustDG(event.param);
+				var result:Object = event.param;
+				log.info("短信结果： "+event.param);
+				if(result == 1)
+				{
+					Alert.show("短信已发送","发送成功提示");
+				}else{
+					Alert.show("短信失败","发送失败提示");
+				}
+			}
+			
+			protected function closeMsg_clickHandler(event:MouseEvent):void
+			{
+				msgWin.visible = false;
+				msgWin.includeInLayout = false;
+			}
+			
+			protected function msgWin_closeHandler():void
+			{
+				msgWin.visible = false;
+				msgWin.includeInLayout = false;
+			}
+			
+			protected function export_clickHandler(event:MouseEvent):void
+			{
+				
+				var data:ArrayCollection = districtCustInfoDG.dataProvider as ArrayCollection;
+				 if (data == null || data.length < 1)
+				{
+					Alert.show("没有数据需要导出");
+					return;
+				} 
+				log.info(data);
+				var headerArr:Array = new Array();
+				for each (var col:AdvancedDataGridColumn in districtCustInfoDG.columns)
+				{
+					if (col.dataField != "" && col.headerText != "")
+						headerArr.push({"id": col.dataField, "name": col.headerText});
+				}
+				
+				var date:Date = new Date();
+				var time:String = date.getFullYear()+"-"+ date.getMonth() + "-"+date.getDate();
+				ExcelUtil.exportSimpleExcel("工单概况_集客告警列表", headerArr, data);
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:VGroup width="100%" height="100%">
+		<!--<s:HGroup top="-15" right="50">
+			<s:Label id="export" click="export_clickHandler()" toolTip="导出" top="-15" right="50"/>
+		 </s:HGroup>-->
+		<mx:AdvancedDataGrid id="districtCustInfoDG" width="100%" height="100%" horizontalScrollPolicy="auto"
+							 minWidth="500" minHeight="285" itemClick="districtCustInfoDG_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="sheetno"
+										   headerText="EMOS工单编号"/>
+				<mx:AdvancedDataGridColumn dataField="event"
+										   headerText="发起时间"/>
+				<mx:AdvancedDataGridColumn dataField="overtime"
+										   headerText="超时时长（小时）"/>
+				<mx:AdvancedDataGridColumn dataField="groupcustomerid"
+										   headerText="集团客户编号"/>
+				<mx:AdvancedDataGridColumn dataField="groupcustomer"
+										   headerText="集团客户名称"/>
+				<mx:AdvancedDataGridColumn dataField="businesssystem"
+										   headerText="业务类型"/>
+				<mx:AdvancedDataGridColumn dataField="businesslevel"
+										   headerText="工单服务等级"/>
+				<mx:AdvancedDataGridColumn dataField="city_name" 
+										   headerText="地市"/>
+				<mx:AdvancedDataGridColumn dataField="county" 
+										   headerText="区县"/>
+				<mx:AdvancedDataGridColumn dataField="nename" 
+										   headerText="故障网元"/>
+				<mx:AdvancedDataGridColumn dataField="alarmtitle"
+										   headerText="告警标题"/>
+				<mx:AdvancedDataGridColumn dataField="sheetstatus" 
+										   headerText="当前环节"/>
+				<mx:AdvancedDataGridColumn dataField="cusbuss_id" 
+										   headerText="产品实例标识"/>
+				<mx:AdvancedDataGridColumn dataField="circuit_name" 
+										   headerText="电路编号"/>
+				<mx:AdvancedDataGridColumn dataField="overtime"
+										   headerText="短信督促" 
+										   itemRenderer="com.linkage.module.cms.groupclientalarm.renderer.MgnSendRenderer"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+	</s:VGroup>
+			<panel:Window width="300" height="200" id="msgWin" close="msgWin_closeHandler()" dragable="true" visible="false" includeInLayout="false" title="短信发送页面"> 
+				<s:VGroup>
+					<s:VGroup>
+						<s:HGroup>
+							<s:Label  text="短信接收人:"/>
+							<s:TextInput id="msgAcser" width="120" height="20"/>
+							<s:Label  text="接收号码:"/>
+							<s:TextInput id="phonenum" width="120" height="20"/>
+						</s:HGroup>
+						<s:HGroup>
+							<s:Label  text="短信内容:"/>
+							<s:TextArea id="msgInfo" width="250" height="100"/>
+						</s:HGroup>
+					</s:VGroup>
+					<s:HGroup horizontalAlign="right" width="100%">
+						<s:Button id="sendMsg" label="发送" click="msgWin_clickHandler()"/>
+						<s:Button id="closeMsg" label="取消" click="closeMsg_clickHandler(event)"/>
+					</s:HGroup>
+				</s:VGroup>
+				
+				
+			</panel:Window>
+</panel:Window>

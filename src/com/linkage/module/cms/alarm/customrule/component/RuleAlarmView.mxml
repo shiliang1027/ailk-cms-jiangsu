@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  mouseEnabled="true"
+			  width="100%"
+			  height="100%"
+			  closable="false"
+			  dragable="true"
+			  resizable="true">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.alarm.framework.common.event.AlarmViewEvent;
+			import com.linkage.module.cms.alarm.framework.common.event.SystemEvent;
+			import com.linkage.module.cms.alarm.framework.common.util.AlarmUtil;
+			import com.linkage.module.cms.alarm.framework.controller.AlarmAction;
+			import com.linkage.module.cms.alarm.framework.module.server.source.ICollection;
+			import com.linkage.module.cms.alarm.framework.view.AlarmView;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			//窗口X轴坐标
+			private var _windowX:Number = 0;
+			//窗口Y轴坐标
+			private var _windowY:Number = 0;
+			//窗口宽度
+			private var _windowW:Number = 0;
+			//窗口高度
+			private var _windowH:Number = 0;
+			//窗口深度
+			private var _windowD:Number = 0;
+			//是否最小化
+			private var _isMin:Boolean = false
+			// 窗口id
+			private var _windowId:String = null;
+			//窗口KEY
+			private var _windowKey:String = null;
+			//子窗KEY
+			private var _childViewKey:String = null;
+			//子窗口名称
+			private var _childViewName:String = null;
+			//告警数据管理
+			private var _alarmAction:AlarmAction = null;
+
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.alarm.customrule.component.RuleAlarmView");
+
+			public function initWindow():void
+			{
+				//1.初始化窗口
+				if (AlarmUtil.checkStrIsNull(childViewKey) && AlarmUtil.checkStrIsNull(childViewName))
+				{
+					var viewKeyArray:Array = childViewKey.split(",");
+					var viewNameArray:Array = childViewName.split(",");
+					var keyLen:int = viewKeyArray.length;
+					if (keyLen == viewNameArray.length)
+					{
+						var pheight:int = height / keyLen;
+						for (var index:int; index < keyLen; index++)
+						{
+							var view:AlarmView = new AlarmView();
+							view.windowType = viewKeyArray[index];
+							view.viewTitle = viewNameArray[index];
+							view.windowUniquekey = _windowKey;
+							view.alarmAction = _alarmAction;
+							view.percentHeight = pheight;
+							view.windowId = _windowId;
+							view.percentWidth = 100;
+							view.minHeight = 56;
+							vdBox.addElement(view);
+							view.initView();
+						}
+					}
+				}
+				//2.初始化监听
+				_alarmAction.addEventListener(_windowId + AlarmViewEvent.ALARM_LOAD_PLE, alarmLoadEndNodify);
+				_alarmAction.addEventListener(_windowId + AlarmViewEvent.ALARM_LOAD_EPL, alarmLoadErrorNodify);
+				_alarmAction.dispatchEvent(new AlarmViewEvent(_windowId + AlarmViewEvent.VIEW_CREATED));
+				_alarmAction.addEventListener(_windowId+"_alarmStatNumChange",alarmStatNumChange);
+				//3.如果5分钟没有预装完，算预装失败，直接提示
+				setTimeout(function():void
+					{
+						if (loadTips.visible)
+						{
+							alarmLoadErrorNodify(null);
+						}
+					}, 300000);
+			}
+			
+			private var _title:String;
+			private function alarmStatNumChange(event:Event):void{
+				if(!_title){
+					_title=this.title;
+				}
+				var viewKeyArray:Array=childViewKey.split(",");
+				var viewNameArray:Array=childViewName.split(",");
+				var keyLen:int=viewKeyArray.length;
+				var num:Number=0;
+				if (keyLen == viewNameArray.length)
+				{
+					for (var index:int; index < keyLen; index++)
+					{
+						var _alarmsAC:ICollection = _alarmAction.alarmSource(_windowId, viewKeyArray[index]);
+						num+=_alarmsAC.level1Num+_alarmsAC.level2Num+_alarmsAC.level3Num+_alarmsAC.level4Num;
+					}
+				}
+				this.title = _title+" "+num;
+				
+				var evt:SystemEvent = new SystemEvent("alarmStatNumALLChange",_windowId+"_"+num);
+				
+				_alarmAction.dispatchEvent(evt);
+			}
+
+			public function alarmLoadEndNodify(event:AlarmViewEvent):void
+			{
+				var num:int = _alarmAction.getAlarmNumByWindowId(windowId);
+				loadTips.text = (num > 0) ? "预装正常结束" : "预装结束,暂无告警";
+				setTimeout(function():void
+					{
+						loadTips.visible = false;
+						loadTips.includeInLayout = false;
+					}, 5000);
+			}
+
+			public function alarmLoadErrorNodify(event:AlarmViewEvent):void
+			{
+				loadTips.text = "告警预装异常,请重试";
+				setTimeout(function():void
+					{
+						loadTips.visible = false;
+						loadTips.includeInLayout = false;
+					}, 5000);
+			}
+
+			public function set windowId(value:String):void
+			{
+				_windowId = value;
+				this.id = value;
+			}
+
+			public function get windowId():String
+			{
+				return _windowId;
+			}
+
+			public function set windowX(value:Number):void
+			{
+				_windowX = value;
+			}
+
+			public function get windowX():Number
+			{
+				return _windowX;
+			}
+
+			public function set windowY(value:Number):void
+			{
+				_windowY = value;
+			}
+
+			public function get windowY():Number
+			{
+				return _windowY;
+			}
+
+			public function set windowW(value:Number):void
+			{
+				_windowW = value;
+			}
+
+			public function get windowW():Number
+			{
+				return _windowW;
+			}
+
+			public function set windowH(value:Number):void
+			{
+				_windowH = value;
+			}
+
+			public function get windowH():Number
+			{
+				return _windowH;
+			}
+
+			public function set windowD(value:Number):void
+			{
+				_windowD = value;
+			}
+
+			public function get windowD():Number
+			{
+				return _windowD;
+			}
+
+			public function set windowKey(value:String):void
+			{
+				_windowKey = value;
+			}
+
+			public function set windowName(value:String):void
+			{
+				this.title = value;
+			}
+
+			public function set alarmAction(value:AlarmAction):void
+			{
+				_alarmAction = value;
+			}
+
+			public function set isMin(value:Boolean):void
+			{
+				_isMin = value;
+			}
+
+			public function get isMin():Boolean
+			{
+				return _isMin;
+			}
+
+			public function set childViewKey(value:String):void
+			{
+				_childViewKey = value;
+			}
+
+			public function get childViewKey():String
+			{
+				return _childViewKey;
+			}
+
+			public function set childViewName(value:String):void
+			{
+				_childViewName = value;
+			}
+
+			public function get childViewName():String
+			{
+				return _childViewName;
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup top="-20"
+			  horizontalCenter="0">
+		<s:Label id="loadTips"
+				 text="告警预装中..."/>
+	</s:HGroup>
+	<s:Scroller id="scroller"
+				width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:VGroup id="main"
+				  width="100%"
+				  height="100%"
+				  gap="0">
+			<mx:VDividedBox id="vdBox"
+							width="100%"
+							height="100%"
+							verticalGap="2"
+							paddingTop="-3"/>
+		</s:VGroup>
+	</s:Scroller>
+</panel:Window>

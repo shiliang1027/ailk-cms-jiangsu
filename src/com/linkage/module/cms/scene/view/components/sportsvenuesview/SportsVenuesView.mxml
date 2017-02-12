@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  xmlns:parsley="http://www.spicefactory.org/parsley"
+					  width="100%"
+					  styleName="skinnableContainer1"
+					  height="100%"
+					  creationComplete="group1_creationCompleteHandler(event)"
+					  xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.scene.domain.sportsvenuesview.SportsVenuesDM;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.event.sportsvenuesview.SportsVenuesEvent;
+			import com.linkage.module.cms.scene.view.components.sportsvenuesview.renderer.PicColumnRenderer;
+
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			import mx.events.AdvancedDataGridEvent;
+			import mx.events.FlexEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(SportsVenuesView);
+
+			[Inject("sportsVenuesViewPM")]
+			[Bindable]
+			public var pm:SportsVenuesViewPM;
+
+			[Inject("sportsVenuesDM")]
+			public var dm:SportsVenuesDM;
+
+
+			[Init]
+			public function init():void
+			{
+				if (pm)
+					pm.loadDataMap();
+			}
+
+			//提供给外部框架调用的加载数据方法
+			public function loadData():void
+			{
+				if (pm)
+					pm.loadDataMap();
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//pm.loadDataMap("1","2");
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%">
+		<s:Group width="100%"
+				 height="100%">
+			<mx:AdvancedDataGrid id="sportsvenues"
+								 maxWidth="{Number.MAX_VALUE}"
+								 height="100%"
+								 headerWordWrap="true"
+								 draggableColumns="false"
+								 dragMoveEnabled="false"
+								 verticalAlign="middle"
+								 horizontalScrollPolicy="auto"
+								 groupedColumns="{pm.dm.groColumns}"
+								 dataProvider="{pm.dm.dataList}"/>
+		</s:Group>
+	</s:Scroller>
+
+</s:SkinnableContainer>

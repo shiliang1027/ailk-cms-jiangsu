@@ -1,0 +1,1160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="100%"
+			   height="100%"
+			   creationComplete="main_creationCompleteHandler(event)"
+			   preinitialize="main_preinitializeHandler(event)"
+			   preloader="com.linkage.module.cms.components.downloadprogress.CustomPreloader"
+			   xmlns:flow="com.linkage.module.cms.general.monitor.flow.*"
+			   xmlns:common="com.linkage.module.cms.general.monitor.common.*"
+			   xmlns:complaint="com.linkage.module.cms.general.monitor.datashow.complaint.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.base.BaseView;
+			import com.linkage.module.cms.general.monitor.city.CityMonitorView;
+			import com.linkage.module.cms.general.monitor.common.QuickSearch;
+			import com.linkage.module.cms.general.monitor.datamanager.DevLocation;
+			import com.linkage.module.cms.general.monitor.datamanager.DevLocationImp;
+			import com.linkage.module.cms.general.monitor.datamanager.ImageServ;
+			import com.linkage.module.cms.general.monitor.datamanager.ImageServImp;
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeService;
+			import com.linkage.module.cms.general.monitor.datamanager.LevelThreeServiceImp;
+			import com.linkage.module.cms.general.monitor.datamanager.LineInfo;
+			import com.linkage.module.cms.general.monitor.datamanager.LineInfoImp;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManagerImp;
+			import com.linkage.module.cms.general.monitor.datashow.DataGroup;
+			import com.linkage.module.cms.general.monitor.district.MapLocation;
+			import com.linkage.module.cms.general.monitor.district.MapView;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.logging.LogEventLevel;
+
+			import flash.utils.setTimeout;
+
+			import mx.charts.LineChart;
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.core.IVisualElement;
+			import mx.core.IVisualElementContainer;
+			import mx.events.DividerEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.components.Group;
+			import spark.events.IndexChangeEvent;
+			[Embed(source="../../../../../../assets/shiftBtn1_1.png")]
+			[Bindable]
+			private static var pic11:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn1_2.png")]
+			[Bindable]
+			private static var pic12:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn1_3.png")]
+			[Bindable]
+			private static var pic13:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn1_4.png")]
+			[Bindable]
+			private static var pic14:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn2_1.png")]
+			[Bindable]
+			private static var pic21:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn2_2.png")]
+			[Bindable]
+			private static var pic22:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn2_3.png")]
+			[Bindable]
+			private static var pic23:Class;
+
+			[Embed(source="../../../../../../assets/shiftBtn2_4.png")]
+			[Bindable]
+			private static var pic24:Class;
+
+			//参数
+			public var param:Object;
+
+			public static var exportUrl:String='';
+			public static var exportLocateUrl:String='';
+
+			//数据接口
+			public var remoteData:RemoteDataManager=null;
+
+			//三级视图数据接口
+			public var dataService:LevelThreeService=null;
+
+			//管线信息查询接口
+			public var lineInfo:LineInfo=null;
+
+			//网元定位接口方法
+			private var locationServ:DevLocation=null;
+
+			//配置数据
+			public var configObj:Object=null;
+
+			//定位类型
+			private var locationType:String="";
+
+			//定位编号
+			private var locationId:String="";
+
+			//日志
+			public var log:ILogger=null;
+
+			//省名称
+			public static var provinceName:String="江苏省";
+			//			public static var provinceName:String = "广东省";
+
+			//主界面高度
+			[Bindable]
+			private var topHeight:int=400;
+
+			//是否拖动
+			private var isDivide:Boolean=false;
+
+			//图片路径缓存
+			public var imageUrlMap:Dictionary=new Dictionary();
+
+			//网元图片信息查询接口
+			private var imageServ:ImageServ=null;
+
+			//当前用户的属地信息
+			private var userCityId:String="";
+			private var userCityName:String="";
+			private var userCityLayer:String="";
+
+			//查询当前用户的属地信息
+			private function initCityInfo():void
+			{
+				var paramMap:Object=new Object();
+				log.info("当前用户的域编号：" + this.parameters.area_id);
+				if (this.parameters.area_id != null)
+				{
+					paramMap.area_id=this.parameters.area_id;
+				}
+
+				remoteData.getAreaCity(paramMap, getCityInfoSucc, null, getCityInfoErr);
+			}
+
+			private function getCityInfoSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询属地信息成功！");
+					//取属地
+					for each (var city:Object in obj)
+					{
+						userCityId=city.city_id;
+						userCityName=city.city_name;
+						userCityLayer=city.city_layer;
+					}
+
+					initView();
+				}
+				else
+				{
+					log.info("查询属地信息为空！进入默认全省视图！");
+					userCityId="";
+					userCityName=provinceName;
+					userCityLayer="1";
+					initView();
+				}
+			}
+
+			private function getCityInfoErr(obj:Object):void
+			{
+				log.info("error == " + obj);
+				log.info("查询属地信息失败！进入默认全省视图！");
+				userCityId="";
+				userCityName=provinceName;
+				userCityLayer="1";
+				initView();
+			}
+
+			//初始化视图
+			public function initView():void
+			{
+
+				treeDiv.initTree(userCityId, "区域树图", remoteData, function(cityId:String, cityName:String, cityFullName:String, level:String, parentId:String):void
+					{
+						forward2View(level, cityId, cityFullName, "", parentId);
+					});
+
+				//初始化快速检索菜单
+				search.init(quickSearchInto);
+
+				if (provinceName == "江苏省")
+					search.move(528, 7);
+				else if (provinceName == "广东省")
+					search.move(60, 50);
+
+				search.visible=false;
+
+				//默认进去全省视图
+				if (this.parameters.type != null && this.parameters.type != "")
+				{
+					if (this.parameters.moId == null || this.parameters.moId == "")
+					{
+						Alert.show("网元信息不存在！");
+						return;
+					}
+
+					if (this.parameters.type == "cityLocation" || this.parameters.type == "noaccess")
+					{
+						showCityLocationInfo(this.parameters.moId, this.parameters.type);
+					}
+					else
+					{
+						queryMoLocationInfo(this.parameters.moId, this.parameters.type);
+					}
+				}
+				else
+				{
+					search.visible=true;
+					defaultInit();
+				}
+
+				log.info("初始化结束......");
+			}
+
+			private function initFlowTab(cityId:String, cityName:String, level:String):void
+			{
+				this.flowTab.cityId=cityId;
+				this.flowTab.cityName=cityName;
+				this.flowTab.reloadFlow(level);
+
+				//三级视图默认隐藏告警流水
+				if (level == "3" && flowGroup.visible)
+				{
+					resizeWindow(4);
+				}
+			}
+
+			//读取数据成功
+			public function configSuccess(xml:XML):void
+			{
+				log.info("读取配置成功！");
+				param.config=xml;
+				initCityInfo();
+			}
+
+			//读取数据失败，继续加载
+			public function configError(obj:Object):void
+			{
+				log.info("读取配置失败，使用默认值！");
+				param.config=null;
+				initCityInfo();
+			}
+
+			//缓存一级视图
+			private var provinceView:monitorView=null;
+
+			//缓存二级视图
+			private var cityViews:Dictionary=new Dictionary();
+
+			//缓存三级视图
+			private var countyView:Dictionary=new Dictionary();
+
+			//默认初始化全省视图
+			private function defaultInit():void
+			{
+				if (userCityLayer == "2")
+				{
+					//地市视图
+					var cityViewObj:CityMonitorView=new CityMonitorView();
+					cityViewObj.param=param;
+					cityViewObj.remoteData=remoteData;
+					cityViewObj.curCityId=userCityId;
+					cityViewObj.curCityName=userCityName;
+					cityViewObj.generalView=this;
+					cityViewObj.dataService=dataService;
+					topGroup.addElement(cityViewObj);
+					cityViews[userCityId]=cityViewObj;
+
+					this.flowTab.remoteData=remoteData;
+					this.flowTab.param=param;
+					this.flowTab.init();
+
+					this.compChart.remoteData=remoteData;
+
+					initFlowTab(userCityId, userCityName, "2");
+					showLevel="2";
+				}
+				else
+				{
+					//全省视图
+					provinceView=new monitorView();
+					provinceView.param=param;
+					provinceView.general=this;
+					provinceView.remoteData=remoteData;
+					provinceView.cityId="";
+					provinceView.cityName=provinceName;
+					topGroup.addElement(provinceView);
+
+					this.flowTab.remoteData=remoteData;
+					this.flowTab.param=param;
+					this.flowTab.init();
+
+					this.compChart.remoteData=remoteData;
+				}
+			}
+
+			//查询定位网元信息
+			private function queryMoLocationInfo(neId:String, type:String):void
+			{
+				var viewObj:MapLocation=new MapLocation();
+				viewObj.dataService=dataService;
+				viewObj.lineInfo=lineInfo;
+				viewObj.locationNeId=neId;
+				viewObj.locationType=type;
+				viewObj.param=param;
+				viewObj.general=this;
+				viewObj.iconUrl=this.parameters.iconPath;
+				topGroup.addElement(viewObj);
+				//viewObj.initData();
+				countyView["Maplocation"]=viewObj;
+
+				showLevel="3"
+
+				this.flowTab.remoteData=remoteData;
+				this.flowTab.param=param;
+				this.flowTab.init();
+				this.flowTab.reloadFlow("4");
+
+				if (flowGroup.visible)
+				{
+					setTimeout(function():void
+						{
+							resizeWindow(4);
+						}, 2000);
+				}
+			}
+
+			//定位到属地的退服告警
+			private function showCityLocationInfo(cityId:String, type:String):void
+			{
+				var viewObj:MapLocation=new MapLocation();
+				viewObj.dataService=dataService;
+				viewObj.lineInfo=lineInfo;
+				viewObj.locationNeId=cityId;
+				viewObj.locationType=type;
+				viewObj.param=param;
+				viewObj.general=this;
+				viewObj.iconUrl=this.parameters.iconPath;
+				topGroup.addElement(viewObj);
+				//viewObj.initData();
+				countyView["Maplocation"]=viewObj;
+
+				showLevel="3"
+
+				this.flowTab.remoteData=remoteData;
+				this.flowTab.param=param;
+				this.flowTab.init();
+				this.flowTab.reloadFlow("4", cityId);
+
+				if (flowGroup.visible)
+				{
+					setTimeout(function():void
+						{
+							resizeWindow(4);
+						}, 2000);
+				}
+			}
+
+			//记录当前显示的视图级别
+			public var showLevel:String="1";
+
+			//页面跳转用
+			public function forward2View(level:String, cityId:String, cityFullName:String, neId:String, parentId:String=null, type:String="self"):void
+			{
+				log.info("进入视图　等级：" + level + "，属地编号：" + cityId + "，属地名称：" + cityFullName);
+
+				var view:CommonGroup=null;
+				//停止当前视图的刷新
+				if (topGroup.numElements > 0 && topGroup.getElementAt(0) != null)
+				{
+					view=(topGroup.getElementAt(0) as CommonGroup);
+					view.hideView();
+				}
+
+
+				//删除当前所有视图
+				topGroup.removeAllElements();
+
+				switch (level) //地市级别
+				{
+					case "1":
+						if (provinceView == null)
+						{
+							provinceView=new monitorView();
+							provinceView.param=param;
+							provinceView.general=this;
+							provinceView.remoteData=remoteData;
+							provinceView.cityId="";
+							provinceView.cityName=provinceName;
+						}
+						else
+						{
+							provinceView.showView();
+						}
+						topGroup.addElement(provinceView);
+
+						initFlowTab("", cityFullName, "1");
+						showLevel="1";
+
+						//显示快速检索
+						this.search.visible=true;
+						break;
+
+					case "2":
+						if (cityViews["cityView"] == null)
+						{
+							var cityViewObj:CityMonitorView=new CityMonitorView();
+							cityViewObj.param=param;
+							cityViewObj.remoteData=remoteData;
+							cityViewObj.curCityId=cityId;
+							cityViewObj.curCityName=cityFullName;
+							cityViewObj.generalView=this;
+							cityViewObj.dataService=dataService;
+							topGroup.addElement(cityViewObj);
+							cityViews["cityView"]=cityViewObj;
+						}
+						else
+						{
+							var v:CityMonitorView=(cityViews["cityView"] as CityMonitorView);
+							v.curCityId=cityId;
+							v.curCityName=cityFullName;
+							v.reloadData();
+							v.showView();
+							topGroup.addElement(v);
+						}
+
+						initFlowTab(cityId, cityFullName, "2");
+						showLevel="2";
+
+						//隐藏快速检索
+						this.search.visible=true;
+						break;
+
+					case "3":
+						if (countyView["MapView"] == null)
+						{
+							var viewObj:MapView=new MapView();
+							viewObj.curCity=cityId;
+							viewObj.curCityName=cityFullName;
+							viewObj.curMapCity=parentId;
+							viewObj.dataService=dataService;
+							viewObj.lineInfo=lineInfo;
+							viewObj.locationNeId=neId;
+							viewObj.locationType=type;
+							viewObj.param=param;
+							viewObj.general=this;
+							viewObj.iconUrl=this.parameters.iconPath;
+							topGroup.addElement(viewObj);
+							viewObj.initData();
+							countyView["MapView"]=viewObj;
+						}
+						else
+						{
+							var m:MapView=(countyView["MapView"] as MapView);
+							if (neId != null && neId != "")
+							{
+								m.locationNeId=neId;
+								m.locationType=type;
+									//								m.locationMo(neId, type);
+							}
+							m.curCity=cityId;
+							m.curCityName=cityFullName;
+							m.curMapCity=parentId;
+							topGroup.addElement(m);
+							m.initData();
+							m.loadGisData();
+						}
+
+						initFlowTab(cityId, cityFullName, "3");
+						showLevel="3"
+
+						//隐藏快速检索
+						this.search.visible=false;
+						break;
+				}
+			}
+
+			//快速检索跳转
+			public function quickSearchInto(type:String, name:String):void
+			{
+				//根据类型和名称查询网元
+				remoteData.queryMoInfo(type, name, queryMoSucc, null, queryMoErr);
+			}
+
+			//查询网元成功
+			public function queryMoSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询网元/属地数据成功！");
+
+					var moList:ArrayCollection=new ArrayCollection();
+					for each (var tmp:Object in obj)
+					{
+						if (tmp.typeName != '区域') //网元
+						{
+							if (tmp.mo_id != null && tmp.city_id != null)
+							{
+								moList.addItem(tmp);
+							}
+						}
+						else //属地
+						{
+							if (tmp.city_layer != null && tmp.city_id != null)
+							{
+								moList.addItem(tmp);
+							}
+						}
+					}
+					if (moList.length > 0)
+					{
+						var obj:Object=moList.getItemAt(0);
+						log.info("找到网元：" + obj.mo_name + " 编号：" + obj.mo_id + " 属地：" + obj.city_id + " 区县：" + obj.county_id + " 属地名称：" + obj.city_name + " 类型：" + obj.mo_type_id + " 查找类型：" + obj.typeName);
+
+						if (obj.typeName != '区域') //网元
+						{
+							//跳转到三级视图
+							if (obj.mo_type_id == "16" || obj.mo_type_id == "28" || obj.mo_type_id == "15" || obj.mo_type_id == "27")
+							{
+								forward2View("3", obj.county_id, obj.city_name, obj.mo_id, null, "BTS");
+							}
+							else
+							{
+								forward2View("3", obj.city_id, obj.city_name, obj.mo_id, null, "self");
+							}
+
+							//赋值
+							this.searchList.moList.dataProvider=moList;
+							this.searchList.moList.selectedIndex=0;
+							this.searchList.visible=true;
+							this.searchList.includeInLayout=true;
+						}
+						else //属地
+						{
+							//快速定位区域
+							forward2View(obj.city_layer, obj.city_id, obj.city_name, obj.mo_id, null, "self");
+						}
+
+					}
+					else
+					{
+						Alert.show("没有查找到相关信息！");
+					}
+				}
+				else
+				{
+					log.info("查询数据为空！");
+					Alert.show("没有找到相关信息！");
+				}
+			}
+
+			//定位网元
+			public function locationGisMo(dev:Object):void
+			{
+				if (dev != null)
+				{
+					log.info("找到网元：" + dev.mo_name + " 编号：" + dev.mo_id + " 属地：" + dev.city_id + " 区县：" + dev.county_id + " 属地名称：" + dev.city_name + " 类型：" + dev.mo_type_id);
+					//跳转到三级视图
+					if (dev.mo_type_id == "16" || dev.mo_type_id == "28" || dev.mo_type_id == "15" || dev.mo_type_id == "27")
+					{
+						forward2View("3", dev.county_id, dev.city_name, dev.mo_id, null, "BTS");
+					}
+					else
+					{
+						forward2View("3", dev.county_id, dev.city_name, dev.mo_id, null, "self");
+					}
+				}
+			}
+
+			//查询网元失败
+			public function queryMoErr(obj:Object):void
+			{
+				log.info("查询网元数据失败！");
+			}
+
+			public function resizeWindow(type:int, initAlarmFlag:Boolean=true):void
+			{
+				//主界面向上伸缩
+				if (type == 3 && flowGroup.visible)
+				{
+					if (topGroup.visible)
+					{
+						topVGroup.height=10;
+						topGroup.height=0;
+						topGroup.visible=false;
+						this.treeDiv.visible=false;
+						this.search.visible=false;
+
+						changePic(img3, pic14, pic13);
+						changePic(img4, pic22, pic22);
+						this.img4.visible=false;
+						this.img4.includeInLayout=false;
+
+						mainHide.play();
+
+						//刷新页面
+						setTimeout(validate, 600, 0);
+					}
+					else
+					{
+						topVGroup.height=topHeight + 10;
+						topGroup.height=topHeight;
+						topGroup.visible=true;
+						this.treeDiv.visible=true;
+						this.search.visible=true;
+
+						changePic(img3, pic12, pic11);
+						changePic(img4, pic22, pic21);
+						this.img4.visible=true;
+						this.img4.includeInLayout=true;
+
+						mainShow.play();
+
+						//刷新页面
+						setTimeout(validate, 600, topHeight);
+					}
+				}
+				//主界面向下伸缩
+				else if (type == 4 && topGroup.visible)
+				{
+					if (flowGroup.visible)
+					{
+						flowGroup.percentHeight=0;
+						flowGroup.visible=false;
+						flowGroup.includeInLayout=false;
+						topGroup.height=this.height - 25;
+						topVGroup.height=this.height - 15;
+
+						changePic(img3, pic12, pic12);
+						changePic(img4, pic24, pic23);
+						this.img3.visible=false;
+						this.img3.includeInLayout=false;
+
+						flowHide.play();
+
+						//刷新页面
+						setTimeout(validate, 600, this.height - 25);
+
+						//停止告警刷新
+						this.flowTab.suspendAlarm();
+					}
+					else
+					{
+						flowGroup.percentHeight=100;
+						flowGroup.visible=true;
+						flowGroup.includeInLayout=true;
+						topGroup.height=topHeight;
+						topVGroup.height=topHeight + 10;
+
+						changePic(img3, pic12, pic11);
+						changePic(img4, pic22, pic21);
+						this.img3.visible=true;
+						this.img3.includeInLayout=true;
+
+						flowShow.play();
+
+						//刷新页面
+						setTimeout(validate, 600, topHeight);
+
+						//开始告警刷新
+						if (initAlarmFlag)
+							this.flowTab.startAlarm();
+					}
+				}
+			}
+
+			private function validate(h:int):void
+			{
+				var view:CommonGroup=null;
+				//重新刷新页面大小
+				if (topGroup.numElements > 0 && topGroup.getElementAt(0) != null)
+				{
+					view=(topGroup.getElementAt(0) as CommonGroup);
+					view.validateGroup();
+					view.resizeWindowGroup(h);
+				}
+			}
+
+			private function changePic(img:Image, pic1:Class, pic2:Class):void
+			{
+				img.source=pic1;
+				img.addEventListener(MouseEvent.MOUSE_OVER, function():void
+					{
+						img.source=pic2;
+					});
+				img.addEventListener(MouseEvent.MOUSE_OUT, function():void
+					{
+						img.source=pic1;
+					});
+			}
+
+			public function showThisGroup(group:Group, str:String, window:IVisualElementContainer):void
+			{
+				this.mainGroup.visible=false;
+				this.mainGroup.includeInLayout=false;
+				this.search.visible=false;
+				this.treeDiv.visible=false;
+
+				this.showGroup.visible=true;
+				this.showGroup.includeInLayout=true;
+
+				this.showGroup.title=str;
+				this.showGroup.addShowGroup(group, window);
+			}
+
+			public function hideThisGroup():void
+			{
+				this.mainGroup.visible=true;
+				this.mainGroup.includeInLayout=true;
+				this.search.visible=true;
+				this.treeDiv.visible=true;
+
+				this.showGroup.visible=false;
+				this.showGroup.includeInLayout=false;
+			}
+
+			public function showThisWindow(group:Group, str:String, window:IVisualElementContainer):void
+			{
+				this.showWindow.visible=true;
+				this.showWindow.includeInLayout=true;
+				this.showWindow.title=str;
+				this.showWindow.addShowGroup(group, window);
+			}
+
+			public function switchSearch():void
+			{
+				if (this.search.visible)
+				{
+					this.search.visible=false;
+				}
+				else
+				{
+					this.search.visible=true;
+				}
+			}
+
+			//刷新告警
+			public function reloadAlarm(city:String, moType:String=null, alarmLevel:String=null, outReason:String=null):void
+			{
+				//先显示流水
+				if (!this.flowGroup.visible)
+				{
+					resizeWindow(4, false);
+				}
+
+				this.flowTab.reloadAlarm(city, moType, showLevel, alarmLevel, outReason);
+			}
+
+			//刷新工程、工单列表
+			public function reloadFlowData(type:int, cityName:String, level:String):void
+			{
+				//先显示流水
+				if (!this.flowGroup.visible)
+				{
+					resizeWindow(4);
+				}
+
+				//刷新数据
+				if (this.treeDiv.cityNameMap[cityName] != null)
+				{
+					//查找属地编号
+					var cityId:String=this.treeDiv.cityNameMap[cityName];
+					this.flowTab.reloadData(type, cityId, level, showLevel);
+				}
+				if (cityName == "全省")
+				{
+					this.flowTab.reloadData(type, "", "1", showLevel);
+				}
+				if (cityName == "省级")
+				{
+					this.flowTab.reloadData(type, "000", "2", showLevel);
+				}
+			}
+
+			//通过属地名称定位视图
+			public function locationView(cityName:String, level:String):void
+			{
+				if (this.treeDiv.cityNameMap[cityName] != null)
+				{
+					//查找属地编号
+					var cityId:String=this.treeDiv.cityNameMap[cityName];
+					forward2View(level, cityId, cityName, "");
+				}
+			}
+
+			//显示劣化小区地图
+			public function showBadCellMap(cityName:String, level:String, mapCItyId:String):void
+			{
+				var url:String="cms/general/monitor/BadCellMapView.action?";
+				if (cityName != "")
+				{
+					var cityId:String=this.treeDiv.cityNameMap[cityName];
+					if (mapCItyId == "")
+					{
+						url=url + "cityId=" + cityId + "&mapCityId=" + cityId + "&level=" + level + "&cityName=" + cityName;
+					}
+					else
+					{
+						url=url + "cityId=" + cityId + "&mapCityId=" + mapCItyId + "&level=" + level + "&cityName=" + cityName;
+					}
+				}
+				else
+				{
+					url=url + "cityId=" + mapCItyId + "&mapCityId=" + mapCItyId + "&level=" + level + "&cityName=" + provinceName;
+				}
+
+				navigateToURL(new URLRequest(this.parameters["context"] + url));
+			}
+
+			public function showFlowInfo(type:int):void
+			{
+				this.flowTab.showFlowInfo(type);
+			}
+
+			protected function mainGroup_updateCompleteHandler(event:FlexEvent):void
+			{
+				//拖动后更新大小
+				if (isDivide)
+				{
+					topHeight=this.topVGroup.height - 10;
+					setTimeout(validate, 300, this.topVGroup.height - 10);
+					isDivide=false;
+				}
+			}
+
+			protected function mainGroup_dividerReleaseHandler(event:DividerEvent):void
+			{
+				//只有显示主界面时，拖动才有效
+				if (this.topGroup.visible)
+				{
+					isDivide=true;
+				}
+			}
+
+			//初始化图片缓存
+			private function loadImageUrlSucc(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询图片缓存信息成功");
+					for each (var icon:Object in obj)
+					{
+						imageUrlMap[icon.type]=icon.iconpath;
+					}
+				}
+				else
+				{
+					log.info("查询图片缓存信息为空");
+				}
+			}
+
+			private function loadImageUrlErr(obj:Object):void
+			{
+				log.info("查询图片缓存信息失败！");
+			}
+
+
+			protected function resizeHandler(event:ResizeEvent):void
+			{
+				this.topGroup.width=mainGroup.width;
+				this.flowGroup.width=mainGroup.width;
+			}
+			public var loadManager:LoadManager;
+
+			private var lc:LineChart;
+
+			private var alert:Alert;
+
+			private var levelMap:Object=new Object();
+
+			private static var log:ILogger=Log.getLoggerByClass(GeneralMonitor)
+
+			protected function main_preinitializeHandler(event:FlexEvent):void
+			{
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+			}
+
+
+			protected function main_creationCompleteHandler(event:FlexEvent):void
+			{
+				levelMap["info"]=LogEventLevel.INFO;
+				levelMap["debug"]=LogEventLevel.DEBUG;
+				levelMap["warn"]=LogEventLevel.WARN;
+				levelMap["error"]=LogEventLevel.ERROR;
+				levelMap["all"]=LogEventLevel.ALL;
+
+				loadManager=new LoadManager(this);
+				var moduleUrl:String=this.parameters["moduleUrl"];
+
+				var level:int=0;
+				if (this.parameters["LogLevel"])
+				{
+//					if(int(this.parameters["LogLevel"])!=0){
+//						level = int(this.parameters["LogLevel"]);
+//					}else{
+//						level = levelMap[String(this.parameters["LogLevel"]).toLocaleLowerCase()];
+//					}
+//					if(int(this.parameters["LogType"]) == 0){
+//						var logTarget:com.linkage.system.logging.ILoggingTarget = new com.linkage.system.logging.targets.MonsterTarget2();
+//						logTarget.level = level;
+//						if(this.parameters["LogFilters"]){
+//							logTarget.filters = String(this.parameters["LogFilters"]).split(",");
+//						}
+//						com.linkage.system.logging.Log.addTarget(logTarget);
+//					}else{
+//						var newLogTarget:com.ailk.common.system.logging.ILoggingTarget = new com.ailk.common.system.logging.targets.MonsterTarget2();
+//						newLogTarget.level = level;
+//						if(this.parameters["LogFilters"]){
+//							newLogTarget.filters = String(this.parameters["LogFilters"]).split(",");
+//						}
+//						com.ailk.common.system.logging.Log.addTarget(newLogTarget);
+//					}
+				}
+				ExternalInterface.addCallback("flashStart", flashStart);
+				ExternalInterface.addCallback("flashStop", flashStop);
+
+				//初始化日志
+				log=Log.getLogger("com.linkage.module.cms.general.monitor.GeneralMonitor");
+
+				//读取样式
+				//				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//				styleManager.loadStyleDeclarations2("css/common/show/ui.swf");
+				//				this.parameters.context = "/cms/";
+				//				this.parameters.viewConfigTypeId = "1";
+				//				this.parameters.viewConfigXml = "xml/view_config.xml";
+				log.info("初始化开始......");
+				//初始化数据
+				remoteData=new RemoteDataManagerImp();
+				remoteData.setEndPoint(this.parameters.context);
+				dataService=new LevelThreeServiceImp();
+				dataService.setEndPoint(this.parameters.context);
+				lineInfo=new LineInfoImp();
+				lineInfo.setEndPoint(this.parameters.context);
+				locationServ=new DevLocationImp(this.parameters.context);
+				imageServ=new ImageServImp(this.parameters.context);
+
+				param=this.parameters;
+
+				exportUrl=param["context"] + "general/data/provider/generalMonitorAction";
+				exportLocateUrl=param["context"] + "cms/gis/locate/exportDevLocate";
+
+				//读取配置视图信息
+				remoteData.getViewConfigXML(this.parameters.viewConfigTypeId, this.parameters.viewConfigXml, configSuccess, configError);
+
+				//查询所有网元的图片路径（供三级视图用）
+				imageServ.getAllTopoIconInfo(loadImageUrlSucc, null, loadImageUrlErr);
+
+				//				//3.修正输入法
+				//				addEventListener(MouseEvent.ROLL_OUT, setSRF);
+			}
+
+			private var startList:ArrayList=new ArrayList();
+			private var isRunning:Boolean=false;
+
+			public function flashStart():String
+			{
+				var message:Array=new Array();
+				startList.source.forEach(function(item:*, index:int, array:Array):void
+					{
+						try
+						{
+							if (!item.running)
+							{
+								item.start();
+								message.push(item + "启动成功");
+							}
+							else
+							{
+								message.push(item + "已经启动");
+							}
+						}
+						catch (e:Error)
+						{
+							message.push(e.getStackTrace());
+						}
+					});
+				isRunning=true;
+				return message.join("\n") + isRunning;
+			}
+
+			public function flashStop():String
+			{
+				var message:Array=new Array();
+				startList.source.forEach(function(item:*, index:int, array:Array):void
+					{
+						try
+						{
+							if (item.running)
+							{
+								item.stop();
+								message.push(item + "停止成功");
+							}
+							else
+							{
+								message.push(item + "已经停止");
+							}
+
+						}
+						catch (e:Error)
+						{
+							message.push(e.getStackTrace());
+						}
+					});
+				isRunning=false;
+				return message.join("\n") + isRunning;
+			}
+
+			public function remove(item:Object):void
+			{
+				startList.removeItem(item);
+			}
+
+			public function add(item:Object):void
+			{
+				if (startList.getItemIndex(item) < 0)
+				{
+					startList.addItem(item);
+				}
+			}
+
+			public function clear():void
+			{
+				startList.removeAll();
+			}
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Resize id="mainHide"
+				  target="{topGroup}"
+				  heightFrom="{topHeight}"
+				  heightTo="0"
+				  duration="600">
+		</s:Resize>
+		<s:Resize id="mainShow"
+				  target="{topGroup}"
+				  heightFrom="0"
+				  heightTo="{topHeight}"
+				  duration="600">
+		</s:Resize>
+		<s:Resize id="flowHide"
+				  target="{topGroup}"
+				  heightFrom="{topHeight}"
+				  heightTo="{this.height-25}"
+				  duration="300">
+		</s:Resize>
+		<s:Resize id="flowShow"
+				  target="{topGroup}"
+				  heightFrom="{this.height-25}"
+				  heightTo="{topHeight}"
+				  duration="300">
+		</s:Resize>
+		<s:Fade id="fadeEffect"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="3000"/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:VDividedBox id="mainGroup"
+					width="100%"
+					height="100%"
+					resize="resizeHandler(event)"
+					paddingTop="5"
+					verticalGap="-7"
+					dividerRelease="mainGroup_dividerReleaseHandler(event)"
+					updateComplete="mainGroup_updateCompleteHandler(event)">
+		<s:VGroup id="topVGroup"
+				  width="100%"
+				  height="405"
+				  paddingBottom="-10">
+			<s:VGroup id="topGroup"
+					  width="100%"
+					  height="{this.topVGroup.height-10}">
+			</s:VGroup>
+			<s:HGroup width="100%"
+					  height="5"
+					  horizontalAlign="center">
+				<mx:Image id="img3"
+						  source="{pic12}"
+						  mouseOver="this.img3.source=pic11"
+						  mouseOut="this.img3.source=pic12"
+						  click="resizeWindow(3);"
+						  buttonMode="true">
+				</mx:Image>
+				<mx:Image id="img4"
+						  source="{pic22}"
+						  mouseOver="this.img4.source=pic21"
+						  mouseOut="this.img4.source=pic22"
+						  click="resizeWindow(4);"
+						  buttonMode="true">
+				</mx:Image>
+			</s:HGroup>
+		</s:VGroup>
+		<s:VGroup id="flowGroup"
+				  width="100%"
+				  height="100%"
+				  paddingLeft="5"
+				  paddingRight="5">
+			<flow:flowTab id="flowTab"
+						  width="100%"
+						  height="100%"
+						  general="{this}">
+			</flow:flowTab>
+		</s:VGroup>
+	</mx:VDividedBox>
+	<!--区域树侧边框-->
+	<common:TreeDiv id="treeDiv"/>
+	<common:QuickSearch id="search"
+						visible="false">
+	</common:QuickSearch>
+	<common:ShowWindow id="showWindow"
+					   visible="false"
+					   includeInLayout="false"
+					   x="200"
+					   y="200">
+	</common:ShowWindow>
+	<common:ShowGroup id="showGroup"
+					  width="100%"
+					  height="100%"
+					  visible="false"
+					  includeInLayout="false"
+					  general="{this}">
+	</common:ShowGroup>
+	<complaint:CompChartView id="compChart"
+							 visible="false"
+							 includeInLayout="false">
+	</complaint:CompChartView>
+	<common:SearchResultList id="searchList"
+							 visible="false"
+							 includeInLayout="false"
+							 general="{this}"
+							 y="{this.height-300}">
+	</common:SearchResultList>
+</s:Application>

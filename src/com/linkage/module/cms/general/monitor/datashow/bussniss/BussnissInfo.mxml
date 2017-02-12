@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					xmlns:supportClasses="com.esri.ags.skins.supportClasses.*"
+					width="100%"
+					height="100%">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.Canvas;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.Group;
+			import spark.components.NavigatorContent;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.bussniss");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时调度
+			private var t:Timer = new Timer(300000);
+
+			public var dataArray:ArrayCollection = new ArrayCollection([
+				{title: "点对点短信", column: ["city", "perf_1", "perf_2", "perf_3"], name: ["区域", "接收成功率", "业务成功率", "短信时延"],
+					datalist: [{city: "全省", perf_1: "1", perf_2: "10", perf_3: "2"}, {city: "南京", perf_1: "1", perf_2: "8", perf_3: "2"}, {city: "苏州", perf_1: "1", perf_2: "2", perf_3: "0"}]}
+				, {title: "短信SP下方", column: ["city", "perf_1", "perf_2", "perf_3"], name: ["区域", "接收成功率", "业务成功率", "短信时延"],
+					datalist: [{city: "全省", perf_1: "1", perf_2: "10", perf_3: "2"}, {city: "南京", perf_1: "1", perf_2: "8", perf_3: "2"}, {city: "苏州", perf_1: "1", perf_2: "2", perf_3: "0"}]}
+				, {title: "点对点彩信", column: ["city", "perf_1", "perf_2", "perf_3"], name: ["区域", "接收成功率", "业务成功率", "彩信时延"],
+					datalist: [{city: "全省", perf_1: "1", perf_2: "10", perf_3: "2"}, {city: "南京", perf_1: "1", perf_2: "8", perf_3: "2"}, {city: "苏州", perf_1: "1", perf_2: "2", perf_3: "0"}]}
+				, {title: "手机WAP", column: ["city", "perf_1", "perf_2", "perf_3"], name: ["区域", "接收成功率", "业务成功率", "WAP时延"],
+					datalist: [{city: "全省", perf_1: "1", perf_2: "10", perf_3: "2"}, {city: "南京", perf_1: "1", perf_2: "8", perf_3: "2"}, {city: "苏州", perf_1: "1", perf_2: "2", perf_3: "0"}]}
+				]);
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityQosMonitorInfo(_cityId, getResInfo, null, getResInfoErr);
+				}
+				else
+				{
+					_remoteData.getProvinceQosMonitorInfo(getResInfo, null, getResInfoErr);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("业务质量监控统计结果：" + obj);
+				if(obj != null)
+				{
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+
+				else
+				{
+					log.info("业务质量监控：查询无数据");
+					Alert.show("查询业务质量监控数据为空！");
+						//createTable(dataArray);
+				}
+
+				//loadInfo.hideLoading();
+			}
+
+			//缓存表格
+			private var tableMap:Dictionary = new Dictionary();
+
+			private function createTable(obj:Object):void
+			{
+				for each(var dataTable:Object in obj)
+				{
+					var grid:AdvancedDataGrid = null;
+
+					//如果没有当前的TABLE，则重新生成
+					if(tableMap[dataTable.title] == null)
+					{
+						//生成列
+
+						grid = new AdvancedDataGrid();
+						grid.horizontalScrollPolicy = "off";
+						grid.verticalScrollPolicy = "auto";
+						grid.sortableColumns = false;
+						grid.percentHeight = 100;
+
+						var colArr:Array = new Array();
+						for(var i:String in dataTable.column)
+						{
+							var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+							col.dataField = dataTable.column[i];
+							col.headerText = dataTable.name[i];
+							if(i == "0")
+							{
+								col.width = 80;
+							}
+							else
+							{
+								col.width = 180;
+							}
+							colArr = colArr.concat(col);
+						}
+						grid.columns = colArr;
+
+						//生成TAB
+						var n:NavigatorContent = new NavigatorContent();
+						n.label = dataTable.title;
+						n.addElement(grid);
+
+						tableMap[dataTable.title] = grid;
+						this.bussnissTab.addElement(n);
+					}
+					//否则直接赋值
+
+					else
+					{
+						grid = (tableMap[dataTable.title] as AdvancedDataGrid);
+					}
+
+					//数据
+					grid.dataProvider = dataTable.datalist;
+				}
+
+				obj = null;
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("业务质量监控：查询数据异常");
+				Alert.show("查询业务质量监控数据异常！");
+				//createTable(dataArray);
+				//loadInfo.hideLoading();
+			}
+
+			override public function showToolBar():void
+			{
+				this.toolBar.visible = true;
+				this.toolBar.includeInLayout = true;
+			}
+
+			override public function hideToolBar():void
+			{
+				this.toolBar.visible = false;
+				this.toolBar.includeInLayout = false;
+			}
+
+			override public function showWindowTool():void
+			{
+				this.img1.visible = true;
+				this.img1.includeInLayout = true;
+			}
+
+			override public function hideWindowTool():void
+			{
+				this.img1.visible = false;
+				this.img1.includeInLayout = false;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="info"
+			  width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  height="20"
+				  id="toolBar">
+			<s:HGroup width="50%"
+					  height="20"
+					  horizontalAlign="left">
+				<s:Label text=""
+						 visible="false"
+						 id="showTitle"
+						 color="0xFFFFFF">
+				</s:Label>
+			</s:HGroup>
+			<s:HGroup width="50%"
+					  height="20"
+					  horizontalAlign="right">
+				<mx:Image id="img1"
+						  source="{window}"
+						  click="moveWindow(this.img, showTitle);"
+						  buttonMode="true">
+				</mx:Image>
+				<mx:Image id="img"
+						  source="{open}"
+						  click="openWindow(this.img,this.showTitle);"
+						  buttonMode="true">
+				</mx:Image>
+			</s:HGroup>
+		</s:HGroup>
+		<s:Group width="100%"
+				 height="100%">
+			<s:Scroller width="100%"
+						height="100%"
+						verticalScrollPolicy="auto"
+						horizontalScrollPolicy="auto">
+				<s:Group>
+					<mx:ViewStack id="bussnissTab"
+								  height="100%"
+								  top="23"
+								  paddingBottom="2"
+								  paddingLeft="2"
+								  paddingRight="2"
+								  paddingTop="2">
+					</mx:ViewStack>
+					<s:TabBar dataProvider="{bussnissTab}"
+							  styleName="commonTabBar">
+					</s:TabBar>
+				</s:Group>
+			</s:Scroller>
+		</s:Group>
+	</s:VGroup>
+</datashow:DataGroup>

@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   width="100%" height="100%"
+		   xmlns:components="com.linkage.module.cms.groupclient.components.*"
+		   creationComplete="GroupPortalModule_creationCompleteHandler(event)" >
+	
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.groupclient.components.GroupPortalComp;
+			import com.linkage.module.cms.groupclient.data.GroupPortalDataManager;
+			import com.linkage.module.cms.groupclient.data.GroupPortalDataManagerBS;
+			import com.linkage.module.cms.groupclient.event.GroupPortalEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			private var time:Number=10*60*1000;
+			private var timer:Timer = new Timer(time);
+			private var loadManager:LoadManager;
+			private var timerCallback:Function;
+			private var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.GroupPortalModule");
+			private var dataManager:GroupPortalDataManager = null ;
+			protected function GroupPortalModule_creationCompleteHandler(event:FlexEvent):void
+			{
+				
+				var parameters:Object = parentApplication.parameters;
+				var urlContext:String = parameters["urlContext"];
+				log.debug("GroupPortalModule.GroupPortalModule_creationCompleteHandler-->urlContext = "+urlContext);
+				
+				log.info(parameters);
+				styleManager.loadStyleDeclarations2(parameters["styleUrl"], true);
+				var param:Object = new Object();
+				loadManager=new LoadManager(this);
+				var userParams:String = String(parameters["user"]).replace(/\'/g, "\"");
+				var user:Object = JSON.decode(userParams);
+				if(user["areaId"] != null)
+				{
+					param.areaId = user["areaId"];
+				}
+				
+				
+				param.user = user["account"];
+				log.debug("GroupPortalModule.GroupPortalModule_creationCompleteHandler-->areaId = "+param.areaId);
+				
+				dataManager = new GroupPortalDataManagerBS(urlContext);
+				
+				loadManager.showLoading();
+				this.addEventListener(GroupPortalEvent.GET_ALARM_INFO,GroupPortalComp_getAlarmInfo);
+				this.addEventListener(GroupPortalEvent.GET_MSG_INFO,GroupPortalComp_getMsgInfo);
+				this.addEventListener(GroupPortalEvent.GET_SERVICE_QA_CIRCUIT,GroupPortalComp_getServiceQACircuit);
+				this.addEventListener(GroupPortalEvent.GET_SLA_ALARM,GroupPortalComp_getSLAAlarm);
+				this.addEventListener(GroupPortalEvent.GET_SERVICE_QA_ALARM,GroupPortalComp_getServiceQAAlarm);
+				
+				//加载完成触发时间，获取数据
+				
+				var getAlaramInfoEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_ALARM_INFO);
+				getAlaramInfoEvent.param = param;
+				
+				this.dispatchEvent(getAlaramInfoEvent);
+				
+				var getMsgInfoEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_MSG_INFO);
+				getMsgInfoEvent.param = param;
+				this.dispatchEvent(getMsgInfoEvent);
+				
+				var getServiceQACircuitEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SERVICE_QA_CIRCUIT);
+				param.type = "1";
+				getServiceQACircuitEvent.param = param;
+				this.dispatchEvent(getServiceQACircuitEvent);
+				
+				
+				if(groupPortalComp.viewstack1.selectedIndex==0)
+				{
+					var getSLAAlarmEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SLA_ALARM);
+					getSLAAlarmEvent.param = param;
+					getSLAAlarmEvent.currentPage = 1;
+					getSLAAlarmEvent.pageSize = 20;
+					this.dispatchEvent(getSLAAlarmEvent);
+				}
+				
+				if(groupPortalComp.viewstack1.selectedIndex==3)
+				{
+					var getServiceQAAlarmEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SERVICE_QA_ALARM);
+					getServiceQAAlarmEvent.param = param;
+					getServiceQAAlarmEvent.currentPage = 1;
+					getServiceQAAlarmEvent.pageSize = 20;
+					this.dispatchEvent(getServiceQAAlarmEvent);
+				}
+				
+			 	timer.start();
+				if(timerCallback is Function){
+					log.info("定时器 ！！！！start 1分钟");
+					timer.removeEventListener(TimerEvent.TIMER,timerCallback);
+					//				timer.addEventListener(TimerEvent.TIMER,timerCallback);
+				}
+				timerCallback = function(event:TimerEvent):void{
+					var getAlaramInfoEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_ALARM_INFO);
+					getAlaramInfoEvent.param = param;
+					this.dispatchEvent(getAlaramInfoEvent);
+					
+					var getMsgInfoEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_MSG_INFO);
+					getMsgInfoEvent.param = param;
+					this.dispatchEvent(getMsgInfoEvent);
+					
+					var getServiceQACircuitEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SERVICE_QA_CIRCUIT);
+					getServiceQACircuitEvent.param = param;
+					this.dispatchEvent(getServiceQACircuitEvent);
+					
+					if(groupPortalComp.viewstack1.selectedIndex==0)
+					{
+						var getSLAAlarmEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SLA_ALARM);
+						getSLAAlarmEvent.param = param;
+						this.dispatchEvent(getSLAAlarmEvent);
+					}
+					
+					if(groupPortalComp.viewstack1.selectedIndex==3)
+					{
+						var getServiceQAAlarmEvent:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SERVICE_QA_ALARM);
+						getServiceQAAlarmEvent.param = param;
+						this.dispatchEvent(getServiceQAAlarmEvent);
+					}
+				};
+				timer.addEventListener(TimerEvent.TIMER,timerCallback); 
+			}
+			
+			private function GroupPortalComp_getAlarmInfo(param:Object):void
+			{
+				log.info("GroupPortalModule.GroupPortalComp_getAlarmInfo-->param="+param);
+				dataManager.getAlarmInfo(param,GroupPortalComp_getAlarmInfoHandle,onSuccess,onError);
+			}
+			private function GroupPortalComp_getMsgInfo(param:Object):void
+			{
+				log.info("GroupPortalModule.GroupPortalComp_getMsgInfo-->param="+param);
+				dataManager.getMsgInfo(param,GroupPortalComp_getMsgInfoHandle,onSuccess,onError);
+			}
+			private function GroupPortalComp_getServiceQACircuit(param:Object):void
+			{
+				log.info("GroupPortalModule.GroupPortalComp_getServiceQACircuit-->param="+param);
+				dataManager.getTotalSheetInfo(param,GroupPortalComp_getServiceQACircuitHandle,onSuccess,onError);
+			}
+			private function GroupPortalComp_getSLAAlarm(param:Object):void
+			{
+				loadManager.showLoading();
+				log.info("GroupPortalModule.GroupPortalComp_getSLAAlarm-->param="+param);
+				dataManager.getSLAAlarmData(param,GroupPortalComp_getSLAAlarmHandle,onSuccess,onError);
+			}
+			private function GroupPortalComp_getServiceQAAlarm(param:Object):void
+			{
+				log.info("GroupPortalModule.GroupPortalComp_getServiceQAAlarm-->param="+param);
+				dataManager.getServiceQAAlarmData(param,GroupPortalComp_getServiceQAAlarmHandle,onSuccess,onError);
+			}
+			
+			private function GroupPortalComp_getAlarmInfoHandle(result:Object):void
+			{
+				var evt:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_ALARM_INFO);
+				evt.param = result as ArrayCollection;
+				groupPortalComp.dispatchEvent(evt);
+			}
+			private function GroupPortalComp_getMsgInfoHandle(result:Object):void
+			{
+				var evt:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_MSG_INFO);
+				evt.param = result;
+				groupPortalComp.dispatchEvent(evt);
+			}
+			private function GroupPortalComp_getServiceQACircuitHandle(result:Object):void
+			{
+				var evt:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SERVICE_QA_CIRCUIT);
+				evt.param = result as ArrayCollection;
+				groupPortalComp.dispatchEvent(evt);
+			}
+			private function GroupPortalComp_getSLAAlarmHandle(result:Object):void
+			{
+				loadManager.hideLoading();
+				var evt:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SLA_ALARM);
+				log.info(result);
+				evt.param = result;
+				groupPortalComp.dispatchEvent(evt);
+			}
+			private function GroupPortalComp_getServiceQAAlarmHandle(result:Object):void
+			{
+				var evt:GroupPortalEvent = new GroupPortalEvent(GroupPortalEvent.GET_SERVICE_QA_ALARM);
+				evt.param = result;
+				groupPortalComp.dispatchEvent(evt);
+			}
+			private function onSuccess(result:Object):void
+			{
+			}
+			private function onError(event:FaultEvent):void
+			{
+			}
+		]]>
+	</fx:Script>
+	
+	<components:GroupPortalComp id="groupPortalComp" />
+</mx:Module>
+

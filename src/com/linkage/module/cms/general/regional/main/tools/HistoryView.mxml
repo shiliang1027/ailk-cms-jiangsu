@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  title="历史回放" 
+			  close="closeMe();"
+			  dragable="true"
+			  creationComplete="init();">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.gis.core.GisFeature;
+			import com.linkage.gis.core.metry.GisLine;
+			import com.linkage.gis.core.metry.GisPoint;
+			import com.linkage.gis.core.styles.GisLinePredefinedStyle;
+			import com.linkage.gis.core.styles.GisLineStyle;
+			import com.linkage.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.module.cms.general.regional.data.GisServ;
+			import com.linkage.module.cms.general.regional.main.MapView;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.rpc.events.FaultEvent;
+			
+			private var _target:MapView = null;
+			
+			//数据接口
+			private var _gisServ:GisServ = null;
+			
+			//当前显示的场景编号
+			private var _monitorId:String = null;
+			
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.regional.main.tools.HistoryView");
+
+			
+			public function get monitorId():String
+			{
+				return _monitorId;
+			}
+
+			public function set monitorId(value:String):void
+			{
+				_monitorId = value;
+			}
+
+			public function get gisServ():GisServ
+			{
+				return _gisServ;
+			}
+
+			public function set gisServ(value:GisServ):void
+			{
+				_gisServ = value;
+			}
+
+			public function get target():MapView
+			{
+				return _target;
+			}
+
+			public function set target(value:MapView):void
+			{
+				_target = value;
+			}
+
+			private function closeMe():void
+			{
+				this.visible = false;
+				clearHistory();
+			}
+			
+			public function init():void
+			{
+				
+			}
+			
+			private function showHistory():void
+			{
+				var param:Object = new Object();
+				param.monitor_id = _monitorId;
+				param.start_time = String(this.startDate.text);
+				param.end_time = String(this.endDate.text);
+				
+				log.info("查询历史灾情参数　monitor_id="+param.monitor_id+" start_time="+param.start_time+" end_time="+param.end_time);
+				_gisServ.getHisDisaster(param,loadData,null,loadErrData);
+			}
+			
+			public function loadData(obj:Object):void
+			{
+				if (obj != null)
+				{
+					log.info("查询历史灾情成功！");
+					
+					var param:Array = new Array();
+					
+					var pic:GisMarkerPictureStyle = null;
+					var feature:GisFeature = null;
+					
+					for each(var info:Object in obj)
+					{
+						log.info("灾情类型：" + info.disaster_type);
+						if(info.disaster_type == "4")
+						{
+							//放置历史对象
+							pic = new GisMarkerPictureStyle("img/red.png");
+							feature = new GisFeature(new GisPoint(Number(info.longitude),Number(info.latitude)),pic);
+							info.obj_type = "history";
+							feature.attributes = info;
+							feature.toolTip = info.disaster_desc;
+							_target.mapWork.map.addGisFeature(feature);
+						}else if(info.disaster_type == "2")
+						{
+							//放置历史对象
+							/*pic = new GisMarkerPictureStyle("img/red.png");
+							feature = new GisFeature(new GisPoint(Number(info.longitude),Number(info.latitude)),pic);
+							info.obj_type = "history";
+							feature.attributes = info;
+							feature.toolTip = info.disaster_desc;
+							_target.mapWork.map.addGisFeature(feature);*/ 
+							var firstOne:Boolean = false;
+							for each(var wind_info:Object in info.wind_info)
+							{
+								log.info("wind_info:" + wind_info);
+								pic = new GisMarkerPictureStyle("img/red.png");
+								feature = new GisFeature(new GisPoint(Number(wind_info.longitude),Number(wind_info.latitude)),pic);
+								wind_info.obj_type = "history";
+								feature.attributes = wind_info;
+								
+								if(firstOne)
+								{
+									feature.toolTip = "时间:" + wind_info.time + ",风速:" 
+										+ wind_info.wind_speed +",影响基站数量:" + wind_info.bts_num;
+								}else
+								{
+									feature.toolTip = info.disaster_desc 
+										+ ",时间:" + wind_info.time + ",风速:" + wind_info.wind_speed +",影响基站数量:" + wind_info.bts_num;
+									firstOne = true;
+								}
+								
+								_target.mapWork.map.addGisFeature(feature);
+								
+								var gisPoint:GisPoint = new GisPoint(Number(wind_info.longitude),
+										Number(wind_info.latitude));
+								param.push(gisPoint);
+							}
+							
+							var gisFeature2:GisFeature = new GisFeature(new GisLine(param), 
+									new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID,0xFF0000,1,10));
+							info.obj_type = "history";
+							gisFeature2.attributes = info;
+							_target.mapWork.map.addGisFeature(gisFeature2);
+						}
+						
+					}
+				}
+				else
+				{
+					log.info("查询历史灾情为空！");
+				}
+			}
+			
+			public function loadErrData(event:FaultEvent):void
+			{
+				log.info("查询历史灾情失败！ :" + event.fault.faultDetail);
+			}
+			
+			private function clearHistory():void
+			{
+				//得到所有的GIS图标
+				var arr:Array = _target.mapWork.map.getAllGisFeature();
+				
+				for each (var feature:GisFeature in arr)
+				{
+					if (feature != null && feature.attributes != null)
+					{
+						if (feature.attributes.obj_type == "history")
+						{
+							_target.mapWork.map.removeGisFeature(feature);
+						}
+					}
+				}
+				
+				arr = null;
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="200" height="100" horizontalAlign="center">
+		<s:HGroup width="100%">
+			<mx:Text text="开始时间"/>
+			<mx:DateField id="startDate" formatString="YYYY-MM-DD" selectedDate="{new Date()}" color="0x000000"/>
+		</s:HGroup>
+		<s:HGroup width="100%">
+			<mx:Text text="结束时间"/>
+			<mx:DateField id="endDate" formatString="YYYY-MM-DD" selectedDate="{new Date()}" color="0x000000"/>
+		</s:HGroup>
+		<s:HGroup width="100%">
+			<s:Button label="查询" buttonMode="true" click="showHistory();"/>
+			<s:Button label="清除" buttonMode="true" click="clearHistory();"/>
+		</s:HGroup>
+	</s:VGroup>
+</panel:Window>

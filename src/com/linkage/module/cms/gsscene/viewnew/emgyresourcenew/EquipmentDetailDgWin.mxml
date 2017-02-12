@@ -1,0 +1,97 @@
+<viewnew:PopUpCompWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+						 minimizableBottom="10"
+						 minimizable="false"
+						 title="设备资源详情"
+						 titleIcon="@Embed(source='../../img/title_ico03.png')"
+						 width="515"
+						 height="250">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.resmatrix.event.ResMatrixEvent;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.components.KpiAreaBadDetail;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.event.SceneIntroEvent;
+			import com.linkage.module.cms.gsscene.viewnew.ScenePM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.managers.PopUpManager;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Inject("user")]
+			[Bindable]
+			public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			
+			private var log:ILogger = Log.getLoggerByClass(EquipmentDetailDgWin);
+			
+			[MessageHandler(selector="CMS_SCENE_EMGYRESOURCE_SHOWDETAILBYMOTYPENAME")]
+			public function showDetailByMoTypeName(e:ResMatrixEvent):void
+			{
+				log.info(e.data);
+				equipmentDetailDg.dataProvider = e.data['datas'];
+				log.info("弹出窗口CMS_SCENE_EMGYRESOURCE_SHOWDETAILBYMOTYPENAME……");
+				
+//				PopUpManager.addPopUp(equipmentDetailDg, this.parentApplication as DisplayObject);
+//				PopUpManager.centerPopUp(equipmentDetailDg);//居中显示;
+//				alarmLevelCol.visible = true;
+			}
+			
+			private function alarmLevelLabel(item:Object, adg:AdvancedDataGridColumn):String
+			{
+				if (item.alarmLevel == "1")
+				{
+					return "一级";
+				}
+				else if (item.alarmLevel == "2")
+				{
+					return "二级";
+				}
+				else if (item.alarmLevel == "3")
+				{
+					return "三级";
+				}
+				else if (item.alarmLevel == "4")
+				{
+					return "四级";
+				}
+				else
+				{
+					return "";
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<mx:AdvancedDataGrid id="equipmentDetailDg"
+						 styleName="sceneDG"
+						 width="100%"
+						 height="100%">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="moName"
+									   headerText="网元名称"
+									   minWidth="200"/>
+			<mx:AdvancedDataGridColumn dataField="moTypeName"
+									   headerText="网元类型"
+									   minWidth="98"/>
+			<mx:AdvancedDataGridColumn dataField="alarmLevel"
+									   id="alarmLevelCol"
+									   headerText="告警等级"
+									   width="100"
+									   labelFunction="alarmLevelLabel"
+									   itemRenderer="com.linkage.module.cms.gsscene.view.components.renderer.ColumnColorDyeRenderer"/>
+		</mx:columns>
+	</mx:AdvancedDataGrid>
+</viewnew:PopUpCompWindow>

@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataGroup xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					width="100%"
+					height="100%"
+					xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.Canvas;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.ListEvent;
+
+			import spark.components.Group;
+			import spark.components.NavigatorContent;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.alarmstat");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时调度
+			private var t:Timer = new Timer(30000);
+
+			public var alarmArray:ArrayCollection = new ArrayCollection([
+				{title: "核心网", column: ["city", "MSC", "HLR"], name: ["区域", "MSC", "HLR"],
+					datalist: [{city: "全省", MSC: "10", HLR: "2"}, {city: "南京", MSC: "8", HLR: "2"}, {city: "苏州", MSC: "2", HLR: "0"}]}
+				, {title: "2G无线网", column: ["city", "BSC", "RNC"], name: ["区域", "BSC", "RNC"],
+					datalist: [{city: "全省", BSC: "8", RNC: "2"}, {city: "南京", BSC: "6", RNC: "1"}, {city: "苏州", BSC: "2", RNC: "1"}]}
+				, {title: "TD无线网", column: ["city", "BTS", "CELL"], name: ["区域", "BTS", "CELL"],
+					datalist: [{city: "全省", BTS: "12", CELL: "2"}, {city: "南京", BTS: "8", CELL: "0"}, {city: "苏州", BTS: "4", CELL: "2"}]}
+				]);
+
+			//排序用
+
+			private var orderMap:Object = ["核心网", "2G无线", "TD无线", "动环网", "传输网", "数据网"];
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityAllCityAlarms(_cityId, _specList, getResInfo, null, getResInfoErr);
+				}
+				else
+				{
+					_remoteData.getAllProvinceAlarms(_specList, getResInfo, null, getResInfoErr);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("查询告警统计数据结果：" + obj);
+				if(obj != null)
+				{
+					showGroup.visible = true;
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+
+				else
+				{
+					log.info("告警统计：查询无数据");
+					Alert.show("没有查询到告警统计数据");
+						//createTable(alarmArray);
+				}
+
+				//loadInfo.hideLoading();
+			}
+
+			//缓存表格
+			private var tableMap:Dictionary = new Dictionary();
+
+			private function createTable(obj:Object):void
+			{
+				var refresh:Boolean = false;
+				var grid:AdvancedDataGrid = null;
+				var alarmTable:Object = null;
+
+				for each(alarmTable in obj)
+				{
+					//如果没有当前的TABLE，则重新生成
+					if(tableMap[alarmTable.title] == null)
+					{
+						//生成列
+
+						grid = new AdvancedDataGrid();
+						grid.horizontalScrollPolicy = "off";
+						grid.verticalScrollPolicy = "auto";
+						grid.addEventListener(ListEvent.ITEM_CLICK, showAlarmList);
+						grid.sortableColumns = false;
+						grid.percentHeight = 100;
+						//grid.percentWidth = 100;
+
+						//生成列
+
+						var colArr:Array = new Array();
+						for(var i:String in alarmTable.column)
+						{
+							var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+							col.dataField = alarmTable.column[i];
+							col.headerText = alarmTable.name[i];
+							if(i == "0")
+							{
+								col.width = 80;
+							}
+							else
+							{
+								col.width = 150;
+							}
+							colArr = colArr.concat(col);
+						}
+						grid.columns = colArr;
+
+						//缓存当前的TABLE
+						tableMap[alarmTable.title] = grid;
+						refresh = true;
+					}
+					//否则直接赋值
+
+					else
+					{
+						grid = (tableMap[alarmTable.title] as AdvancedDataGrid);
+					}
+
+					//表格数据
+					grid.dataProvider = alarmTable.datalist;
+				}
+
+				//将表格添加到页面
+				if(refresh)
+				{
+					this.viewStack1.removeAllElements();
+					for each(var str:String in orderMap)
+					{
+						if(tableMap[str] != null)
+						{
+							grid = (tableMap[str] as AdvancedDataGrid);
+							var n:NavigatorContent = new NavigatorContent();
+							n.label = str;
+							n.addElement(grid);
+
+							this.viewStack1.addElement(n);
+						}
+					}
+				}
+
+				grid = null;
+				alarmTable = null;
+				obj = null;
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("告警统计：查询数据异常");
+				Alert.show("告警统计数据查询异常！");
+				obj = null;
+				//loadInfo.hideLoading();
+				//createTable(alarmArray);
+			}
+
+			public function showAlarmList(e:ListEvent):void
+			{
+				var cityName:String = e.target.dataProvider[e.rowIndex].city;
+
+				//取当前点击的属地和网元类型
+
+				if(e.columnIndex > 0)
+				{
+					var moType:String = e.target.columns[e.columnIndex].dataField;
+					general.reloadAlarm(cityName, moType);
+				}
+				else
+				{
+					general.reloadAlarm(cityName, "");
+				}
+			}
+
+			override public function showToolBar():void
+			{
+				this.toolBar.visible = true;
+				this.toolBar.includeInLayout = true;
+			}
+
+			override public function hideToolBar():void
+			{
+				this.toolBar.visible = false;
+				this.toolBar.includeInLayout = false;
+			}
+
+			override public function showWindowTool():void
+			{
+				this.img1.visible = true;
+				this.img1.includeInLayout = true;
+			}
+
+			override public function hideWindowTool():void
+			{
+				this.img1.visible = false;
+				this.img1.includeInLayout = false;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="info"
+			  width="100%"
+			  height="100%">
+		<s:HGroup width="100%"
+				  height="20"
+				  id="toolBar">
+			<s:HGroup width="50%"
+					  height="20"
+					  horizontalAlign="left">
+				<s:Label text=""
+						 visible="false"
+						 id="showTitle"
+						 color="0xFFFFFF">
+				</s:Label>
+			</s:HGroup>
+			<s:HGroup width="50%"
+					  height="20"
+					  horizontalAlign="right">
+				<mx:Image id="img1"
+						  source="{window}"
+						  click="moveWindow(this.img, showTitle);"
+						  buttonMode="true">
+				</mx:Image>
+				<mx:Image id="img"
+						  source="{open}"
+						  click="openWindow(this.img,this.showTitle);"
+						  buttonMode="true">
+				</mx:Image>
+			</s:HGroup>
+		</s:HGroup>
+		<s:VGroup width="100%"
+				  height="100%"
+				  id="showGroup"
+				  visible="false">
+			<s:Scroller width="100%"
+						height="100%"
+						verticalScrollPolicy="auto"
+						horizontalScrollPolicy="auto">
+				<s:Group>
+					<mx:ViewStack id="viewStack1"
+								  top="23"
+								  height="100%"
+								  paddingBottom="2"
+								  paddingLeft="2"
+								  paddingRight="2"
+								  paddingTop="2">
+					</mx:ViewStack>
+					<s:TabBar dataProvider="{viewStack1}"
+							  styleName="commonTabBar"
+							  buttonMode="true">
+					</s:TabBar>
+				</s:Group>
+			</s:Scroller>
+		</s:VGroup>
+	</s:VGroup>
+</datashow:DataGroup>

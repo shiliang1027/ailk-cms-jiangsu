@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				  xmlns:s="library://ns.adobe.com/flex/spark" 
+				  xmlns:mx="library://ns.adobe.com/flex/mx" 
+				  xmlns:panel="com.linkage.system.component.panel.*" 
+				  width="600" height="400" dragable="true" close="window1_closeHandler(event)"
+				  minimizable="false" maximizable="true">
+	<panel:layout>
+		<s:BasicLayout/>
+	</panel:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.core.IVisualElementContainer;
+			
+			private var _lastWindow:IVisualElementContainer = null;
+			
+			public function get lastWindow():IVisualElementContainer
+			{
+				return _lastWindow;
+			}
+			
+			public function set lastWindow(value:IVisualElementContainer):void
+			{
+				_lastWindow = value;
+			}
+			
+			public function addShowGroup(group:Group, window:IVisualElementContainer):void
+			{
+				//先还原之前的
+				if (_lastWindow != null && this.showGroup.numElements > 0 && this.showGroup.getElementAt(0) != null)
+				{
+					_lastWindow.addElementAt(this.showGroup.getElementAt(0),0);
+				}
+				
+				//再添加新的
+				this.showGroup.addElement(group);
+				_lastWindow = window;
+			}
+
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+				//先还原之前的
+				if (_lastWindow != null && this.showGroup.numElements > 0 && this.showGroup.getElementAt(0) != null)
+				{
+					_lastWindow.addElementAt(this.showGroup.getElementAt(0),0);
+				}
+				
+				this.visible = false;
+				this.includeInLayout = false;
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group id="showGroup" width="100%" height="100%">
+	</s:Group>
+</panel:Window>

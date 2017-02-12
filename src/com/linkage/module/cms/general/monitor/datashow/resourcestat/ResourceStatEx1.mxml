@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					 xmlns:s="library://ns.adobe.com/flex/spark"
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					 width="100%"
+					 height="100%">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.Canvas;
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+
+			import spark.components.Group;
+			import spark.components.NavigatorContent;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.bussniss");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时调度
+			private var t:Timer = new Timer(86400000);
+
+			public var dataArray:ArrayCollection = new ArrayCollection([
+				{title: "2G无线网", column: ["city", "BTS", "CELL", "VIP基站", "VVIP基站"], name: ["区域", "BTS", "CELL", "VIP基站", "VVIP基站"],
+					datalist: [{city: "全省", BTS: "5", CELL: "10", "VIP基站": "2", "VVIP基站": "3"}, {city: "南京", BTS: "5", CELL: "10", "VIP基站": "2", "VVIP基站": "3"}]}
+				, {title: "3G无线网", column: ["city", "Nodeb", "Ultracell", "VIP基站", "VVIP基站"], name: ["区域", "Nodeb", "Ultracell", "VIP基站", "VVIP基站"],
+					datalist: [{city: "全省", Nodeb: "5", Ultracell: "10", "VIP基站": "2", "VVIP基站": "3"}, {city: "南京", Nodeb: "5", Ultracell: "10", "VIP基站": "2", "VVIP基站": "3"}]}
+				]);
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			override public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityBtsResourceStat(_cityId, _specList, getResInfo, null, getResInfoErr);
+				}
+				else
+				{
+					_remoteData.getBtsResourceStat(_specList, getResInfo, null, getResInfoErr);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("基站监控资源统计查询结果：" + obj);
+				if(obj != null)
+				{
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+				else
+				{
+					log.info("基站监控资源统计：查询无数据");
+					Alert.show("基站监控资源统计数据为空！");
+						//createTable(dataArray);
+				}
+
+				//loadInfo.hideLoading();
+			}
+
+			//缓存表格
+			private var tableMap:Dictionary = new Dictionary();
+
+			private function createTable(obj:Object):void
+			{
+				for each(var dataTable:Object in obj)
+				{
+					var grid:AdvancedDataGrid = null;
+
+					//如果没有当前的TABLE，则重新生成
+					if(tableMap[dataTable.title] == null)
+					{
+						//生成列
+						grid = new AdvancedDataGrid();
+						grid.horizontalScrollPolicy = "off";
+						grid.verticalScrollPolicy = "auto";
+						grid.sortableColumns = false;
+						grid.percentHeight = 100;
+
+						var colArr:Array = new Array();
+						for(var i:String in dataTable.column)
+						{
+							var col:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+							col.dataField = dataTable.column[i];
+							col.headerText = dataTable.name[i];
+							if(i == "0")
+							{
+								col.width = 80;
+							}
+							else
+							{
+								col.width = 180;
+							}
+							colArr = colArr.concat(col);
+						}
+						grid.columns = colArr;
+
+						//生成TAB
+						var n:NavigatorContent = new NavigatorContent();
+						n.label = dataTable.title;
+						n.addElement(grid);
+
+						tableMap[dataTable.title] = grid;
+						this.bussnissTab.addElement(n);
+					}
+					//否则直接赋值
+					else
+					{
+						grid = (tableMap[dataTable.title] as AdvancedDataGrid);
+					}
+
+					//数据
+					grid.dataProvider = dataTable.datalist;
+				}
+
+				obj = null;
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("基站监控资源统计：查询数据异常");
+				Alert.show("基站监控资源统计数据异常！");
+				//createTable(dataArray);
+				//loadInfo.hideLoading();
+			}
+
+			override public function hideDataGroup():void
+			{
+				this.showGroup.visible = false;
+				this.showGroup.includeInLayout = false;
+			}
+
+			override public function showDataGroup():void
+			{
+				this.showGroup.visible = true;
+				this.showGroup.includeInLayout = true;
+			}
+
+			override public function showGroupInfo():Group
+			{
+				return this.showGroup;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Group id="showGroup"
+			 width="100%"
+			 height="100%"
+			 visible="false"
+			 includeInLayout="false">
+		<s:Scroller width="100%"
+					height="100%"
+					verticalScrollPolicy="auto"
+					horizontalScrollPolicy="auto">
+			<s:Group>
+				<mx:ViewStack id="bussnissTab"
+							  height="100%"
+							  top="23"
+							  paddingBottom="2"
+							  paddingLeft="2"
+							  paddingRight="2"
+							  paddingTop="2">
+				</mx:ViewStack>
+				<s:TabBar dataProvider="{bussnissTab}"
+						  styleName="commonTabBar">
+				</s:TabBar>
+			</s:Group>
+		</s:Scroller>
+	</s:Group>
+</datashow:DataWindow>

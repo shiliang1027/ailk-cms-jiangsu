@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  maximize="window_ResizeHandler(1)"
+			  restore="window_ResizeHandler(2)"
+			  mouseEnabled="true"
+			  closable="false"
+			  minimizable="false"
+			  maximizable="true"
+			  width="100%"
+			  height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.components.window.standardwindow.Window;
+			import com.linkage.module.cms.alarm.countflow.core.CountManagerNew;
+			import com.linkage.module.cms.alarm.countflow.event.AlarmListWindowEvent;
+			import com.linkage.module.cms.alarm.countflow.param.AlarmStatParam;
+			import com.linkage.module.cms.alarm.countflow.param.StatContainer;
+			import com.linkage.module.cms.alarm.framework.common.param.ColumnConstants;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import flashx.textLayout.debug.assert;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ToolTipEvent;
+			import mx.managers.ToolTipManager;
+			
+			import spark.components.Group;
+
+			//趋势图数据
+			private var _lineData:Object = null;
+			//统计管理类
+			private var _countManager:CountManagerNew = null;
+
+			private var _colFlag:Boolean = false;
+
+			
+			/**
+			 * 是否显示导出按钮
+			 * */
+			[Bindable]
+			private var _exportFlag:Boolean = false; //导出按钮
+			
+			[Bindable]
+			private var comtextString:String = ""; 
+
+			[Bindable]
+			[Embed(source="../resource/images/icon_export.png")]
+			public static var export:Class;
+
+			protected var log:ILogger = Log.getLogger("com.linkage.module.cms.alarm.countflow.component.AlarmCountManagerNew");
+
+
+			//初始化图形数据
+			public function initChartsData(lineData:Object):void
+			{
+			}
+
+			//窗口事件变化
+			protected function window_ResizeHandler(type:Number):void
+			{
+				
+				var p:Group = this.parent as Group;
+				var nums:Number = p.numChildren;
+				var thisIndex:Number = p.getChildIndex(this);
+
+			 	if(type == 1)
+				{
+					count.rowCount = 14;
+					var offset:Number = 3;
+					count.height = count.rowCount * count.rowHeight + offset + count.headerHeight;
+				}else{
+					count.rowCount =9;
+					var offset:Number = 3;
+					count.height = count.rowCount * count.rowHeight + offset + count.headerHeight;
+				} 
+				
+				
+				for (var index:Number = 0; index < nums; index++)
+					if (index != thisIndex)
+					{
+						p.getChildAt(index).visible = type == 2;
+						(p.getChildAt(index) as Window).includeInLayout = type == 2;
+					}
+				
+				if (_colFlag)
+				{
+//					if(type == 1)
+//						this.width = this.parentApplication.width;
+//					else
+//						this.width = this.parentApplication.width / 2;
+						
+
+					setTimeout(function():void
+						{
+							for each (var column:AdvancedDataGridColumn in count.columns)
+								column.width = 120;
+//								column.width = width / 4.4;
+								
+						}, 100);
+				}
+			}
+
+			//设置数据源
+			public function set dataSource(source:Object):void
+			{
+				
+//				count.initialize();
+				count.horizontalScrollPosition=0;
+				count.dataProvider = source;
+
+				count.rowCount = Number(source['length']);
+				
+//				var SCount:Number = Number(source['length']);
+
+				//blank
+//				var offset:Number = 19;
+//				if(_colFlag)
+//					offset = 15;
+
+				//rowheight
+				var offset:Number = 3;
+
+				count.height = count.rowCount * count.rowHeight + offset + count.headerHeight;
+//				count.height = SCount * count.rowHeight + offset + count.headerHeight;
+
+				this.height = count.height + 43;
+				
+				count.validateNow();
+			}
+
+			//设置统计列
+			public function set columns(columnArray:Array):void
+			{
+				var columns:Array = [];
+				var column:AdvancedDataGridColumn = null;
+				var index:Boolean = true;
+
+				for each (var obj:Object in columnArray)
+				{
+
+					column = new AdvancedDataGridColumn();
+					column.dataField = obj.id;
+					column.headerText = obj.name;
+
+					if (obj.hasOwnProperty("prompt"))
+					{
+						column.dataTipField = obj.id + "_tip";
+						column.showDataTips = true;
+						
+					}
+
+					if (_colFlag)
+						column.width = 80;
+//						column.width = this.width / 4.4;
+						
+					else
+					{
+						column.width = String(obj.name).length * 15 + 23;
+
+						if (index)
+						{
+							index = false;
+							column.width = 80;
+						}
+					}
+
+					columns.push(column);
+				}
+				
+				count.columns = columns;
+			}
+
+			//告警点击事件
+			protected function alarms_itemClickHandler(e:ListEvent):void
+			{
+				var rule:String = null;
+				var moduleKey:String = null;
+				var rowObj:Object = e.target.selectedItem;
+				var columnKey:String = e.target.columns[e.columnIndex].dataField;
+				
+				//如果包含专业直接拼接专业过滤器
+				if (rowObj.hasOwnProperty(StatContainer.PARAMKEY_SPECID))
+				{
+					//如果是工单统计直接弹出页面
+					if (columnKey == StatContainer.PARAMKEY_STATDISPATCH || columnKey == StatContainer.PARAMKEY_STATPROCESS || columnKey == StatContainer.PARAMKEY_STATOVERTIME)
+					{
+						var specId1:String = rowObj[StatContainer.PARAMKEY_SPECID];
+						var specName1:String = rowObj[StatContainer.PARAMKEY_SPECNAME];
+						var columnName1:String = e.target.columns[e.columnIndex].headerText;
+						
+						_countManager.showSheetDeatail(specId1, specName1, columnKey, columnName1);
+						return;
+					}else if(columnKey=="num_relationstatbefore_alarm" || columnKey=="num_relationstatafter_alarm" || columnKey == "num_onetothree_alarm" || columnKey=="sheet_rate" || columnKey=="num_sheetsenddelay_alarm"){
+						//num_relationstatbefore_alarm  关联前告警数
+						//num_relationstatbefore_alarm 关联后告警数
+						//num_onetothree_alarm 1至3级告警数
+						return;//--李畅达新增，不需要弹出框
+					}
+					else if (columnKey != StatContainer.PARAMKEY_SPECNAME && columnKey != StatContainer.NUM_TOTAL_ALARM && columnKey != StatContainer.NUM_STANDARD_ALARM && columnKey != StatContainer.NUM_UNLOCATE_ALARM)
+					{
+						
+						var specId:String = rowObj[StatContainer.PARAMKEY_SPECID];
+						var specName:String = rowObj[StatContainer.PARAMKEY_SPECNAME];
+						var columnName:String = e.target.columns[e.columnIndex].headerText;
+//						log.info(rowObj[columnKey] + "：" + specId + "：" + specName + "：" + columnKey + "：" + columnName);
+//						Alert.show("specId:"+specId+"--specName:"+specName+"--columnKey:"+columnKey+"--columnName:"+columnName+"rowObj[columnKey]:"+rowObj[columnKey]);
+//						if (specName != "合计")
+//						{
+//							if(columnName != "告警派单比")
+//							{
+//								_countManager.showWarnStatNew(specId, specName, columnKey, columnName, rowObj[columnKey], 1);
+//							}
+//							
+////							if (columnKey == StatContainer.NUM_SHEETSEND_ALARM || columnKey == StatContainer.NUM_SHEETSENDDELAY_ALARM)
+////							{
+////								_countManager.showWarnStatNew(specId, specName, columnKey, columnName, rowObj[columnKey], 1);
+////							}
+////							else
+////							{
+////								_countManager.showWarnStatNew(specId, specName, columnKey, columnName, rowObj[columnKey], 2);
+////							}
+//						}
+						if(columnName != "告警派单比")
+						{
+							_countManager.showWarnStatNew(specId, specName, columnKey, columnName, rowObj[columnKey], 1);
+						}
+						return;
+					}
+					
+					
+					rule = ColumnConstants.KEY_Specialty + "=" + rowObj[StatContainer.PARAMKEY_SPECID];
+					
+//					Alert.show("rule:"+rule);
+					//如果数据网和核心网加子专业过滤
+					if (rowObj[StatContainer.PARAMKEY_SPECID] == "2" || rowObj[StatContainer.PARAMKEY_SPECID] == "1")
+					{
+						rule += "&" + StatContainer.PARAMKEY_SUBSPECNAME + "!=";
+					}
+					rule += "&nmsalarmid!=";
+					
+//					Alert.show("rule  1 :"+rule);
+				}
+				else if (rowObj.hasOwnProperty(StatContainer.PARAMKEY_RULECONTEXT)) //如果直接过滤器
+				{
+					rule = rowObj[StatContainer.PARAMKEY_RULECONTEXT];
+					if (rowObj[StatContainer.PARAMKEY_ID] == "1") //基站跨专业
+					{
+						moduleKey = StatContainer.MODULEKEY_AFBTSALARM;
+					}
+					else if (rowObj[StatContainer.PARAMKEY_ID] == "3") //故障预判
+					{
+						moduleKey = StatContainer.MODULEKEY_AFFPALARM;
+					}
+					else if (rowObj[StatContainer.PARAMKEY_ID] == "5") //集客统计
+					{
+						moduleKey = StatContainer.MODULEKEY_AFGMALARM;
+					}
+				}
+				//重启告警
+				_countManager.reloadFlowAlarm(rule, columnKey, moduleKey);
+			}
+
+			//导出表格数据
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				var data:ArrayCollection = count.dataProvider as ArrayCollection;
+				if (data == null || data.length < 1)
+				{
+					Alert.show("没有数据需要导出");
+					return;
+				}
+
+				var headerArr:Array = new Array();
+				for each (var col:AdvancedDataGridColumn in count.columns)
+				{
+					if (col.dataField != "" && col.headerText != "")
+						headerArr.push({"id": col.dataField, "name": col.headerText});
+				}
+
+				var exportName:String = this.title;
+				if(exportName.indexOf("（")>-1){
+					exportName = exportName.substr(0,exportName.indexOf("（"));
+				}
+				
+				ExcelUtil.exportSimpleExcel(exportName + (new Date()).getTime(), headerArr, data);
+			}
+			
+			public function alarmShow(event:AlarmListWindowEvent):void
+			{
+				var specId:String = event.param.specId;
+				var columnName:String = event.param.columnName;
+				var columnKey:String = event.param.columnKey;
+				var title:String = event.param.title;
+				var value:String = event.param.value;
+				var alarmregion:String = event.param.alarmregion;
+				var isCityAlarm:String = event.param.isCityAlarm;
+				
+//				Alert.show(JSON.encode(event.param));	
+				_countManager.showCityWarnStatNew(specId, columnName, columnKey, title, value,alarmregion, 1,isCityAlarm);
+			}
+			
+			public function set comtextStr(comtextStr:String):void{
+				comtextString = comtextStr;
+			}
+
+			//添加按钮
+			public function addButton(button:UIComponent):void
+			{
+//				bcGroup.addElement(button);
+			}
+
+			public function set countManager(value:CountManagerNew):void
+			{
+				_countManager = value;
+			}
+
+			public function set local(value:Boolean):void
+			{
+			}
+
+			public function get colFlag():Boolean
+			{
+				return _colFlag;
+			}
+
+			public function set colFlag(value:Boolean):void
+			{
+				_colFlag = value;
+			}
+
+
+			public function get exportFlag():Boolean
+			{
+				return _exportFlag;
+			}
+
+			public function set exportFlag(value:Boolean):void
+			{
+				_exportFlag = value;
+			}
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid id="count"
+						 width="100%"
+						 height="100%"
+						 headerHeight="29"
+						 rowHeight="29"
+						 sortableColumns="false"
+						 draggableColumns="false"
+						 verticalScrollPolicy="auto"
+						 horizontalScrollPolicy="auto"
+						 itemClick="alarms_itemClickHandler(event)">
+	</mx:AdvancedDataGrid>
+	<mx:Image visible="{exportFlag}"
+			  source="{export}"
+			  right="20"
+			  top="-19"
+			  click="image1_clickHandler(event)"/>
+</panel:Window>

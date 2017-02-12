@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="{radius*2}" height="{radius*2}"
+		 creationComplete="itemGroup_CompleteHandler()">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			[Bindable]
+			private var radius:Number = 11;
+			[Bindable]
+			public var alarmInfo:String;
+			
+			protected function itemGroup_CompleteHandler():void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			public  function set circleStyles(alarmSeverity:String):void
+			{
+				var colorArrs:Array;
+				if("一级告警"==alarmSeverity||"1"==alarmSeverity){
+					colorArrs = [0xEB390F,0XF0674C,0XF9C3AE];
+				}else if("二级告警"==alarmSeverity||"2"==alarmSeverity){
+					colorArrs = [0XEE9800,0XEE6700,0xDDDDDD];
+				}else if("三级告警"==alarmSeverity||"3"==alarmSeverity){
+					colorArrs = [0XFED701,0XE8CD03,0xFFEEAB];
+				}else if("四级告警"==alarmSeverity||"4"==alarmSeverity){
+					colorArrs = [0X4169E1,0X1B63F7,0xADB8F7];
+				}else{
+					colorArrs = [0x569E06,0XB9E165,0XECF5DA];
+				}
+				setLinearGradientColorArr(colorArrs,linearGradient);
+			}
+			private function setLinearGradientColorArr(colorArrs:Array,linearGradient:LinearGradient):void
+			{
+				var GradientEntryArrs:Array = [];
+				for(var i:int;i<colorArrs.length;i++){
+					var color:uint = colorArrs[i];
+					var gradientEntry:GradientEntry = new GradientEntry(color,i/(colorArrs.length-1));
+					GradientEntryArrs.push(gradientEntry);
+				}
+				linearGradient.entries = GradientEntryArrs;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Rect alpha="1" x="0" y="0" width="{radius*2}" height="{radius*2}" 
+			radiusX="{radius}" radiusY="{radius}">
+		<s:fill>
+			<s:LinearGradient id="linearGradient" rotation="230">
+			</s:LinearGradient>
+		</s:fill>
+		<s:stroke>
+			<s:LinearGradientStroke weight="1" >
+				<s:GradientEntry color="0x888888" alpha="0.5"/>
+			</s:LinearGradientStroke>
+		</s:stroke>
+	</s:Rect> 
+	<s:Label text="{alarmInfo}" verticalCenter="1" horizontalCenter="0"/>
+</s:Group>

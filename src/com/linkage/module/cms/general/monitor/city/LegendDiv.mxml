@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:navbar="com.linkage.module.cms.components.navbar.*">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			
+			//告警
+			[Embed(source="/com/linkage/module/cms/general/img/gaojing.png")]
+			[Bindable]
+			public static var gaojing:Class;
+			
+			//核心网
+			[Embed(source="/com/linkage/module/cms/general/img/hexin.png")]
+			[Bindable]
+			public static var hexin:Class;
+			
+			//无线网
+			[Embed(source="/com/linkage/module/cms/general/img/wuxian.png")]
+			[Bindable]
+			public static var wuxian:Class;
+			
+			//传输网
+			[Embed(source="/com/linkage/module/cms/general/img/chuanshu.png")]
+			[Bindable]
+			public static var chuanshu:Class;
+			
+			//动环
+			[Embed(source="/com/linkage/module/cms/general/img/donghuan.png")]
+			[Bindable]
+			public static var donghuan:Class;
+			
+			//数据网
+			[Embed(source="/com/linkage/module/cms/general/img/shuju.png")]
+			[Bindable]
+			public static var shuju:Class;
+			
+			//性能
+			[Embed(source="/com/linkage/module/cms/general/img/xingneng.png")]
+			[Bindable]
+			public static var xingneng:Class;
+			
+			//投诉
+			[Embed(source="/com/linkage/module/cms/general/img/toushu.png")]
+			[Bindable]
+			public static var toushu:Class;
+			
+			//工单
+			[Embed(source="/com/linkage/module/cms/general/img/gongdan.png")]
+			[Bindable]
+			public static var gongdan:Class;
+			
+			//工程
+			[Embed(source="/com/linkage/module/cms/general/img/gongcheng.png")]
+			[Bindable]
+			public static var gongcheng:Class;
+			
+			
+			private var _callBack:Function = null;
+			
+			public function setTitle(title:String):void
+			{
+				legendBar.title = title;
+			}
+
+
+			protected function checkBoxClick(name:String, event:Event):void
+			{
+				_callBack.call(null, name, (event.target as CheckBox).selected);
+			}
+
+			public function get callBack():Function
+			{
+				return _callBack;
+			}
+
+			public function set callBack(value:Function):void
+			{
+				_callBack = value;
+			}
+			
+			public function init(param:Object):void
+			{
+				if (param.config != null)
+				{
+					var configXml:XML = (param.config as XML);
+					//读取显示的专业
+					var filterConfigs:XMLList = configXml.child("base_view").child("marks");
+					if (filterConfigs != null && filterConfigs.length() > 0)
+					{
+						var marks:XMLList = filterConfigs.child("mark");
+						for each (var mark:XML in marks)
+						{
+							var type:String = mark.@type;
+							var display:String = mark.@display;
+							if (type == "1" && display == "")
+							{
+								this.legend_1.visible = true;
+								this.legend_1.includeInLayout = true;
+							}
+							if (type == "2" && display == "")
+							{
+								this.legend_2.visible = true;
+								this.legend_2.includeInLayout = true;
+							}
+							if (type == "3" && display == "")
+							{
+								this.legend_3.visible = true;
+								this.legend_3.includeInLayout = true;
+							}
+							if (type == "4" && display == "")
+							{
+								this.legend_4.visible = true;
+								this.legend_4.includeInLayout = true;
+							}
+							if (type == "5" && display == "")
+							{
+								this.legend_5.visible = true;
+								this.legend_5.includeInLayout = true;
+							}
+							if (type == "6" && display == "")
+							{
+								this.legend_6.visible = true;
+								this.legend_6.includeInLayout = true;
+							}
+							if (type == "7" && display == "")
+							{
+								this.legend_7.visible = true;
+								this.legend_7.includeInLayout = true;
+							}
+							if (type == "8" && display == "")
+							{
+								this.legend_8.visible = true;
+								this.legend_8.includeInLayout = true;
+							}
+							if (type == "9" && display == "")
+							{
+								this.legend_9.visible = true;
+								this.legend_9.includeInLayout = true;
+							}
+							if (type == "10" && display == "")
+							{
+								this.legend_10.visible = true;
+								this.legend_10.includeInLayout = true;
+							}
+						}
+					}
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<navbar:NavBar id="legendBar" location="right" title="图例" top="125">
+			<s:VGroup width="100">
+				<s:HGroup id="legend_1" visible="false" includeInLayout="false" width="80"> 
+					<s:CheckBox width="60" label="告警" id="gaojingCheckBox" change="checkBoxClick('gaojing', event)" selected="true"/>	
+					<mx:Image width="12" height="12" id="gaojingImg" source="{gaojing}"/> 				
+				</s:HGroup>
+				<s:HGroup id="legend_2" visible="false" includeInLayout="false"> 
+					<s:Group width="10"/>
+					<s:CheckBox width="60" label="核心网" id="hexinCheckBox" change="checkBoxClick('hexin', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="hexinwangImg" source="{hexin}"/> 	
+				</s:HGroup>
+				<s:HGroup id="legend_3" visible="false" includeInLayout="false"> 
+					<s:Group width="10"/>
+					<s:CheckBox width="60" label="无线网" id="wuxianCheckBox" change="checkBoxClick('wuxian', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="wuxianImg" source="{wuxian}"/> 	
+				</s:HGroup>
+				<s:HGroup id="legend_4" visible="false" includeInLayout="false"> 
+					<s:Group width="10"/>
+					<s:CheckBox width="60" label="传输网" id="chuanshuCheckBox" change="checkBoxClick('chuanshu', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="chuanshuImg" source="{chuanshu}"/> 			
+				</s:HGroup>
+				<s:HGroup id="legend_5" visible="false" includeInLayout="false"> 
+					<s:Group width="10"/>
+					<s:CheckBox width="60" label="动环" id="donghuanCheckBox" change="checkBoxClick('donghuan', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="donghuanImg" source="{donghuan}"/> 						
+				</s:HGroup>
+				<s:HGroup id="legend_6" visible="false" includeInLayout="false"> 
+					<s:Group width="10"/>
+					<s:CheckBox width="60" label="数据网" id="shujuCheckBox" change="checkBoxClick('shuju', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="shujuImg" source="{shuju}"/>						
+				</s:HGroup>
+				<s:HGroup id="legend_7" visible="false" includeInLayout="false"> 
+					<s:CheckBox width="60" label="性能" id="xingnengCheckBox" change="checkBoxClick('xingneng', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="xingnengImg" source="{xingneng}"/> 			
+				</s:HGroup>
+				<s:HGroup id="legend_8" visible="false" includeInLayout="false"> 
+					<s:CheckBox width="60" label="投诉" id="toushuCheckBox" change="checkBoxClick('toushu', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="toushuImg" source="{toushu}"/> 
+				</s:HGroup>
+				<s:HGroup id="legend_9" visible="false" includeInLayout="false"> 
+					<s:CheckBox width="60" label="工单" id="gongdanCheckBox" change="checkBoxClick('gongdan', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="gongdanImg" source="{gongdan}"/>	
+				</s:HGroup>
+				<s:HGroup id="legend_10" visible="false" includeInLayout="false"> 
+					<s:CheckBox width="60" label="工程" id="gongchengCheckBox" change="checkBoxClick('gongcheng', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="gongchengImg" source="{gongcheng}"/> 					
+				</s:HGroup>
+				<s:HGroup> 
+					<s:CheckBox width="80" label="BSC覆盖" id="bscCheckBox" change="checkBoxClick('bsc', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="bscImg" source="{}"/> 					
+				</s:HGroup>
+				<s:HGroup> 
+					<s:CheckBox width="80" label="RNC覆盖" id="rncCheckBox" change="checkBoxClick('rnc', event)" selected="false"/>	
+					<mx:Image width="12" height="12" id="rncImg" source="{}"/> 					
+				</s:HGroup>
+			</s:VGroup>
+	</navbar:NavBar>
+</s:Group>

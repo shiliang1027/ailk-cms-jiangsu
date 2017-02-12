@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  width="330" height="90" close="closeHandler()" dragable="true" maximizable="false"
+			  minimizable="false">
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.utils.StringUtil;
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.groupclientalarm.relation.component.RelationAlarmMatrix;
+			import com.linkage.system.structure.map.Map;
+			
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			//下拉框Map
+			private var _selMap:Map = new Map();
+			
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.alarm.relation.component.RelationAlarmMatrix");
+			
+			//下拉框数据
+			[Bindable]
+			private var _selProvider:ArrayCollection = null;
+			private var _alarmMatrix:RelationAlarmMatrix = null;
+			//标签标题
+			[Bindable]
+			private var _labelTitle:String = null;
+			//过滤列
+			private var _field:String = null;
+			//回调函数
+			private var _callback:Function = null;
+			//告警窗口过滤是否显示
+			private var _alarmFilterShow:Boolean = false;
+			public function initWindow(alarmMatrix:RelationAlarmMatrix):void{
+				_alarmMatrix = alarmMatrix;
+			}
+			
+			/**
+			 * 窗口id
+			 */
+			private var _windowId:String=null;
+			protected function iconFilter():void
+			{
+				var value:String = null;
+				if(comboBox.selectedItem != null)
+				{
+					value = comboBox.selectedItem.id;
+				}
+				_callback.call(this);
+				_alarmMatrix.headerFilterAlarm(_field, value);
+				closeHandler();
+			}
+			
+			private function joinFilterStr(filter1:String, filter2:String):String
+			{
+				if (filter1 == null)
+				{
+					return filter2;
+				}
+				if (filter2 == null)
+				{
+					return filter1;
+				}
+				return filter1 + "&" + filter2;
+			}
+			
+			
+			//初始化窗口参数
+			public function initWindowParamInfo(field:String, title:String, callback:Function, dataArray:Array):void
+			{
+				_field = field;
+				_callback = callback;
+				
+				
+				//设置标题
+				_labelTitle = title;
+				this.title = title + "过滤";
+				
+				//显示过滤类型
+				initSelectTimeData(dataArray,_labelTitle);
+				
+			}
+			//初始化下拉框时间选择
+			public function initSelectTimeData(dataArray:Array,title:String):void
+			{
+				log.warn("title="+title);
+				//1.初始化字段信息
+				_selProvider = new ArrayCollection();
+				dataArray.forEach(function(alarm:Object, index:int, array:Array):void
+				{
+					
+					_selMap.put(StringUtil.trim(alarm[_field]), alarm[_field]);
+				/* 	//将自己加入列表
+					if(title == "客户名称")
+					{
+						
+					} else if(title == "地市")
+					{
+						var name:String = alarm["valueh=alarmregion"];
+						_selArr.addItem({'name':name,"value":name});
+					} 
+					*/
+//				
+				
+				});
+				
+				//2.初始化下拉框值
+				
+				_selMap.forEach(function(key:String, value:String):void
+				{
+					_selProvider.addItem({'id': key, 'name': value});
+				});
+				
+				//3.如果下拉框值为空给默认值
+				if (_selProvider.length == 0)
+				{
+					_selProvider.addItem({'id': '', 'name': '无数据'});
+				}else
+				{
+					_selProvider.addItemAt({'id': '-1', 'name': '==全部=='},0);
+				}
+			}
+			
+			//弹出列过滤过滤告警
+			public function showHideWindow(displayObj:DisplayObject):void
+			{
+				if (_alarmFilterShow)
+				{
+					//1.清空窗口
+					clearWindow();
+					
+					//2.去除过滤窗口
+					_alarmFilterShow = false;
+					PopUpManager.removePopUp(this);
+				}
+				else
+				{
+					_alarmFilterShow = true;
+					PopUpManager.addPopUp(this, displayObj, false);
+					PopUpManager.centerPopUp(this);
+				}
+			}
+			
+			//清空窗口
+			private function clearWindow():void
+			{
+				//清空下拉容器
+				_selMap.clear();
+				_selProvider = null;
+			}
+			
+			//关闭按钮时处理
+			protected function closeHandler():void
+			{
+				//展示或隐藏窗口过滤
+				showHideWindow(_alarmMatrix.getParentApplication);
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:HBox width="100%" height="100%">
+		<s:Label text="{_labelTitle}"/>
+		<mx:ComboBox width="160" dataProvider="{_selProvider}" labelField="name" id="comboBox"/>
+		<s:Button label="过 滤" click="iconFilter()"/>
+	</mx:HBox>
+</panel:Window>

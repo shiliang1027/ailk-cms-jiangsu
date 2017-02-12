@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 label="工程割接信息"
+		 width="100%" 
+		 height="100%" 
+		 xmlns:pager="com.linkage.module.cms.components.pager.*" 
+		 creationComplete="processComp_creationCompleteHandler(event)">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="dataQuery",type="com.linkage.module.cms.groupclientNew.event.ProcessCompEvent")]
+		[Event(name="infoQuery",type="com.linkage.module.cms.groupclientNew.event.ProcessCompEvent")]
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclientNew.event.ProcessCompEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+
+			// log
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclientNew.control.GroupMonitorModuleControl_TREE");
+			[Bindable]
+			private var processInfo:Object=new Object();
+			[Bindable]
+			private var infoMessage:String;
+			
+			
+			protected function processComp_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(ProcessCompEvent.DATACHANGE,onDataChange);
+//				this.addEventListener(ProcessCompEvent.INFOCHANGE,onInfoChange);
+//				this.dispatchEvent(new ProcessCompEvent(ProcessCompEvent.DATAQUERY));
+			}
+			
+			private function onDataChange(event:ProcessCompEvent):void{
+				
+				
+				var result:Object = event.param;
+				/* if(!result || result.length<=0){
+					infoMessage="无工程割接信息";
+					this.currentState = "noData";
+					return;
+				} */
+				
+				for each(var o:* in result)
+				{
+					log.info(o);
+				}
+				processDG.dataProvider=result.datas;
+				DataPager.totalRowCount = result.totalCount;
+				
+//				log.info("result.datas  result.totalCount:"+result.totalCount);
+				log.info(result.datas);
+			}
+			
+		/* 	private function onInfoChange(event:ProcessCompEvent):void{
+				var result:Object = event.param;
+				if(result.length<=0){
+					Alert.show("无工程割接详细信息","提示");
+					processInfoGrid.visible=false;
+					processInfoGrid.includeInLayout=false;
+					return;
+				}
+				for each(var data:Object in result){
+					processInfo = data;
+				}
+				processInfoGrid.visible=true;
+				processInfoGrid.includeInLayout=true;
+			} */
+			
+			protected function processDG_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				var data:Object=processDG.dataProvider[event.rowIndex];
+				var param:Object=new Object();
+				param.cust_no=data.cust_no;
+				param.pro_no=data.prod_no;
+				param.info_id=data.info_id;
+				var evt:ProcessCompEvent = new ProcessCompEvent(ProcessCompEvent.INFOQUERY);
+				evt.param = param;
+				this.dispatchEvent(evt);
+			}
+			
+			protected function DataPager_pageChangeHandler(event:PagerEvent):void
+			{
+				var param:Object = new Object();
+				param.pageSize = DataPager.pageSize;
+				param.currentPage = DataPager.currentPage;
+				log.info("DataPager_pageChangeHandler");
+				log.info(param);
+				
+				var evt:ProcessCompEvent = new ProcessCompEvent(ProcessCompEvent.DATAQUERY);
+				evt.param = param;
+				this.dispatchEvent(evt);
+				
+			}
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:VGroup  width="100%"
+			   height="100%">
+		<mx:AdvancedDataGrid id="processDG"
+							 width="100%"
+							 height="100%"
+							 horizontalScrollPolicy="off"
+							 verticalScrollPolicy="off"
+							 rowCount="15"
+							 rowHeight="{(processDG.height-processDG.headerHeight)/processDG.rowCount}"
+							 itemClick="processDG_itemClickHandler(event)">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="sequ_id"
+										   headerText="公告编号"
+										   width="264"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn dataField="start_time"
+										   headerText="预计开始时间"
+										   width="264"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn dataField="end_time"
+										   headerText="产品编号"
+										   width="264"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn dataField="proj_id"
+										   headerText="工程割接ID"
+										   width="264"
+										   textAlign="center"/>
+				<mx:AdvancedDataGridColumn dataField="pre_account"
+										   headerText="预约账号"
+										   width="264"
+										   textAlign="center"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<s:HGroup width="100%"
+				  horizontalAlign="right">
+			<pager:Pager id="DataPager"
+						 pageSize="15"
+						 currentPage="1"
+						 pageChange="DataPager_pageChangeHandler(event)"/>
+		</s:HGroup>	
+	</s:VGroup>
+	<!--<s:HGroup includeIn="noData" paddingLeft="10" paddingTop="10">
+		<s:Label text="{infoMessage}"/>
+	</s:HGroup>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto" includeIn="hasData">
+		<s:VGroup width="100%" height="100%"
+				  id="processGroup">
+			<mx:AdvancedDataGrid id="processDG"
+								 width="100%"
+								 height="200"
+								 horizontalScrollPolicy="auto"
+								 itemClick="processDG_itemClickHandler(event)">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn dataField="sequ_id"
+											   headerText="公告编号"
+											   textAlign="center"/>
+					<mx:AdvancedDataGridColumn dataField="start_time"
+											   headerText="预计开始时间"
+											   textAlign="center"/>
+					<mx:AdvancedDataGridColumn dataField="end_time"
+											   headerText="产品编号"
+											   textAlign="center"/>
+					<mx:AdvancedDataGridColumn dataField="proj_id"
+											   headerText="工程割接ID"
+											   textAlign="center"/>
+					<mx:AdvancedDataGridColumn dataField="pre_account"
+											   headerText="预约账号"
+											   textAlign="center"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+			<s:HGroup width="100%"
+					  horizontalAlign="right">
+				<pager:Pager id="DataPager"
+							 pageSize="20"
+							 currentPage="1"
+							 pageChange="DataPager_pageChangeHandler(event)"/>
+			</s:HGroup>	
+			<mx:Grid width="100%"
+					 id="processInfoGrid"
+					 verticalGap="0"
+					 horizontalGap="0"
+					 visible="false" includeInLayout="false">
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowOdd">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="客户编码"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.cust_no}"/>
+					</mx:GridItem>
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="产品编码"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.prod_no}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowEven">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="信息编号"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.info_id}"/>
+					</mx:GridItem>
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="信息标题"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.info_title}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowOdd">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="工程类型"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.engineer_type}"/>
+					</mx:GridItem>
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="是否影响业务"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.if_affect}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowEven">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="调整类型"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.adjust_type}"/>
+					</mx:GridItem>
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="客服报送"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.cust_serv_report}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowOdd">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="业务类型"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.serv_type}"/>
+					</mx:GridItem>
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="地市"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.city}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowEven">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="工程内容"/>
+					</mx:GridItem>
+					<mx:GridItem width="80%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.engineer_content}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowOdd">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="业务影响范围"/>
+					</mx:GridItem>
+					<mx:GridItem width="80%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.affect_scope}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowEven">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="预计开始时间"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.start_time}"/>
+					</mx:GridItem>
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="预计结束时间"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.end_time}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow width="100%"
+							minHeight="24"
+							styleName="gridRowOdd">
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="项目负责人"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.project_manager}"/>
+					</mx:GridItem>
+					<mx:GridItem width="20%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="联络方式"/>
+					</mx:GridItem>
+					<mx:GridItem width="30%"
+								 minHeight="24"
+								 verticalAlign="middle"
+								 horizontalAlign="center">
+						<s:Label text="{processInfo.link_phone}"/>
+					</mx:GridItem>
+				</mx:GridRow>
+			</mx:Grid>
+		</s:VGroup>
+	</s:Scroller>-->
+</mx:VBox>

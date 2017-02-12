@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:viewnew="com.linkage.module.cms.gsscene.viewnew.*"
+		 xmlns:parsley="http://www.spicefactory.org/parsley"
+		 width="100%" height="100%" currentStateChange="group_currentStateChangeHandler(event)" xmlns:components="com.linkage.module.cms.gsscene.view.components.*" xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components" xmlns:components1="com.linkage.module.cms.gsscene.view.components.mapview.components.*" xmlns:view="com.linkage.module.cms.viewroam.view.*">
+	
+	
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:states>
+		<s:State name="vectorMap"/>
+		<s:State name="gisMap"/>
+	</s:states>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.emgyresource.event.EmpyEvent;
+			import com.linkage.module.cms.gsscene.view.components.kpicustom.event.KpiCustomEvent;
+			import com.linkage.module.cms.gsscene.viewnew.mapcomp.GisSearchWin;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.StateChangeEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			
+			private var log:ILogger = Log.getLoggerByClass(MapView);
+			
+			[Inject("history")]
+			public var history:History;
+			[Inject("user")]
+			public var user:IUser;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[Inject("scenePM")]
+			[Bindable]
+			public var scenePM:ScenePM;
+			[Embed(source = "../img/left_gray.png")]
+			[Bindable]
+			private var _left_gray:Class;
+			
+			[Embed(source = "../img/left_blue.png")]
+			[Bindable]
+			private var _left_blue:Class;
+			
+			[Embed(source = "../img/right_gray.png")]
+			[Bindable]
+			private var _right_gray:Class;
+			
+			[Embed(source = "../img/right_blue.png")]
+			[Bindable]
+			private var _right_blue:Class;
+			private var city_id:String;
+			private var _level:String;
+			[Bindable]
+			private var _isdd:Boolean=false;
+			protected function back_clickHandler(event:MouseEvent):void
+			{
+				history.goBack();
+			}
+			
+			[MessageHandler(selector = "SHOW_EMPY_JW_INFO")]
+			public function View_change(e:EmpyEvent):void{
+				log.info("切换GIS地图");
+				this.currentState = "gisMap";
+//				msgDispatcher(e);
+			}
+			
+			private var isfrist:Boolean=true;
+			[MessageHandler(selector = "VIEW_CHANGE")]
+			public function VIEW_CHANGE(e:SceneEvent):void
+			{
+				log.debug("VIEW_CHANGE------------------");
+				log.debug(user);
+				if(e.param.currentState){
+					this.currentState = e.param.currentState;
+				}
+				if(e.param.city_id){
+					city_id = e.param.city_id;
+				}else{
+					e.param.city_id=city_id;
+				}
+				if(!e.param.hasOwnProperty("isMoLocation")){
+					e.param.isMoLocation=false;
+				}
+				var sceneEvent:SceneEvent = null;
+				if(e.param.level){
+					log.debug("checkLevel(e.param.level):{0}",checkLevel(e.param.level));
+					if(checkLevel(e.param.level)){
+						if(isfrist){//第一次加载，区域场景切换不加载
+							isfrist=false;
+							user.level=e.param.level;
+							sceneEvent = new SceneEvent(SceneEvent.LOAD_SCENE_CFG);
+						}else{
+							sceneEvent = new SceneEvent("SCENENEW_REFRESH");
+						}
+						
+					}else if(e.param.level!="4"){
+						sceneEvent = new SceneEvent("SCENENEW_REFRESH");
+					}
+					_level=e.param.level;
+				}else{
+					e.param.level=user.level;
+				}
+				var evt:SceneEvent;
+				if(mapVector.visible){
+					evt = new SceneEvent("VECTOR_CHANGE");
+				}else if(mapGis.visible){
+					evt = new SceneEvent("GIS_CHANGE");
+				}
+				evt.param = e.param;
+				//处理矢量图或者gis地图
+				dispatcher(evt);
+				log.debug("[VIEW_CHANGE]{0}",evt);
+				
+				//加载配置数据或者刷新数据
+				if(SceneEvent.LOAD_SCENE_CFG==sceneEvent.type){
+					requestServerUtil.addRequest(new SceneEvent(SceneEvent.LOAD_SCENE_CFG));
+				}else if("SCENENEW_REFRESH"==sceneEvent.type){
+					dispatcher(sceneEvent);
+				}
+				
+//				log.debug(evt.param);
+				if(e.param.isdd){
+					_isdd= e.param.isdd;
+				}else{
+					_isdd=false;
+				}
+			}
+			
+			private function checkLevel(level:String):Boolean{
+				log.debug("checkLevel:{0},{1}",_level,level);
+				if(!_level){
+					return true;
+				}
+				if(_level=="2"){//区域，不同于其它,1,3,4一类，2-类
+					if(_level!=level){
+						return true;
+					}
+					return false;
+				}else{
+					if(level=="2"){
+						return true;
+					}
+					return false;
+				}
+			}
+			
+			
+			protected function group_currentStateChangeHandler(event:StateChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.debug("oldState:{0},newState:{1}",event.oldState,event.newState);
+			}
+			
+			protected function indexDingzhiButton_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				dispatcher(new KpiCustomEvent(KpiCustomEvent.VIEWSHOW));
+			}
+			
+			[MessageHandler(selector = "PANEL_CHANGE")]
+			public function PANEL_CHANGE(e:SceneEvent):void
+			{
+				if(e.param.change){
+					scenePM.scfdm.panelList.itemUpdated(e.param);
+					e.param.change=false;
+					return;
+				}
+				var item:* = e.param;
+				switch(item.location){
+					case "1":
+						switch(item.isShow){
+							case "0":
+								scenePM.scfdm.leftPanelList.removeItemAt(scenePM.scfdm.leftPanelList.getItemIndex(item));
+								break;
+							case "1":
+								scenePM.scfdm.leftPanelList.addItem(item);
+								break;
+						}
+						break;
+					case "2":
+						switch(item.isShow){
+							case "0":
+								scenePM.scfdm.rightPanelList.removeItemAt(scenePM.scfdm.rightPanelList.getItemIndex(item));
+								break;
+							case "1":
+								scenePM.scfdm.rightPanelList.addItem(item);
+								break;
+						}
+						break;
+				}
+			}
+			
+			
+			
+			/**
+			 * 快速检索查询方法
+			 *
+			 */
+			protected function queryButton_clickHandler(event:MouseEvent):void
+			{
+				var evt:SceneEvent = new SceneEvent(SceneEvent.CMS_SCENE_SCENEVIEW_SOURCEBYMO);
+				var param:Object = new Object;
+				param.name = mx.utils.StringUtil.trim(moQueryText.text);
+				
+				if (mx.utils.StringUtil.trim(moQueryText.text) == "")
+				{
+					Alert.show("请输入网元名称!", "提示");
+					return;
+				}
+				param.cityId = user.cityId;
+				param.level = user.level;
+				param.sceneId = user.sceneId;
+				evt.param = param;
+				log.debug("mapview 快速检索查询参数...");
+				log.debug(evt.param);
+				//	msgDispatcher(evt);
+				requestServerUtil.addRequest(evt);
+			}
+			
+			/* protected function cameraQuery_clickHandler(event:MouseEvent):void
+			{
+			if (StringUtil.trim(cameraName.text).length > 0)
+			{
+			var evt:SceneEvent = new SceneEvent(SceneEvent.CMS_SCENE_MAPVIEW_CAMERAINFOGETHANDLER);
+			evt.param = new Object();
+			evt.param.sceneId = user.sceneId;
+			evt.param.initSceneId = user.initSceneId;
+			evt.param.moName = StringUtil.trim(cameraName.text);
+			cameraName.text = StringUtil.trim(cameraName.text);
+			//		msgDispatcher(evt);
+			requestServerUtil.addRequest(evt);
+			}
+			else
+			{
+			Alert.show("请输入终端名称", "提示");
+			return;
+			}
+			} */
+			
+			[Inject("gisSearchWin")]
+			public var gisSearchWin:GisSearchWin;
+			[MessageHandler(selector = "CMS_SCENE_SCENEVIEW_SHOW_MOLIST")]
+			public function showDataGrid(e:SceneEvent):void
+			{
+				log.debug("展示网元信息...");
+				
+				if (scenePM.mapViewDM.selectMoList.length > 0)
+				{
+					PopUpManager.addPopUp(gisSearchWin, this.parentApplication as DisplayObject);
+					gisSearchWin.x = this.width / 2 + 80;
+					gisSearchWin.y = this.height / 2 - 120;
+				}
+				else
+				{
+					Alert.show("没有查询到匹配信息！", "提示");
+				}
+				//				var evt:SceneEvent = new SceneEvent(SceneEvent.CMS_SCENE_SCENEVIEW_SEARCH_OPEN);
+				//				msgDispatcher(evt);
+			}
+			
+			
+			protected function config_clickHandler():void
+			{
+				log.info("mapview 保存配置信息！！！");
+				var panels:ArrayCollection = new ArrayCollection();
+				var sevt:SceneEvent = new SceneEvent(SceneEvent.CMS_SCENE_SCENEVIEW_CONFIGSAVE);
+				sevt.param = new Object;
+				sevt.param.sceneTypeId = user.sceneTypeId;
+				sevt.param.accName = user.account;
+				sevt.param.level = user.level;
+				for each(var item:* in scenePM.scfdm.panelList)
+				{
+					if(item.isShow == "1")
+					{
+						var o:*=new Object;
+						o.isShow=item.isShow;
+						o.location=item.location;
+						o.panelDesc=item.panelDesc;
+						o.panelKey=item.panelKey;
+						o.panelName=item.panelName;
+						o.scenetypeid=item.scenetypeid;
+						o.showindex=item.showindex;
+						o.viewOrder=item.viewOrder;
+						panels.addItem(o);
+					}
+				}
+				log.info(scenePM.scfdm.panelList);
+				sevt.param.panels = panels;
+				log.info(sevt.param);
+				//	msgDispatcher(sevt);
+				requestServerUtil.addRequest(sevt);
+			}
+
+			protected function roam_clickHandler(event:MouseEvent):void
+			{
+				var url:String = "http://10.39.248.230/monitor/RoamIndex.html";
+				navigateToURL(new URLRequest(url));
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:Scroller width="100%"
+				height="100%"
+				styleName="sceneScroller">
+	<!--江苏-->
+	<viewnew:MapVector id="mapVector"
+					   visible.gisMap="false"/>
+	<!-- 新疆 -->
+	<!--<viewnew:MapVector_xinjiang id="mapVector"
+	visible.gisMap="false"/>-->
+	</s:Scroller>
+	<viewnew:MapGis id="mapGis"
+					visible.vectorMap="false"/>
+	<s:HGroup right="5" top="5">
+		<s:Button id="indexDingzhiButton" label="指标查询" buttonMode="true" click="indexDingzhiButton_clickHandler(event)"/>
+		<s:Button id="dyeMapByAllButton" label="渲染所有" buttonMode="true"/>
+		<s:Button id="roamButton" label="漫游数据" buttonMode="true" click="roam_clickHandler(event)" visible="false" includeInLayout="false"/>
+		<!--<s:Button label="返回"
+				  id="backButton"
+				  buttonMode="true" click="back_clickHandler(event)"/>-->
+	</s:HGroup>
+	<s:VGroup right="5" top="35">
+		<s:HGroup>
+			<s:TextInput id="moQueryText"
+						 width="50"/>
+			<s:Button label="网元检索"
+					  buttonMode="true"
+					  id="queryButton"
+					  click="queryButton_clickHandler(event)"/>
+		</s:HGroup>
+		<!--<s:HGroup>
+			<s:TextInput id="cameraName"
+						 width="50"/>
+			<s:Button label="摄像查询"
+					  buttonMode="true"
+					  click="cameraQuery_clickHandler(event)"/>
+		</s:HGroup>-->
+	</s:VGroup>
+	<!-- 区域导航树-->
+	<viewnew:SceneTreeCompNew id="naviTree"
+							  x="0"
+							  width="150"
+							  height="250"
+							  top="5" visible="{!_isdd}"/>
+	<!-- 面板配置组件-->
+	<ailk_compts:NavBar id="cfgBar"
+						location="right" visible="{!_isdd}"
+						styleName="sceneNavBar"
+						title="配置"
+						x="0"
+						top="220">
+		<s:VGroup width="140"
+				  horizontalAlign="right" paddingLeft="5" paddingTop="5">
+			<!--<s:VGroup id="panelCfgGroup"
+					  width="140"
+					  gap="5">
+				<s:CheckBox label="加载失败"/>
+			</s:VGroup>-->
+			
+			<s:List width="100%" height="100%" id="list" styleName="sceneList" contentBackgroundAlpha="0" borderVisible="false" dataProvider="{scenePM.scfdm.panelList}" itemRenderer="com.linkage.module.cms.gsscene.viewnew.CheckBoxItemRenderer"/>
+			<s:Button label="保存" click="config_clickHandler()"/>
+		</s:VGroup>
+	</ailk_compts:NavBar>
+	
+	
+	<s:Group width="100%" height="100%" visible="{!_isdd}">
+		
+		<viewnew:SceneThumbnailCompNew id="stc" bottom="15" visible="false" right="0"/>
+		<mx:Image id="picImg" bottom="15" right="0" click="this.stc.visible=true;" visible="{!stc.visible}"
+				  source="{_left_gray}"
+				  name="left"
+				  toolTip="缩略图面板"
+				  buttonMode="true"
+				  mouseOver="this.picImg.name == 'left'? this.picImg.source = _left_blue : this.picImg.source = _right_blue;"
+				  mouseOut="this.picImg.name == 'left' ? this.picImg.source = _left_gray : this.picImg.source = _right_gray;"/>
+		
+		
+		<mx:Image id="picImg1" bottom="15" click="this.scc.visible=true;" visible="{!scc.visible}"
+				  source="{_right_gray}"
+				  name="right"
+				  toolTip=""
+				  buttonMode="true"
+				  mouseOver="this.picImg1.name == 'left'? this.picImg1.source = _left_blue : this.picImg1.source = _right_blue;"
+				  mouseOut="this.picImg1.name == 'left' ? this.picImg1.source = _left_gray : this.picImg1.source = _right_gray;"/>
+		
+		<viewnew:SceneCenterCompNew id="scc" height="240" bottom="15" visible="false"/>
+	</s:Group>
+	
+	
+</s:Group>

@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:panel="com.linkage.system.component.panel.*" 
+			  xmlns:common="com.linkage.module.cms.perfmonitor.common.*"
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*"
+			  creationComplete="window1_creationCompleteHandler(event)"
+              close="window1_closeHandler(event)"
+			  width="100%" 
+			  height="100%"
+			  dragable="true"
+			  title="{_perfName}"
+			  minimizable="false"
+			  maximizable="false"
+			  >
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.perfmonitor.servperf.data.ServPerfMonitorDataMgr;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+
+			private var _context:Object;
+			private var _perfId:Object;
+            
+			[Bindable]
+			private var _perfName:Object;
+            
+			private var _interval:Object;
+			private var _unit:Object = null;
+			private var _cityId:Object;
+			private var _allPerfList:ArrayCollection = null;
+			
+			private var intervalDp:ArrayCollection = new ArrayCollection();
+			
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			
+            private var lm:LoadManager;
+            
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.perfmonitor.servperf.servstatistic.HisPerfChartWindow");
+			
+			private var paramsArr:ArrayCollection = new ArrayCollection([
+				{caption:" "},
+				{showvalues:"0"},
+				{labelDisplay: 'Rotate'},//这个属性和slantLabels一起设置   横轴标签倾斜45°
+				{slantLabels:'1'},
+				{formatNumberScale:'0'},//是否将千换成K   百万换成M
+				{formatNumber:'0'},//是否在千位和百万为加分隔符
+				{showFCMenuItem:"0"},
+				{drawAnchors:"1"},
+				{chartLeftMargin:"3"},
+				{chartRightMargin:"8"},
+				{chartTopMargin:"3"},
+				{canvasBorderAlpha:"0"},
+				{lineColor:"0x00FF00"},
+				{chartBottomMargin:"0"},
+				{lineThickness:"4"}
+			]);//图表背景色
+			
+			protected function window1_closeHandler(event:WindowEvent):void
+			{
+                lm.hideLoading();
+				PopUpManager.removePopUp(this);
+			}
+			
+			public function init():void
+			{
+                lm = new LoadManager(this, 'blue');
+                lm.showLoading();
+                
+				dateFormatter.formatString="YYYY-MM-DD JJ:NN:SS";
+				
+				log.info('#### _perfId:' + _perfId);
+				log.info('#### _perfName:' + _perfName);
+				log.info('#### _context' + _context);
+				log.info('#### _interval:' + _interval);
+				log.info('#### _unit:' + _unit);
+				
+				if(_allPerfList == null)
+				{
+					loadAllPerfList();
+				}
+				else
+				{
+					//初始化查询时间、 指标、颗粒度、图表类型等下拉框
+					initKpiTimes();
+					
+					//加载属地数据
+					initCitys();
+				}
+			}
+			
+			private function loadAllPerfList():void
+			{
+				log.info('指标列表没有传入， 自行加载指标列表数据!');
+				ServPerfMonitorDataMgr.getServTypePerfInfo(
+					function(result:Object):void
+					{
+						//指标列表
+						_allPerfList = new ArrayCollection();
+						_allPerfList.addAll(result['perfInfo'] as IList);
+						
+						//初始化查询时间、 指标、颗粒度、图表类型等下拉框
+						initKpiTimes();
+						
+						//加载属地数据
+						initCitys();
+					},
+					function(e:FaultEvent):void
+					{
+						log.info(' 自行加载指标列表失败！');	
+					}
+				);
+			}
+			
+			private function initKpiTimes():void
+			{
+				//图表查询条件初始化
+				//开始、结束时间
+				var date1:Date = new Date();
+				var date2:Date = new Date();
+				
+				date1.setHours(0);
+				date1.setMinutes(0);
+				date1.setSeconds(0);
+				date1.setMilliseconds(0);
+				var nowStr1:String = dateFormatter.format(date1);
+				startDate.text = nowStr1;
+				
+				var nowStr2:String = dateFormatter.format(date2);
+				endDate.text = nowStr2;
+				
+				//图表类型
+				this.fcType.dataProvider = new ArrayCollection([
+					{label:'Line', value:'Spline'},
+					{label:'Column', value:'Column3D'},
+					{label:'Area', value:'Area2D'},
+					{label:'Pie', value:'Pie3D'}
+				]);
+				
+				fcType.selectedIndex = 0;
+				fcType.validateNow();
+				
+				//指标
+				kpiSelect.dataProvider = _allPerfList;
+				kpiSelect.selectedIndex = 0;
+				
+				for each(var kpi:Object in _allPerfList)
+				{
+					if(kpi['perf_id'] == _perfId)
+					{
+						kpiSelect.selectedItem = kpi;
+						break;
+					}
+				}
+				kpiSelect.validateNow();
+				
+				kpiSelect_changeHandler();
+			}
+			
+			private function initCitys():void
+			{
+				ServPerfMonitorDataMgr.getCityInfo(
+					function(result:Object):void
+					{
+						citySelect.dataProvider = result as IList;
+						citySelect.selectedIndex = 0;
+						
+						for each(var city:Object in citySelect.dataProvider)
+						{
+							if(city['id'] == _cityId)
+							{
+								citySelect.selectedItem = city;
+								break;
+							}
+						}
+						
+						citySelect.validateNow();
+						
+						//加载默认图表数据
+						loadChartData();
+					},
+					function(data:Object):void
+					{
+						log.info('加载属地信息失败！');
+					}
+				);
+			}
+			
+			protected function changeKpiType():void
+			{
+				//切换图表类型
+				kpiFc.FCChartType = this.fcType.selectedItem['value'];
+				kpiFc.FCParams = kpiFc.FCParams;
+				kpiFc.FCData = kpiFc.FCData;
+			}
+			
+			
+			protected function kpiSelect_changeHandler():void
+			{
+				//指标选择后  联动指标颗粒度
+				var arr:Array = kpiSelect.selectedItem['interval'].toString().split(',');
+				intervalDp.removeAll();
+				for each(var itv:Object in arr)
+				{
+					if(itv == '60')
+						intervalDp.addItem({'label':'小时', 'value':itv});
+					else if(itv == '1440')
+						intervalDp.addItem({'label':'日', 'value':itv});
+					else
+						intervalDp.addItem({'label':itv + '分钟', 'value':itv});
+					
+				}
+				
+				intervalSelect.selectedIndex = 0;
+				
+				for each(var interval:Object in intervalDp)
+				{
+					if(interval['value'] == _interval)
+					{
+						intervalSelect.selectedItem = interval;
+						break;
+					}
+				}
+				
+				intervalDp.refresh();
+				intervalSelect.validateNow();
+			}
+			
+			
+			protected function loadChartData():void
+			{
+				var param:Object = {};
+				
+				if(intervalSelect.selectedItem == null)
+					intervalSelect.selectedIndex = 0;
+				
+				param['perfId'] = this.kpiSelect.selectedItem['value'];
+				param['interval'] = this.intervalSelect.selectedItem['value'];
+				param['cityId'] = this.citySelect.selectedItem['id'];
+				param['startTime'] = this.startDate.text;
+				param['endTime'] = this.endDate.text;
+				
+				_unit = kpiSelect.selectedItem['unit'];
+                //设置选择指标名称
+                _perfName = kpiSelect.selectedItem['label'];
+				
+				ServPerfMonitorDataMgr.getHistoryPerfInfoAndAlarmInfo(param,
+					function(result:Object):void
+					{
+						showData2Chart(result['data']);
+					},
+					function(e:FaultEvent):void
+					{
+						log.info('加载指标图表信息失败！');
+					}
+				);
+			}
+			
+			private function showData2Chart(result:Object):void
+			{
+				var tempParaArr:ArrayCollection = new ArrayCollection();
+				tempParaArr.addAll(paramsArr);
+				tempParaArr.addItem({'numberSuffix':_unit});
+				
+				var ac:ArrayCollection = new ArrayCollection();
+				for each(var data:Object in result)
+				{
+					ac.addItem(data);
+				}
+				
+				log.info(" 图表数据，数量：" +  ac.length);
+				
+				if(String(_unit).indexOf("%") >= 0)
+				{
+					log.info(" 图表数据，百分比数据 设置最大值为100！");
+					tempParaArr.addItem({'yAxisMaxValue':"100"});
+				}
+				
+				if(ac.length > 20)
+				{
+					log.info(" 图表数据，设置步长：" + String(ac.length/20));
+					tempParaArr.addItem({'labelStep':String(Number(ac.length/20).toFixed(0))});
+				}
+				
+				tempParaArr.addItem({'subcaption':_perfName});
+				
+				kpiFc.FCParams = tempParaArr;
+				kpiFc.FCData = ac;
+				result = null;
+                
+                lm.hideLoading();
+			}
+			
+			/**
+			 * 格式化时间
+			 */
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+			
+			
+			public function set context(value:Object):void
+			{
+				_context = value;
+			}
+
+			public function set perfId(value:Object):void
+			{
+				_perfId = value;
+			}
+
+			public function set interval(value:Object):void
+			{
+				_interval = value;
+			}
+
+			public function set perfName(value:Object):void
+			{
+				_perfName = value;
+			}
+
+			public function set unit(value:Object):void
+			{
+				_unit = value;
+			}
+
+			public function set allPerfList(value:ArrayCollection):void
+			{
+				_allPerfList = value;
+			}
+
+			public function set cityId(value:Object):void
+			{
+				_cityId = value;
+			}
+
+
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				setTimeout(init, 300);
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+    <s:BorderContainer width="100%"
+                       height="100%"
+                       borderStyle="solid"
+                       borderWeight="2">
+    	<s:VGroup width="100%" height="100%" gap="0">
+    		<s:HGroup width="100%" height="55" gap="5" top="-5" paddingLeft="5" paddingRight="5" verticalAlign="middle" horizontalAlign="center">
+    			<s:Label text="颗粒度"/>
+    			<s:DropDownList id="intervalSelect" width="90" dataProvider="{intervalDp}"/>
+    			<s:VGroup verticalAlign="middle">
+    				<s:HGroup verticalAlign="bottom">
+    					<s:Label text=" 开始"/>
+    					<common:UXDateField id="startDate" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="false"/>
+    				</s:HGroup>
+    				<s:HGroup verticalAlign="top">
+    					<s:Label text=" 结束"/>
+    					<common:UXDateField id="endDate" labelFunction="formatDate" yearNavigationEnabled="true" width="190" editable="false"/>
+    				</s:HGroup>
+    			</s:VGroup>
+    			<s:Label text=" 地区"/>
+    			<s:DropDownList id="citySelect" width="80"/>
+    			<s:Label text=" 图表类型"/>
+    			<s:DropDownList id="fcType" change="changeKpiType()" width="80"/>
+    			<s:Label text=" 指标"/>
+    			<s:DropDownList id="kpiSelect" change="kpiSelect_changeHandler()" width="188"/>
+    			<s:Button label="应用" click="loadChartData()"/>
+    		</s:HGroup>
+    		
+    		<mx:HRule width="100%" height="2" strokeColor="0x004080"/>
+    		
+    		<fusioncharts:FusionChartsLK id="kpiFc" width="100%" height="300"
+    									 FCChartType="Spline"
+    									 FCData="{new ArrayCollection()}"
+    									 FCParams="{new ArrayCollection()}"
+    									 FCFolder="{_context}flex-release/FusionCharts"/>
+    	</s:VGroup>
+    </s:BorderContainer>
+</panel:Window>

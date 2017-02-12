@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window width="100%"
+					title="样本值"
+					close="closeWindow()"					
+					minimizable="false"
+					maximizable="false"
+					dragable="true"
+					styleName="windowScene"
+					creationComplete="window_creationCompleteHandler()"
+					xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.baseline.dynamic.data.BaseLineDataManager;
+			import com.linkage.module.cms.baseline.dynamic.renderer.CheckBoxSelectHeaderRenderer;
+			import com.linkage.module.cms.baseline.dynamic.renderer.CheckBoxSelectedRenderer;
+			import com.linkage.module.cms.baseline.dynamic.staticData.BaseLineBean;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			
+			private var log:ILogger = Log.getLoggerByClass(BLSwatchGrid);
+			[Bindable]
+			private var _data:ArrayCollection = new ArrayCollection();//数据
+			[Bindable]
+			public var baseLineDataManager:BaseLineDataManager;//dao
+			public var lm:LoadManager = new LoadManager(this);
+			protected function window_creationCompleteHandler():void
+			{
+				log.info("动态基线样本数据列表begin初始化");
+			}
+			private function closeWindow():void
+			{
+				PopUpManager.removePopUp(this);
+				this.visible = false;
+				_data.removeAll();
+			}
+			/**
+			 * 刷新数据
+			 **/ 
+			private var _params:Object;
+			public function initDatas(params:Object):void
+			{
+				if(""==BaseLineBean.unit||"null"==BaseLineBean.unit){
+					kpiADC.headerText = "指标值";
+				}else{
+					kpiADC.headerText = "指标值（"+BaseLineBean.unit + "）";
+				}
+ 				initTime();
+				this._params = params;
+				doQuery();
+			}
+			
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter = new DateFormatter();
+			dateFormatter.formatString = "YYYY-MM-DD";
+			//创建时间
+			protected function initTime():void
+			{
+				var end:Date = new Date(new Date().getTime() - 3600 * 24 * 1 * 1000);//昨天
+				var begin:Date = new Date(end.getTime() - 3600 * 24 * 6 * 1000);//昨天往前推7天
+				beginTime.text = dateFormatter.format(begin);
+				endTime.text = dateFormatter.format(end);
+			}
+			protected function doQuery_clickHandler(event:MouseEvent):void
+			{
+				doQuery();
+			}
+			//加载网元指标的样本数据
+			private function doQuery():void
+			{
+				log.info(_params);
+				_params.beginTime = beginTime.text;
+				_params.endTime = endTime.text;
+				lm.showLoading();
+				_data.removeAll();
+				log.info(_params);
+				baseLineDataManager.getBaseLineSwatchInfo(_params,getBLSwatchHandler);
+			}
+			private function getBLSwatchHandler(result:Object):void{
+				lm.hideLoading();
+				log.info("加载网元指标的样本数据success！");
+				log.info(result.datas);
+				_data.addAll(result['datas'] as IList);
+			}
+			protected function doChangeInvalid_clickHandler(event:MouseEvent):void
+			{
+				//无效操作
+				log.info("进行样本数据无效操作！");
+			}
+			protected function doRecalculate_clickHandler(event:MouseEvent):void
+			{
+				//重新计算
+				log.info("进行样本数据重新计算操作！");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" horizontalAlign="center">
+		<s:HGroup width="100%" height="30" verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="开始时间"/>
+			<mx:DateField id="beginTime"
+						  width="120"
+						  formatString="YYYY-MM-DD"/>
+			<s:Label text="结束时间"/>
+			<mx:DateField id="endTime"
+						  width="120"
+						  formatString="YYYY-MM-DD"/>
+			<s:Button label="过滤"
+					  buttonMode="true"
+					  click="doQuery_clickHandler(event)"/>
+		</s:HGroup>
+		<s:HGroup  width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+			<mx:AdvancedDataGrid width="100%"
+								 height="100%"
+								 headerHeight="22"
+								 rowHeight="22"
+								 horizontalScrollPolicy="auto"
+								 verticalScrollPolicy="auto"
+								 verticalAlign="middle"
+								 styleName="sceneDG"
+								 dataProvider="{_data}"
+								 doubleClickEnabled="true">
+				<mx:columns>
+					<!--<mx:AdvancedDataGridColumn minWidth="50"
+											   itemRenderer="{CheckBoxSelectedRenderer}"
+											   headerRenderer="{CheckBoxSelectHeaderRenderer}"/>-->
+					<mx:AdvancedDataGridColumn minWidth="50"
+											   headerRenderer="com.linkage.module.cms.baseline.dynamic.renderer.CheckBoxSelectHeaderRenderer"
+											   itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.CheckBoxSelectedRenderer"/>
+					<mx:AdvancedDataGridColumn minWidth="170" headerText="网元名" dataField="moName"/>
+					<mx:AdvancedDataGridColumn id="kpiADC" minWidth="170" headerText="指标值" dataField="kpi"/>
+					<mx:AdvancedDataGridColumn minWidth="200" headerText="时间" dataField="gatherTime"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+		</s:HGroup>
+		<s:HGroup  width="80%" height="30" verticalAlign="middle" horizontalAlign="right">
+<!--			<s:Button label="设为无效值"
+					  buttonMode="true"
+					  click="doChangeInvalid_clickHandler(event)"/>
+			<s:Button label="重新计算"
+					  buttonMode="true"
+					  click="doRecalculate_clickHandler(event)"/>-->
+			<s:Button label="关闭"
+					  buttonMode="true"
+					  click="closeWindow()"/>
+		</s:HGroup>
+	</s:VGroup>
+</ailk_compts:Window>

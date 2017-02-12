@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute"
+		   xmlns:panel="com.linkage.system.component.panel.*"  
+		   xmlns:local="com.linkage.module.cms.groupclient.components.*"
+		   xmlns:pubflow="com.linkage.module.cms.alarm.pubflow.*"
+		   backgroundColor="0xD7E0E7"
+		   width="100%" height="100%" creationComplete="module_creationCompleteHandler()">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManager;
+			import com.linkage.module.cms.groupclient.data.GroupEqPerfDataManagerBS;
+			import com.linkage.module.cms.groupclient.event.CustWindowEvent;
+			import com.linkage.module.cms.groupclient.event.FilterFormEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.EffectEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.groupclient.GroupBusinessPerformMonitor");
+			public var parameters:Object;	
+
+			private var defaultFilter:String = 'ismetropolis!=&businesslevel!=&nmsalarmtype=2&systemname="综合监控"&alarmtitle%="超门限告警"';//暂时模拟的集客告警
+			public var lm:LoadManager = null;
+			//数据刷新定时器
+			private var _alarmTimer:Timer = new Timer(300000);
+			protected function module_creationCompleteHandler():void
+			{
+				parameters = parentApplication.parameters;
+				lm = new LoadManager(this);
+				//初始化日志
+				var target:ILoggingTarget = new MonsterTarget2();
+				target.level = LogEventLevel.INFO;
+				target.filters = ["com.linkage.module.cms.groupclient*"];
+				Log.addTarget(target);
+				log.info('日志初始化完成~');
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parameters["styleUrl"]);
+				//初始化manager
+				initServerClass();
+				//初始化告警流水
+				initAlarms();
+				log.info("初始化完成！");
+				//初始化定时器
+				//log.info('初始化定时器 ~~');
+				_alarmTimer.addEventListener(TimerEvent.TIMER, onReportTimer);
+				refreshDatas();
+				
+			}
+			private var groupEqPerfDataManager:GroupEqPerfDataManager= null;
+			//初始化groupEqPerfDataManager，并给数据类注入context
+			private function initServerClass():void
+			{
+				if(null==groupEqPerfDataManager)
+					groupEqPerfDataManager = new GroupEqPerfDataManagerBS(this.parameters['context']);
+			}
+			private function initAlarms():void
+			{
+				log.info('初始化告警流水：');
+				log.info(this.parameters['mapInfo']);
+				//初始化告警流水
+				var alarmParams:Object = {};
+				alarmParams.mapInfo=this.parameters['mapInfo'];
+				alarmParams.defaultDisplay="alarmstatus";
+				alarmFlow.params = alarmParams;
+				//设置过滤规则
+				alarmFlow.ruleContent = defaultFilter;
+				alarmFlow.initInfo();
+			}
+			private function onReportTimer(event:TimerEvent):void
+			{
+				refreshDatas();
+			}
+			private var datas:Object = {};
+			private function refreshDatas():void
+			{
+				lm.showLoading();
+				var paramMap:Object = new Object();
+				log.info("当前用户的域编号：" + this.parameters.areaId);
+				if(this.parameters.areaId != null)
+				{
+					paramMap.area_id = this.parameters.areaId;
+				}
+				groupEqPerfDataManager.loadEqBusinessReports(paramMap,
+					function(result:Object):void
+					{
+						if(result.datas){
+							log.info('加载报表数据成功！');
+						}
+						datas = result;
+						dosetDatas();
+						lm.hideLoading();
+					},
+					function(event:FaultEvent):void
+					{
+						log.info('加载报表数据失败！');
+						lm.hideLoading();
+					});
+				
+			}
+			private function dosetDatas():void
+			{
+				log.info(datas);
+				log.info("datas.monitorLevelsRep-->"+datas.monitorLevelsRep);
+				log.info("datas.monitorLevelsRep.length-->"+ArrayCollection(datas.monitorLevelsRep).length);
+				if(null!=datas && null!=datas.monitorLevelsRep && null!=datas.supportLevelsRep ){
+					monitorLevelsRep.dataProvider = ArrayCollection(datas.monitorLevelsRep);
+					supportLevelsRep.dataProvider = ArrayCollection(datas.supportLevelsRep);
+				}
+				
+			}
+			//业务监控级别
+			private function monitorLevelsRepFilterAlarm(businessTypeId:String,servTypeName:String):void
+			{
+				var currentFilter:String = defaultFilter ;
+				if(null!=businessTypeId&&""!=businessTypeId){
+					currentFilter += "&businesscategory=\"" + businessTypeId + "\"";
+				}
+				if(null!=servTypeName&&""!=servTypeName){
+					currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+				}
+				log.info("过滤页面reload告警：filter：" + currentFilter);
+				alarmFlow.reload(currentFilter);
+			}
+			//业务保障级别
+			private function supportLevelsRepFilterAlarm(businessTypeId:String,servTypeName:String):void
+			{
+				var currentFilter:String = defaultFilter;
+				
+				if(null!=businessTypeId&&""!=businessTypeId){
+					currentFilter += "&safelevel=\"" + businessTypeId + "\"";
+				}
+				if(null!=servTypeName&&""!=servTypeName){
+					currentFilter += "&businesssystem=\"" + servTypeName + "\"";
+				}
+				log.info("过滤页面reload告警：filter：" + currentFilter);
+				alarmFlow.reload(currentFilter);
+			}
+			
+			protected function alarmTabBar_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				log.info("event.newIndex="+event.newIndex);
+				if(event.newIndex == 1)
+				{
+					historyAlarmWin.historyStart();
+				}else if(event.newIndex == 0)
+				{
+					log.info("event.newIndex == 0");
+					//					alarmIndexHandler();
+				}else
+				{
+					log.info("event.newIndex == 0 else");
+					//					alarmIndexHandler();
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" gap="10" right="10" left="10" top="10" bottom="10">
+		<s:HGroup width="100%" height="45%" verticalAlign="middle" horizontalAlign="center">
+			<local:GroupBusinessReportWindow id="monitorLevelsRep"  gridFunction="{monitorLevelsRepFilterAlarm}"
+											 log="{log}" width="100%" height="100%" title="业务性能越限按业务监控级别统计" businessType="业务监控级别"/>
+			<local:GroupBusinessReportWindow id="supportLevelsRep"  gridFunction="{supportLevelsRepFilterAlarm}"
+											 log="{log}" width="100%" height="100%" title="业务性能越限按业务保障级别统计" businessType="业务保障级别"/>
+		</s:HGroup>
+		<s:HGroup width="100%" height="55%" verticalAlign="middle">
+			<s:VGroup width="100%" height="100%">
+				<s:TabBar id="alarmTabBar"
+						  dataProvider="{alarmViewStack}"
+						  buttonMode="true"
+						  styleName="commonTabBar"
+						  change="alarmTabBar_changeHandler(event)"/>
+				<mx:ViewStack id="alarmViewStack"
+							  top="23"
+							  width="100%"
+							  height="100%"
+							  creationPolicy="all"
+							  styleName="commonViewStack">
+					<s:NavigatorContent id="alarmNac"
+										label="超标事件一览窗口"  
+										creationPolicy="all"
+										width="100%"
+										height="100%">
+						<!--告警流水-->
+						<!--<panel:Window id="alarmWin" 
+									  width ="100%"
+									  height ="100%"
+									  minimizable="false"
+									  maximizable="false"
+									  closable="false"
+									  dragable="false"
+									  horizontalCenter="0"
+									  verticalCenter="0"
+									  title="超标事件一览窗口">
+							
+						</panel:Window>-->
+						<pubflow:custalarm id="alarmFlow" moduleKey="groupbuss_extrakpi" width="100%" height="100%"/>
+					</s:NavigatorContent>
+					<s:NavigatorContent id="alarmHistoryNac"
+										label="超标事件一览历史窗口"
+										creationPolicy="all"
+										width="100%"
+										height="100%">
+						<local:HistoryAlarmWin id="historyAlarmWin"
+											   top="5"
+											   width="100%"  
+											   height="100%"/>
+					</s:NavigatorContent>
+				</mx:ViewStack>
+			</s:VGroup>
+		</s:HGroup>
+	</s:VGroup>
+</mx:Module>

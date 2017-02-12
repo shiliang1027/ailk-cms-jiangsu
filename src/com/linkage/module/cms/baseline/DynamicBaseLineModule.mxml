@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:local="com.linkage.module.cms.baseline.dynamic.view.*" 
+		   width="100%" 
+		   height="100%"
+		   preinitialize="module1_preinitializeHandler(event)"
+		   creationComplete="application1_creationCompleteHandler(event)">
+	
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace local "com.linkage.module.cms.baseline.dynamic.view.*";
+		@namespace chartClasses "mx.charts.chartClasses.*";
+		chartClasses|DataTip{
+			color:"#704c9c";
+			fontSize:20;
+			fontFamily:"微软雅黑";
+		}
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.baseline.dynamic.data.BaseLineDataManager;
+			import com.linkage.module.cms.baseline.dynamic.data.BaseLineDataManagerBS;
+			import com.linkage.module.cms.baseline.dynamic.event.BaseLineEvent;
+			import com.linkage.module.cms.baseline.dynamic.view.BaseLineView;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			
+			import mx.events.FlexEvent;
+			
+			public var minizableBottom:Number=0;
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.dynamic.BaseLineModule");
+			[Bindable]
+			private var baseLineDataManager:BaseLineDataManager;
+			public var parameters:Object;
+			[Bindable]
+			public var lm:LoadManager;
+//			[Bindable]
+//			private var stateStr:String = "kpiState";
+			
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("BaseLineModule初始化完成。");
+			}
+			private function doInit():void{
+				parameters = parentApplication.parameters;
+				
+				lm = new LoadManager(this);
+				
+//				initLog();
+				//初始化manager
+				initServerClass();
+			}
+//			private function initLog():void{
+				
+				//初始化日志
+//				var target:ILoggingTarget = new MonsterTarget2();
+//				target.level = LogEventLevel.INFO;
+//				target.filters = ["com.linkage.module.cms.baseline.dynamic*"];
+//				Log.addTarget(target);
+//				log.info('日志初始化完成~');
+//			}
+			//初始化baseLineDataManager，并给数据类注入context
+			private function initServerClass():void
+			{
+				if(null==baseLineDataManager)
+					baseLineDataManager = new BaseLineDataManagerBS(this.parameters['context']);
+			}
+			protected function module1_preinitializeHandler(event:FlexEvent):void
+			{
+				//读取样式
+				styleManager.loadStyleDeclarations2(this.parentApplication.parameters["styleUrl"]);
+				doInit();
+			}
+			protected function showBaseLineViewFun(params:Object):void
+			{
+				log.info("展示基线页面");
+//				this.stateStr = 'blState';
+//				baseline.showBaseLineData();
+				
+				baseLineViewGroup.removeAllElements();
+				var baseline:BaseLineView = new BaseLineView();
+				baseline.lm=lm;
+				baseline.dataParameter=params;
+				baseline.baseLineDataManager=baseLineDataManager;
+				baseLineViewGroup.addElementAt(baseline,0);
+				
+			}
+//			protected function baseline_closeHandler(event:WindowEvent):void
+//			{
+//				log.info("展示指标页面");
+////				this.stateStr = 'kpiState';
+////				baseline.hideBaseLineData();
+//			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Fade id="fade"
+				alphaFrom="0"
+				alphaTo="1"
+				duration="400"/>
+	</fx:Declarations>
+	
+	
+	<!--<local:KPIView id="kpi" width="100%" height="100%" gap="4" verticalCenter="0" horizontalCenter="0"
+				   lm="{lm}" showEffect="{fade}" showBaseLineViewFun="showBaseLineViewFun"
+				   visible="{'kpiState'==stateStr}" includeInLayout="{'kpiState'==stateStr}" baseLineDataManager="{baseLineDataManager}"/>-->
+	<!--<local:BaseLineView id="baseline" width="100%" height="100%" lm="{lm}" showEffect="{fade}"
+					visible="{'blState'==stateStr}" includeInLayout="{'blState'==stateStr}" baseLineDataManager="{baseLineDataManager}"
+					close="baseline_closeHandler(event)"/>-->
+	
+	<s:Group width="100%" height="100%">
+		<local:KPIView id="kpi" width="100%" height="100%" gap="4"
+					   lm="{lm}" showEffect="{fade}" showBaseLineViewFun="showBaseLineViewFun" baseLineDataManager="{baseLineDataManager}"/>
+		<s:Group id="baseLineViewGroup" width="100%" height="100%">
+			
+		</s:Group>
+	</s:Group>
+	
+</mx:Module>

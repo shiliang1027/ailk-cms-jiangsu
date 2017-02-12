@@ -1,0 +1,3604 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         xmlns:parsley="http://www.spicefactory.org/parsley"
+         width="100%"
+         height="100%"
+         xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+         xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis"
+         xmlns:components="com.linkage.module.cms.scene.view.components.*"
+         creationComplete="group1_creationCompleteHandler(event)" 
+		 xmlns:linkage_compts="http://www.ailk.com/2011/ailk/components">
+    <!--
+    ***************************************
+    This is Content
+    @author wuchao (Ailk No.)
+    @version 1.0
+    @date 2012-12-13
+    @langversion 3.0
+    @playerversion Flash 11
+    @productversion Flex 4
+    @copyright Ailk NBS-Network Mgt. RD Dept.
+    ***************************************
+    -->
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+        <parsley:Configure/>
+        <mx:ProgressBar id="progressBar"
+                        visible="false"
+                        width="200"
+                        labelPlacement="center"
+                        mode="manual"/>
+    </fx:Declarations>
+    <s:layout>
+        <s:BasicLayout/>
+    </s:layout>
+    <fx:Script>
+        <![CDATA[
+			import baidu.map.basetype.LngLat;
+			import baidu.map.projection.MercatorProjection;
+			import baidu.map.projection.Projection;
+			
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.mask.SimpleMask;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.GisLayer;
+			import com.ailk.common.ui.gis.core.metry.GisPoint;
+			import com.ailk.common.ui.gis.core.metry.GisRegion;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.ailk.common.ui.gis.core.styles.GisTextStyle;
+			import com.ailk.common.ui.gis.event.GisDrawEvent;
+			import com.ailk.common.ui.gis.event.GisExtentEvent;
+			import com.ailk.common.ui.gis.event.GisFeatureEvent;
+			import com.ailk.common.ui.gis.event.GisFeatureLayerEvent;
+			import com.ailk.common.ui.gis.event.MapEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.components.pager.event.PagerEvent;
+			import com.linkage.module.cms.scene.domain.common.IUser;
+			import com.linkage.module.cms.scene.event.AreaQuickConifgEvent;
+			import com.linkage.module.cms.scene.event.SceneEvent;
+			import com.linkage.module.cms.scene.view.components.FileUpDownAndLoad;
+			import com.linkage.module.cms.scene.view.components.FileUpDownLoad;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			
+			import spark.events.IndexChangeEvent;
+            private var log:ILogger = Log.getLoggerByClass(AreaQuickConfigView);
+            private var picFeatureArray:Array = new Array();
+            private var labelFeatureArray:Array = new Array();
+            [Bindable]
+            private var showList:ArrayCollection = new ArrayCollection();
+
+            [Bindable]
+            [Inject("areaQuickConfigViewPM")]
+            public var pm:AreaQuickConfigViewPM;
+
+            [Embed(source = '../img/areaquickconfig/jizhan_2G.png')]
+            private var jizhan_2G:Class;
+            [Embed(source = '../img/areaquickconfig/jizhan_3G.png')]
+            private var jizhan_3G:Class;
+            [Embed(source = '../img/areaquickconfig/wlan.png')]
+            private var wlan:Class;
+            [Embed(source = '../img/areaquickconfig/jizhan.png')]
+            private var jizhan:Class;
+            [Embed(source = '../img/areaquickconfig/site.png')]
+            private var site:Class;
+            [Embed(source = '../img/areaquickconfig/rain.png')]
+            private var rain:Class;
+            [Embed(source = '../img/areaquickconfig/rain1.png')]
+            private var rain1:Class;
+            [Embed(source = '../img/areaquickconfig/25/jizhan_2G.png')]
+            private var jizhan_2G_25:Class;
+            [Embed(source = '../img/areaquickconfig/25/jizhan_3G.png')]
+            private var jizhan_3G_25:Class;
+            [Embed(source = '../img/areaquickconfig/25/wlan.png')]
+            private var wlan_25:Class;
+            [Embed(source = '../img/areaquickconfig/25/jizhan.png')]
+            private var jizhan_25:Class;
+            [Embed(source = '../img/areaquickconfig/25/site.png')]
+            private var site_25:Class;
+            [Embed(source = '../img/areaquickconfig/35/jizhan_2G.png')]
+            private var jizhan_2G_35:Class;
+            [Embed(source = '../img/areaquickconfig/35/jizhan_3G.png')]
+            private var jizhan_3G_35:Class;
+            [Embed(source = '../img/areaquickconfig/35/wlan.png')]
+            private var wlan_35:Class;
+            [Embed(source = '../img/areaquickconfig/35/jizhan.png')]
+            private var jizhan_35:Class;
+            [Embed(source = '../img/areaquickconfig/35/site.png')]
+            private var site_35:Class;
+            [Embed(source = '../img/areaquickconfig/50/jizhan_2G.png')]
+            private var jizhan_2G_50:Class;
+            [Embed(source = '../img/areaquickconfig/50/jizhan_3G.png')]
+            private var jizhan_3G_50:Class;
+            [Embed(source = '../img/areaquickconfig/50/wlan.png')]
+            private var wlan_50:Class;
+            [Embed(source = '../img/areaquickconfig/50/jizhan.png')]
+            private var jizhan_50:Class;
+            [Embed(source = '../img/areaquickconfig/50/site.png')]
+            private var site_50:Class;
+            [Embed(source = '../img/areaquickconfig/75/jizhan_2G.png')]
+            private var jizhan_2G_75:Class;
+            [Embed(source = '../img/areaquickconfig/75/jizhan_3G.png')]
+            private var jizhan_3G_75:Class;
+            [Embed(source = '../img/areaquickconfig/75/wlan.png')]
+            private var wlan_75:Class;
+            [Embed(source = '../img/areaquickconfig/75/jizhan.png')]
+            private var jizhan_75:Class;
+            [Embed(source = '../img/areaquickconfig/75/site.png')]
+            private var site_75:Class;
+            [Embed(source = '../img/mo/eNodeB.png')]
+            private var eNodeB:Class;
+            [Inject(fileUpDownAndLoad)]
+            public var fileUpAndDown:FileUpDownAndLoad;
+            private var flag:String = "A";
+            private var p:Projection = new MercatorProjection();
+            [Inject("user")]
+            public var user:IUser;
+            //缓存地市的GIS
+            private var picFeatureMap:Object = new Object();
+            private var labelFeatureMap:Object = new Object();
+            private var relArray:Array = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "G", "K"];
+            private var currentfeature:GisFeature;
+            [MessageDispatcher]
+            public var msgDispatcher:Function;
+            private var pointsCacheObj:Object = new Object();
+            private var queryname:String = "";
+            private var moNameQuy:String = "";
+            private var lm:LoadManager = new LoadManager(this, "blue");
+            private var mk:SimpleMask;
+            private var itip:MaskInstructionTip;
+            private var areaLayer:GisLayer = new GisLayer;
+            private var featureLayer:GisLayer = new GisLayer;
+
+            //			[Init]
+            public function init():void
+            {
+                msgDispatcher(new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_SCENES_TYPE));
+                msgDispatcher(new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_AREAQUICK_CITYS));
+                msgDispatcher(new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_MOTYPE_LIST));
+            }
+
+            public function queryButton_clickHandler(event:MouseEvent):void
+            {
+                codetemp = "18";
+                typetemp = "aaa";
+                choosepager.currentPage = 1;
+                query();
+
+                if (this.chooseWindow.visible)
+                    this.step2();
+            }
+
+            public function query():void
+            {
+                areaLayer.clear();
+                chooseWindow.visible = true;
+                queryname = queryCon.text;
+
+                if (queryname == null || "" == queryname)
+                {
+                    Alert.show("查询条件不能为空");
+                    return;
+                }
+                lm.showLoading();
+
+                if ("0" == queryDropList.selectedItem.value)
+                {
+                    var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_TUDE_BY_CITYNAME);
+                    var param:Object = new Object();
+                    param.pageNo = String(choosepager.currentPage);
+                    param.pageSize = String(choosepager.pageSize);
+                    param.query = queryname;
+                    param.output = "xml";
+                    param.city = cityDropList.selectedItem.city_id;
+
+                    if ("11" == typetemp)
+                    {
+                        param.code = codetemp;
+                    }
+                    evt.param = param;
+                    msgDispatcher(evt);
+                }
+                else
+                {
+                    log.info("【查询经纬度】name:" + queryname);
+                    var evt2:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_TUDE_BY_MOID);
+                    var param2:Object = new Object();
+                    param2.name = queryname;
+                    param2.currentPage = String(choosepager.currentPage);
+                    param2.pageSize = String(choosepager.pageSize);
+                    evt2.param = param2;
+                    msgDispatcher(evt2);
+                }
+            }
+
+            [MessageHandler(selector = "LOAD_SCENES_TYPE_COMP")]
+            public function getSceneTypeComp(e:AreaQuickConifgEvent):void
+            {
+                sceneType.dataProvider = pm.dm.sceneTypeList;
+
+                for each (var temp:Object in pm.dm.sceneTypeList)
+                {
+                    log.info(temp);
+
+                    if ("9" == temp.scenetypeid)
+                    {
+                        sceneType.selectedItem = temp;
+                        break;
+                    }
+                }
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_SCENES_AREA);
+                var param:Object = new Object();
+                param.type_id = temp.scenetypeid;
+                evt.param = param;
+                msgDispatcher(evt);
+            }
+
+            [MessageHandler(selector = "LOAD_SCENES_PANEL_COMP")]
+            public function getScenePanelComp(e:AreaQuickConifgEvent):void
+            {
+//                log.info("面板配置：");
+//                log.info(pm.dm.scenePanelList);
+//                panelCfgGroup.removeAllElements();
+//				panelCfgGroup2.removeAllElements();
+//
+//                for each (var pp:Object in pm.dm.scenePanelList)
+//                {
+//                    var cb:CheckBox = new CheckBox();
+//                    cb.label = pp['panel_name'];
+//                    cb.id = pp['panel_key'];
+//                    cb.name = pp['vieworder'];
+//					cb.selected = pp['isconfiged'] == "1";
+//					
+//					if(pp['vieworder'] == "1")
+//						panelCfgGroup2.addElement(cb);
+//					else
+//                    	panelCfgGroup.addElement(cb);
+//					
+//                }
+//
+//                log.info("面板配置end");
+            }
+
+            [MessageHandler(selector = "LOAD_SCENES_AREA_COMP")]
+            public function getSceneAreaComp(e:AreaQuickConifgEvent):void
+            {
+                if (this.df.visible == true)
+                {
+                    var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_KPIS_AND_EMERCYS);
+                    var param:Object = new Object();
+
+                    if (scenedd.selectedItem)
+                    {
+                        param.sceneid = scenedd.selectedItem.sceneid;
+                    }
+                    else
+                    {
+                        if (scenedd.text == "" || scenedd.text == scenedd.prompt)
+                        {
+                            param.sceneName = "";
+                        }
+                        else
+                        {
+                            param.sceneName = scenedd.text;
+                        }
+                    }
+
+                    param.scenetypeid = sceneType.selectedItem.scenetypeid;
+                    param.city = pm.dm.cityList;
+                    evt.param = param;
+
+                    log.info("加载指标数据：");
+                    msgDispatcher(evt);
+                }
+            }
+
+            [MessageHandler(selector = "QUERY_TUDE_BY_MOID_COMP")]
+            public function getTudeComp(e:AreaQuickConifgEvent = null):void
+            {
+                lm.hideLoading();
+                log.info("[chooseList]length" + pm.dm.chooseList.length);
+
+                if (pm.dm.chooseList.length > 0)
+                {
+                    var dataList:ArrayCollection = new ArrayCollection();
+                    var data:Object;
+
+                    for each (var temp:Object in pm.dm.chooseList)
+                    {
+                        data = new Object();
+                        data.moTypeId = temp.moTypeId;
+                        data.moId = temp.moId;
+                        dataList.addItem(data);
+                    }
+                    var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_TUDE_BY_MOID_AND_MOTYPEID);
+                    evt.param = new Object;
+                    evt.param.dataList = dataList;
+                    msgDispatcher(evt);
+                }
+            }
+
+            [MessageHandler(selector = "QUERY_TUDE_BY_CITYNAME_COMP")]
+            public function getTudeCompByName(e:AreaQuickConifgEvent):void
+            {
+                lm.hideLoading();
+                function onResult(gisFeatures:Array):void
+                {
+                    pm.dm.chooseList.removeAll();
+                    pm.dm.chooseList.refresh();
+                    var data:Object;
+                    var startNo:Number = (choosepager.currentPage - 1) * choosepager.pageSize;
+                    var endNo:Number = (startNo + choosepager.pageSize - 1) > gisFeatures.length ? (gisFeatures.length - 1) : (startNo + choosepager.pageSize - 1);
+                    log.debug("[GIS API] onResult gisFeatures length=" + gisFeatures.length);
+                    gisFeatures.slice(startNo, endNo).forEach(function callback(item:GisFeature, index:int, array:Array):void
+                    {
+                        data = new Object();
+                        data.mo_name = item.attributes["TEXTLABEL"];
+                        data.pointlongitude = (item.gisMetry as GisPoint).x;
+                        data.pointlatitude = (item.gisMetry as GisPoint).y;
+                        data.flag = relArray[index];
+                        pm.dm.chooseList.addItem(data);
+                    });
+                    pm.dm.countRow = gisFeatures.length;
+                    log.debug("[GIS API] onResult chooseList");
+                    log.debug(pm.dm.chooseList);
+                    getTudeComp();
+                }
+
+                function onFail(info:String):void
+                {
+                    Alert.show("查询失败" + info);
+                }
+
+
+                log.info("[chooseList]length" + pm.dm.chooseList.length);
+                var index:int = 0;
+
+                for each (var o:Object in pm.dm.chooseList)
+                {
+                    o.flag = relArray[index++];
+                }
+
+                if (pm.dm.chooseList.length > 0)
+                {
+                    var data:Object = pm.dm.chooseList[0];
+
+                    if ("00" == cityDropList.selectedItem.cityId)
+                    {
+                        typetemp = data.type;
+                    }
+                    else
+                    {
+                        typetemp = "aaa";
+                    }
+
+                    if (data.type == "7")
+                    {
+                        codetemp = data.code;
+                        choosepager.totalRowCount = pm.dm.countRow;
+                    }
+                    else
+                    {
+                        selList.selectedItem = data;
+                        log.info("onFail:");
+                        log.info(data);
+                        gotoMap(data, "city");
+                        gotoArea(data, "city");
+                    }
+                }
+                else
+                {
+                    log.info("GIS  API 查询");
+                }
+            }
+
+            //地图根据坐标撒查到的地市
+            private function gotoArea(data:Object, type:String):void
+            {
+                areaLayer.clear();
+                choosepager.totalRowCount = pm.dm.countRow;
+                //				choosepager.maxPage = Math.ceil(choosepager.totalRowCount / choosepager.pageSize);
+                var point:GisPoint;
+                var icon:Class = getIcon("rain");
+                var icon1:Class = getIcon("rain1");
+                var picFeature:GisFeature = null;
+                var labelFeature:GisFeature = null;
+                var selpicFeature:GisFeature = null;
+                var sellabelFeature:GisFeature = null;
+                var lngLat:LngLat = null;
+                var tf:TextFormat = new TextFormat();
+                tf.bold = true;
+
+                if (pm.dm.chooseList.length > 0)
+                {
+                    for each (var temp:Object in pm.dm.chooseList)
+                    {
+                        if ("mo" == type)
+                        {
+                            point = new GisPoint(Number(temp.x), Number(temp.y));
+                        }
+                        else
+                        {
+                            lngLat = p.pointToLngLat(new Point(Number(temp.x), Number(temp.y)));
+                            point = new GisPoint(lngLat.lng * logdeviation, lngLat.lat * latdeviation);
+                        }
+
+                        if (String(temp.flag) == data.flag)
+                        {
+                            selpicFeature = new GisFeature(point, new GisMarkerPictureStyle(icon1, 0, 0, 0, 4));
+                            selpicFeature.toolTip = temp.mo_name;
+                            sellabelFeature = new GisFeature(point, new GisTextStyle(String(temp.flag), 0xffffff, false, 0, false, 0xffffff, 0, "middle", 0, 9, null, tf));
+                            sellabelFeature.toolTip = temp.mo_name;
+                            picFeatureMap[temp.flag] = selpicFeature;
+                            labelFeatureMap[temp.flag] = sellabelFeature;
+                        }
+                        else
+                        {
+                            picFeature = new GisFeature(point, new GisMarkerPictureStyle(icon));
+                            picFeature.toolTip = temp.mo_name;
+                            labelFeature = new GisFeature(point, new GisTextStyle(String(temp.flag), 0xffffff, false, 0, false, 0xffffff, 0, "middle", 0, 5, null, tf));
+                            labelFeature.toolTip = temp.mo_name;
+                            picFeatureMap[temp.flag] = picFeature;
+                            labelFeatureMap[temp.flag] = labelFeature;
+                            areaLayer.addGisFeature(picFeature);
+                            areaLayer.addGisFeature(labelFeature);
+                        }
+                    }
+                    //防止选中的被覆盖放到最后撒
+                    areaLayer.addGisFeature(selpicFeature);
+                    areaLayer.addGisFeature(sellabelFeature);
+                }
+            }
+            private var logdeviation:Number = 0.99990376875404354350220612025673;
+            private var latdeviation:Number = 0.9998777726700775367152034927582;
+
+            //定位到地图
+            public function gotoMap(data:Object, type:String):void
+            {
+                log.info("data.longitude:{0},data.latitude:{1},type:{2}", data.x, data.y, type);
+
+                if ("mo" == type)
+                {
+                    var point:GisPoint = new GisPoint(Number(data.x), Number(data.y));
+                    mapWork.map.zoomToScale(16000, point);
+                    mapWork.map.lastDrawPoint = new GisPoint(Number(data.x), Number(data.y));
+                }
+                else
+                {
+                    var lngLat:LngLat = p.pointToLngLat(new Point(Number(data.x), Number(data.y)));
+                    var gisPoint:GisPoint = new GisPoint(lngLat.lng * logdeviation, lngLat.lat * latdeviation);
+
+                    log.info(gisPoint);
+
+                    mapWork.map.zoomToScale(16000, gisPoint);
+                    mapWork.map.lastDrawPoint = new GisPoint(lngLat.lng * logdeviation, lngLat.lat * latdeviation);
+                }
+            }
+
+            protected function configmore_clickHandler(event:MouseEvent):void
+            {
+                this.df.visible = !this.df.visible;
+
+                log.info("configmore_clickHandler:" + df.visible);
+
+                if (this.df.visible)
+                {
+                    var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent("LOAD_SCENES_PANELS");
+                    evt.param = {};
+
+                    if (this.sceneType.selectedItem)
+                        evt.param['scenetypeid'] = this.sceneType.selectedItem.scenetypeid;
+                    evt.param['acc_loginname'] = user.account;
+                    msgDispatcher(evt);
+
+                    var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_KPIS_AND_EMERCYS);
+                    var param:Object = new Object();
+
+                    if (scenedd.selectedItem)
+                    {
+                        param.sceneid = scenedd.selectedItem.sceneid;
+                    }
+
+                    param.scenetypeid = sceneType.selectedItem.scenetypeid;
+                    evt.param = param;
+                    msgDispatcher(evt);
+
+                    this.kpichangeHandler(this.kpiThresholdTabBar.selectedIndex);
+                }
+
+                nextMask(null);
+            }
+			
+			protected function configmore(event:MouseEvent=null):void
+			{
+				var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent("LOAD_SCENES_PANELS");
+				evt.param = {};
+				
+				if (this.sceneType.selectedItem)
+					evt.param['scenetypeid'] = this.sceneType.selectedItem.scenetypeid;
+				evt.param['acc_loginname'] = user.account;
+				msgDispatcher(evt);
+				
+				var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_KPIS_AND_EMERCYS);
+				var param:Object = new Object();
+				
+				if (scenedd.selectedItem)
+				{
+					param.sceneid = scenedd.selectedItem.sceneid;
+				}
+				
+				param.scenetypeid = sceneType.selectedItem.scenetypeid;
+				evt.param = param;
+				msgDispatcher(evt);
+			}
+            private var codetemp:String = "18";
+            private var typetemp:String = "aaa";
+
+            protected function chooseGrid_itemClickHandler(e:IndexChangeEvent):void
+            {
+                log.info("chooseGrid_itemClickHandler");
+
+                if (pm.dm.chooseList[e.newIndex].type && pm.dm.chooseList[e.newIndex].type == "ne")
+                {
+                    log.info("chooseGrid_itemClickHandler e.newIndex:{0}", e.newIndex);
+                    log.info(pm.dm.chooseList[e.newIndex]);
+                    gotoMap(pm.dm.chooseList[e.newIndex], "mo");
+                    gotoArea(pm.dm.chooseList[e.newIndex], "mo");
+                }
+                else if (pm.dm.chooseList[e.newIndex].type && pm.dm.chooseList[e.newIndex].type == "7")
+                {
+                    codetemp = pm.dm.chooseList[e.newIndex].code;
+                    typetemp = pm.dm.chooseList[e.newIndex].type;
+                    var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_TUDE_BY_CITYNAME);
+                    var param:Object = new Object();
+
+                    param.pageNo = String(choosepager.currentPage);
+                    param.pageSize = String(choosepager.pageSize);
+                    param.query = queryname;
+                    param.output = "xml";
+                    param.code = pm.dm.chooseList[e.newIndex].name;
+                    param.type = pm.dm.chooseList[e.newIndex].type;
+                    param.city = cityDropList.selectedItem.city_id;
+                    evt.param = param;
+                    msgDispatcher(evt);
+                }
+                else
+                {
+                    log.info("chooseGrid_itemClickHandler e.newIndex:{0}", e.newIndex);
+                    log.info(pm.dm.chooseList[e.newIndex]);
+                    gotoMap(pm.dm.chooseList[e.newIndex], "city");
+                    gotoArea(pm.dm.chooseList[e.newIndex], "city");
+                    //自动进入导航的下一步
+                    step3();
+                }
+            }
+
+            [MessageHandler(selector = "QUERY_TUDE_BY_MOID_AND_MOTYPEID_COMP")]
+            public function loadTudoByMoIdComp(e:AreaQuickConifgEvent):void
+            {
+                for each (var data:Object in pm.dm.chooseList)
+                {
+                    for each (var temp:Object in e.param)
+                    {
+                        if (data.name == temp.moName)
+                        {
+                            data.pointlongitude = temp.longitude;
+                            data.pointlatitude = temp.latitude;
+                        }
+                    }
+                }
+                log.debug(pm.dm.chooseList);
+                var pa:Object = pm.dm.chooseList[0];
+                selList.selectedItem = pa;
+                gotoMap(pa, "mo");
+                gotoArea(pa, "mo");
+            }
+
+            protected function mapWork_draw_endHandler(event:GisDrawEvent):void
+            {
+                moSelected = true;
+                this.step5();
+                lm.showLoading();
+                log.info(" 框选完成，查询框选范围内的网元信息。。。");
+                //清空地图
+                this.df.visible = false;
+                this.df.includeInLayout = false;
+                pm.dm.treeData = new XML();
+                featureLayer.clear();
+                picFeatureArray = new Array();
+                labelFeatureArray = new Array();
+                //框选完成， 返回多边形顶点集合
+                var param:ArrayCollection = new ArrayCollection();
+                var parts:Array = (event.gisFeature.gisMetry as GisRegion).parts;
+
+                for each (var point:GisPoint in parts)
+                {
+                    var pointObj:Object = new Object();
+                    pointObj.x = point.x;
+                    pointObj.y = point.y;
+                    param.addItem(pointObj);
+                }
+                log.info("points");
+                log.info(param);
+                var index:String = new Date().getTime() + "_" + Math.random();
+                //缓存框选区域的顶点信息
+                pointsCacheObj[index] = parts;
+                currentfeature = event.gisFeature;
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_MOS_BY_DRAW);
+                evt.param = new Object();
+                evt.param.points = param;
+                evt.param.cityList = pm.dm.cityList;
+                evt.param.moTypeMap = pm.dm.moTypeMap;
+                msgDispatcher(evt);
+            }
+
+            private function popupDealer(feature:GisFeature):void
+            {
+                pointsCacheObj[feature.attributes] = null;
+                mapWork.map.removeGisFeature(feature);
+            }
+
+            //树点击处理
+            protected function myTree_itemClickHandler(event:ListEvent):void
+            {
+                var selectedNode:XML = Tree(event.target).selectedItem as XML;
+
+                if (Boolean(Number(selectedNode.@selected)))
+                {
+                    selectedNode.@selected = Boolean(Number(selectedNode.@selected)) ? 0 : 1;
+                }
+                else
+                {
+                    selectedNode.@selected = 1;
+                }
+
+                if (selectedNode.@isSave == "1")
+                {
+                    picFeatureArray[selectedNode.@id].visible = Boolean(Number(selectedNode.@selected));
+                    labelFeatureArray[selectedNode.@id].visible = Boolean(Number(selectedNode.@selected));
+                    featureLayer.updateFeature(picFeatureArray[selectedNode.@id]);
+                }
+                //父子级联选择处理
+                forEachTree(selectedNode, function(node:XML):void
+                {
+                    node.@selected = selectedNode.@selected;
+
+                    if (node.@isSave == "1")
+                    {
+                        picFeatureArray[node.@id].visible = Boolean(Number(node.@selected));
+                        labelFeatureArray[node.@id].visible = Boolean(Number(node.@selected));
+                        featureLayer.updateFeature(picFeatureArray[node.@id]);
+                    }
+                });
+                myTree.validateNow();
+            }
+
+            //向下迭代
+            private function forEachTree(node:XML, callback:Function = null):void
+            {
+                for each (var child:XML in node.children())
+                {
+                    if (callback is Function)
+                    {
+                        callback.call(null, child);
+                    }
+
+                    if (child.hasComplexContent())
+                    {
+                        forEachTree(child, callback);
+                    }
+                }
+            }
+
+            //向上迭代
+            private function forEachTree2(node:XML, callback:Function = null):void
+            {
+                var parent:XML = node.parent();
+
+                if (Boolean(String(parent)))
+                {
+                    if (callback is Function)
+                    {
+                        callback.call(null, parent);
+                    }
+
+                    if (parent.parent() && parent != null && Boolean(String(parent.parent())))
+                    {
+                        forEachTree2(parent, callback);
+                    }
+                }
+            }
+
+            private function delPercent(sca:Number, sun:Number, w:Number, h:Number):Object
+            {
+                var obj:Object = new Object;
+                obj.w = (sun - sca) / sun * w;
+                obj.h = (sun - sca) / sun * h;
+                return obj;
+            }
+
+            [MessageHandler(selector = "LOAD_MOS_BY_DRAW_COMP")]
+            public function dealSelectedMos(e:AreaQuickConifgEvent):void
+            {
+                var perObj:Object;
+                log.info("dealSelectedMos");
+                lm.hideLoading();
+
+                if (e.param.count && e.param.count == "more")
+                {
+                    log.info("more");
+                    Alert.show("框选的网元过多请重新框选");
+                    return;
+                }
+
+                if (pm.dm.treeData == null || pm.dm.treeData == "")
+                {
+                    log.info("查询框选网元数据为 空！");
+                    Alert.show("所选区域没有网元");
+                    return;
+                }
+                saveConfig.enabled = true;
+                delsaveConfig.enabled = true;
+
+                forEachTree(pm.dm.treeData, function(node:XML):void
+                {
+                    if (node.@isSave == "1")
+                    {
+                        var point:GisPoint = new GisPoint(Number(node.@x), Number(node.@y));
+                        var icon:Class = getIcon(node.@type);
+                        var picFeature:GisFeature = new GisFeature(point, new GisMarkerPictureStyle(icon));
+                        picFeature.toolTip = String(node.@label);
+                        picFeature.visible = Boolean(Number(node.@selected));
+                        var labelFeature:GisFeature = new GisFeature(point, new GisTextStyle(String(node.@label), 0x660099, true, 0x999900, true, 0x99CC00, 0, "middle", 0, -30));
+                        labelFeature.visible = Boolean(Number(node.@selected));
+                        picFeatureArray[node.@id] = picFeature;
+                        labelFeatureArray[node.@id] = labelFeature;
+						picFeature.onClick = picFeatureOnClick;
+						picFeature.attributes = node;
+                        featureLayer.addGisFeature(picFeature);
+                    }
+                });
+
+                log.debug(picFeatureArray);
+                log.debug(labelFeatureArray);
+            }
+
+			private function picFeatureOnClick(f:GisFeature, event:MouseEvent):void
+			{
+				f.visible=false;
+				featureLayer.updateFeature(f);
+				var nodeP:XML = f.attributes as XML;
+				nodeP.@selected=0;
+				forEachTree(nodeP, function(node:XML):void
+				{
+					node.@selected=0;
+				});
+				myTree.validateNow();
+			}
+			
+            protected function mapWork_extent_changeHandler(event:GisExtentEvent):void
+            {
+                featureLayer.clear();
+                var perObj:Object;
+
+                if (pm.dm.treeData == null || pm.dm.treeData == "")
+                {
+                    return;
+                }
+                forEachTree(pm.dm.treeData, function(node:XML):void
+                {
+                    if (node.@isSave == "1")
+                    {
+                        var point:GisPoint = new GisPoint(Number(node.@x), Number(node.@y));
+                        var icon:Class = getIcon(node.@type);
+                        var picFeature:GisFeature = new GisFeature(point, new GisMarkerPictureStyle(icon));
+                        picFeature.toolTip = String(node.@label);
+                        picFeature.visible = Boolean(Number(node.@selected));
+                        var labelFeature:GisFeature = new GisFeature(point, new GisTextStyle(String(node.@label), 0x660099, true, 0x999900, true, 0x99CC00, 0, "middle", 0, -30));
+                        labelFeature.visible = Boolean(Number(node.@selected));
+						picFeature.onClick = picFeatureOnClick;
+						picFeature.attributes = node;
+                        featureLayer.addGisFeature(picFeature);
+                        picFeatureArray[node.@id] = picFeature;
+                        labelFeatureArray[node.@id] = labelFeature;
+                    }
+                });
+            }
+
+            private function getIcon(type:String):Class
+            {
+                var sco:Number = mapWork.map.scale;
+
+                if (type == "jz_16")
+                {
+                    if (sco >= 1000000)
+                    {
+                        return jizhan_2G_25;
+                    }
+                    else if (sco < 1000000 && sco >= 250000)
+                    {
+                        return jizhan_2G_35;
+                    }
+                    else if (sco < 250000 && sco >= 32000)
+                    {
+                        return jizhan_2G_50;
+                    }
+                    else if (sco < 32000 && sco >= 4000)
+                    {
+                        return jizhan_2G_75;
+                    }
+                    else
+                    {
+                        return jizhan_2G;
+                    }
+                }
+                else if (type == "jz_28")
+                {
+                    if (sco >= 1000000)
+                    {
+                        return jizhan_3G_25;
+                    }
+                    else if (sco < 1000000 && sco >= 250000)
+                    {
+                        return jizhan_3G_35;
+                    }
+                    else if (sco < 250000 && sco >= 32000)
+                    {
+                        return jizhan_3G_50;
+                    }
+                    else if (sco < 32000 && sco >= 4000)
+                    {
+                        return jizhan_3G_75;
+                    }
+                    else
+                    {
+                        return jizhan_3G;
+                    }
+                }
+                else if (type == "jz_320")
+                {
+                    return eNodeB;
+                }
+                else if (type.indexOf("host_") >= 0 || type.indexOf("80") >= 0 || type.indexOf("201") >= 0)
+                {
+                    if (sco >= 1000000)
+                    {
+                        return wlan_25;
+                    }
+                    else if (sco < 1000000 && sco >= 250000)
+                    {
+                        return wlan_35;
+                    }
+                    else if (sco < 250000 && sco >= 32000)
+                    {
+                        return wlan_50;
+                    }
+                    else if (sco < 32000 && sco >= 4000)
+                    {
+                        return wlan_75;
+                    }
+                    else
+                    {
+                        return wlan;
+                    }
+                }
+                else if (type == "site_")
+                {
+                    if (sco >= 1000000)
+                    {
+                        return site_25;
+                    }
+                    else if (sco < 1000000 && sco >= 250000)
+                    {
+                        return site_35;
+                    }
+                    else if (sco < 250000 && sco >= 32000)
+                    {
+                        return site_50;
+                    }
+                    else if (sco < 32000 && sco >= 4000)
+                    {
+                        return site_75;
+                    }
+                    else
+                    {
+                        return site;
+                    }
+                }
+                else if (type == "rain")
+                {
+                    return rain;
+                }
+                else if (type == "rain1")
+                {
+                    return rain1;
+                }
+                else
+                {
+                    if (sco >= 1000000)
+                    {
+                        return jizhan_25;
+                    }
+                    else if (sco < 1000000 && sco >= 250000)
+                    {
+                        return jizhan_35;
+                    }
+                    else if (sco < 250000 && sco >= 32000)
+                    {
+                        return jizhan_50;
+                    }
+                    else if (sco < 32000 && sco >= 4000)
+                    {
+                        return jizhan_75;
+                    }
+                    else
+                    {
+                        return jizhan;
+                    }
+                }
+            }
+
+            protected function mapWork_mapCreationCompleteHandler(event:MapEvent):void
+            {
+                mapWork.map.addGisLayer(areaLayer);
+                mapWork.map.addGisLayer(featureLayer);
+                queryButton.enabled = true;
+                log.info("地图加载完成！！");
+                showCfgGuide();
+            }
+
+
+            protected function saveConfig_clickHandler(event:MouseEvent):void
+            {
+                if ("" == areaname.text)
+                {
+                    Alert.show("区域名称不能为空");
+                    return;
+                }
+
+//                if (this.scenedd.selectedIndex != -1)
+//                {
+//					delsaveConfig.enabled = false;
+//					saveConfig.enabled = false;
+//					overLabel.text = "指标和面板的配置会覆盖原场景：" +　scenedd.selectedItem.scenename + "的配置。\n"
+//						+ "请选择是否要覆盖：";
+//                    overWin.visible = true;
+//                    overWin.includeInLayout = true;
+//                }
+//                else
+                save2DB();
+            }
+
+            private function saveThrold():void
+            {
+                lastClickItem = khgzisSelectKpiDataGrid.selectedItem;
+
+                if (lastClickItem != null)
+                    khgzThresholdSave_clickHandler();
+
+                lastClickItem = ywxnisSelectKpiDataGrid.selectedItem;
+
+                if (lastClickItem != null)
+                    ywxnThresholdSave_clickHandler();
+
+                lastClickItem = sbxnisSelectKpiDataGrid.selectedItem;
+
+                if (lastClickItem != null)
+                    sbxnThresholdSave_clickHandler();
+            }
+
+            private function save2DB():void
+            {
+                saveThrold();
+
+//                overWin.visible = false;
+//                overWin.includeInLayout = false;
+
+                setTimeout(function():void
+                {
+                    delsaveConfig.enabled = true;
+                    saveConfig.enabled = true;
+                }, 2000);
+
+                var param:Object = new Object();
+
+                param.acc_loginname = this.user.account;
+                param.scenetypeid = sceneType.selectedItem.scenetypeid;
+                param.areaname = areaname.text;
+
+//                param.isOverKpi = kpiOver.selected ? "1" : "0";
+//                param.isOverPanel = panelOver.selected ? "1" : "0";
+
+
+                if (scenedd.selectedItem)
+                {
+                    param.sceneid = scenedd.selectedItem.sceneid;
+                    param.scenename = scenedd.selectedItem['scenename'];
+                }
+                else
+                {
+                    if (scenedd.text == "" || scenedd.text  == "请输入或选择场景名称")
+                    {
+                        param.scenename = param.areaname;
+                    }
+                    else
+                    {
+                        param.scenename = scenedd.text;
+                    }
+                }
+
+                param.url = pm.dm.picUrl;
+
+                var kx:Object = collectData();
+                param.btsList = kx.btsList;
+                param.cellList = kx.cellList;
+                param.hotspotList = kx.hotspotList;
+
+                var kpis:ArrayCollection = new ArrayCollection();
+
+				if(pm.dm.configedBussPmKpiList.length == 0)
+				{
+					Alert.show("业务性能中已选择指标不能为空！");
+				}else{
+                for each (var k1:Object in pm.dm.configedBussPmKpiList)
+                {
+                    k1.type = "2";
+                    kpis.addItem(k1);
+                }
+				}
+				if(pm.dm.configedCustomFeelKpiList.length == 0)
+				{
+					Alert.show("客户感知中已选择指标不能为空！");
+				}else
+				{
+                for each (var k1:Object in pm.dm.configedCustomFeelKpiList)
+                {
+                    k1.type = "1";
+                    kpis.addItem(k1);
+                }
+				}              
+				if(pm.dm.configedDevPmKpiList.length == 0)
+				{
+					Alert.show("设备性能中已选择指标不能为空！");
+				}else
+				{
+                for each (var k1:Object in pm.dm.configedDevPmKpiList)
+                {
+                    k1.type = "3";
+                    kpis.addItem(k1);
+                }
+				}
+                param.configedKpiThrList = kpis;
+
+                log.debug("保存的指标：");
+                log.debug(kpis);
+				param.selectList = showList;//选择的网元
+                param.impMoList = pm.dm.impList;//导出的网元
+
+                param.configedPanelList = getCfgPanels();
+
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.SAVE_AREA_CONFIG);
+                evt.param = param;
+                msgDispatcher(evt);
+                clear();
+            }
+
+			[MessageHandler(selector = "LOAD_IMPORT_DATAS_COMP")]
+			public function getImpDatas(event:AreaQuickConifgEvent):void
+			{
+				pm.dm.selList.removeAll();
+				pm.dm.selList.addAll(showList);
+				//pm.dm.selList.addAll(pm.dm.impList);
+				var flag:Boolean = true;
+				
+				for each (var temp:Object in pm.dm.impList)
+				{
+					flag = true;
+					
+					for each (var selTemp:Object in pm.dm.selList)
+					{
+						if (temp.A == selTemp.A)
+						{
+							flag = false;
+						}
+					}
+					
+					if (flag)
+					{
+						pm.dm.selList.addItem(temp);
+					}
+				}
+				pm.dm.selList.refresh();
+			}
+
+            private function getCfgPanels():ArrayCollection
+            {
+//                var nums:int = this.panelCfgGroup.numElements;
+//
+//                var arr:ArrayCollection = new ArrayCollection();
+//
+//                for (var index:int = 0; index < nums; index++)
+//                {
+//                    var cb:CheckBox = panelCfgGroup.getElementAt(index) as CheckBox;
+//
+//                    if (cb.selected)
+//                    {
+//                        arr.addItem({"panel_key": cb.id, "vieworder": cb.name});
+//                    }
+//                }
+//				
+//				
+//                nums = this.panelCfgGroup2.numElements;
+//
+//                for (var index:int = 0; index < nums; index++)
+//                {
+//                    var cb:CheckBox = panelCfgGroup2.getElementAt(index) as CheckBox;
+//
+//                    if (cb.selected)
+//                    {
+//                        arr.addItem({"panel_key": cb.id, "vieworder": cb.name});
+//                    }
+//                }
+//
+//                return arr;
+                return null;
+            }
+
+            //收集数据
+            protected function collectData():Object
+            {
+                //完成选择  保存当前框选的网元信息
+                var selectedStr:String = "";
+                var btsList:ArrayCollection = new ArrayCollection();
+                var cellList:ArrayCollection = new ArrayCollection();
+                var hotspotList:ArrayCollection = new ArrayCollection();
+
+                if (pm.dm.treeData == null)
+                    return new ArrayCollection;
+                forEachTree(pm.dm.treeData, function(node:XML):void
+                {
+                    if (Boolean(Number(node.@selected))) //选中且是需要保存的类型
+                    {
+                        var data:Object = new Object();
+                        data.mo_id = String(node.@id);
+                        data.mo_type_id = String(node.@type);
+                        data.mo_name = String(node.@label);
+                        data.city_id = String(node.@city_id);
+                        data.x = String(node.@x);
+                        data.y = String(node.@y);
+
+                        if (data.mo_type_id == "16" || data.mo_type_id == "28" || data.mo_type_id == "320")
+                            btsList.addItem(data);
+                        else if (data.mo_type_id == "101" || data.mo_type_id == "102" || data.mo_type_id == "321")
+                            cellList.addItem(data);
+                        else if (data.mo_type_id == "80" || data.mo_type_id == "84" || data.mo_type_id == "201")
+                            hotspotList.addItem(data);
+                    }
+                });
+                log.info("保存的框选信息：{\'btsList\':\'" + btsList);
+                log.info("保存的框选信息：{\'cellList\':\'" + cellList);
+                log.info("保存的框选信息：{\'hotspotList\':\'" + hotspotList);
+
+
+                //返回父页面 框选的网元信息
+                return {"btsList": btsList, "cellList": cellList, "hotspotList": hotspotList};
+            }
+            private var fileRefer:FileReference = new FileReference();
+            private var fileUpDownLoad:FileUpDownLoad;
+            private var imagesFilter:FileFilter = new FileFilter("Images", "*.jpg;*.gif;*.png");
+
+            protected function upload_clickHandler(event:MouseEvent):void
+            {
+                this.step8();
+                fileUpDownLoad = new FileUpDownLoad();
+                fileUpDownLoad.fileFilters = new Array();
+                fileUpDownLoad.fileFilters.push(imagesFilter);
+                log.info(fileUpDownLoad.fileFilters);
+                var upLoadUrl:URLRequest = new URLRequest("/cms/scene/fastconf/fastConfAction!uploadThumbnail.action");
+                var upLoadData:URLVariables = new URLVariables();
+                upLoadUrl.method = "POST";
+                upLoadUrl.data = upLoadData;
+                upLoadUrl.contentType = "multipart/form-data";
+                fileUpDownLoad.upLoadURLRequest = upLoadUrl;
+                fileUpDownLoad.upLoad();
+                fileUpDownLoad.fileRefer.addEventListener(ProgressEvent.PROGRESS, progressHandler);
+                fileUpDownLoad.fileRefer.addEventListener(Event.COMPLETE, onCompleteHandler);
+                fileUpDownLoad.fileRefer.addEventListener(IOErrorEvent.IO_ERROR, onIOErrorHandler);
+            }
+
+            private function onCompleteHandler(e:Event):void
+            {
+                pm.dm.picUrl = pm.dm.path + e.target.name;
+                log.info(pm.dm.picUrl);
+            }
+
+            private function onIOErrorHandler(event:IOErrorEvent):void
+            {
+                log.error("error:" + event.text.toString());
+                Alert.show("上传失败", "失败");
+            }
+
+            private function progressHandler(event:ProgressEvent):void
+            {
+                progressBar.setProgress(event.bytesLoaded, event.bytesTotal);
+            }
+            private var douc:FileFilter = new FileFilter("Excel", "*.xls");
+
+            protected function import_clickHandler(event:MouseEvent):void
+            {
+                Alert.show("是否以英文进行匹配？英文匹配请选是，中文匹配请选否。", "匹配方式提示", Alert.YES | Alert.NO, null, closedelsaveConfigHandler2);
+            }
+
+            private function closedelsaveConfigHandler2(event:CloseEvent):void
+            {
+                log.info("网元导入：");
+                fileUpAndDown.fileFilters = new Array();
+                fileUpAndDown.fileFilters.push(douc);
+                var upLoadUrl:URLRequest = new URLRequest("/cms/scene/quickconf/quickMgrAction!importNe.action");
+                var upLoadData:URLVariables = new URLVariables();
+
+                if (Alert.YES == event.detail)
+                {
+                    upLoadData.type = "en";
+                }
+                else if (Alert.NO == event.detail)
+                {
+                    upLoadData.type = "ch";
+                }
+                upLoadUrl.method = "POST";
+                upLoadUrl.data = upLoadData;
+                upLoadUrl.contentType = "multipart/form-data";
+                fileUpAndDown.upLoadURLRequest = upLoadUrl;
+                fileUpAndDown.upLoad();
+                fileUpAndDown.fileRefer.addEventListener(ProgressEvent.PROGRESS, progressHandler);
+                fileUpAndDown.fileRefer.addEventListener(Event.COMPLETE, onCompleteHandler2);
+                fileUpAndDown.fileRefer.addEventListener(IOErrorEvent.IO_ERROR, onIOErrorHandler);
+            }
+
+            private function onCompleteHandler2(e:Event):void
+            {
+                log.info("网元导入成功，查询导入的网元信息：");
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_IMPORT_DATAS);
+                evt.param = new Object();
+                evt.param.sessionId = this.parentApplication.parameters['sessionId'];
+
+                log.info(evt.param);
+                msgDispatcher(evt);
+            }
+
+            protected function sceneType_changeHandler(event:IndexChangeEvent):void
+            {
+                log.info("sceneType_changeHandler");
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_SCENES_AREA);
+                var param:Object = new Object();
+                param.type_id = sceneType.selectedItem.scenetypeid;
+                evt.param = param;
+                msgDispatcher(evt);
+
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_KPIS_AND_EMERCYS);
+                var param:Object = new Object();
+
+                if (scenedd.selectedItem)
+                {
+                    param.sceneid = scenedd.selectedItem.sceneid;
+                }
+
+                param.scenetypeid = sceneType.selectedItem.scenetypeid;
+                evt.param = param;
+                msgDispatcher(evt);
+
+//                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent("LOAD_SCENES_PANELS");
+//                evt.param = {};
+//
+//                if (this.sceneType.selectedItem)
+//                    evt.param['scenetypeid'] = this.sceneType.selectedItem.scenetypeid;
+//                evt.param['acc_loginname'] = user.account;
+//                msgDispatcher(evt);
+//				
+
+            }
+
+            protected function downLoadModule_clickHandler(event:MouseEvent):void
+            {
+                var url:String = user.context + "cms/scene/quickconf/template.xls"
+                log.info(url);
+                navigateToURL(new URLRequest(url));
+            }
+
+            protected function df_closeHandler(event:WindowEvent):void
+            {
+                this.df.visible = false;
+            }
+
+            protected function scenedd_changeHandler():void
+            {
+                log.info("scenedd_changeHandler");
+                log.info(scenedd.selectedItem);
+
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_KPIS_AND_EMERCYS);
+                var param:Object = new Object();
+
+                if (scenedd.selectedItem)
+                {
+                    param.sceneid = scenedd.selectedItem.sceneid;
+                }
+                else
+                {
+                    return;
+                }
+                //param.moTypeId=motype.selectedItem.moTypeId;
+                param.scenetypeid = sceneType.selectedItem.scenetypeid;
+                param.city = pm.dm.cityList;
+                evt.param = param;
+                msgDispatcher(evt);
+            }
+
+            protected function scenedd_textInputChangeHandler(event:Event):void
+            {
+                log.info("scenedd_textInputChangeHandler");
+                log.info(scenedd.selectedItem);
+
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_KPIS_AND_EMERCYS);
+                var param:Object = new Object();
+
+                if (scenedd.selectedItem)
+                {
+                    param.sceneid = scenedd.selectedItem.sceneid;
+                }
+                else
+                {
+                    return;
+                }
+
+                //param.moTypeId=motype.selectedItem.moTypeId;
+                param.scenetypeid = sceneType.selectedItem.scenetypeid;
+                param.city = pm.dm.cityList;
+                evt.param = param;
+                msgDispatcher(evt);
+            }
+
+            //清空页面
+            private function clear():void
+            {
+                queryCon.text = "";
+                this.df.visible = false;
+                pm.dm.emgselList.removeAll();
+                pm.dm.emgselList.refresh();
+                pm.dm.emgunselList.removeAll();
+                pm.dm.emgunselList.refresh();
+                pm.dm.sceneNameList.removeAll();
+                pm.dm.sceneTypeList.removeAll();
+                pm.dm.scenePanelList.removeAll();
+                pm.dm.treeData = new XML();
+                featureLayer.clear();
+
+//				khgzthresholdName.text = "";
+//				khgzthresholdConfigGroup.removeAllElements();
+//				ywxnthresholdName.text = "";
+//				ywxnthresholdConfigGroup.removeAllElements();
+//				sbxnthresholdName.text = "";
+//				sbxnthresholdConfigGroup.removeAllElements();
+
+                mapWork.map.removeAllGisFeature();
+                picFeatureArray = new Array();
+                labelFeatureArray = new Array();
+                scenedd.selectedIndex = 0;
+                areaname.text = "区域一";
+                msgDispatcher(new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_SCENES_TYPE));
+
+                pm.dm.picUrl = "/cms/cms/images/hurong.jpg";
+            }
+
+            protected function pager1_pageChangeHandler(event:PagerEvent):void
+            {
+                query();
+            }
+            private var w:Number = 0;
+            private var h:Number = 0;
+
+            protected function window1_maximizeHandler(event:WindowEvent):void
+            {
+                // TODO Auto-generated method stub
+                w = baseSetWindow.width;
+                h = baseSetWindow.height;
+                baseSetWindow.percentWidth = 100;
+                baseSetWindow.percentHeight = 100;
+                myTree.width = 500;
+            }
+
+            protected function window1_restoreHandler(event:WindowEvent):void
+            {
+                myTree.width = 195;
+                baseSetWindow.width = w;
+                baseSetWindow.height = h;
+            }
+
+            protected function motype_changeHandler(event:IndexChangeEvent):void
+            {
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.QUERY_UNSELECTKPI_BY_MOTYPE);
+                evt.param = new Object();
+                evt.param.sceneTypeid = sceneType.selectedItem.scenetypeid;
+                msgDispatcher(evt);
+            }
+
+            protected function cityDropList_changeHandler(event:IndexChangeEvent):void
+            {
+                log.info("cityDropList_changeHandler");
+                areaLayer.clear();
+                featureLayer.clear();
+                queryCon.text = "";
+                chooseWindow.visible = false;
+                typetemp = "aaa";
+                codetemp = "18";
+                log.info("mapChange:{0}", cityDropList.selectedItem.city_id);
+                gotoCityByCityId(cityDropList.selectedItem.city_id);
+                moNameQuy = moNameInp.text;
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_BASE_TREE);
+                evt.param = new Object();
+                evt.param.mo_name = moNameQuy;
+                evt.param.mo_type_id = moTypeDropList.selectedItem.mo_type_id;
+                evt.param.cp = "1";
+                evt.param.city_id = cityDropList.selectedItem.city_id;
+                msgDispatcher(evt);
+                setTimeout(function():void
+                {
+                    focusManager.setFocus(queryCon);
+                }, 350);
+            }
+
+            private function showCfgGuide():void
+            {
+                guideMode = true;
+                dragWindow(false);
+                baseSetWindow.visible = false;
+
+                //mk = new SimpleMask();
+                //this.addElement(mk);
+                if (!itip)
+                {
+                    itip = new MaskInstructionTip();
+                    this.addElement(itip);
+                }
+                step0();
+            }
+            private var step:uint = 1;
+            private var guideMode:Boolean = false;
+            private var shapeSelected:Boolean = false;
+            private var moSelected:Boolean = false;
+
+            private function step0():void
+            {
+                step = 1;
+
+                if (!guideMode)
+                    return;
+                //mk.unMaskObj = queryWinow;
+                itip.showTitle("定制向导提示");
+                itip.showMsg("如果您第一次订制，可以按照提示进行操作，如果不需要提示可以关闭提示。");
+                itip.x = this.width / 2 - itip.width + 50;
+                itip.y = this.height / 2 - 100;
+            }
+
+            //网元、地点搜索
+            private function step1():void
+            {
+                step = 2;
+
+                if (!guideMode)
+                    return;
+                //mk.unMaskObj = queryWinow;
+                itip.direction("left");
+                itip.showTitle("定制向导  1/9");
+                itip.showMsg("请通过查询地点进行搜索定位，或者选择网元树进行网元筛选！");
+                itip.x = queryWinow.x + queryWinow.width + 50;
+                itip.y = queryWinow.y;
+            }
+
+            //网元、地点itip结果选择
+            private function step2():void
+            {
+                if (chooseWindow.visible)
+                {
+                    step = 3;
+                }
+                else
+                {
+                    step = 5;
+                }
+
+                if (!guideMode)
+                    return;
+                log.info("配置向导第 2 步~");
+
+                if (chooseWindow.visible)
+                {
+                    //mk.unMaskObj = chooseWindow;
+                    itip.direction("left");
+                    itip.showTitle("定制向导  2/9");
+                    itip.showMsg("请双击地点进行GIS地位");
+                    itip.x = chooseWindow.x + chooseWindow.width + 5;
+                    itip.y = chooseWindow.y;
+                }
+                else if (moSelectWindow.visible)
+                {
+                    //mk.unMaskObj = moSelectWindow;
+                    itip.direction("left");
+                    itip.showTitle("定制向导  2/9");
+                    itip.showMsg("请在网元树中选择需要配置的网元，或者选择类型和名称进行搜索(名称支持模糊匹配)！");
+                    itip.x = moSelectWindow.x + moSelectWindow.width + 5;
+                    itip.y = moSelectWindow.y;
+                }
+                else
+                {
+                    Alert.show("请先进行地点搜索或者选择网元查看网元树。");
+                }
+            }
+
+            //显示选择框选工具
+            private function step3():void
+            {
+                step = 4;
+
+                if (!guideMode)
+                    return;
+                log.info("配置向导第 3 步~");
+                //mk.unMaskObj = dtb;
+                itip.direction("down");
+                itip.showTitle("定制向导  3/9");
+                itip.showMsg("通过框选工具选择您关注的区域GIS地图范围。请选择下列工具进行框选。矩形可以自行设置长和宽，圆形框选和正多边形框选可以自行设置半径。");
+                itip.x = dtb.x;
+                itip.y = dtb.y - itip.height - 100;
+            }
+
+            //框选地图
+            private function step4():void
+            {
+                if (shapeSelected)
+                {
+                    step = 5;
+                }
+
+                if (!guideMode)
+                    return;
+                log.info("配置向导第 4 步~");
+
+                if (shapeSelected)
+                {
+                    //mk.visible = false;
+                    itip.direction("right");
+                    itip.showTitle("定制向导  4/9");
+                    itip.showMsg("请在地图上框选一定形状的区域，（区域实际面积过大会导致查询时间延长）！");
+                    itip.x = 50;
+                    itip.y = 200;
+                }
+                else
+                {
+                    Alert.show("请先选择框选工具。");
+                }
+            }
+
+            //配置基本信息场景类型
+            private function step5():void
+            {
+                if (moSelected || pm.dm.selList.length > 0)
+                {
+                    step = 6;
+                }
+
+                if (!guideMode)
+                    return;
+                log.info("配置向导第 5 步~");
+
+                if (moSelected || pm.dm.selList.length > 0)
+                {
+                    baseSetWindow.visible = true;
+
+                    if (pm.dm.selList.length > 0)
+                        this.saveConfig.enabled = true;
+                    //mk.visible = true;
+                    itip.visible = true;
+                    log.info("itip show");
+                    //mk.unMaskObj = baseSetWindow;
+                    itip.direction("rightup");
+                    itip.showTitle("定制向导  5/9");
+                    itip.showMsg("选择您所关注场景所属的模板类型，如：重点区域场景、节假日场景、汛情场景、铁路场景、城市道路场景、重大活动场景、高校场景、突发事件场景、新技术新业务场景，场景类型模板中含默认的性能指标和场景显示模式。");
+                    //                    itip.x = sceneType.x - itip.width - 200;
+                    itip.x = baseSetWindow.x - itip.width - 80;
+                    itip.y = baseSetWindow.y + 35;
+                }
+                else
+                {
+                    if (moSelectWindow.visible)
+                    {
+                        Alert.show("请先在网元树上选择一些网元。");
+                    }
+                    else
+                    {
+                        Alert.show("请先框选 一个区域。");
+                    }
+                }
+            }
+
+            //输入场景名称
+            private function step6():void
+            {
+                step = 7;
+
+                if (!guideMode)
+                    return;
+                //mk.unMaskObj = queryWinow;
+                focusManager.setFocus(areaname);
+                itip.direction("rightup");
+                itip.showTitle("定制向导 6/9");
+                itip.showMsg("必填项，请填写定义的场景名称。");
+                itip.x = baseSetWindow.x - itip.width - 80;
+                itip.y = baseSetWindow.y + 60;
+            }
+
+            //输入父场景名称
+            private function step7():void
+            {
+                step = 8;
+
+                if (!guideMode)
+                    return;
+                //mk.unMaskObj = queryWinow;
+                itip.direction("rightup");
+                itip.showTitle("定制向导 7/9");
+                itip.showMsg("用于存在一个场景中需要监控多个子场景时，选择父场景名称。如果不填或不选，默认和场景名称相同。");
+                itip.x = baseSetWindow.x - itip.width - 80;
+                itip.y = baseSetWindow.y + 85;
+            }
+
+            //选择缩略图
+            private function step8():void
+            {
+                step = 9;
+
+                if (!guideMode)
+                    return;
+                //mk.unMaskObj = queryWinow;
+                itip.direction("rightup");
+                itip.showTitle("定制向导 8/9");
+                itip.showMsg("请上传场景缩略图，缩略图用于更加形象的展现所定义的场景。");
+                itip.x = baseSetWindow.x - itip.width - 80;
+                itip.y = baseSetWindow.y + 110;
+            }
+
+            //选择缩略图
+            private function step9():void
+            {
+                step = 10;
+
+                if (!guideMode)
+                    return;
+                //mk.unMaskObj = queryWinow;
+                itip.direction("rightup");
+                itip.showTitle("定制向导 9/9");
+                itip.showMsg("请选择场景中需要关注的网元，选择基站时上联网元会自动关联入库。");
+                itip.x = baseSetWindow.x - itip.width - 80;
+                itip.y = baseSetWindow.y + 200;
+            }
+
+            protected function mapWork_draw_clickHandler(event:GisDrawEvent):void
+            {
+                shapeSelected = true;
+                this.step4();
+            }
+
+            protected function mapWork_drawPointSelectHandler(event:GisDrawEvent):void
+            {
+                //mk.visible = false;
+                itip.visible = false;
+            }
+
+            //下一步向导
+            [MessageHandler(selector = "CMS_SCENE_MASK_NEXT")]
+            public function nextMask(e:SceneEvent):void
+            {
+                switch (step)
+                {
+                    case 0:
+                        this.step0();
+                        break;
+                    case 1:
+                        this.step1();
+                        break;
+                    case 2:
+                        this.step2();
+                        break;
+                    case 3:
+                        this.step3();
+                        break;
+                    case 4:
+                        this.step4();
+                        break;
+                    case 5:
+                        this.step5();
+                        break;
+                    case 6:
+                        this.step6();
+                        break;
+                    case 7:
+                        this.step7();
+                        break;
+                    case 8:
+                        this.step8();
+                        break;
+                    case 9:
+                        this.step9();
+                        break;
+                    default:
+                        this.hideMask(null);
+                        break;
+                }
+            }
+            private var openFlag:Boolean = true;
+
+            protected function openButtion_clickHandler(event:MouseEvent):void
+            {
+                if (!openFlag)
+                    return;
+                guideMode = true;
+
+                if (moSelectWindow.visible && step == 5)
+                {
+                    step = 2;
+                }
+                else
+                {
+                    step = step - 1;
+                }
+
+                //dragWindow(false);
+                //mk = new SimpleMask();
+                //this.addElement(mk);
+                if (!itip)
+                {
+                    itip = new MaskInstructionTip();
+                    this.addElement(itip);
+                }
+                msgDispatcher(new SceneEvent(SceneEvent.CMS_SCENE_MASK_NEXT));
+                openFlag = false;
+            }
+
+            protected function closeButton_clickHandler(event:MouseEvent):void
+            {
+                hideMask(null);
+            }
+
+            //关闭向导
+            [MessageHandler(selector = "CMS_SCENE_MASK_HIDE")]
+            public function hideMask(e:SceneEvent):void
+            {
+                log.info("关闭配置向导。");
+                openFlag = true;
+                guideMode = false;
+                this.saveConfig.enabled = true;
+                this.baseSetWindow.visible = true;
+                log.debug("--- --- 移除mk");
+                //this.removeElement(mk);
+                //mk = null;
+                log.debug("--- --- 移除itip");
+
+                if (itip)
+                    this.removeElement(itip);
+                itip = null;
+				
+				
+				//预加载指标信息
+				configmore();
+            }
+
+            private function dragWindow(flag:Boolean):void
+            {
+                queryWinow.dragable = flag;
+                chooseWindow.dragable = flag;
+                baseSetWindow.dragable = flag;
+                df.dragable = flag;
+            }
+
+            private function gotoCityByCityId(cityId:String):void
+            {
+                mapWork.map.removeGisLayer(areaLayer);
+                mapWork.map.removeGisLayer(featureLayer);
+                mapWork.map.mapChange(cityId);
+                mapWork.map.addGisLayer(areaLayer);
+                mapWork.map.addGisLayer(featureLayer);
+                pm.dm.chooseList.removeAll();
+                pm.dm.chooseList.refresh();
+            }
+
+            protected function group1_creationCompleteHandler(event:FlexEvent):void
+            {
+                navTree.addEventListener(ListEvent.CHANGE, treeChang);
+                focusManager.setFocus(queryCon);
+                queryCon.addEventListener(KeyboardEvent.KEY_UP, keyHandele);
+				
+            }
+
+            private function keyHandele(e:KeyboardEvent):void
+            {
+                if (e.keyCode == Keyboard.ENTER)
+                {
+                    queryButton.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+                }
+            }
+            private var treeOpenItem:Object;
+            private var showDataTemp:Array = new Array();
+
+            /**
+             *树选择处理
+             * @param event
+             *
+             */
+            public function treeChang(event:ListEvent):void
+            {
+                var item:Object = event.target.selectedItem;
+                treeOpenItem = item;
+                log.info("name" + String(item.@A) + "cp" + String(item.@cp));
+                var id:String = "";
+                //点击复选框
+                log.debug(item);
+
+                if (Boolean(String(item.@checkBoxClick)))
+                {
+                    //					if(String(item.@level)=="0")
+                    //					{
+                    //						id=String(item.@cityId);
+                    //					}
+                    //					else if(String(item.@level)=="1")
+                    //					{
+                    //						id=String(item.@A)+String(item.@cityId);
+                    //					}
+                    //					else if(String(item.@level)=="2" || String(item.@level)=="4" || String(item.@level)=="5")
+                    //					{
+                    //						id=String(item.@A)+String(item.@mo_id);
+                    //					}
+                    //					else if(String(item.@level)=="3")
+                    //					{
+                    //						id=String(item.@A)+String(item.@mo_id)+String(item.@countryid);
+                    //					}
+                    id = String(item.@A) + String(item.@cityId) + String(item.@mo_id) + String(item.@countryid);
+                    log.debug("点击复选");
+                    var data:Object;
+
+                    if (Boolean(Number(item.@selected)))
+                    {
+                        //						if(Boolean(String(item.@mo_id)))
+                        //						{
+                        data = new Object();
+                        data.A = String(item.@A);
+                        data.cityId = String(item.@cityId);
+                        data.mo_id = String(item.@mo_id);
+                        data.moTypeId = String(item.@moTypeId);
+                        data.level = String(item.@level);
+
+                        if (Boolean(String(item.@countryid)))
+                        {
+                            data.countryid = String(item.@countryid);
+                        }
+                        data.longitude = String(item.@longitude);
+                        data.latitude = String(item.@latitude);
+                        showDataTemp[id] = data;
+                        //						}
+                        forEachTree(item as XML, function(node:XML):void
+                        {
+                            node.@selected = item.@selected;
+                            var tempid:String = String(node.@A) + String(node.@cityId) + String(node.@mo_id) + String(node.@countryid);
+                            //						if(Boolean(String(node.@mo_id)))
+                            //						{
+                            data = new Object();
+                            data.A = String(node.@A);
+                            data.cityId = String(node.@cityId);
+                            data.mo_id = String(node.@mo_id);
+                            data.moTypeId = String(node.@moTypeId);
+                            data.level = String(node.@level);
+                            if (Boolean(String(node.@countryid)))
+                            {
+                                data.countryid = String(node.@countryid);
+                            }
+                            data.longitude = String(node.@longitude);
+                            data.latitude = String(node.@latitude);
+                            showDataTemp[tempid] = data;
+                            //						}
+                        });
+                    }
+                    else
+                    {
+                        //						if(Boolean(String(item.@mo_id)))
+                        //						{
+                        showDataTemp[id] = null;
+                        //						}
+                        forEachTree2(item as XML, function(node:XML):void
+                        {
+                            if (Boolean(Number(node.@selected)))
+                            {
+                                node.@selected = item.@selected;
+                                var tempid:String = String(node.@A) + String(node.@cityId) + String(node.@mo_id) + String(node.@countryid);
+                                //									if(Boolean(String(node.@mo_id)))
+                                //									{
+                                showDataTemp[tempid] = null;
+                                    //									}
+                            }
+                        });
+                        forEachTree(item as XML, function(node:XML):void
+                        {
+                            node.@selected = item.@selected;
+                            var tempid:String = String(node.@A) + String(node.@cityId) + String(node.@mo_id) + String(node.@countryid);
+                            //						if(Boolean(String(node.@mo_id)))
+                            //						{
+                            showDataTemp[tempid] = null;
+                            //						}
+                        });
+                    }
+                    showList.removeAll();
+
+                    for (var key:String in showDataTemp)
+                    {
+                        if (showDataTemp[key] && showDataTemp[key] != null)
+                        {
+                            showList.addItem(showDataTemp[key]);
+                        }
+                    }
+                    showList.refresh();
+                    pm.dm.selList.removeAll();
+                    pm.dm.selList.addAll(showList);
+                    //pm.dm.selList.addAll(pm.dm.impList);
+                    var flag:Boolean = true;
+
+                    for each (var temp:Object in pm.dm.impList)
+                    {
+                        flag = true;
+
+                        for each (var selTemp:Object in pm.dm.selList)
+                        {
+                            if (temp.A == selTemp.A)
+                            {
+                                flag = false;
+                            }
+                        }
+
+                        if (flag)
+                        {
+                            pm.dm.selList.addItem(temp);
+                        }
+                    }
+                    pm.dm.selList.refresh();
+                }
+                //点击分页或小图标
+                else if (Boolean(String(item.@servClick)))
+                {
+                    log.debug("点击小图标或者分页");
+                    var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_PAGE_TREE);
+                    var p:Object = new Object();
+                    p.cp = String(item.@cp);
+                    p.A = String(item.@A);
+                    p.level = String(item.@level);
+                    p.moTypeId = String(item.@moTypeId);
+
+                    if (Boolean(String(item.@mo_id)))
+                    {
+                        p.mo_id = String(item.@mo_id);
+                    }
+
+                    if (Boolean(String(item.@countryid)))
+                    {
+                        p.countryid = String(item.@countryid);
+                    }
+
+                    if (Boolean(String(item.@cityId)))
+                    {
+                        p.cityId = String(item.@cityId);
+                    }
+                    p.moName = moNameQuy;
+                    evt.param = p;
+                    msgDispatcher(evt);
+                }
+                else
+                {
+                    log.debug("点击其他");
+                }
+                item.@servClick = "";
+                item.@checkBoxClick = "";
+            }
+
+
+            [MessageHandler(selector = "LOAD_CITY_NAMES_COMP")]
+            public function getCityNamesComp(event:AreaQuickConifgEvent):void
+            {
+                log.debug("getCityNamesComp");
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_BASE_TREE);
+                evt.param = new Object();
+                evt.param.mo_name = moNameQuy;
+                evt.param.mo_type_id = "";
+                evt.param.cp = "1";
+                evt.param.city_id = pm.dm.cityListArr[0].city_id;
+                msgDispatcher(evt);
+            }
+
+            [MessageHandler(selector = "LOAD_BASE_TREE_COMP")]
+            public function baseTreeComp(event:AreaQuickConifgEvent):void
+            {
+                lm.hideLoading();
+            }
+
+            [MessageHandler(selector = "LOAD_PAGE_TREE_COMP")]
+            public function treeItemOpenHandler(event:AreaQuickConifgEvent):void
+            {
+                var result:XML = new XML(event.param.child);
+                log.info("[treeItemOpenHandler]");
+                log.info(result);
+                treeOpenItem.@cp = result.@cp;
+                treeOpenItem.@tp = result.@tp;
+                (treeOpenItem as XML).setChildren(result.children());
+                log.info("treeOpenItem" + treeOpenItem);
+                navTree.expandItem(treeOpenItem, false);
+                expandParent(treeOpenItem as XML);
+                navTree.selectedItem = treeOpenItem;
+                var index:Number = navTree.getItemIndex(treeOpenItem);
+                navTree.verticalScrollPosition = index;
+                log.info("creat tree end");
+            }
+
+            /**
+             *层层展开父节点
+             * @param item
+             *
+             */
+            private function expandParent(item:XML):void
+            {
+                if (item && !navTree.isItemOpen(item))
+                {
+                    navTree.expandItem(item, true);
+                    expandParent(item.parent());
+                }
+            }
+
+            protected function button1_clickHandler(event:MouseEvent):void
+            {
+                // TODO Auto-generated method stub
+                lm.showLoading();
+                moNameQuy = moNameInp.text;
+                var evt:AreaQuickConifgEvent = new AreaQuickConifgEvent(AreaQuickConifgEvent.LOAD_BASE_TREE);
+                evt.param = new Object();
+                evt.param.mo_name = moNameQuy;
+                evt.param.mo_type_id = moTypeDropList.selectedItem.mo_type_id;
+                evt.param.cp = "1";
+                evt.param.city_id = cityDropList.selectedItem.city_id;
+                msgDispatcher(evt);
+            }
+
+            protected function queryDropList_changeHandler(event:IndexChangeEvent):void
+            {
+                log.info("queryDropList_changeHandler");
+
+                chooseWindow.visible = false;
+
+                if (queryDropList.selectedIndex == 0)
+                {
+                    this.step1();
+                }
+                else
+                {
+                    this.step2();
+                }
+            }
+
+            protected function queryCon_showHandler(event:FlexEvent):void
+            {
+                setTimeout(function():void
+                {
+                    focusManager.setFocus(queryCon);
+                }, 350);
+            }
+
+            protected function sceneType_clickHandler(event:MouseEvent):void
+            {
+                this.step5();
+            }
+
+            protected function areaname_clickHandler(event:MouseEvent):void
+            {
+                // TODO Auto-generated method stub
+                this.step6();
+            }
+
+            protected function scenedd_clickHandler(event:MouseEvent):void
+            {
+                // TODO Auto-generated method stub
+                log.info("----------");
+				if(scenedd.text =="请输入或选择场景名称")
+				{
+					log.info("scenedd.text = null");
+					scenedd.text = "";
+				}
+                this.step7();
+            }
+
+            protected function myTree_clickHandler(event:MouseEvent):void
+            {
+                // TODO Auto-generated method stub
+                this.step9();
+            }
+
+
+            protected function kpiThresholdTabBar_changeHandler(event:IndexChangeEvent):void
+            {
+                if (event.oldIndex == 0)
+                    khgzThresholdSave_clickHandler();
+                else if (event.oldIndex == 1)
+                    ywxnThresholdSave_clickHandler();
+                else if (event.oldIndex == 2)
+                    sbxnThresholdSave_clickHandler();
+
+                kpichangeHandler(event.newIndex);
+            }
+
+            protected function kpichangeHandler(newIndex:int):void
+            {
+                //重置指标阈值名称
+//                khgzthresholdName.text = "";
+//                ywxnthresholdName.text = "";
+//                sbxnthresholdName.text = "";
+//
+//                if (newIndex == 0)
+//                {
+//                    khgzsavaArr.removeAll();
+//                    khgzsavaArr.refresh();
+//                    user.configPerfClass = 1;
+//                }
+//                else if (newIndex == 1)
+//                {
+//                    ywxnsavaArr.removeAll();
+//                    ywxnsavaArr.refresh();
+//                    user.configPerfClass = 2;
+//                }
+//                else if (newIndex == 2)
+//                {
+//                    sbxnsavaArr.removeAll();
+//                    sbxnsavaArr.refresh();
+//                    user.configPerfClass = 3;
+//                }
+            }
+            //临时存储配置指标对象
+            private var khgzsavaArr:ArrayCollection = new ArrayCollection();
+            private var ywxnsavaArr:ArrayCollection = new ArrayCollection();
+            private var sbxnsavaArr:ArrayCollection = new ArrayCollection();
+
+            protected function khgzselectToCancel_clickHandler(event:MouseEvent):void
+            {
+                if (this.khgzisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+
+//                khgzthresholdConfigGroup.removeAllElements();
+
+                var isSelectDataList:ArrayCollection = pm.dm.configedCustomFeelKpiList;
+                var noSelectDataList:ArrayCollection = pm.dm.supportCustomFeelKpiList;
+                var selectIndex:int = this.khgzisSelectKpiDataGrid.selectedIndex;
+                var obj:Object = isSelectDataList.getItemAt(selectIndex);
+
+                //添加指标到临时保存对象中，添加删除状态标志
+                obj.operateType = "delete";
+                khgzsavaArr.addItem(obj);
+                khgzsavaArr.refresh();
+                log.debug(khgzsavaArr);
+
+                //添加到未选择指标中，从已经选择指标列表中删除
+                noSelectDataList.addItem(obj);
+                isSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            protected function khgzselectToOk_clickHandler(event:MouseEvent):void
+            {
+                if (this.kugznoSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = pm.dm.configedCustomFeelKpiList;
+                var noSelectDataList:ArrayCollection = pm.dm.supportCustomFeelKpiList;
+                var selectIndex:int = this.kugznoSelectKpiDataGrid.selectedIndex;
+                var obj:Object = noSelectDataList.getItemAt(selectIndex);
+                //暂存到保存对象 中
+                obj.operateType = "add";
+                khgzsavaArr.addItem(obj);
+                khgzsavaArr.refresh();
+                log.debug(khgzsavaArr);
+                //添加到已选择列表，从未选择列表删除
+                isSelectDataList.addItem(obj);
+                noSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            /**
+             * 移到最上
+             */
+            protected function selectFirst_clickHandler(event:MouseEvent):void
+            {
+                var item:Object = null;
+                var selectIndex:int;
+
+                if (user.configPerfClass == 1)
+                {
+                    item = khgzisSelectKpiDataGrid.selectedItem;
+                    selectIndex = khgzisSelectKpiDataGrid.selectedIndex;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, 0);
+                    khgzisSelectKpiDataGrid.selectedItem = item;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 2)
+                {
+                    item = ywxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = ywxnisSelectKpiDataGrid.selectedIndex;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, 0);
+                    ywxnisSelectKpiDataGrid.selectedItem = item;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 3)
+                {
+                    item = sbxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = sbxnisSelectKpiDataGrid.selectedIndex;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, 0);
+                    sbxnisSelectKpiDataGrid.selectedItem = item;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+            }
+
+            /**
+             * 移到最下
+             */
+            protected function selectEnd_clickHandler(event:MouseEvent):void
+            {
+                var item:Object = null;
+                var selectIndex:int;
+
+                if (user.configPerfClass == 1)
+                {
+                    item = khgzisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).length);
+                    khgzisSelectKpiDataGrid.selectedItem = item;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 2)
+                {
+                    item = ywxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.ywxnisSelectKpiDataGrid.selectedIndex;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).length);
+                    ywxnisSelectKpiDataGrid.selectedItem = item;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 3)
+                {
+                    item = sbxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.sbxnisSelectKpiDataGrid.selectedIndex;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).length);
+                    sbxnisSelectKpiDataGrid.selectedItem = item;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+
+            }
+
+            protected function khgzThresholdSave_clickHandler():void
+            {
+//                if (!lastClickItem.hasOwnProperty("thrList"))
+//                {
+//					lastClickItem['thrList'] = new ArrayCollection();
+//                }
+//
+//                var thrList:ArrayCollection = lastClickItem['thrList'] as ArrayCollection;
+//                thrList.removeAll();
+//
+//                var nums:int = khgzthresholdConfigGroup.numElements;
+//
+//                for (var index:int = 0; index < nums; index++)
+//                {
+//                    var tc:ThresholdConfigComp = khgzthresholdConfigGroup.getElementAt(index) as ThresholdConfigComp;
+//                    var t:Object = {};
+//                    t['index_id'] = index + 1;
+//                    t['down_threshold'] = tc.thresholdDown.text;
+//                    t['up_threshold'] = tc.thresholdUp.text;
+//                    t['isdispatch'] = tc.isDispatchDownList.selectedItem['dispatchId'];
+//                    t['isalarm'] = tc.isAlarmDownList.selectedItem['alarmId'];
+//                    t['warning_level'] = tc.alarmLevelDownList.selectedItem['alarmLevelId'];
+//                    t['rendingcolor'] = tc.colorsel.selectedItem['key'];
+//                    t['isBtsDispatch'] = tc.isBtsDispatch.selected;
+//
+//                    thrList.addItem(t);
+//                }
+//
+//                log.info("khgz 阈值配置，保存：");
+//                log.info(thrList);
+            }
+
+            protected function ywxnThresholdSave_clickHandler():void
+            {
+//                if (!lastClickItem.hasOwnProperty("thrList"))
+//                {
+//					lastClickItem['thrList'] = new ArrayCollection();
+//                }
+//
+//                var thrList:ArrayCollection = lastClickItem['thrList'] as ArrayCollection;
+//                thrList.removeAll();
+//
+//                var nums:int = ywxnthresholdConfigGroup.numElements;
+//
+//                for (var index:int = 0; index < nums; index++)
+//                {
+//                    var tc:ThresholdConfigComp = ywxnthresholdConfigGroup.getElementAt(index) as ThresholdConfigComp;
+//                    var t:Object = {};
+//                    t['index_id'] = index + 1;
+//                    t['down_threshold'] = tc.thresholdDown.text;
+//                    t['up_threshold'] = tc.thresholdUp.text;
+//                    t['isdispatch'] = tc.isDispatchDownList.selectedItem['dispatchId'];
+//                    t['isalarm'] = tc.isAlarmDownList.selectedItem['alarmId'];
+//                    t['warning_level'] = tc.alarmLevelDownList.selectedItem['alarmLevelId'];
+//                    t['rendingcolor'] = tc.colorsel.selectedItem['key'];
+//                    t['isBtsDispatch'] = tc.isBtsDispatch.selected;
+//
+//                    thrList.addItem(t);
+//                }
+//				
+//				log.info("ywxn 阈值配置，保存：");
+//				log.info(thrList);
+            }
+
+            protected function sbxnThresholdSave_clickHandler():void
+            {
+//                if (!lastClickItem.hasOwnProperty("thrList"))
+//                {
+//					lastClickItem['thrList'] = new ArrayCollection();
+//                }
+//
+//                var thrList:ArrayCollection = lastClickItem['thrList'] as ArrayCollection;
+//                thrList.removeAll();
+//
+//                var nums:int = sbxnthresholdConfigGroup.numElements;
+//
+//                for (var index:int = 0; index < nums; index++)
+//                {
+//                    var tc:ThresholdConfigComp = sbxnthresholdConfigGroup.getElementAt(index) as ThresholdConfigComp;
+//                    var t:Object = {};
+//                    t['index_id'] = index + 1;
+//                    t['down_threshold'] = tc.thresholdDown.text;
+//                    t['up_threshold'] = tc.thresholdUp.text;
+//                    t['isdispatch'] = tc.isDispatchDownList.selectedItem['dispatchId'];
+//                    t['isalarm'] = tc.isAlarmDownList.selectedItem['alarmId'];
+//                    t['warning_level'] = tc.alarmLevelDownList.selectedItem['alarmLevelId'];
+//                    t['rendingcolor'] = tc.colorsel.selectedItem['key'];
+//                    t['isBtsDispatch'] = tc.isBtsDispatch.selected;
+//
+//                    thrList.addItem(t);
+//                }
+//
+//                log.info("sbxn 阈值配置，保存：");
+//                log.info(thrList);
+            }
+
+            protected function khgzbutton3_clickHandler(event:MouseEvent):void
+            {
+//                var tcf:ThresholdConfigComp = new ThresholdConfigComp;
+//
+//                if (khgzthresholdIsBtsDispatch)
+//                {
+//                    tcf.isBtsDispatch.visible = true;
+//                    tcf.isBtsDispatch.includeInLayout = true;
+//                }
+//
+//                khgzthresholdConfigGroup.addElement(tcf);
+            }
+
+            private var khgzthresholdIsBtsDispatch:Boolean = false; //判断当前是否基站也派单
+            private var ywxnthresholdIsBtsDispatch:Boolean = false;
+            private var sbxnthresholdIsBtsDispatch:Boolean = false;
+
+            private var lastClickItem:Object;
+            private var lastClickItemType:String;
+
+            protected function khgzisSelectKpiDataGrid_itemClickHandler(event:ListEvent):void
+            {
+//				if(lastClickItem != null)
+//				{
+//					if(lastClickItem == khgzisSelectKpiDataGrid.selectedItem)
+//						return;
+//					else if(lastClickItemType == "khgz")
+//						khgzThresholdSave_clickHandler();
+//				}
+//				
+//				
+//				lastClickItem = khgzisSelectKpiDataGrid.selectedItem;
+//				lastClickItemType = "khgz";
+//				
+//                var moTypeId:String = khgzisSelectKpiDataGrid.selectedItem['mo_type_id'];
+//                var kpiName:String = khgzisSelectKpiDataGrid.selectedItem['kpi_name'];
+//                this.khgzthresholdName.text = kpiName;
+//
+//                khgzthresholdConfigGroup.removeAllElements();
+//                var tc:ThresholdConfigComp = new ThresholdConfigComp();
+//                tc.moTypeId = moTypeId;
+//
+//                if (khgzisSelectKpiDataGrid.selectedItem.hasOwnProperty("thrList"))
+//                {
+//                    var thrList:ArrayCollection = khgzisSelectKpiDataGrid.selectedItem['thrList'] as ArrayCollection;
+//
+//                    log.info("阈值配置：");
+//                    log.info(thrList);
+//
+//                    for each (var t:Object in thrList)
+//                    {
+//                        tc = new ThresholdConfigComp();
+//                        tc.data = t;
+//                        tc.moTypeId = moTypeId;
+//                        khgzthresholdConfigGroup.addElement(tc);
+//                    }
+//                }
+//                else
+//                    khgzthresholdConfigGroup.addElement(tc);
+            }
+
+
+
+
+            /**
+             * 记录下移
+             */
+            protected function selectDown_clickHandler(event:MouseEvent):void
+            {
+                var item:Object = null;
+                var selectIndex:int;
+
+                if (user.configPerfClass == 1)
+                {
+                    item = khgzisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex + 1);
+                    khgzisSelectKpiDataGrid.selectedItem = item;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 2)
+                {
+                    item = ywxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.ywxnisSelectKpiDataGrid.selectedIndex;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex + 1);
+                    ywxnisSelectKpiDataGrid.selectedItem = item;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 3)
+                {
+                    item = sbxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.sbxnisSelectKpiDataGrid.selectedIndex;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex + 1);
+                    sbxnisSelectKpiDataGrid.selectedItem = item;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+
+            }
+
+            protected function khgzbutton4_clickHandler(event:MouseEvent):void
+            {
+//                log.debug("khgzthresholdConfigGroup.numElements=" + khgzthresholdConfigGroup.numElements);
+//
+//                if (khgzthresholdConfigGroup.numElements > 1)
+//                {
+//                    khgzthresholdConfigGroup.removeElementAt(khgzthresholdConfigGroup.numElements - 1);
+//                }
+            }
+
+            protected function ywxnselectToCancel_clickHandler(event:MouseEvent):void
+            {
+                if (this.ywxnisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+
+//                khgzthresholdConfigGroup.removeAllElements();
+
+                var isSelectDataList:ArrayCollection = pm.dm.configedBussPmKpiList;
+                var noSelectDataList:ArrayCollection = pm.dm.supportBussPmKpiList;
+                var selectIndex:int = this.ywxnisSelectKpiDataGrid.selectedIndex;
+                var obj:Object = isSelectDataList.getItemAt(selectIndex);
+                //添加指标到临时保存对象中，添加删除状态标志
+                obj.operateType = "delete";
+                ywxnsavaArr.addItem(obj);
+                ywxnsavaArr.refresh();
+                log.debug(ywxnsavaArr);
+                //添加到未选择指标中，从已经选择指标列表中删除
+                noSelectDataList.addItem(obj);
+                isSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+
+            protected function ywxnselectToOk_clickHandler(event:MouseEvent):void
+            {
+                if (this.ywxnnoSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = pm.dm.configedBussPmKpiList;
+                var noSelectDataList:ArrayCollection = pm.dm.supportBussPmKpiList;
+                var selectIndex:int = this.ywxnnoSelectKpiDataGrid.selectedIndex;
+                var obj:Object = noSelectDataList.getItemAt(selectIndex);
+                //暂存到保存对象 中
+                obj.operateType = "add";
+                ywxnsavaArr.addItem(obj);
+                ywxnsavaArr.refresh();
+                log.debug(ywxnsavaArr);
+                //添加到已选择列表，从未选择列表删除
+                isSelectDataList.addItem(obj);
+                noSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            protected function ywxnisSelectKpiDataGrid_itemClickHandler(event:ListEvent):void
+            {
+                if (lastClickItem != null)
+                {
+                    if (lastClickItem == ywxnisSelectKpiDataGrid.selectedItem)
+                        return;
+                    else if (lastClickItemType == "ywxn")
+                        ywxnThresholdSave_clickHandler();
+                }
+
+                lastClickItem = ywxnisSelectKpiDataGrid.selectedItem;
+                lastClickItemType = "ywxn";
+
+                var moTypeId:String = ywxnisSelectKpiDataGrid.selectedItem['mo_type_id'];
+                var kpiName:String = ywxnisSelectKpiDataGrid.selectedItem['kpi_name'];
+//                this.ywxnthresholdName.text = kpiName;
+
+//				log.info("ywxnthresholdName:" + ywxnthresholdName.text);
+
+//                ywxnthresholdConfigGroup.removeAllElements();
+//                var tc:ThresholdConfigComp = new ThresholdConfigComp();
+//                tc.moTypeId = moTypeId;
+
+
+//                if (ywxnisSelectKpiDataGrid.selectedItem.hasOwnProperty("thrList"))
+//                {
+//                    var thrList:ArrayCollection = ywxnisSelectKpiDataGrid.selectedItem['thrList'] as ArrayCollection;
+//
+//                    log.info("阈值配置：");
+//                    log.info(thrList);
+//
+//                    for each (var t:Object in thrList)
+//                    {
+//                        tc.thresholdDown.text = t['thresholdDown'];
+//                        tc.data = t;
+//                        tc.moTypeId = moTypeId;
+//                        ywxnthresholdConfigGroup.addElement(tc);
+//                    }
+//                }
+//                else
+//                    ywxnthresholdConfigGroup.addElement(tc);
+
+            }
+
+            protected function ywxnbutton3_clickHandler(event:MouseEvent):void
+            {
+//                var tcf:ThresholdConfigComp = new ThresholdConfigComp;
+//
+//                if (ywxnthresholdIsBtsDispatch)
+//                {
+//                    tcf.isBtsDispatch.visible = true;
+//                    tcf.isBtsDispatch.includeInLayout = true;
+//                }
+//                ywxnthresholdConfigGroup.addElement(tcf);
+            }
+
+
+            protected function ywxnbutton4_clickHandler(event:MouseEvent):void
+            {
+//                log.debug("ywxnthresholdConfigGroup.numElements=" + ywxnthresholdConfigGroup.numElements);
+//
+//                if (ywxnthresholdConfigGroup.numElements > 1)
+//                {
+//                    ywxnthresholdConfigGroup.removeElementAt(ywxnthresholdConfigGroup.numElements - 1);
+//                }
+            }
+
+            protected function sbxnselectToCancel_clickHandler(event:MouseEvent):void
+            {
+                if (this.sbxnisSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+
+//                khgzthresholdConfigGroup.removeAllElements();
+
+                var isSelectDataList:ArrayCollection = pm.dm.configedDevPmKpiList;
+                var noSelectDataList:ArrayCollection = pm.dm.supportDevPmKpiList;
+                var selectIndex:int = this.sbxnisSelectKpiDataGrid.selectedIndex;
+                var obj:Object = isSelectDataList.getItemAt(selectIndex);
+
+                //添加指标到临时保存对象中，添加删除状态标志
+                obj.operateType = "delete";
+                sbxnsavaArr.addItem(obj);
+                sbxnsavaArr.refresh();
+                log.debug(sbxnsavaArr);
+
+                //添加到未选择指标中，从已经选择指标列表中删除
+                noSelectDataList.addItem(obj);
+                isSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            protected function sbxnselectToOk_clickHandler(event:MouseEvent):void
+            {
+                if (this.sbxnnoSelectKpiDataGrid.selectedIndex == -1)
+                {
+                    return;
+                }
+                var isSelectDataList:ArrayCollection = pm.dm.configedDevPmKpiList;
+                var noSelectDataList:ArrayCollection = pm.dm.supportDevPmKpiList;
+                var selectIndex:int = this.sbxnnoSelectKpiDataGrid.selectedIndex;
+                var obj:Object = noSelectDataList.getItemAt(selectIndex);
+                //暂存到保存对象 中
+                obj.operateType = "add";
+                sbxnsavaArr.addItem(obj);
+                sbxnsavaArr.refresh();
+                log.debug(sbxnsavaArr);
+                //添加到已选择列表，从未选择列表删除
+                isSelectDataList.addItem(obj);
+                noSelectDataList.removeItemAt(selectIndex);
+                isSelectDataList.refresh();
+                noSelectDataList.refresh();
+            }
+
+            protected function sbxnisSelectKpiDataGrid_itemClickHandler(event:ListEvent):void
+            {
+                if (lastClickItem != null)
+                {
+                    if (lastClickItem == sbxnisSelectKpiDataGrid.selectedItem)
+                        return;
+                    else if (lastClickItemType == "sbxn")
+                        sbxnThresholdSave_clickHandler();
+                }
+
+                lastClickItem = sbxnisSelectKpiDataGrid.selectedItem;
+                lastClickItemType = "sbxn";
+
+                var moTypeId:String = sbxnisSelectKpiDataGrid.selectedItem['mo_type_id'];
+                var kpiName:String = sbxnisSelectKpiDataGrid.selectedItem['kpi_name'];
+//                this.sbxnthresholdName.text = kpiName;
+//				log.info("sbxnthresholdName:" + sbxnthresholdName.text);
+//
+//                sbxnthresholdConfigGroup.removeAllElements();
+//                var tc:ThresholdConfigComp = new ThresholdConfigComp();
+//
+//                tc.moTypeId = moTypeId;
+//
+//
+//                if (sbxnisSelectKpiDataGrid.selectedItem.hasOwnProperty("thrList"))
+//                {
+//                    var thrList:ArrayCollection = sbxnisSelectKpiDataGrid.selectedItem['thrList'] as ArrayCollection;
+//
+//                    log.info("阈值配置：");
+//                    log.info(thrList);
+//
+//                    for each (var t:Object in thrList)
+//                    {
+//                        tc.thresholdDown.text = t['thresholdDown'];
+//                        tc.data = t;
+//                        tc.moTypeId = moTypeId;
+//
+//                        sbxnthresholdConfigGroup.addElement(tc);
+//                    }
+//                }
+//                else
+//                    sbxnthresholdConfigGroup.addElement(tc);
+
+            }
+
+            /**
+             * 记录上移
+             */
+            protected function selectUp_clickHandler(event:MouseEvent):void
+            {
+                var item:Object = null;
+                var selectIndex:int;
+
+                if (user.configPerfClass == 1)
+                {
+                    item = khgzisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.khgzisSelectKpiDataGrid.selectedIndex;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex - 1);
+                    khgzisSelectKpiDataGrid.selectedItem = item;
+                    (khgzisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 2)
+                {
+                    item = ywxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.ywxnisSelectKpiDataGrid.selectedIndex;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex - 1);
+                    ywxnisSelectKpiDataGrid.selectedItem = item;
+                    (ywxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+                else if (user.configPerfClass == 3)
+                {
+                    item = sbxnisSelectKpiDataGrid.selectedItem;
+                    selectIndex = this.sbxnisSelectKpiDataGrid.selectedIndex;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).removeItemAt(selectIndex);
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).addItemAt(item, selectIndex - 1);
+                    sbxnisSelectKpiDataGrid.selectedItem = item;
+                    (sbxnisSelectKpiDataGrid.dataProvider as ArrayCollection).refresh();
+                }
+
+            }
+
+            protected function sbxnbutton3_clickHandler(event:MouseEvent):void
+            {
+//                var tcf:ThresholdConfigComp = new ThresholdConfigComp;
+//
+//                if (sbxnthresholdIsBtsDispatch)
+//                {
+//                    tcf.isBtsDispatch.visible = true;
+//                    tcf.isBtsDispatch.includeInLayout = true;
+//                }
+//                sbxnthresholdConfigGroup.addElement(tcf);
+            }
+
+
+            protected function sbxnbutton4_clickHandler(event:MouseEvent):void
+            {
+//                log.debug("sbxnthresholdConfigGroup.numElements=" + sbxnthresholdConfigGroup.numElements);
+//
+//                if (sbxnthresholdConfigGroup.numElements > 1)
+//                {
+//                    sbxnthresholdConfigGroup.removeElementAt(sbxnthresholdConfigGroup.numElements - 1);
+//                }
+            }
+
+            protected function button2_clickHandler(flag:Boolean):void
+            {
+//				var nums:int = this.panelCfgGroup.numElements;
+//				var group:Group = this.panelCfgGroup;
+//				
+//				if(flag)
+//				{
+//					nums = this.panelCfgGroup2.numElements;
+//					group = this.panelCfgGroup2;
+//				}
+//				
+//				for (var index:int = 0; index < nums; index++)
+//				{
+//					var cb:CheckBox = group.getElementAt(index) as CheckBox;
+//					cb.selected = true;
+//				}
+            }
+
+            protected function button3_clickHandler(flag:Boolean):void
+            {
+//				var nums:int = this.panelCfgGroup.numElements;
+//				var group:Group = this.panelCfgGroup;
+//				
+//				if(flag)
+//				{
+//					nums = this.panelCfgGroup2.numElements;
+//					group = this.panelCfgGroup2;
+//				}
+//				
+//				log.info("nums:" + nums);
+//				
+//				for (var index:int = 0; index < nums; index++)
+//				{
+//					var cb:CheckBox = group.getElementAt(index) as CheckBox;
+//					log.info(cb.label + "  =  " +cb.selected);
+//					cb.selected = !cb.selected;
+//				}
+            }
+        ]]>
+    </fx:Script>
+
+
+
+    <ailk_gis:MapWork id="mapWork"
+                      width="100%"
+                      height="100%"
+                      showOverView="false"
+                      showToolBar="false"
+                      extent_change="mapWork_extent_changeHandler(event)"
+                      drawPointSelect="mapWork_drawPointSelectHandler(event)"
+                      draw_end="mapWork_draw_endHandler(event)"
+                      draw_click="mapWork_draw_clickHandler(event)"
+                      mapCreationComplete="mapWork_mapCreationCompleteHandler(event)">
+        <!--<ailk_gis:layers>
+        <ailk_gis:GisLayer id="areaLayer"/>
+        <ailk_gis:GisLayer id="featureLayer"/>
+        </ailk_gis:layers>-->
+        <ailk_gis:drawToolBar>
+            <ailk_gis:DrawToolBar id="dtb"
+                                  bottom="-2"
+                                  horizontalCenter="0"
+                                  backEnabled="false"
+                                  forwardEnabled="false"/>
+        </ailk_gis:drawToolBar>
+    </ailk_gis:MapWork>
+    <s:HGroup id="openWindow"
+              x="50"
+              y="-62"
+              height="150"
+              verticalAlign="middle"
+              horizontalAlign="center">
+        <s:Button click="openButtion_clickHandler(event)"
+                  id="openButton"
+                  label="显示定制提示"/>
+        <s:Button click="closeButton_clickHandler(event)"
+                  id="closeButton"
+                  label="隐藏显示提示"/>
+    </s:HGroup>
+    <ailk_compts:Window id="queryWinow"
+                        x="50"
+                        y="25"
+                        height="130"
+                        minimizable="true"
+                        maximizable="false"
+                        resizable="true"
+                        closable="false"
+                        dragable="true"
+                        styleName="window">
+        <s:HGroup width="100%"
+                  height="100%"
+                  horizontalAlign="center"
+                  verticalAlign="middle">
+            <s:VGroup>
+                <s:DropDownList id="cityDropList"
+                                dataProvider="{pm.dm.cityListArr}"
+                                labelField="city_name"
+                                selectedIndex="0"
+                                requireSelection="true"
+                                toolTip="可以选择全省+13地市"
+                                width="100%"
+                                change="cityDropList_changeHandler(event)"/>
+                <s:DropDownList id="queryDropList"
+                                dataProvider="{pm.dm.queryConList}"
+                                labelField="field"
+                                selectedIndex="0"
+                                requireSelection="true"
+                                change="queryDropList_changeHandler(event)"
+                                toolTip="可以选择您所在的地市,在方框中输入您关注的地点,或者直接选择关注网元。"
+                                width="100%"/>
+                <s:TextInput id="queryCon"
+                             visible="{queryDropList.selectedIndex==0}"
+                             show="queryCon_showHandler(event)"
+                             width="100%"/>
+            </s:VGroup>
+            <s:Button label="查询"
+                      visible="{queryDropList.selectedIndex==0}"
+                      id="queryButton"
+                      click="queryButton_clickHandler(event)"
+                      enabled="false"/>
+        </s:HGroup>
+    </ailk_compts:Window>
+
+    <ailk_compts:Window id="moSelectWindow"
+                        height="400"
+                        x="270"
+                        y="25"
+                        dragable="true"
+                        visible="{queryDropList.selectedIndex==1}"
+                        styleName="window"
+                        closable="true"
+                        close="moSelectWindow.visible=false"
+                        title="网元选择面板">
+        <s:VGroup width="100%"
+                  height="100%">
+            <s:HGroup width="100%"
+                      verticalAlign="middle">
+                <!--<s:Label text="网元类型："/>-->
+                <s:DropDownList id="moTypeDropList"
+                                dataProvider="{pm.dm.motypeList}"
+                                labelField="mo_type_name"
+                                selectedIndex="0"
+                                requireSelection="true"/>
+                <s:TextInput id="moNameInp"/>
+                <s:Button label="查询"
+                          click="button1_clickHandler(event)"/>
+                <s:Button label="导入"
+                          click="import_clickHandler(event)"/>
+                <s:Button label="模板下载"
+                          click="downLoadModule_clickHandler(event)"/>
+            </s:HGroup>
+            <components:NavTree width="100%"
+                                height="100%"
+                                id="navTree"
+                                dataProvider="{pm.dm.motreeData}"/>
+            <s:Panel width="100%"
+                     height="100%"
+                     title="已选择网元">
+                <mx:AdvancedDataGrid width="100%"
+                                     height="100%"
+                                     showHeaders="false"
+                                     dataProvider="{pm.dm.selList}">
+                    <mx:columns>
+                        <mx:AdvancedDataGridColumn dataField="A"/>
+                    </mx:columns>
+                </mx:AdvancedDataGrid>
+            </s:Panel>
+        </s:VGroup>
+    </ailk_compts:Window>
+    <ailk_compts:Window width="606"
+                        height="375"
+                        x="50"
+                        y="147"
+                        dragable="true"
+                        close="chooseWindow.visible=false"
+                        maximizable="false"
+                        minimizable="true"
+                        resizable="true"
+                        id="chooseWindow"
+                        styleName="window"
+                        visible="false"
+                        title="选择窗口">
+        <s:VGroup width="100%"
+                  height="100%">
+            <s:List id="selList"
+                    change="chooseGrid_itemClickHandler(event)"
+                    width="100%"
+                    styleName="sceneList"
+                    height="100%"
+                    contentBackgroundAlpha="0"
+                    dataProvider="{pm.dm.chooseList}"
+                    dropEnabled="true"
+                    dragEnabled="true"
+                    dragMoveEnabled="true"
+                    itemRenderer="com.linkage.module.cms.scene.view.components.renderer.chooseRender"/>
+            <s:Scroller width="100%"
+                        verticalScrollPolicy="off"
+                        horizontalScrollPolicy="auto">
+                <s:Group width="100%">
+                    <linkage_compts:Pager id="choosepager"
+                                pageSize="10"
+                                pageChange="pager1_pageChangeHandler(event)"/>
+                </s:Group>
+            </s:Scroller>
+        </s:VGroup>
+    </ailk_compts:Window>
+
+    <ailk_compts:Window title="基本信息配置"
+                        right="20"
+                        top="5"
+                        height="420"
+                        width="347"
+                        minWidth="200"
+                        resizable="true"
+                        minimizable="true"
+                        maximizable="true"
+                        id="baseSetWindow"
+                        closable="false"
+                        maximize="window1_maximizeHandler(event)"
+                        restore="window1_restoreHandler(event)"
+                        dragable="true"
+                        visible="false"
+                        styleName="window"
+                        titleIcon="@Embed(source='../img/title_ico02.png')">
+        <s:VGroup height="100%"
+                  width="100%"
+                  horizontalAlign="center">
+            <mx:Form height="100%"
+                     width="100%">
+                <mx:FormItem label="场景类型：">
+                    <s:DropDownList id="sceneType"
+                                    width="180"
+                                    labelField="scenetypename"
+                                    click="sceneType_clickHandler(event)"
+                                    change="sceneType_changeHandler(event)"
+                                    dataProvider="{pm.dm.sceneTypeList}"/>
+                </mx:FormItem>
+                <mx:FormItem label="场景名称：">
+                    <s:TextInput width="180"
+                                 id="areaname"
+                                 click="areaname_clickHandler(event)"
+                                 text="区域一"/>
+                </mx:FormItem>
+                <mx:FormItem label="父场景名称：">
+                    <!--click="scenedd_clickHandler(event)"-->
+                    <mx:ComboBox editable="true"
+                                 id="scenedd"
+                                 height="22"
+                                 prompt="请输入或选择场景名称"
+                                 width="180"
+                                 click="scenedd_clickHandler(event)"
+                                 labelField="scenename"
+                                 change="scenedd_changeHandler()"
+                                 dataProvider="{pm.dm.sceneNameList}"/>
+                </mx:FormItem>
+                <mx:FormItem label="区域缩略图：">
+                    <s:HGroup width="180"
+                              horizontalAlign="center">
+                        <s:VGroup width="100%"
+                                  height="100%">
+                            <s:TextInput width="100%"
+                                         text="{pm.dm.picUrl}"
+                                         enabled="true"
+                                         id="picUrl"/>
+                            <mx:Image source="{pm.dm.picUrl}"
+                                      width="100%"
+                                      height="50"/>
+                        </s:VGroup>
+                        <s:Button label="浏览"
+                                  width="50"
+                                  id="upload"
+                                  click="upload_clickHandler(event)"/>
+                    </s:HGroup>
+                </mx:FormItem>
+                <mx:FormItem label="选择网元："
+                             height="100%"
+                             width="100%">
+                    <mx:Tree id="myTree"
+                             dataProvider="{pm.dm.treeData}"
+                             width="195"
+                             height="100%"
+                             borderAlpha="0"
+                             verticalAlign="middle"
+                             contentBackgroundAlpha="0"
+                             showRoot="false"
+                             showScrollTips="true"
+                             wordWrap="false"
+                             variableRowHeight="true"
+                             labelField="@label"
+                             editorHeightOffset="0"
+                             fontWeight="normal"
+                             fontSize="12"
+                             indentation="12"
+                             paddingLeft="10"
+                             horizontalScrollPolicy="auto"
+                             verticalScrollPolicy="auto"
+                             folderClosedIcon="{null}"
+                             click="myTree_clickHandler(event)"
+                             change="myTree_itemClickHandler(event)"
+                             folderOpenIcon="{null}"
+                             defaultLeafIcon="{null}"
+                             disclosureClosedIcon="@Embed('../img/areaquickconfig/+.png')"
+                             disclosureOpenIcon="@Embed('../img/areaquickconfig/-.png')"
+                             itemRenderer="com.linkage.module.cms.scene.view.components.MapChooseTreeRenderer"/>
+                </mx:FormItem>
+            </mx:Form>
+            <s:HGroup>
+                <s:Button label="完成配置"
+                          enabled="false"
+                          id="saveConfig"
+                          click="saveConfig_clickHandler(event)"/>
+                <s:Button label="配置更多"
+                          click="configmore_clickHandler(event)"/>
+            </s:HGroup>
+        </s:VGroup>
+    </ailk_compts:Window>
+
+    <ailk_compts:Window id="df"
+                        x="260"
+                        y="5"
+                        width="700"
+                        height="410"
+                        title="详细信息配置"
+                        dragable="true"
+                        minimizable="true"
+                        closable="true"
+                        maximizable="false"
+                        visible="false"
+                        styleName="window"
+                        close="df_closeHandler(event)"
+                        titleIcon="@Embed(source='../img/title_ico02.png')">
+        <s:VGroup height="100%"
+                  width="100%"
+                  gap="0"
+                  horizontalAlign="left">
+            <s:TabBar dataProvider="{vs}"
+                      id="roamTabBar"
+                      labelField="label"
+                      styleName="commonTabBar"
+                      buttonMode="true"/>
+
+            <mx:ViewStack id="vs"
+                          creationPolicy="all"
+                          width="100%"
+                          height="100%"
+                          top="23"
+                          styleName="commonViewStack"
+                          backgroundAlpha="0.8">
+                <s:NavigatorContent label="指标"
+                                    creationPolicy="all"
+                                    width="100%">
+                    <s:VGroup width="100%"
+                              height="100%">
+                        <s:TabBar id="kpiThresholdTabBar"
+                                  styleName="sceneTabBar"
+                                  width="100%"
+                                  dataProvider="{kpiThresholdViewStack}"
+                                  change="kpiThresholdTabBar_changeHandler(event)"/>
+                        <mx:ViewStack id="kpiThresholdViewStack"
+                                      creationPolicy="all"
+                                      styleName="sceneViewStack"
+                                      height="100%"
+                                      width="100%"
+                                      backgroundAlpha="0">
+                            <s:NavigatorContent id="khgzNavi"
+                                                label="客户感知"
+                                                height="100%"
+                                                width="100%"
+                                                creationPolicy="all">
+                                <s:Scroller styleName="sceneScroller"
+                                            height="100%"
+                                            width="100%"
+                                            horizontalScrollPolicy="off">
+                                    <s:VGroup width="100%"
+                                              height="100%">
+                                        <s:HGroup width="100%"
+                                                  height="200">
+                                            <ailk_compts:Window title="未选择指标"
+                                                                styleName="window"
+                                                                closable="false"
+                                                                minimizable="false"
+                                                                maximizable="false"
+                                                                width="45%">
+                                                <mx:AdvancedDataGrid width="100%"
+                                                                     height="100%"
+                                                                     id="kugznoSelectKpiDataGrid"
+                                                                     dataProvider="{pm.dm.supportCustomFeelKpiList}">
+                                                    <mx:columns>
+                                                        <mx:AdvancedDataGridColumn dataField="mo_type_name"
+                                                                                   headerText="网元类型"/>
+                                                        <mx:AdvancedDataGridColumn dataField="kpi_name"
+                                                                                   headerText="指标名称"/>
+                                                    </mx:columns>
+                                                </mx:AdvancedDataGrid>
+                                            </ailk_compts:Window>
+                                            <s:VGroup width="5%"
+                                                      height="100%"
+                                                      horizontalAlign="center"
+                                                      verticalAlign="middle">
+                                                <s:Button id="khgzselectToCancel"
+                                                          label="←"
+                                                          enabled="{this.khgzisSelectKpiDataGrid.selectedIndex==-1?false:true}"
+                                                          click="khgzselectToCancel_clickHandler(event)"/>
+                                                <s:Button id="khgzselectToOk"
+                                                          label="→"
+                                                          enabled="{this.kugznoSelectKpiDataGrid.selectedIndex==-1?false:true}"
+                                                          click="khgzselectToOk_clickHandler(event)"/>
+                                            </s:VGroup>
+                                            <ailk_compts:Window title="已选择指标"
+                                                                styleName="window"
+                                                                closable="false"
+                                                                minimizable="false"
+                                                                maximizable="false"
+                                                                width="50%">
+                                                <s:HGroup width="100%"
+                                                          height="100%">
+                                                    <mx:AdvancedDataGrid width="100%"
+                                                                         height="100%"
+                                                                         id="khgzisSelectKpiDataGrid"
+                                                                         itemClick="khgzisSelectKpiDataGrid_itemClickHandler(event)"
+                                                                         dataProvider="{pm.dm.configedCustomFeelKpiList}">
+                                                        <mx:columns>
+                                                            <mx:AdvancedDataGridColumn dataField="mo_type_name"
+                                                                                       headerText="网元类型"/>
+                                                            <mx:AdvancedDataGridColumn dataField="kpi_name"
+                                                                                       headerText="指标名称"/>
+                                                        </mx:columns>
+                                                    </mx:AdvancedDataGrid>
+                                                    <s:VGroup width="10%"
+                                                              height="100%"
+                                                              horizontalAlign="center"
+                                                              verticalAlign="middle">
+                                                        <s:Button label="︽"
+                                                                  enabled="{khgzisSelectKpiDataGrid.selectedIndex>0}"
+                                                                  id="selectFirst1"
+                                                                  click="selectFirst_clickHandler(event)"/>
+                                                        <s:Button label="↑"
+                                                                  id="selectUp1"
+                                                                  width="50"
+                                                                  enabled="{khgzisSelectKpiDataGrid.selectedIndex>0}"
+                                                                  click="selectUp_clickHandler(event)"/>
+                                                        <s:Button label="↓"
+                                                                  id="selectDown1"
+                                                                  width="50"
+                                                                  enabled="{khgzisSelectKpiDataGrid.selectedIndex>=0 ?(khgzisSelectKpiDataGrid.selectedIndex != (pm.dm.configedCustomFeelKpiList.length-1)):false}"
+                                                                  click="selectDown_clickHandler(event)"/>
+                                                        <s:Button label="︾"
+                                                                  enabled="{khgzisSelectKpiDataGrid.selectedIndex>=0 ?(khgzisSelectKpiDataGrid.selectedIndex != (pm.dm.configedCustomFeelKpiList.length-1)):false}"
+                                                                  id="selectEnd1"
+                                                                  click="selectEnd_clickHandler(event)"/>
+                                                    </s:VGroup>
+                                                </s:HGroup>
+                                            </ailk_compts:Window>
+                                        </s:HGroup>
+                                        <!--  <s:HGroup width="100%"
+                                                    height="100%">
+                                              <ailk_compts:Window title="阈值配置"
+                                                                  styleName="window"
+                                                                  closable="false"
+                                                                  minimizable="false"
+                                                                  maximizable="false"
+                                                                  width="100%">
+                                                  <s:VGroup>
+                                                      <s:HGroup>
+                                                          <s:HGroup horizontalAlign="left"
+                                                                    verticalAlign="middle"
+                                                                    width="50%">
+                                                              <s:Label text="指标名称："/>
+                                                              <s:TextInput id="khgzthresholdName"
+                                                                           width="225"
+                                                                           editable="false"/>
+                                                          </s:HGroup>
+                                                          <s:HGroup horizontalAlign="right"
+                                                                    verticalAlign="middle"
+                                                                    width="50%">
+                                                              <s:Button label="+"
+                                                                        click="khgzbutton3_clickHandler(event)"/>
+                                                              <s:Button label="-"
+                                                                        click="khgzbutton4_clickHandler(event)"/>
+                                                          </s:HGroup>
+                                                      </s:HGroup>
+                                                      <s:VGroup id="khgzthresholdConfigGroup"
+                                                                verticalAlign="middle"
+                                                                horizontalAlign="center">
+                                                          <components:ThresholdConfigComp/>
+                                                      </s:VGroup>
+                                                  </s:VGroup>
+                                              </ailk_compts:Window>
+                                          </s:HGroup>-->
+                                    </s:VGroup>
+                                </s:Scroller>
+                            </s:NavigatorContent>
+                            <s:NavigatorContent id="ywxnNavi"
+                                                label="业务性能"
+                                                height="100%"
+                                                width="100%"
+                                                creationPolicy="all">
+                                <s:Scroller styleName="sceneScroller"
+                                            height="100%"
+                                            width="100%"
+                                            horizontalScrollPolicy="off">
+                                    <s:VGroup width="100%"
+                                              height="100%">
+                                        <s:HGroup width="100%"
+                                                  height="200">
+                                            <ailk_compts:Window title="未选择指标"
+                                                                styleName="window"
+                                                                closable="false"
+                                                                minimizable="false"
+                                                                maximizable="false"
+                                                                width="45%">
+                                                <mx:AdvancedDataGrid width="100%"
+                                                                     height="100%"
+                                                                     id="ywxnnoSelectKpiDataGrid"
+                                                                     dataProvider="{pm.dm.supportBussPmKpiList}">
+                                                    <mx:columns>
+                                                        <mx:AdvancedDataGridColumn dataField="mo_type_name"
+                                                                                   headerText="网元类型"/>
+                                                        <mx:AdvancedDataGridColumn dataField="kpi_name"
+                                                                                   headerText="指标名称"/>
+                                                    </mx:columns>
+                                                </mx:AdvancedDataGrid>
+                                            </ailk_compts:Window>
+                                            <s:VGroup width="5%"
+                                                      height="100%"
+                                                      horizontalAlign="center"
+                                                      verticalAlign="middle">
+                                                <s:Button id="ywxnselectToCancel"
+                                                          label="←"
+                                                          enabled="{this.ywxnisSelectKpiDataGrid.selectedIndex==-1?false:true}"
+                                                          click="ywxnselectToCancel_clickHandler(event)"/>
+                                                <s:Button id="ywxnselectToOk"
+                                                          label="→"
+                                                          enabled="{this.ywxnnoSelectKpiDataGrid.selectedIndex==-1?false:true}"
+                                                          click="ywxnselectToOk_clickHandler(event)"/>
+                                            </s:VGroup>
+                                            <ailk_compts:Window title="已选择指标"
+                                                                styleName="window"
+                                                                closable="false"
+                                                                minimizable="false"
+                                                                maximizable="false"
+                                                                width="50%">
+                                                <s:HGroup width="100%"
+                                                          height="100%">
+                                                    <mx:AdvancedDataGrid width="100%"
+                                                                         height="100%"
+                                                                         id="ywxnisSelectKpiDataGrid"
+                                                                         itemClick="ywxnisSelectKpiDataGrid_itemClickHandler(event)"
+                                                                         dataProvider="{pm.dm.configedBussPmKpiList}">
+                                                        <mx:columns>
+                                                            <mx:AdvancedDataGridColumn dataField="mo_type_name"
+                                                                                       headerText="网元类型"/>
+                                                            <mx:AdvancedDataGridColumn dataField="kpi_name"
+                                                                                       headerText="指标名称"/>
+                                                        </mx:columns>
+                                                    </mx:AdvancedDataGrid>
+                                                    <s:VGroup width="10%"
+                                                              height="100%"
+                                                              horizontalAlign="center"
+                                                              verticalAlign="middle">
+                                                        <s:Button label="︽"
+                                                                  enabled="{ywxnisSelectKpiDataGrid.selectedIndex>0}"
+                                                                  id="selectFirst2"
+                                                                  click="selectFirst_clickHandler(event)"/>
+                                                        <s:Button label="↑"
+                                                                  id="selectUp2"
+                                                                  width="50"
+                                                                  enabled="{ywxnisSelectKpiDataGrid.selectedIndex>0}"
+                                                                  click="selectUp_clickHandler(event)"/>
+                                                        <s:Button label="↓"
+                                                                  id="selectDown2"
+                                                                  width="50"
+                                                                  enabled="{ywxnisSelectKpiDataGrid.selectedIndex>=0 ?(ywxnisSelectKpiDataGrid.selectedIndex != (pm.dm.configedBussPmKpiList .length-1)):false}"
+                                                                  click="selectDown_clickHandler(event)"/>
+                                                        <s:Button label="︾"
+                                                                  enabled="{ywxnisSelectKpiDataGrid.selectedIndex>=0 ?(ywxnisSelectKpiDataGrid.selectedIndex != (pm.dm.configedBussPmKpiList.length-1)):false}"
+                                                                  id="selectEnd2"
+                                                                  click="selectEnd_clickHandler(event)"/>
+                                                    </s:VGroup>
+                                                </s:HGroup>
+                                            </ailk_compts:Window>
+                                        </s:HGroup>
+                                        <!--<s:HGroup width="100%"
+                                                  height="100%">
+                                            <ailk_compts:Window title="阈值配置"
+                                                                styleName="window"
+                                                                closable="false"
+                                                                minimizable="false"
+                                                                maximizable="false"
+                                                                width="100%">
+                                                <s:VGroup>
+                                                    <s:HGroup>
+                                                        <s:HGroup horizontalAlign="left"
+                                                                  verticalAlign="middle"
+                                                                  width="50%">
+                                                            <s:Label text="指标名称："/>
+                                                            <s:TextInput id="ywxnthresholdName"
+                                                                         width="225"
+                                                                         editable="false"/>
+                                                        </s:HGroup>
+                                                        <s:HGroup horizontalAlign="right"
+                                                                  verticalAlign="middle"
+                                                                  width="50%">
+                                                            <s:Button label="+"
+                                                                      click="ywxnbutton3_clickHandler(event)"/>
+                                                            <s:Button label="-"
+                                                                      click="ywxnbutton4_clickHandler(event)"/>
+                                                        </s:HGroup>
+                                                    </s:HGroup>
+                                                    <s:VGroup id="ywxnthresholdConfigGroup"
+                                                              verticalAlign="middle"
+                                                              horizontalAlign="center">
+                                                        <components:ThresholdConfigComp/>
+                                                    </s:VGroup>
+                                                </s:VGroup>
+                                            </ailk_compts:Window>
+                                        </s:HGroup>-->
+                                    </s:VGroup>
+                                </s:Scroller>
+                            </s:NavigatorContent>
+                            <s:NavigatorContent id="sbxnNavi"
+                                                label="设备性能"
+                                                height="100%"
+                                                width="100%"
+                                                creationPolicy="all">
+                                <s:Scroller styleName="sceneScroller"
+                                            height="100%"
+                                            width="100%"
+                                            horizontalScrollPolicy="off">
+                                    <s:VGroup width="100%"
+                                              height="100%">
+                                        <s:HGroup width="100%"
+                                                  height="200">
+                                            <ailk_compts:Window title="未选择指标"
+                                                                styleName="window"
+                                                                closable="false"
+                                                                minimizable="false"
+                                                                maximizable="false"
+                                                                width="45%">
+                                                <mx:AdvancedDataGrid width="100%"
+                                                                     height="100%"
+                                                                     id="sbxnnoSelectKpiDataGrid"
+                                                                     dataProvider="{pm.dm.supportDevPmKpiList}">
+                                                    <mx:columns>
+                                                        <mx:AdvancedDataGridColumn dataField="mo_type_name"
+                                                                                   headerText="网元类型"/>
+                                                        <mx:AdvancedDataGridColumn dataField="kpi_name"
+                                                                                   headerText="指标名称"/>
+                                                    </mx:columns>
+                                                </mx:AdvancedDataGrid>
+                                            </ailk_compts:Window>
+                                            <s:VGroup width="5%"
+                                                      height="100%"
+                                                      horizontalAlign="center"
+                                                      verticalAlign="middle">
+                                                <s:Button id="sbxnselectToCancel"
+                                                          label="←"
+                                                          enabled="{this.sbxnisSelectKpiDataGrid.selectedIndex==-1?false:true}"
+                                                          click="sbxnselectToCancel_clickHandler(event)"/>
+                                                <s:Button id="sbxnselectToOk"
+                                                          label="→"
+                                                          enabled="{this.sbxnnoSelectKpiDataGrid.selectedIndex==-1?false:true}"
+                                                          click="sbxnselectToOk_clickHandler(event)"/>
+                                            </s:VGroup>
+                                            <ailk_compts:Window title="已选择指标"
+                                                                styleName="window"
+                                                                closable="false"
+                                                                minimizable="false"
+                                                                maximizable="false"
+                                                                width="50%">
+                                                <s:HGroup width="100%"
+                                                          height="100%">
+                                                    <mx:AdvancedDataGrid width="100%"
+                                                                         height="100%"
+                                                                         id="sbxnisSelectKpiDataGrid"
+                                                                         itemClick="sbxnisSelectKpiDataGrid_itemClickHandler(event)"
+                                                                         dataProvider="{pm.dm.configedDevPmKpiList}">
+                                                        <mx:columns>
+                                                            <mx:AdvancedDataGridColumn dataField="mo_type_name"
+                                                                                       headerText="网元类型"/>
+                                                            <mx:AdvancedDataGridColumn dataField="kpi_name"
+                                                                                       headerText="指标名称"/>
+                                                        </mx:columns>
+                                                    </mx:AdvancedDataGrid>
+                                                    <s:VGroup width="10%"
+                                                              height="100%"
+                                                              horizontalAlign="center"
+                                                              verticalAlign="middle">
+                                                        <s:Button label="︽"
+                                                                  enabled="{sbxnisSelectKpiDataGrid.selectedIndex>0}"
+                                                                  id="selectFirst3"
+                                                                  click="selectFirst_clickHandler(event)"/>
+                                                        <s:Button label="↑"
+                                                                  id="selectUp3"
+                                                                  width="50"
+                                                                  enabled="{sbxnisSelectKpiDataGrid.selectedIndex>0}"
+                                                                  click="selectUp_clickHandler(event)"/>
+                                                        <s:Button label="↓"
+                                                                  id="selectDown3"
+                                                                  width="50"
+                                                                  enabled="{sbxnisSelectKpiDataGrid.selectedIndex>=0 ?(sbxnisSelectKpiDataGrid.selectedIndex != (pm.dm.configedDevPmKpiList.length-1)):false}"
+                                                                  click="selectDown_clickHandler(event)"/>
+                                                        <s:Button label="︾"
+                                                                  enabled="{sbxnisSelectKpiDataGrid.selectedIndex>=0 ?(sbxnisSelectKpiDataGrid.selectedIndex != (pm.dm.configedDevPmKpiList.length-1)):false}"
+                                                                  id="selectEnd3"
+                                                                  click="selectEnd_clickHandler(event)"/>
+                                                    </s:VGroup>
+                                                </s:HGroup>
+                                            </ailk_compts:Window>
+                                        </s:HGroup>
+                                        <!-- <s:HGroup width="100%"
+                                                   height="100%">
+                                             <ailk_compts:Window title="阈值配置"
+                                                                 styleName="window"
+                                                                 closable="false"
+                                                                 minimizable="false"
+                                                                 maximizable="false"
+                                                                 width="100%">
+                                                 <s:VGroup>
+                                                     <s:HGroup>
+                                                         <s:HGroup horizontalAlign="left"
+                                                                   verticalAlign="middle"
+                                                                   width="50%">
+                                                             <s:Label text="指标名称："/>
+                                                             <s:TextInput id="sbxnthresholdName"
+                                                                          width="225"
+                                                                          editable="false"/>
+                                                         </s:HGroup>
+                                                         <s:HGroup horizontalAlign="right"
+                                                                   verticalAlign="middle"
+                                                                   width="50%">
+                                                             <s:Button label="+"
+                                                                       click="sbxnbutton3_clickHandler(event)"/>
+                                                             <s:Button label="-"
+                                                                       click="sbxnbutton4_clickHandler(event)"/>
+                                                         </s:HGroup>
+                                                     </s:HGroup>
+                                                     <s:VGroup id="sbxnthresholdConfigGroup"
+                                                               verticalAlign="middle"
+                                                               horizontalAlign="center">
+                                                         <components:ThresholdConfigComp/>
+                                                     </s:VGroup>
+                                                 </s:VGroup>
+                                             </ailk_compts:Window>
+                                         </s:HGroup>-->
+                                    </s:VGroup>
+                                </s:Scroller>
+                            </s:NavigatorContent>
+                        </mx:ViewStack>
+                    </s:VGroup>
+                </s:NavigatorContent>
+                <!-- <s:NavigatorContent label="面板配置"
+                                     creationPolicy="all">
+                     <s:HGroup width="100%" height="100%">
+                         <s:VGroup width="50%" height="100%" paddingLeft="20" paddingTop="20">
+                             <s:Label text="父场景面板"/>
+                             <s:VGroup left="50"
+                                       top="10"
+                                       id="panelCfgGroup2"
+                                       height="100%"
+                                       width="140"
+                                       gap="5">
+                                 <s:CheckBox label="加载中..."/>
+                             </s:VGroup>
+                             <s:HGroup>
+                                 <s:Button label="全选" click="button2_clickHandler(true)"/>
+                                 <s:Button label="反选" click="button3_clickHandler(true)"/>
+                             </s:HGroup>
+                         </s:VGroup>
+                         <s:VGroup width="50%" height="100%" paddingLeft="20" paddingTop="20">
+                             <s:Label text="场景面板"/>
+                             <s:VGroup left="50"
+                                       top="10"
+                                       id="panelCfgGroup"
+                                       height="100%"
+                                       width="140"
+                                       gap="5">
+                                 <s:CheckBox label="加载中..."/>
+                             </s:VGroup>
+                             <s:HGroup>
+                                 <s:Button label="全选" click="button2_clickHandler(false)"/>
+                                 <s:Button label="反选" click="button3_clickHandler(false)"/>
+                             </s:HGroup>
+                         </s:VGroup>
+                     </s:HGroup>
+                 </s:NavigatorContent>-->
+
+            </mx:ViewStack>
+            <mx:Spacer height="5"/>
+            <s:HGroup width="100%"
+                      horizontalAlign="center">
+                <s:Button label="完成配置"
+                          id="delsaveConfig"
+                          click="saveConfig_clickHandler(event)"/>
+            </s:HGroup>
+
+        </s:VGroup>
+    </ailk_compts:Window>
+
+    <!-- <ailk_compts:Window id="overWin"
+                         visible="false"
+                         includeInLayout="false"
+                         styleName="window"
+                         close="{overWin.visible = false; overWin.includeInLayout = false; delsaveConfig.enabled = true; saveConfig.enabled = true;}"
+                         minimizable="false"
+                         maximizable="false"
+                         dragable="true"
+                         x="{df.x + 80}"
+                         y="{df.y + 100}"
+                         width="200"
+                         height="150">
+         <s:VGroup width="100%"
+                   height="100%"
+                   paddingLeft="20"
+                   horizontalAlign="left"
+                   verticalAlign="middle">
+             <s:Label id="overLabel"/>
+             <s:CheckBox id="kpiOver"
+                         label="覆盖指标配置"/>
+             <s:CheckBox id="panelOver"
+                         label="覆盖面板配置"/>
+             <s:Button id="overButton"
+                       label="确定"
+                       click="save2DB()"/>
+         </s:VGroup>
+     </ailk_compts:Window>-->
+</s:Group>

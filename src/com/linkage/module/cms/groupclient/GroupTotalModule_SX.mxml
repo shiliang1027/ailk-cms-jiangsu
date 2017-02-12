@@ -1,0 +1,486 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="100%" height="100%" 
+		   xmlns:panel="com.linkage.system.component.panel.*" 
+		   creationComplete="module_creationCompleteHandler(event)"
+		   creationCompleteEffect="{fadeEffect}" xmlns:components="com.linkage.module.cms.groupclient.components.*" 
+		   dragDrop="dragDropHandler(event)" 
+		   dragEnter="dragEnterHandler(event)">
+	<!-- 陕西集客概况模块  -->
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<mx:states>
+		<s:State name="viewLayer"/>
+		<s:State name="viewLayer_1"/>
+		<s:State name="viewLayer_2"/>
+		<s:State name="viewLayer_3"/>
+	</mx:states>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.NormalWindowExtEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.groupclient.components.NormalWindow;
+			import com.linkage.module.cms.groupclient.control.GroupTotalModuleControl;
+			import com.linkage.module.cms.groupclient.event.AlarmListWindowEvent;
+			import com.linkage.module.cms.groupclient.event.CustAlarmWindowEvent;
+			import com.linkage.module.cms.groupclient.event.CustListWindowEvent;
+			import com.linkage.module.cms.groupclient.event.CustWindowEvent;
+			import com.linkage.module.cms.groupclient.event.DummyMapWorkEvent;
+			import com.linkage.module.cms.groupclient.event.GisMapWorkEvent;
+			import com.linkage.module.cms.groupclient.event.PerfStatWindowEvent;
+			import com.linkage.module.cms.groupclient.event.RunQuaWindowEvent;
+			import com.linkage.module.cms.groupclient.event.ServStatWindowEvent;
+			import com.linkage.module.cms.groupclient.event.ServWindowEvent;
+			import com.linkage.system.component.panel.events.WindowEvent;
+			
+			import mx.controls.AdvancedDataGrid;
+			import mx.controls.Alert;
+			import mx.core.DragSource;
+			import mx.events.DragEvent;
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.DragManager;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Application;
+			import spark.components.Button;
+			import spark.components.Label;
+			import spark.components.RadioButton;
+			
+			[Bindable]
+			[Embed(source="../../../../../assets/shiftBtn4_1.png")]
+			public var openImg:Class;
+			[Bindable]
+			[Embed(source="../../../../../assets/shiftBtn3_1.png")]
+			public var closeImg:Class;
+			
+			public var parameters:Object;
+			public var loadManager:LoadManager;
+			private var control:GroupTotalModuleControl;
+
+			protected function module_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				parameters=parentApplication.parameters;
+				styleManager.loadStyleDeclarations2(parameters["styleUrl"]);
+				loadManager = parentApplication.loadManager;
+				loadManager.hideLoading();
+				control=new GroupTotalModuleControl(this);
+			}
+			protected function rightBounceBtn_clickHandler(event:MouseEvent):void
+			{
+				rightBounceGroup.right==0?rightBounceGroupCloseEffect.play():rightBounceGroupOpenEffect.play();
+			}
+			
+			protected function fadeEffect_effectEndHandler(event:EffectEvent):void
+			{
+				control.init();
+			}
+			
+			protected function dummyMapWork_initHandler(event:DummyMapWorkEvent):void
+			{
+				control.dummyMapWorkInit();
+			}
+
+			protected function custWindow_initHandler(event:CustWindowEvent):void
+			{
+				control.custWindowInit();
+			}
+
+
+			protected function servWindow_initHandler(event:ServWindowEvent):void
+			{
+				control.servWindowInit();
+			}
+
+
+			protected function runQuaWindow_initHandler(event:RunQuaWindowEvent):void
+			{
+				control.runQuaWindowInit();
+			}
+
+
+			protected function servStatWindow_initHandler(event:ServStatWindowEvent):void
+			{
+				control.servStatWindowInit();
+			}
+
+
+			protected function perfStatWindow_initHandler(event:PerfStatWindowEvent):void
+			{
+				control.perfStatWindowInit();
+			}
+
+			protected function perfStatWindow_servTypeSelectChangeHandler(event:PerfStatWindowEvent):void
+			{
+				control.servTypeSelectChange(event.param);
+			}
+
+
+			protected function perfStatWindow_dataQueryHandler(event:PerfStatWindowEvent):void
+			{
+				control.perfDataQuery(event.param);
+			}
+
+			protected function dummyMapWork_cityLayerChangeHandler(event:DummyMapWorkEvent):void
+			{
+				control.dummyMapWorkCityLayerChange(event.param);
+			}
+
+
+			protected function dummyMapWork_cityLayerNoSelectedHandler(event:DummyMapWorkEvent):void
+			{
+				control.dummyMapWorkCityLayerNoSelected();
+			}
+
+
+			protected function dummyMapWork_mapCitySelectedHandler(event:DummyMapWorkEvent):void
+			{
+//				control.dummyMapWorkMapCitySelected(event.param);
+			}
+
+
+			protected function gisMapWork_initHandler(event:GisMapWorkEvent):void
+			{
+				control.gisMapWorkInit();
+			}
+
+
+			protected function gisMapWork_viewBackHandler(event:GisMapWorkEvent):void
+			{
+				control.gisMapWorkViewBack();
+			}
+
+
+			protected function gisMapWork_cityLocationSelectedHandler(event:GisMapWorkEvent):void
+			{
+				control.gisMapWorkCityLocationSelected(event.param);
+			}
+
+
+			protected function custWindow_custAlarmShowHandler(event:CustWindowEvent):void
+			{
+				control.custAlarmShow(event.param);
+			}
+
+
+			protected function custWindow_custShowHandler(event:CustWindowEvent):void
+			{
+				control.custShow(event.param);
+			}
+
+
+			protected function custWindow_pageGoHandler(event:CustWindowEvent):void
+			{
+				control.custWindowPageChange(event.param);
+			}
+
+
+			protected function servWindow_custAlarmShowHandler(event:ServWindowEvent):void
+			{
+				control.alarmListShow(event.param);
+			}
+
+
+			protected function servWindow_custProvHandler(event:ServWindowEvent):void
+			{
+				control.custProvShow();
+				
+			}
+
+
+			protected function servWindow_custTransProvHandler(event:ServWindowEvent):void
+			{
+				control.custTransProvShow();
+			}
+
+			
+			protected function servWindow_custShowHandler(event:ServWindowEvent):void
+			{
+				control.custShow(event.param);
+			}
+
+			protected function servWindow_pageGoHandler(event:ServWindowEvent):void
+			{
+				control.custWindowPageChange(event.param);
+			}
+
+
+			protected function runQuaWindow_custAlarmShowHandler(event:RunQuaWindowEvent):void
+			{
+				control.alarmListShow(event.param);
+			}
+
+
+			protected function runQuaWindow_custProvHandler(event:RunQuaWindowEvent):void
+			{
+				control.custProvShow();
+			}
+
+
+			protected function runQuaWindow_custTransProvHandler(event:RunQuaWindowEvent):void
+			{
+				control.custTransProvShow();
+			}
+
+
+			protected function runQuaWindow_pageGoHandler(event:RunQuaWindowEvent):void
+			{
+				control.runQuaWindowPageChange(event.param);
+			}
+
+
+			protected function servStatWindow_pageGoHandler(event:ServStatWindowEvent):void
+			{
+				control.servStatWindowPageChange(event.param);
+			}
+
+
+			protected function custAlarmListWindow_custShowHandler(event:CustAlarmWindowEvent):void
+			{
+				control.custShow(event.param);
+			}
+
+
+
+			protected function alarmListWindow_custShowHandler(event:AlarmListWindowEvent):void
+			{
+				control.custShow(event.param);
+			}
+
+
+			protected function custListWindow_custShowHandler(event:CustListWindowEvent):void
+			{
+				control.custShow(event.param);
+			}
+
+			protected function runQuaWindow_sheetShowHandler(event:RunQuaWindowEvent):void
+			{
+				control.sheetShow(event.param);
+			}
+
+
+			protected function servWindow_custAlarmAllShowHandler(event:ServWindowEvent):void
+			{
+				control.servWindowAlarmAllShow();
+			}
+
+
+			protected function servWindow_custAlarmOnlyShowHandler(event:ServWindowEvent):void
+			{
+				control.servWindowAlarmOnlyShow();
+			}
+
+
+			protected function runQuaWindow_custShowHandler(event:RunQuaWindowEvent):void
+			{
+				control.custShow(event.param);
+			}
+
+
+			private function dragEnterHandler(event:DragEvent):void { 
+				if (event.dragSource.hasFormat("window")) 
+				{ 
+					DragManager.acceptDragDrop(GroupTotalModule_SX(event.currentTarget)); 
+				} 
+			} 
+			
+			private function dragDropHandler(event:DragEvent):void { 
+				var window:NormalWindow = NormalWindow(event.dragInitiator);
+				window.width=600;
+				window.height=400;
+				openWindow(window);
+			} 
+			
+			
+			private function mouseMoveHandler(event:MouseEvent):void 
+			{ 
+				if(event.target is Button || event.target is Label || event.target is RadioButton || isDataGrid(event.target)){
+					return;
+				}
+				var dragInitiator:NormalWindow=NormalWindow(event.currentTarget); 
+				var ds:DragSource = new DragSource(); 
+				ds.addData(dragInitiator, "window"); 
+				DragManager.doDrag(dragInitiator, ds, event); 
+			}
+			
+			private function isDataGrid(target:Object):Boolean{
+				if(target is AdvancedDataGrid){
+					return true;
+				}
+				if(target != null){
+					target = target.parent;
+					return isDataGrid(target);
+				}
+				return false;
+			}
+			
+			private function openWindow(window:NormalWindow):void{
+				window.restoreButton.visible=false;
+				window.restoreButton.includeInLayout=false;
+				window.closeButton.visible=true;
+				window.closeButton.includeInLayout=true;
+				window.maximizeButton.visible=true;
+				window.maximizeButton.includeInLayout=true;
+				PopUpManager.addPopUp(window,this);
+				PopUpManager.centerPopUp(window);
+			}
+			protected function restoreHandler(event:NormalWindowExtEvent):void
+			{
+				// TODO Auto-generated method stub
+				var window:NormalWindow=NormalWindow(event.target); 
+				window.width=600;
+				window.height=400;
+				openWindow(window);
+//				if(rightDivBox.contains(window)){
+//					rightDivBox.removeElement(window);
+//				}
+			}
+			
+			
+			protected function maximizeHandler(event:NormalWindowExtEvent):void
+			{
+				// TODO Auto-generated method stub
+				var window:NormalWindow = NormalWindow(event.target);
+				PopUpManager.removePopUp(window);
+				window.width=this.width;
+				window.height=this.height;
+				openWindow(window);
+				window.restoreButton.visible=true;
+				window.restoreButton.includeInLayout=true;
+				window.maximizeButton.visible=false;
+				window.maximizeButton.includeInLayout=false;
+			}
+			
+			
+			protected function closeHandler(event:NormalWindowExtEvent):void
+			{
+				// TODO Auto-generated method stub
+				var window:NormalWindow = NormalWindow(event.target);
+				PopUpManager.removePopUp(window);
+				window.percentHeight=100;
+				window.percentWidth=100;
+				window.restoreButton.visible=true;
+				window.restoreButton.includeInLayout=true;
+				window.maximizeButton.visible=true;
+				window.maximizeButton.includeInLayout=true;
+				window.closeButton.visible=false;
+				window.closeButton.includeInLayout=false;
+				rightDivBox.addElement(window);
+				
+			}
+			
+
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:Fade id="fadeEffect" alphaFrom="0" alphaTo="1" duration="3000" effectEnd="fadeEffect_effectEndHandler(event)"/>
+		<s:Animate id="rightBounceGroupOpenEffect"
+				   target="{rightBounceGroup}" repeatCount="1" duration="500" effectStart="rightBounceBtn.enabled=false" effectEnd="rightBounceBtn.enabled=true;rightBounceBtn.source=closeImg">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="right" valueFrom="{-rightBounceGroup.width+rightBounceBtnGroup.width}" valueTo="0"/>
+			</s:motionPaths>
+		</s:Animate>
+		<s:Animate id="rightBounceGroupCloseEffect"
+				   target="{rightBounceGroup}" repeatCount="1" duration="500" effectStart="rightBounceBtn.enabled=false" effectEnd="rightBounceBtn.enabled=true;rightBounceBtn.source=openImg">
+			<s:motionPaths>
+				<s:SimpleMotionPath property="right" valueFrom="0" valueTo="{-rightBounceGroup.width+rightBounceBtnGroup.width}"/>
+			</s:motionPaths>
+		</s:Animate>
+
+	</fx:Declarations>
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<s:Group width="100%" height="100%" top="5" left="5" bottom="5">
+		<mx:HDividedBox width="100%" height="100%" paddingRight="6">
+			<!-- 地图区域 -->
+			<s:BorderContainer id="leftContainer" width="100%" height="100%" styleName="commonBorderContainer">
+				<components:DummyMapWork_SX id="dummyMapWork" includeIn="viewLayer_1" 
+										 init="dummyMapWork_initHandler(event)" 
+										 cityLayerChange="dummyMapWork_cityLayerChangeHandler(event)" 
+										 cityLayerNoSelected="dummyMapWork_cityLayerNoSelectedHandler(event)"
+										 mapCitySelected="dummyMapWork_mapCitySelectedHandler(event)"/>
+				<components:GisMapWork id="gisMapWork" includeIn="viewLayer_2,viewLayer_3" currentState="{this.currentState}" 
+									   init="gisMapWork_initHandler(event)" 
+									   viewBack="gisMapWork_viewBackHandler(event)" 
+									   cityLocationSelected="gisMapWork_cityLocationSelectedHandler(event)"/>
+			</s:BorderContainer>
+			<mx:VDividedBox id="rightDivBox" width="100%" height="100%">
+				<!-- 客户概况 -->
+				<components:CustWindow id="custWindow" visible.viewLayer_3="false" includeInLayout.viewLayer_3="false" currentState="{this.currentState}" 
+									   init="custWindow_initHandler(event)" 
+									   custAlarmShow="custWindow_custAlarmShowHandler(event)" 
+									   custShow="custWindow_custShowHandler(event)" 
+									   pageGo="custWindow_pageGoHandler(event)"
+									   mouseDown="mouseMoveHandler(event);" 
+									   restore="restoreHandler(event)" 
+									   maximize="maximizeHandler(event)" 
+									   close="closeHandler(event)"/>
+				<!-- 业务概况 -->
+				<components:ServWindow id="servWindow" currentState="{this.currentState}" 
+									   init="servWindow_initHandler(event)" 
+									   custAlarmShow="servWindow_custAlarmShowHandler(event)" 
+									   custShow="servWindow_custShowHandler(event)"
+									   custProv="servWindow_custProvHandler(event)" 
+									   custTransProv="servWindow_custTransProvHandler(event)" 
+									   pageGo="servWindow_pageGoHandler(event)" 
+									   custAlarmAllShow="servWindow_custAlarmAllShowHandler(event)" 
+									   custAlarmOnlyShow="servWindow_custAlarmOnlyShowHandler(event)"
+									   mouseDown="mouseMoveHandler(event);" 
+									   restore="restoreHandler(event)" 
+									   maximize="maximizeHandler(event)" 
+									   close="closeHandler(event)"/>
+				<!-- 运行质量 -->
+				<components:RunQuaWindow id="runQuaWindow" currentState="{this.currentState}" 
+										 init="runQuaWindow_initHandler(event)" 
+										 custAlarmShow="runQuaWindow_custAlarmShowHandler(event)" 
+										 custProv="runQuaWindow_custProvHandler(event)" 
+										 custTransProv="runQuaWindow_custTransProvHandler(event)" 
+										 sheetShow="runQuaWindow_sheetShowHandler(event)" 
+										 custShow="runQuaWindow_custShowHandler(event)"
+										 pageGo="runQuaWindow_pageGoHandler(event)"
+										 mouseDown="mouseMoveHandler(event);" 
+										 restore="restoreHandler(event)" 
+										 maximize="maximizeHandler(event)" 
+										 close="closeHandler(event)"/>
+			</mx:VDividedBox>
+		</mx:HDividedBox>
+		<!-- 右边伸缩区域	业务统计 性能统计 -->
+		<s:HGroup id="rightBounceGroup" width="600" height="100%" gap="0" right="{-rightBounceGroup.width+rightBounceBtnGroup.width}">
+			<s:HGroup id="rightBounceBtnGroup" width="5" height="100%" verticalAlign="middle">
+				<mx:Image id="rightBounceBtn" source="{openImg}" buttonMode="true" click="rightBounceBtn_clickHandler(event)">
+				</mx:Image>
+			</s:HGroup>
+			<s:VGroup width="100%" height="100%">
+				<mx:VDividedBox width="100%" height="100%" styleName="bgstyle1">
+					<!-- 业务统计 -->
+					<components:ServStatWindow id="servStatWindow" currentState="{this.currentState}" 
+											   init="servStatWindow_initHandler(event)" 
+											   pageGo="servStatWindow_pageGoHandler(event)"/>
+					<!-- 性能统计 -->
+					<components:PerfStatWindow id="perfStatWindow" currentState="{this.currentState}" 
+											   init="perfStatWindow_initHandler(event)" 
+											   servTypeSelectChange="perfStatWindow_servTypeSelectChangeHandler(event)" 
+											   dataQuery="perfStatWindow_dataQueryHandler(event)"/>
+				</mx:VDividedBox>
+			</s:VGroup>
+		</s:HGroup>
+		<!-- 集客告警列表 -->
+		<components:CustAlarmListWindow id="custAlarmListWindow" custShow="custAlarmListWindow_custShowHandler(event)"/>
+		<!-- 告警列表 -->
+		<components:AlarmListWindow id="alarmListWindow" custShow="alarmListWindow_custShowHandler(event)"/>
+		<!-- 集客投诉工单列表 -->
+		<components:SheetListWindow id="sheetListWindow"/>
+		<!-- 集客列表 -->
+		<components:CustListWindow id="custListWindow" custShow="custListWindow_custShowHandler(event)"/>
+	</s:Group>
+</mx:Module>

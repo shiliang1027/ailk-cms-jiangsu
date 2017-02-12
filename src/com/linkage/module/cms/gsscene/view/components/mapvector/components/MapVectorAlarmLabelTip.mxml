@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   backgroundAlpha="0"
+				   borderAlpha="0"
+				   width="70"
+				   height="34">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.gsscene.view.components.mapvector.util.MapVectorImageFactory;
+
+			private var log:ILogger = Log.getLoggerByClass(MapVectorAlarmLabelTip);
+			private var _data:Object;
+			
+			private var _Offset_X:int = -18;
+			private var _Offset_Y:int = -40;
+			
+			[Bindable]
+			private var eqValue:String = "";
+			[Bindable]
+			private var eqShow:Boolean = true;
+			[Bindable]
+			private var perfValue:String = "";
+			[Bindable]
+			private var perfShow:Boolean = true;
+			
+			private var _loadMapShowKey:Object;//展示地图数据的样式，{eq:true,perf:false}
+
+			private function doRefresh():void
+			{
+				log.info("MapVectorAlarmLabelTip");
+				log.info(_data);
+				eqValue = _data["eqValue"];
+				perfValue = _data["perfValue"];
+				if(null!=_loadMapShowKey){
+					eqShow = _loadMapShowKey.eq;
+					perfShow = _loadMapShowKey.perf;
+				}
+			}
+			public function set data(value:Object):void
+			{
+				_data = value;
+				doRefresh();
+			}
+			
+			public function get Offset_X():int
+			{
+				return _Offset_X;
+			}
+			
+			public function get Offset_Y():int
+			{
+				return _Offset_Y;
+			}
+			
+			public function set loadMapShowKey(value:Object):void
+			{
+				_loadMapShowKey = value;
+			}
+		]]>
+	</fx:Script>
+		<s:VGroup width="100%" height="100%"
+				  verticalAlign="bottom" gap="0">
+			<s:Group id="eq" visible="{eqShow}" includeInLayout="{eqShow}">
+				<mx:Image source="{MapVectorImageFactory.green_1}"/>
+				<s:Label left="22" text="{eqValue}" styleName="label" fontWeight="bold" verticalCenter="0"/>
+			</s:Group>
+			<s:Group id="perf" visible="{perfShow}" includeInLayout="{perfShow}">
+				<mx:Image  source="{MapVectorImageFactory.green_2}"/>
+				<s:Label left="22" text="{perfValue}" styleName="label" fontWeight="bold" verticalCenter="0" />
+			</s:Group>
+		</s:VGroup>
+</s:BorderContainer>

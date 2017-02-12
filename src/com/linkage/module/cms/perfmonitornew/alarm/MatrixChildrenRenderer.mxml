@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				autoDrawBackground="false" width="100%" 
+				creationComplete="itemrenderer1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+			
+			import spark.components.List;
+			import spark.events.IndexChangeEvent;
+			import spark.layouts.TileLayout;
+			import spark.layouts.VerticalLayout;
+			private var log:ILogger = Log.getLoggerByClass(MatrixChildrenRenderer);
+			private var tilelayout:TileLayout = new TileLayout();
+			private var verLayout:VerticalLayout = new VerticalLayout();
+			override public function set data(value:Object):void
+			{
+				super.data=value;
+//				log.info(data.children);
+//				children = new ArrayCollection();
+				
+				
+			}
+			
+			
+			protected function itemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+//				if(data.children){
+//					var list:List = new List();
+//					list.itemRenderer = new ClassFactory(MatrixChildrenRenderer);
+//					list.dataProvider = data.children;
+//					list.visible=true;
+//					list.includeInLayout=true;
+//					this.addElement(list);
+//				} 
+//				
+//				if(data.children){
+//					this.addElement(list);
+//				}
+				
+			}
+			
+			protected function itemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			
+			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{ 
+				super.updateDisplayList(unscaledWidth,unscaledHeight);
+				
+				if(data.children && ArrayCollection(data.children).length>0){
+					//					if(!list){
+					//						list.itemRenderer = new ClassFactory(MatrixChildrenRenderer);
+					if(!ArrayCollection(data.children).getItemAt(0).children){
+						//							var layout:TileLayout = new TileLayout();
+						//							list.layout = layout;
+						this.currentState = "child_tile";
+					}else{
+						this.currentState = "child";
+					}
+					//					}
+					//					list.dataProvider = data.children;
+					//					if(!this.contains(list)){
+					//						this.addElement(list);
+					//					}
+				}else{
+					//					if(this.contains(list)){
+					//						this.removeElement(list);
+					//					}
+					
+					//					list.visible=list.includeInLayout=false;
+					
+					this.currentState = "noChild";
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:states>
+		<s:State name="child"/>
+		<s:State name="child_tile"/>
+		<s:State name="noChild"/>
+	</s:states>
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+	<s:Label text="{data.label}"/>
+	<s:DataGroup width="100%" dataProvider="{data.children}" excludeFrom="noChild"  itemRenderer="com.linkage.module.cms.perfmonitornew.alarm.MatrixChildrenRenderer" layout.child="{verLayout}" layout.child_tile="{tilelayout}"/>
+</s:ItemRenderer>

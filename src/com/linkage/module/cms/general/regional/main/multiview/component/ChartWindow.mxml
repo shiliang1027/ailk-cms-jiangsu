@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+			  xmlns:s="library://ns.adobe.com/flex/spark"
+			  xmlns:mx="library://ns.adobe.com/flex/mx"
+			  xmlns:panel="com.linkage.system.component.panel.*"
+			  width="100%"
+			  height="100%"
+			  closable="false"
+			  xmlns:component="com.linkage.module.cms.general.regional.main.multiview.component.*"
+			  xmlns:fusioncharts="com.linkage.common.fusioncharts.*">
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.common.fusioncharts.FusionChartsLK;
+			import com.linkage.system.structure.map.Map;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			/**
+			 *日志记录器
+			 */
+			private var log:ILogger=Log.getLogger("com.linkage.module.cms.general.regional.main.multiview.component.ChartWindow");
+			[Bindable]
+			/**
+			 *数据源
+			 */
+			private var comboBoxArray:ArrayCollection=null;
+			/**
+			 *指标ID和名称对应关系
+			 */
+			private var comboIdNameMap:Map=new Map();
+			/**
+			 *指标ID和图形数据对应关系
+			 */
+			private var chartArrayMap:Map=new Map();
+			/**
+			 *指标ID和图形对应关系
+			 */
+			private var chartMap:Map=new Map();
+			/**
+			 *基本URL
+			 */
+			private var baseURL:String=null;
+			/**
+			 *报表类型
+			 */
+			private var _chartType:String=null;
+
+			//初始化窗口
+			public function initComboBoxInfo(url:String, data:Object):void
+			{
+				baseURL=url;
+				//1.初始化下拉框列表
+				comboBoxArray=new ArrayCollection();
+				//2.遍历列表处理数据
+				for each (var obj:Object in data)
+				{
+					var cid:String=obj["mo_type_id"] + "_" + obj["perf_type_id"];
+					var cname:String=obj["show_name"];
+					comboIdNameMap.put(cid, cname);
+					comboBoxArray.addItem({id: cid, name: cname});
+				}
+				comboBox.selectedIndex=0;
+
+				//3.初始化指标配置框
+				chartConfig.initConfig(this, comboIdNameMap);
+			}
+
+			//初始化图标信息 chartType 1:柱状图 2:趋势图
+			public function initChartImageList(data:Object, chartType:String):void
+			{
+				log.info("[初始化图标信息 chartType 1:柱状图 2:趋势图]baseURL=" + baseURL);
+				//1.初始化参数
+				_chartType=chartType;
+
+				//2.获取画图数据
+				var chartArray:ArrayCollection=null;
+				for (var key:String in data)
+				{
+					chartArray=new ArrayCollection();
+					for each (var obj:Object in data[key])
+					{
+						chartArray.addItem({label: obj["perf_time"], value: obj["perf_value"]});
+					}
+					chartArrayMap.put(key, chartArray);
+
+					//生成所有图表
+					generateChart(key, chartType);
+				}
+
+				//设置显示图表
+				comboBoxChangeHandler();
+			}
+
+			//设置显示图标
+			public function comboBoxChangeHandler():void
+			{
+				if (comboBox.selectedItem == null)
+				{
+					return;
+				}
+				var cid:String=comboBox.selectedItem.id;
+				//1.获取选中项指标名称
+				var paramsArray:ArrayCollection=new ArrayCollection();
+				var captionStr:String=comboIdNameMap.get(cid);
+				paramsArray.addItem({caption: captionStr});
+				paramsArray.addItem({anchorRadius: '0'});
+				paramsArray.addItem({slantLabels: '1'});
+				paramsArray.addItem({showvalues: '0'});
+				paramsArray.addItem({lineColor: '0x00ff00'});
+				paramsArray.addItem({labelDisplay: 'Rotate'});
+				paramsArray.addItem({chartLeftMargin: '0'});
+				paramsArray.addItem({chartRightMargin: '0'});
+				paramsArray.addItem({chartBottomMargin: '0'});
+				//2.设置数据源画图
+				chartBox.removeAllElements();
+				var chartArray:ArrayCollection=chartArrayMap.get(cid);
+				var fusionChart:FusionChartsLK=new FusionChartsLK();
+				fusionChart.FCChartType=_chartType;
+				fusionChart.width=300;
+				fusionChart.height=160;
+				fusionChart.FCParams=new ArrayCollection;
+				fusionChart.FCData=new ArrayCollection;
+
+				if (chartArray != null)
+				{
+					fusionChart.FCParams=paramsArray;
+					fusionChart.FCData=chartArray;
+				}
+				chartBox.addElement(fusionChart);
+			}
+
+			//生成所有图表
+			private function generateChart(key:String, chartType:String):void
+			{
+				//1.计算宽度
+				log.info("[生成所有图表generateChart]baseURL=" + baseURL);
+				var curWidth:int=width / 3 - 20;
+				curWidth=(curWidth < 300) ? 300 : curWidth;
+				var fusionChart:FusionChartsLK=new FusionChartsLK();
+				fusionChart.width=curWidth;
+				fusionChart.height=160;
+				fusionChart.FCChartType=chartType;
+				fusionChart.FCParams=new ArrayCollection();
+				fusionChart.FCData=new ArrayCollection();
+				chartMap.put(key, fusionChart);
+				allChartBox.addElement(fusionChart);
+			}
+
+			//设置所有图表展示
+			public function allChartToShowHandler():void
+			{
+				chartMap.forEach(function(key:String, chart:FusionChartsLK):void
+					{
+						//1.获取选中项指标名称
+						var paramsArray:ArrayCollection=new ArrayCollection();
+						var captionStr:String=comboIdNameMap.get(key);
+						paramsArray.addItem({caption: captionStr});
+						paramsArray.addItem({anchorRadius: '0'});
+						paramsArray.addItem({slantLabels: '1'});
+						paramsArray.addItem({showvalues: '0'});
+						paramsArray.addItem({lineColor: '0x00ff00'});
+						paramsArray.addItem({labelDisplay: 'Rotate'});
+						paramsArray.addItem({chartLeftMargin: '0'});
+						paramsArray.addItem({chartRightMargin: '0'});
+						paramsArray.addItem({chartBottomMargin: '0'});
+
+						//2.设置数据源画图
+						var chartArray:ArrayCollection=chartArrayMap.get(key);
+						if (chartArray != null)
+						{
+							chart.FCParams=paramsArray;
+							chart.FCData=chartArray;
+						}
+					});
+			}
+
+			//配置图表信息
+			private function configChartInfo():void
+			{
+				chartConfig.windowOpenCloseHandler();
+			}
+
+			//展示隐藏图表
+			public function showHideChart(key:String, isShow:Boolean):void
+			{
+				var chart:FusionChartsLK=chartMap.get(key);
+				if (chart != null)
+				{
+					chart.visible=isShow;
+					chart.includeInLayout=isShow;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%"
+			  top="-26">
+		<s:HGroup width="50%"
+				  horizontalAlign="left">
+			<s:ComboBox id="comboBox"
+						x="{chartBox.x + 2}"
+						y="{chartBox.y + 2}"
+						width="125"
+						color="0x000000"
+						labelField="name"
+						change="comboBoxChangeHandler()"
+						dataProvider="{comboBoxArray}"/>
+		</s:HGroup>
+		<s:HGroup id="configHbox"
+				  width="50%"
+				  visible="false"
+				  paddingRight="50"
+				  horizontalAlign="right">
+			<s:Button label="指标配置"
+					  click="configChartInfo()"/>
+		</s:HGroup>
+	</s:HGroup>
+	<s:Scroller width="100%"
+				height="100%"
+				verticalScrollPolicy="auto"
+				horizontalScrollPolicy="auto">
+		<s:Group width="100%"
+				 height="100%">
+			<s:HGroup id="chartBox"
+					  width="100%"
+					  height="100%">
+			</s:HGroup>
+			<s:Group id="allChartBox"
+					 width="100%"
+					 height="100%"
+					 visible="false"
+					 includeInLayout="false">
+				<s:layout>
+					<s:TileLayout horizontalAlign="center"
+								  verticalAlign="middle"/>
+				</s:layout>
+			</s:Group>
+			<s:HGroup width="100%"
+					  horizontalAlign="right">
+				<component:ChartConfig id="chartConfig"
+									   visible="false"/>
+			</s:HGroup>
+		</s:Group>
+	</s:Scroller>
+</panel:Window>

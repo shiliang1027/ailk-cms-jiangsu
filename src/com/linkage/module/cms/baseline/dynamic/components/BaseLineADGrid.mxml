@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:AdvancedDataGrid xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 width="100%"
+					 height="100%"
+					 contextMenu="{cm}"
+					 creationComplete="advanceddatagrid1_creationCompleteHandler()"
+					 headerHeight="22"
+					 rowHeight="22"
+					 horizontalScrollPolicy="auto"
+					 verticalScrollPolicy="auto"
+					 verticalAlign="middle"
+					 styleName="sceneDG"
+					 doubleClickEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			
+			
+			private var log:ILogger = Log.getLoggerByClass(BaseLineADGrid);
+			[Bindable]
+			private var cm:ContextMenu;
+			
+			public var showSwatchFun:Function; 
+			public var exportDataFun:Function; 
+			protected function advanceddatagrid1_creationCompleteHandler():void
+			{
+				log.info("动态基线列表begin初始化");
+				var cmi1:ContextMenuItem = new ContextMenuItem("查看样本数据", true);
+				cmi1.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, menu_item_select_Handler);
+				var cmi2:ContextMenuItem = new ContextMenuItem("导出数据", true);
+				cmi2.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, menu_item_select_Handler);
+				cm = new ContextMenu();
+				cm.hideBuiltInItems();
+				cm.customItems = [cmi1,cmi2];
+			}
+			private function menu_item_select_Handler(evt:ContextMenuEvent):void
+			{
+				var param:Object;
+				var obj:Object = evt.mouseTarget;
+				if(obj.hasOwnProperty("data")){
+					param = (evt.mouseTarget as IListItemRenderer).data;
+				}else{
+					param = (evt.mouseTarget.parent as IListItemRenderer).data;
+				}
+				var menuName:String = evt.currentTarget.caption;
+				switch(menuName)
+				{
+					case "查看样本数据":
+					{
+						log.info("抛出查看样本数据事件...");
+						showSwatchFun(param);
+						break;
+					}
+					case "导出数据":
+					{
+						log.info("抛出导出数据事件...");
+						exportDataFun(param);
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+		<mx:columns>
+			<mx:AdvancedDataGridColumn minWidth="170" headerText="网元名" dataField="moName"/>
+			<mx:AdvancedDataGridColumn minWidth="110" headerText="时间" dataField="pointTime"/>
+			<mx:AdvancedDataGridColumn minWidth="190" headerText="上基线值" dataField="upBaseline" itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.ADGridEditItemRenderer"/>
+			<mx:AdvancedDataGridColumn minWidth="190" headerText="下基线值" dataField="downBaseline" itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.ADGridEditItemRenderer"/>
+			<mx:AdvancedDataGridColumn minWidth="170" headerText="上容忍值" dataField="upTolerance" itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.ADGridEditItemRenderer"/>
+			<mx:AdvancedDataGridColumn minWidth="170" headerText="下容忍值" dataField="downTolerance" itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.ADGridEditItemRenderer"/>
+		</mx:columns>
+</mx:AdvancedDataGrid>

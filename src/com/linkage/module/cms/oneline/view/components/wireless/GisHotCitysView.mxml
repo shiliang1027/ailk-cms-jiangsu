@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:NavBar xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					title="热点区域"
+					top="50"
+					location="right"
+					styleName="sceneNavBar"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					creationComplete="gisHotCityView_creationCompleteHandler(event)">
+	<!--
+		 ***************************************
+		 This is Content
+		 @author shiliang (66614)
+		 @version 1.0
+		 @date 2012-12-7
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.oneline.event.wireless.GisHotEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			[Bindable]
+			[Inject("gisHotViewPM")]
+			public var pm:GisHotViewPM;
+			[MessageDispatcher]
+			public var dispatcher:Function;
+
+			protected function gisHotCityView_creationCompleteHandler(event:FlexEvent):void
+			{
+			}
+
+			[MessageHandler(selector="LOADCELLRADIUSDATACOMPLETE")]
+			public function loadCellRadiusDataCompleteHandler(e:GisHotEvent):void
+			{
+				dispatcher(new GisHotEvent(GisHotEvent.LOADCITYSDATA));
+			}
+
+			[MessageHandler(selector="LOADCITYSDATACOMPLETE")]
+			public function loadCitysDataCompleteHandler(e:GisHotEvent):void
+			{
+				cityTree.validateNow();
+				cityTree.selectedItem=pm.dm.citys.getItemAt(0);
+				cityTree.expandItem(pm.dm.citys.getItemAt(0), true);
+				cityTree.dispatchEvent(new ListEvent(ListEvent.ITEM_CLICK));
+			}
+
+			[MessageHandler(selector="LOADCITYSDATAERROR")]
+			public function loadCitysDataErrorHandler(e:GisHotEvent):void
+			{
+				Alert.show("获取地市列表失败", "错误");
+				cityTree.selectedItem=pm.dm.citys.getItemAt(0);
+				cityTree.dispatchEvent(new ListEvent(ListEvent.CHANGE));
+			}
+
+			protected function cityTree_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				pm.dm.gisInfos.removeAll();
+				var cityIds:Array=new Array();
+				cityIds.push(cityTree.selectedItem.city_id);
+				var evt:GisHotEvent=new GisHotEvent(GisHotEvent.DOLOADHOTSPOTCELLDATA);
+				var param:Object=new Object();
+				param.cityIds=cityIds.join(",");
+				evt.param=param;
+				dispatcher(evt);
+				
+			}
+			
+			[MessageHandler(selector="LOADHOTSPOTCELLDATACOMPLETE")]
+			public function loadHotSpotCellDataCompleteHandler(e:GisHotEvent):void
+			{
+				closeMe();
+			}
+			
+			[MessageHandler(selector="LOADGISINFODATACOMPLETE")]
+			public function loadGisInfoDataCompleteHandler(e:GisHotEvent):void
+			{
+				closeMe();
+			}
+			
+			private function closeMe():void{
+				if(this.content.visible){
+					this.titleGroup.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<ailk_compts:AutoSizeTree id="cityTree" left="5" top="5" bottom="5"
+							  width="150"
+							  styleName="sceneTree"
+							  height="400"
+							  dataProvider="{pm.dm.citys}"
+							  contentBackgroundAlpha="0"
+							  labelField="city_name"
+							  indentation="12"
+							  paddingLeft="10"
+							  borderVisible="false"
+							  folderClosedIcon="{null}"
+							  folderOpenIcon="{null}"
+							  defaultLeafIcon="{null}"
+							  disclosureClosedIcon="@Embed('assets/+.png')"
+							  disclosureOpenIcon="@Embed('assets/-.png')"
+							  itemClick="cityTree_itemClickHandler(event)"/>
+</ailk_compts:NavBar>

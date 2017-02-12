@@ -1,0 +1,737 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Scroller xmlns:fx="http://ns.adobe.com/mxml/2009"
+			xmlns:s="library://ns.adobe.com/flex/spark"
+			xmlns:mx="library://ns.adobe.com/flex/mx"
+			width="100%"
+			height="100%"
+			verticalScrollPolicy="auto"
+			horizontalScrollPolicy="off"
+			xmlns:local="*"
+			xmlns:parsley="http://www.spicefactory.org/parsley"
+			xmlns:components="com.linkage.module.cms.scenedaily.view.components.*"
+			xmlns:gis="com.linkage.gis.*"
+			xmlns:ailk_gis="http://www.asiainfo-linkage.com.cn/flex/gis"
+			xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"> 
+	<!--
+		 ***************************************  
+		 日常矢量地图和gis地图
+		 @author hurw (69065)
+		 @version 1.0
+		 @date 2012-8-20
+		 @langversion 3.0
+		 @playerversion Flash 11
+		 @productversion Flex 4
+		 @copyright Ailk NBS-Network Mgt. RD Dept.
+		 ***************************************
+	-->
+	<fx:Declarations>
+		<parsley:Configure/>
+		<!-- 江苏 -->
+		<local:nanjing_a id="js_nanjing_a"/>
+		<local:nanjing_b id="js_nanjing_b"/>
+		<local:wuxi_a id="js_wuxi_a"/>
+		<local:wuxi_b id="js_wuxi_b"/>
+		<local:changzhou_a id="js_changzhou_a"/>
+		<local:changzhou_b id="js_changzhou_b"/>
+		<local:zhenjiang_a id="js_zhenjiang_a"/>
+		<local:zhenjiang_b id="js_zhenjiang_b"/>
+		<local:suzhou_a id="js_suzhou_a"/>
+		<local:suzhou_b id="js_suzhou_b"/>
+		<local:yangzhou_a id="js_yangzhou_a"/>
+		<local:yangzhou_b id="js_yangzhou_b"/>
+		<local:huaian_a id="js_huaian_a"/>
+		<local:huaian_b id="js_huaian_b"/>
+		<local:suqian_a id="js_suqian_a"/>
+		<local:suqian_b id="js_suqian_b"/>
+		<local:xuzhou_a id="js_xuzhou_a"/>
+		<local:xuzhou_b id="js_xuzhou_b"/>
+		<local:nantong_a id="js_nantong_a"/>
+		<local:nantong_b id="js_nantong_b"/>
+		<local:yancheng_a id="js_yancheng_a"/>
+		<local:yancheng_b id="js_yancheng_b"/>
+		<local:taizhou_a id="js_taizhou_a"/>
+		<local:taizhou_b id="js_taizhou_b"/>
+		<local:lianyungang_a id="js_lianyungang_a"/>
+		<local:lianyungang_b id="js_lianyungang_b"/>
+		<!-- 新疆 -->
+		<local:hetian_a id="xj_hetian_a"/>
+		<local:kashi_a id="xj_kashi_a"/>
+		<local:bazhou_a id="xj_bazhou_a"/>
+		<local:kezhou_a id="xj_kezhou_a"/>
+		<local:akesu_a id="xj_akesu_a"/>
+		<local:yili_a id="xj_yili_a"/>
+		<local:bozhou_a id="xj_bozhou_a"/>
+		<local:kuitun_a id="xj_kuitun_a"/>
+		<local:tulufan_a id="xj_tulufan_a"/>
+		<local:wulumuqi_a id="xj_wulumuqi_a"/>
+		<local:kelamayi_a id="xj_kelamayi_a"/>
+		<local:shihezi_a id="xj_shihezi_a"/>
+		<local:tacheng_a id="xj_tacheng_a"/>
+		<local:hami_a id="xj_hami_a"/>
+		<local:aletai_a id="xj_aletai_a"/>
+		<local:changji_a id="xj_changji_a"/>
+
+		<local:hetian_b id="xj_hetian_b"/>
+		<local:kashi_b id="xj_kashi_b"/>
+		<local:bazhou_b id="xj_bazhou_b"/>
+		<local:kezhou_b id="xj_kezhou_b"/>
+		<local:akesu_b id="xj_akesu_b"/>
+		<local:yili_b id="xj_yili_b"/>
+		<local:bozhou_b id="xj_bozhou_b"/>
+		<local:kuitun_b id="xj_kuitun_b"/>
+		<local:tulufan_b id="xj_tulufan_b"/>
+		<local:wulumuqi_b id="xj_wulumuqi_b"/>
+		<local:kelamayi_b id="xj_kelamayi_b"/>
+		<local:shihezi_b id="xj_shihezi_b"/>
+		<local:tacheng_b id="xj_tacheng_b"/>
+		<local:hami_b id="xj_hami_b"/>
+		<local:aletai_b id="xj_aletai_b"/>
+		<local:changji_b id="xj_changji_b"/>
+
+		<local:xjall_a id="zx_a"/>
+		<local:xjall_b id="zx_b"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.gis.core.GisFeature;
+			import com.ailk.common.ui.gis.core.metry.GisPoint;
+			import com.ailk.common.ui.gis.core.styles.GisFillPredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLinePredefinedStyle;
+			import com.ailk.common.ui.gis.core.styles.GisLineStyle;
+			import com.ailk.common.ui.gis.core.styles.GisMarkerPictureStyle;
+			import com.linkage.module.cms.components.dummymap.MapNode;
+			import com.linkage.module.cms.components.dummymap.MapNodeEvent;
+			import com.linkage.module.cms.scenedaily.domain.common.IUser;
+			import com.linkage.module.cms.scenedaily.event.DailyMapEvent;
+			import com.linkage.module.cms.scenedaily.event.SceneDailyEvent;
+
+			import flash.utils.setTimeout;
+
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			import mx.utils.ColorUtil;
+
+
+			private var log:ILogger = Log.getLoggerByClass(DailyMapComp);
+
+			[Inject("user")]
+			public var user:IUser;
+
+			[Inject("dailyMapCompPM")]
+			[Bindable]
+			public var pm:DailyMapCompPM;
+
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+
+			private var mapFinished:Boolean = false; //地图是否加载完成
+
+			private var firstFlag:Boolean = false; //是否第一次加载，用于保存地市坐标数据
+
+			private var jsMapArray:Array = new Array;
+			/*新疆*/
+			private var mapArray:Array = new Array();
+
+			private var labelMap:Object = new Object();
+
+			private function mapWork_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("地图初始化………………");
+				/******************* 江苏 *********************/
+				jsMapArray["0100_a"] = js_nanjing_a;
+				jsMapArray["0100_b"] = js_nanjing_b;
+				jsMapArray["0200_a"] = js_suzhou_a;
+				jsMapArray["0200_b"] = js_suzhou_b;
+				jsMapArray["0300_a"] = js_wuxi_a;
+				jsMapArray["0300_b"] = js_wuxi_b;
+				jsMapArray["0400_a"] = js_changzhou_a;
+				jsMapArray["0400_b"] = js_changzhou_b;
+				jsMapArray["0500_a"] = js_zhenjiang_a;
+				jsMapArray["0500_b"] = js_zhenjiang_b;
+				jsMapArray["0600_a"] = js_yangzhou_a;
+				jsMapArray["0600_b"] = js_yangzhou_b;
+				jsMapArray["0700_a"] = js_nantong_a;
+				jsMapArray["0700_b"] = js_nantong_b;
+				jsMapArray["0800_a"] = js_taizhou_a;
+				jsMapArray["0800_b"] = js_taizhou_b;
+				jsMapArray["0900_a"] = js_xuzhou_a;
+				jsMapArray["0900_b"] = js_xuzhou_b;
+				jsMapArray["1000_a"] = js_huaian_a;
+				jsMapArray["1000_b"] = js_huaian_b;
+				jsMapArray["1100_a"] = js_yancheng_a;
+				jsMapArray["1100_b"] = js_yancheng_b;
+				jsMapArray["1200_a"] = js_lianyungang_a;
+				jsMapArray["1200_b"] = js_lianyungang_b;
+				jsMapArray["1300_a"] = js_suqian_a;
+				jsMapArray["1300_b"] = js_suqian_b;
+				/*新疆*/ /****************新疆**********/
+				mapArray["0100_a"] = xj_wulumuqi_a;
+				mapArray["0100_b"] = xj_wulumuqi_b;
+				mapArray["0200_a"] = xj_hami_a;
+				mapArray["0200_b"] = xj_hami_b
+				mapArray["0300_a"] = xj_kelamayi_a;
+				mapArray["0300_b"] = xj_kelamayi_b;
+				mapArray["0400_a"] = xj_shihezi_a;
+				mapArray["0400_b"] = xj_shihezi_b;
+				mapArray["0500_a"] = xj_changji_a;
+				mapArray["0500_b"] = xj_changji_b;
+				mapArray["0600_a"] = xj_bazhou_a;
+				mapArray["0600_b"] = xj_bazhou_b;
+				mapArray["0700_a"] = xj_tulufan_a;
+				mapArray["0700_b"] = xj_tulufan_b;
+				mapArray["0800_a"] = xj_akesu_a;
+				mapArray["0800_b"] = xj_akesu_b;
+				mapArray["0900_a"] = xj_kashi_a;
+				mapArray["0900_b"] = xj_kashi_b;
+				mapArray["1000_a"] = xj_bozhou_a;
+				mapArray["1000_b"] = xj_bozhou_b;
+				mapArray["1100_a"] = xj_kezhou_a;
+				mapArray["1100_b"] = xj_kezhou_b;
+				mapArray["1200_a"] = xj_yili_a;
+				mapArray["1200_b"] = xj_yili_b;
+				mapArray["1300_a"] = xj_kuitun_a;
+				mapArray["1300_b"] = xj_kuitun_b;
+				mapArray["1400_a"] = xj_aletai_a;
+				mapArray["1400_b"] = xj_aletai_b;
+				mapArray["1500_a"] = xj_tacheng_a;
+				mapArray["1500_b"] = xj_tacheng_b;
+				mapArray["1600_a"] = xj_hetian_a;
+				mapArray["1600_b"] = xj_hetian_b;
+
+				//通过http请求xml文件
+				var httpService:HTTPService = new HTTPService();
+				httpService.method = "get";
+				httpService.resultFormat = "e4x";
+				httpService.addEventListener(ResultEvent.RESULT, httpService_resultHandler);
+				//httpService.url = "xml/map_jiangsu.xml";
+				/*新疆*/
+				httpService.url = "xml/map_jiangsu.xml";
+				httpService.send();
+			}
+
+			//加载xml文件地图生成
+			private function httpService_resultHandler(event:ResultEvent):void
+			{
+				log.info("mapWork.xmlData:" + event.result);
+				//mapWork.mapObjArray = jsMapArray;
+				/*新疆*/
+				mapWork.mapObjArray = mapArray;
+				mapWork.xmlData = event.result as XML;
+
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOVER, onMapNodeOverHandler);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_MOUSEOUT, onMapNodeOutHandler);
+				mapWork.addEventListener(MapNodeEvent.MAPNODE_CLICK, onMapNodeClickHandler);
+
+				mapWork.showMap();
+				mapFinished = true;
+
+			}
+
+			[MessageHandler(selector="LOAD_IMP_PRO_KPI_EVENT")]
+			public function loadkpiHandler(e:SceneDailyEvent = null):void
+			{
+				log.info("测试地图加载mapFinished:{0}", mapFinished);
+				if (mapFinished)
+				{
+					//测试地图加载
+					log.info("[地图]更新配置面板中的指标名称和指标值user:");
+					log.info(user);
+					if (e && e.param && e.param.perfGroupName)
+						configPanel.kpiName = e.param.perfGroupName;
+					var evt:DailyMapEvent;
+					if (user.resType == "1")
+					{ //如果传递过来的是省份，那么转去查询所有地市
+						if (e && e.param && e.param.kpiValue)
+							configPanel.kpiValue = "全省：" + e.param.kpiValue;
+//						if (e.param.hasOwnProperty("kpiId")) // && e.param["kpiId"]
+//						{
+						log.info("地图渲染,事件[LOAD_IMP_PRO_KPI_EVENT]参数如下");
+						evt = new DailyMapEvent(DailyMapEvent.LOAD_GISKPI_DATA);
+						evt.param = new Object;
+						evt.param.type = user.isHealthOrThreshold; //健康度，阈值
+						evt.param.timeGranular = user.interval; //日周月
+						evt.param.stateTime = user.gatherTime; //时间
+						evt.param.isLeaderPef = user.viewType; // 1  2  3
+						evt.param.resId = user.resId;
+						evt.param.cityId = user.cityId;
+						evt.param.resType = "2";
+						if (e && e.param && e.param.kpiId && e.param.moTypeId)
+						{
+							evt.param.perfTypeId = e.param.kpiId;
+							evt.param.moTypeId = e.param.moTypeId;
+						}
+						else
+						{
+							evt.param.perfTypeId = null;
+							evt.param.moTypeId = null;
+						}
+						evt.param.perfLevel = "2"; //如果是省地图那么传入1，如果是地市 传入2 如果是网元，传入3
+						log.info(evt.param);
+						msgDispatcher(evt);
+//						}
+//						else
+//						{
+//							//TODO 清空省级地图所有数据，恢复图形原状
+//							log.info("当前resType[{0}]状态下，不存在指标！！", user.resType);
+//							pm.dm.gisKpis.removeAll();
+//							pm.dm.gisKpis.refresh();
+//							var sevt:DailyMapEvent = new DailyMapEvent(DailyMapEvent.GISKPI_DYEHANDLER);
+//							msgDispatcher(sevt);
+//						}
+					}
+					else if (user.resType == "2")
+					{
+						if (e && e.param && e.param.kpiValue)
+							configPanel.kpiValue = "全市：" + e.param.kpiValue;
+//						if (e.param.hasOwnProperty("kpiId")) // && e.param["kpiId"]
+//						{
+						evt = new DailyMapEvent(DailyMapEvent.LOAD_MOID_DATA);
+						log.info("[地图]跳转进入地市gisMap 参数如下");
+						evt.param = new Object;
+						evt.param.type = user.isHealthOrThreshold; //健康度，阈值
+						evt.param.timeGranular = user.interval; //日周月
+						evt.param.stateTime = user.gatherTime; //时间
+
+						evt.param.isLeaderPef = user.viewType; // 1  2  3
+						evt.param.resId = user.resId;
+						evt.param.cityId = user.cityId;
+
+						evt.param.resType = "3";
+						if (e && e.param && e.param.kpiId && e.param.moTypeId)
+						{
+							evt.param.perfTypeId = e.param.kpiId;
+							evt.param.moTypeId = e.param.moTypeId;
+						}
+						else
+						{
+							evt.param.perfTypeId = null;
+							evt.param.moTypeId = null;
+						}
+
+						evt.param.perfLevel = "3"; //如果是省地图那么传入1，如果是地市 传入2 如果是网元，传入3
+						msgDispatcher(evt);
+//						}
+//						else
+//						{
+//							//TODO 清空地市所有gisFeatures,还原原状
+//							log.info("当前resType[{0}]状态下，不存在指标！！", user.resType);
+//							pm.dm.gisKpis.removeAll();
+//							pm.dm.gisKpis.refresh();
+//							var devt:DailyMapEvent = new DailyMapEvent(DailyMapEvent.GISID_THROWMAP);
+//							msgDispatcher(devt);
+//						}
+					}
+					else if (user.resType == "3")
+					{
+						if (e && e.param && e.param.kpiValue)
+							configPanel.kpiValue = e.param.kpiValue;
+					}
+					else
+					{
+						log.info("[地图]参数resType为[{0}]，无需操作。", user.resType);
+					}
+				}
+				else
+				{
+					log.info("加载地图未完成，请稍等……");
+					setTimeout(function():void
+						{
+							if (e)
+								loadkpiHandler(e);
+							else
+								loadkpiHandler();
+						}, 500);
+				}
+
+			}
+
+			//网元影响范围
+			[MessageHandler(selector="SHOW_MO_COVER_AREA")]
+			public function showMoCover(e:SceneDailyEvent):void
+			{
+				if (user.resType != "1")
+				{
+					var evt:DailyMapEvent = new DailyMapEvent(DailyMapEvent.LOAD_MOID_DATA);
+					log.info("[影响范围]gisMap 指定网元范围 参数如下");
+					evt.param = new Object;
+					evt.param.type = user.isHealthOrThreshold; //健康度，阈值
+					evt.param.timeGranular = user.interval; //日周月
+					evt.param.stateTime = user.gatherTime; //时间
+
+					evt.param.isLeaderPef = user.viewType; // 1  2  3
+
+
+					evt.param.moId = e.param.moId;
+					evt.param.perfTypeId = e.param.kpiId;
+					evt.param.moTypeId = e.param.moTypeId;
+
+					evt.param.cityId = user.cityId;
+
+					evt.param.resType = "3";
+
+					evt.param.perfLevel = "3"; //如果是省地图那么传入1，如果是地市 传入2 如果是网元，传入3
+					msgDispatcher(evt);
+				}
+				else
+				{
+					log.error("错误的位置出现影响范围按钮resType[{0}],", user.resType);
+				}
+			}
+
+
+			private function onMapNodeOverHandler(event:MapNodeEvent):void
+			{
+				var mapNode:MapNode = event.mapNode;
+				mapNode.x = mapNode.x - 2;
+				mapNode.y = mapNode.y - 2;
+			}
+
+			private function onMapNodeOutHandler(event:MapNodeEvent):void
+			{
+				var mapNode:MapNode = event.mapNode;
+				mapNode.x = mapNode.x + 2;
+				mapNode.y = mapNode.y + 2;
+			}
+
+			private function onMapNodeClickHandler(event:MapNodeEvent):void
+			{
+				//打开新地图
+				log.info("打开新地图！！");
+				log.debug("设置点击地图标志");
+				user.kpiMapClickFlag = true;
+				var mapNode:MapNode = event.mapNode;
+//				//变动面板位置
+//				configPanel.top = null;
+//				configPanel.right = null;
+//				configPanel.left = 2;
+//				configPanel.bottom = 2;
+
+				//gisWork 默认地图id
+				var cityId:String = mapNode.id.split("_")[0];
+				log.info("cityId:{0}", cityId);
+
+				//更新user中的cityId，抛出事件调用面板事件变动
+				user.cityId = cityId;
+				user.resId = cityId;
+				user.resType = "2";
+
+
+				var evt:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.CHANGE_MAP);
+				msgDispatcher(evt);
+			}
+
+			//渲染地图
+			[MessageHandler(selector="GISKPI_DYEHANDLER")]
+			public function gisKpiDyeHandler(e:DailyMapEvent):void
+			{
+				log.info("开始进行地图渲染");
+				log.info(pm.dm.gisKpis);
+				var gisMap:Object = new Object;
+				//修改传递的数据集为map形式，key为cityId 
+				for each (var gis:Object in pm.dm.gisKpis)
+				{
+					gisMap[gis.resId] = gis;
+
+				}
+				//如果是第一次加载，肯定是矢量地图，把地市坐标数据存入dm中
+				if (!firstFlag)
+				{
+					pm.dm.cityLocation = gisMap;
+					firstFlag = true;
+				}
+				var cityId:String;
+				var sLabel:SmallLabelComp;
+				log.info("包装传过来的数据集为map");
+
+				//循环地图，寻找MapNodeA，
+				for each (var obj:Object in mapWork.elementBox.elements)
+				{
+					if (obj is MapNode && String(obj.id).indexOf("_a") != -1)
+					{
+						var mn:MapNode = obj as MapNode;
+						cityId = (mn.id).split("_")[0];
+						//给地图填充颜色
+						if (gisMap.hasOwnProperty(cityId) && gisMap[cityId])
+						{
+//							mn.fillColor(Number(gisMap[cityId].color));
+							mn.fillColor(ColorUtil.adjustBrightness(uint(gisMap[cityId].color), 65));
+							if (labelMap.hasOwnProperty(cityId) && labelMap[cityId])
+							{
+								//如果已经存在，需要赋值后调用初始化方法
+								sLabel = labelMap[cityId] as SmallLabelComp;
+								sLabel.text = gisMap[cityId].kpiValue;
+//								sLabel.toolTip = gisMap[cityId].kpiName + ":" + gisMap[cityId].kpiValue;
+								sLabel.isUp = gisMap[cityId].trend;
+								sLabel.init();
+//								sLabel.setStyle("borderAlpha", "1");
+//								sLabel.setStyle("backgroundAlpha", "1");
+//								sLabel.setStyle("backgroundColor", Number(gisMap[cityId].color));
+							}
+							else
+							{
+								//如果不存在，创建后赋值即可
+								sLabel = new SmallLabelComp();
+								sLabel.x = mn.centerPoint.x - 10;
+								sLabel.y = mn.centerPoint.y + 16;
+								sLabel.text = gisMap[cityId].kpiValue;
+//								sLabel.toolTip = gisMap[cityId].kpiName + ":" + gisMap[cityId].kpiValue;
+								sLabel.isUp = gisMap[cityId].trend;
+//								sLabel.setStyle("backgroundColor", Number(gisMap[cityId].color));
+								newLayer.addElement(sLabel);
+								labelMap[cityId] = sLabel;
+							}
+
+							if (gisMap[cityId].kpiName == null || "null" == gisMap[cityId].kpiName)
+								mn.toolTip = configPanel.kpiName + ":" + gisMap[cityId].kpiValue;
+							else
+								mn.toolTip = gisMap[cityId].kpiName + ":" + gisMap[cityId].kpiValue;
+						}
+						else
+						{ //否则，恢复原状，清空数据
+							mn.fillColor(0x0f9cb3);
+							if (labelMap.hasOwnProperty(cityId) && labelMap[cityId])
+							{
+								sLabel = labelMap[cityId] as SmallLabelComp;
+								sLabel.text = "";
+//								sLabel.toolTip = "";
+								sLabel.isUp = "";
+								sLabel.init();
+//								sLabel.setStyle("borderAlpha", "0");
+//								sLabel.clearStyle("backgroundColor");
+//								sLabel.setStyle("backgroundAlpha", "0");
+							}
+							mn.toolTip = "";
+						}
+					}
+				}
+			}
+
+			[MessageHandler(selector="CHANGE_MAP")]
+			public function changeMap(e:SceneDailyEvent):void
+			{
+				log.info("[指标进入下一层]change_map事件切换地图，cityId:{0};", user.cityId);
+				if (user.cityId && user.cityId != "00")
+				{
+					mapGroup.visible = false;
+					mapGroup.includeInLayout = false;
+					mapWork.visible = false;
+					mapWork.includeInLayout = false;
+
+					gisGroup.visible = true;
+					gisGroup.includeInLayout = true;
+
+					//切换地图，进入地市地图页面
+					log.info("地图切换调用mapchange事件defaultMapId={0};changeMap:{1}", gisWork.defaultMapId, user.cityId);
+					gisWork.map.mapChange(user.cityId);
+				}
+				else
+				{
+					mapGroup.visible = true;
+					mapGroup.includeInLayout = true;
+					mapWork.visible = true;
+					mapWork.includeInLayout = true;
+
+					gisGroup.visible = false;
+					gisGroup.includeInLayout = false;
+//					log.warn("[error]user中地市为空，无法向下跳转:{0}.", user.cityId);
+				}
+				var evt:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.GETVIEW_KPIDATA);
+				if (e.param)
+					evt.param = e.param;
+				msgDispatcher(evt);
+			}
+
+			public function changeProvinceHandler():void
+			{
+				log.info("返回按钮，返回省级视图；");
+				log.debug("设置返回标志");
+				user.kpiMapClickFlag = true;
+				user.cityId = "00";
+				user.resId = "00";
+				user.resType = "1";
+
+				var evt:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.CHANGE_MAP);
+				msgDispatcher(evt);
+			}
+
+			//地市网元撒点
+			[MessageHandler(selector="GISID_THROWMAP")]
+			public function dyeGis(e:DailyMapEvent):void
+			{
+				gisWork.map.removeAllGisFeature();
+				log.info("[地图]事件GISID_THROWMAP抛出，开始地市网元撒点");
+
+				/* var pic:GisMarkerPictureStyle = new GisMarkerPictureStyle(user.context + "cms/images/olympic_center_small.jpg", 90, 90);
+
+				   var feature:GisFeature = new GisFeature(new GisPoint(118.71889197871963, 32.010960008767775), pic);
+				   gisWork.map.addGisFeature(feature);
+				   gisWork.map.zoomToScale(8000, new GisPoint(118.71889197871963, 32.010960008767775));
+				 return; */
+				log.info(pm.dm.gisKpis);
+				var arr:Array = new Array(); //存放gis的array
+				var gisIdMap:Object = new Object();
+				for each (var obj:Object in pm.dm.gisKpis)
+				{
+					if (obj.hasOwnProperty("gisId") && obj["gisId"])
+					{
+						if (arr.indexOf(obj["gisId"]) == -1)
+						{
+							arr.push(obj["gisId"]);
+							gisIdMap[obj["gisId"]] = obj;
+						}
+					}
+				}
+
+				//生成泰森多边形gisFeature
+				if (arr.length > 0)
+				{
+					gisWork.map.queryBTSGisFeaturesByAreaIds(arr, function(gisFeatures:Array):void
+						{
+
+
+							log.info("BTS  gisFeatures.length:{0};", gisFeatures.length);
+							var borderStyle:GisLinePredefinedStyle = new GisLinePredefinedStyle(GisLineStyle.STYLE_SOLID, 0x000000, .8, 1);
+							var color:Number = 0X0000FF;
+
+							for each (var gisFeature:GisFeature in gisFeatures)
+							{
+								var gisId:String = gisFeature.attributes.gis_id;
+								if (gisIdMap.hasOwnProperty([gisId]))
+								{
+									color = Number(gisIdMap[gisId]["color"]);
+									gisFeature.toolTip = gisIdMap[gisId]["kpiName"] + ":" + gisIdMap[gisId]["kpiValue"];
+//									gisFeature.toolTip = gisIdMap[gisId]["kpiValue"];
+
+									var polygonStyle:GisFillPredefinedStyle = new GisFillPredefinedStyle(GisLineStyle.STYLE_SOLID, color, 0.5, borderStyle);
+
+									gisFeature.gisStyle = polygonStyle;
+									gisWork.map.addGisFeature(gisFeature);
+								}
+							}
+							if (gisFeatures.length == 1)
+							{
+								log.info("一个gis网元需要撒点！！！");
+								gisWork.map.zoomToScale(8000, gisFeatures[0].gisMetry.gisExtent.center);
+							}
+							else if (gisFeatures.length > 1)
+							{
+								log.info("不止一个gis网元需要撒点！！！");
+								gisWork.map.viewRefresh();
+							}
+							else
+							{
+								log.info("没有gis网元需要撒点！！！");
+								gisWork.map.viewRefresh();
+							}
+							log.info("地图]事件GISID_THROWMAP抛出，网元撒点结束");
+						});
+				}
+				else
+				{
+					log.info("么有网元gisId");
+					gisWork.map.viewRefresh();
+				}
+
+
+				var cityLocation:Object = pm.dm.cityLocation;
+				if (cityLocation[user.cityId]["longitude"] && cityLocation[user.cityId]["latitude"])
+				{
+					gisWork.map.zoomToScale(1000000, new GisPoint(cityLocation[user.cityId]["longitude"], cityLocation[user.cityId]["latitude"]));
+					log.info("gis地图，定位完成");
+				}
+				else
+				{
+					log.info("gis地图定位中心点失败，未找到地市坐标！！");
+				}
+			}
+
+			//渲染所有指标
+			private function dyeAllKpiHandler():void
+			{
+				user.kpiId = "";
+				user.kpiName = "";
+				user.moTypeId = "";
+				user.kpiValue = "";
+
+				configPanel.kpiName = "";
+				configPanel.kpiValue = "";
+
+				var evt:SceneDailyEvent = new SceneDailyEvent(SceneDailyEvent.MINI_CLEAR_KPIINFOHANDLER);
+				evt.param = new Object();
+				evt.param.kpiName = "";
+				evt.param.kpiValue = "";
+				msgDispatcher(evt)
+
+				loadkpiHandler();
+			}
+
+			/* private function roamDataClickHandler():void
+			   {
+			   navigateToURL(new URLRequest(user.context + "cms/scene/roam/roam.action?sceneId=1006&level=1"), "_blank");
+			 } */
+		]]>
+	</fx:Script>
+	<s:Group width="100%"
+			 height="100%">
+		<s:HGroup id="mapGroup"
+				  width="100%"
+				  height="100%"
+				  horizontalAlign="center">
+			<s:BorderContainer width="547"
+							   height="492"
+							   borderAlpha="0">
+				<s:Group width="100%"
+						 height="100%"
+						 left="-70"
+						 top="50">
+					<ailk_compts:VectorMapWork id="mapWork"
+								  width="100%"
+								  height="100%"
+								  creationComplete="mapWork_creationCompleteHandler(event)"/>
+					<s:Group id="newLayer"
+							 width="100%"
+							 height="100%"/>
+				</s:Group>
+			</s:BorderContainer>
+		</s:HGroup>
+		<s:BorderContainer id="gisGroup"
+						   borderAlpha="0"
+						   visible="false"
+						   includeInLayout="false"
+						   width="100%"
+						   height="100%">
+			<s:Group width="100%"
+					 height="100%"
+					 verticalCenter="0"
+					 horizontalCenter="0"
+					 top="20">
+				<ailk_gis:MapWork id="gisWork"
+								  defaultMapId="0100"
+								  width="100%"
+								  showOverView="false"
+								  height="100%"/>
+				<s:Button label="返回"
+						  click="changeProvinceHandler()"
+						  right="8"
+						  top="5"/>
+			</s:Group>
+		</s:BorderContainer>
+		<s:Button label="渲染所有"
+				  click="dyeAllKpiHandler()"
+				  right="8"
+				  top="40"/>
+		<!--<s:Button label="漫游数据"
+			 click="roamDataClickHandler()"
+			 right="84"
+			 top="40"/>-->
+		<components:ConfigPanelComp id="configPanel"
+									width="185"
+									height="114"
+									top="70"
+									right="59"/>
+	</s:Group>
+</s:Scroller>

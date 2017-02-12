@@ -1,0 +1,590 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%"
+		 height="100%"
+		 label="客户性能数据"
+		 creationComplete="vbox1_creationCompleteHandler(event)"
+		 xmlns:panel="com.linkage.system.component.panel.*"
+		 xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components">
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+		[Event(name="alarmSignQuery",type="com.linkage.module.cms.groupclient.event.HealthInfoCompEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.system.utils.ExcelUtil;
+			import com.ailk.common.ui.components.pagination.event.PaginationEvent;
+			import com.linkage.module.cms.groupclient.event.HealthInfoCompEvent;
+			import com.linkage.module.cms.specialty.alarmSearch.common.HeaderCheckRenderer;
+			import com.linkage.module.cms.specialty.alarmSearch.event.AlarmSignEvent;
+			import com.linkage.system.logging.ILogger;
+			import com.linkage.system.logging.Log;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.listClasses.IListItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+
+
+			public var parameters:Object;
+
+			private static var log:ILogger=Log.getLogger("com.linkage.module.cms.groupclient.components.AlarmSignComp");
+
+			[Bindable]
+			private var complainList:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var dataSpecNetKpi:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var dataSpecServKpi:ArrayCollection=new ArrayCollection();
+//			[Bindable]
+//			private var complainList:ArrayCollection=new ArrayCollection([{"time": "2013-04-03", "reason": "无", "method": "无", "person": "无", "condition": "无", "comtime": "30小时", "isovertime": "否"}]);
+//			[Bindable]
+//			private var dataSpecNetKpi:ArrayCollection=new ArrayCollection([{"time": "3021/04/12", "spebadlong": "12", "specbadtime": "11", "speuserper": "56%"}]);
+//			[Bindable]
+//			private var dataSpecServKpi:ArrayCollection=new ArrayCollection([{"time": "2013/04/23"}]);
+//
+//			[Bindable]
+//			private var aaa:ArrayCollection=new ArrayCollection([{"alarmUniqueid": "001", "alarmTile": "111", "alarmLevel": "1", "eventTime": "20130101", "dalTime": "20130101", "custNo": "01", "custSign": "000", "busType": "1", "busLevel": "1"}]);
+			[Bindable]
+			public var alarmLevelList:ArrayCollection=new ArrayCollection([{"alarmId": "0", "alarmLevelName": "全部"}, {"alarmId": "1", "alarmLevelName": "一级"}, {"alarmId": "2", "alarmLevelName": "二级"}, {"alarmId": "3", "alarmLevelName": "三级"}, {"alarmId": "4", "alarmLevelName": "四级"}]);
+		
+//			[Bindable]
+//			private var aaa:ArrayCollection=new ArrayCollection();
+//			[Bindable]
+//			public var alarmLevelList:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var clientInfoData:ArrayCollection=new ArrayCollection();
+			[MessageDispatcher]
+			public var msgDispatcher:Function;
+			private var lastRollOverIndex:int;
+
+			[Bindable]
+			private var countRecord:int;
+
+
+			private var param:Object=new Object;
+			/**
+			 * 时间格式
+			 */
+			public static const dateFormatter:DateFormatter=new DateFormatter();
+			dateFormatter.formatString="YYYY-MM-DD JJ:NN:SS";
+
+			//创建时间
+			protected function createTime(event:FlexEvent, remote:int):void
+			{
+				var date:Date=new Date();
+				date.month=date.getMonth() - remote;
+				event.currentTarget.text=dateFormatter.format(date);
+			}
+
+//			protected function alarmSignComp_creationCompleteHandler(event:FlexEvent):void
+//			{
+//				// TODO Auto-generated method stub
+//				log.info("test /111111111");
+//				/* this.addEventListener(HealthInfoCompEvent.ALARMSIGNCHANGE, onAlarmSignChange);
+//				log.info("test ///////");
+//				this.addEventListener(HealthInfoCompEvent.REFRESH, onRefresh);
+//				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.REFRESH)); */
+//			}
+
+			private function onRefresh(event:HealthInfoCompEvent):void
+			{
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.ALARMSIGNQUERY));
+			}
+
+			private function onAlarmSignChange(event:HealthInfoCompEvent):void
+			{
+				var result:Object=event.param;
+
+				log.info(result.datas);
+				log.info("result.datas.length=" + result.datas.length);
+				countRecord=result.datas.length;
+
+				for (var key:Object in result.datas)
+				{
+					//clientInfoData=key;
+					clientInfoData=result.datas;
+				}
+			/* for (var key:Object in result.countTotal)
+			   {
+			   log.info("[维护信息--告警信息查询1]key:");
+			   log.info(key);
+			   clientInfoData=key;
+			   for each (var custInfo:Object in key)
+			   {
+			   log.info(custInfo);
+
+			   }
+			 }  */
+			}
+
+			//格式化时间
+			public function formatDate(date:Date):String
+			{
+				return dateFormatter.format(date);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				log.debug("查询开始...");
+				var evt:HealthInfoCompEvent=new HealthInfoCompEvent(HealthInfoCompEvent.ALARMSIGNQUERY);
+				pager.currentPage=1;
+				param.startTime=startTimeField.text;
+				param.endTime=endTimeField.text;
+				param.alarmTitle=alarmTitle.text;
+				param.alarmLevel=alarmLevel.selectedItem['alarmId'];
+				param.currentPage=pager.currentPage;
+				param.pageSize=pager.pageSize;
+				param.type=0; //查询
+				param.mark=0; //查询
+				log.info(param);
+				evt.param=param;
+				this.dispatchEvent(evt);
+			}
+
+
+			protected function pager_pageChangeHandler(event:PaginationEvent):void
+			{
+				log.debug("分页查询开始...");
+				var evt:HealthInfoCompEvent=new HealthInfoCompEvent(HealthInfoCompEvent.ALARMSIGNQUERY);
+				param.startTime=startTimeField.text;
+				param.endTime=endTimeField.text;
+				param.alarmTitle=alarmTitle.text;
+				param.alarmLevel=alarmLevel.selectedItem['alarmId'];
+				param.currentPage=pager.currentPage;
+				param.pageSize=pager.pageSize;
+				param.type=0;
+				evt.param=param;
+				this.dispatchEvent(evt);
+			}
+
+			private var expData:ArrayCollection=new ArrayCollection;
+			private var headerArr:Array=new Array();
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				log.debug("导出...");
+				ExcelUtil.exportSimpleExcel("集客告警信息", headerArr, expData);
+			}
+
+
+			/* public function setAllAlarmSelected(flag:Boolean):void
+			   {
+			   for each (var data:Object in alarmSignPM.alarmSignDM.alarmSignList)
+			   {
+			   data.isUsed = flag ? 1 : 0;
+			   }
+			   alarmSignPM.alarmSignDM.alarmSignList.refresh();
+			   log.debug(alarmSignPM.alarmSignDM.alarmSignList);
+
+			 } */
+
+			protected function vbox1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.addEventListener(HealthInfoCompEvent.ALARMSIGNCHANGE, onAlarmSignChange);
+				this.addEventListener(HealthInfoCompEvent.REFRESH, onRefresh);
+				this.dispatchEvent(new HealthInfoCompEvent(HealthInfoCompEvent.REFRESH));
+
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller width="100%"
+				height="100%"
+				horizontalScrollPolicy="auto"
+				verticalScrollPolicy="auto">
+		<s:VGroup width="100%"
+				  height="100%"
+				  gap="0">
+			<s:VGroup width="100%"
+					  paddingLeft="2"
+					  paddingRight="2"
+					  paddingBottom="2"
+					  paddingTop="2"
+					  gap="0">
+				<panel:Window id="compWindow"
+							  title="投诉信息"
+							  width="100%"
+							  height="100%"
+							  maximizable="false"
+							  closable="false">
+					<!--<s:Scroller width="100%"
+						 height="100%"
+						 horizontalScrollPolicy="auto">-->
+					<!--<s:VGroup width="100%"
+						 height="100%">-->
+					<mx:AdvancedDataGrid width="100%"
+										 height="100%"
+										 dataProvider="{complainList}">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn dataField="time"
+													   headerText="时间"/>
+							<mx:AdvancedDataGridColumn dataField="reason"
+													   headerText="投诉原因"/>
+							<mx:AdvancedDataGridColumn dataField="method"
+													   headerText="解决措施"/>
+							<mx:AdvancedDataGridColumn dataField="person"
+													   headerText="处理人"/>
+							<mx:AdvancedDataGridColumn dataField="condition"
+													   headerText="与用户确认情况"/>
+							<mx:AdvancedDataGridColumn dataField="comtime"
+													   headerText="投诉历时"/>
+							<mx:AdvancedDataGridColumn dataField="isovertime"
+													   headerText="是否超时"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+					<!--</s:VGroup>-->
+					<!--</s:Scroller>-->
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  paddingLeft="2"
+					  paddingRight="2"
+					  paddingBottom="2"
+					  paddingTop="2"
+					  gap="0">
+				<panel:Window id="alarmWindow"
+							  title="告警信息"
+							  width="100%"
+							  height="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<!--<s:Scroller width="100%"
+						 height="100%"
+						 horizontalScrollPolicy="auto">-->
+					<s:VGroup width="100%"
+							  height="100%">
+						<s:HGroup width="100%"
+								  horizontalAlign="left"
+								  verticalAlign="middle">
+							<s:Label text="开始时间"/>
+							<ailk_compts:UXDateField id="startTimeField"
+													 color="0x000000"
+													 creationComplete="createTime(event,1)"
+													 labelFunction="formatDate"
+													 yearNavigationEnabled="true"
+													 width="190"/>
+							<s:Label text="结束时间"/>
+							<ailk_compts:UXDateField id="endTimeField"
+													 color="0x000000"
+													 creationComplete="createTime(event,0)"
+													 labelFunction="formatDate"
+													 yearNavigationEnabled="true"
+													 width="190"/>
+							<s:Label text="标题:"/>
+							<s:TextInput id="alarmTitle"/>
+							<s:Label text="级别:"/>
+							<s:DropDownList id="alarmLevel"
+											dataProvider="{alarmLevelList}"
+											labelField="alarmLevelName"
+											requireSelection="true"
+											width="100">
+							</s:DropDownList>
+							<s:Button label="查询"
+									  click="button1_clickHandler(event)"/>
+						</s:HGroup>
+						<mx:AdvancedDataGrid id="alarmSignDataGrid"
+											 width="100%"
+											 height="100%"
+											 textAlign="center"
+											 verticalScrollPolicy="auto"
+											 dataProvider="{clientInfoData}"
+											 itemRollOver="lastRollOverIndex = event.rowIndex">
+							<!--creationComplete="alarmSignDataGrid_creationCompleteHandler(event)">-->
+							<mx:columns>
+								<!--<mx:AdvancedDataGridColumn id="allSelectColumn"
+									 headerRenderer="com.linkage.module.cms.groupclient.renderer.HeaderCheckRenderer"
+									 width="40">
+									 <mx:itemRenderer>
+									 <fx:Component>
+									 <mx:CheckBox width="40"
+									 selected="{data.isUsed==1?true:false}"
+									 change="checkbox1_changeHandler(event)">
+									 <fx:Script>
+									 <![CDATA[
+									 import mx.controls.Alert;
+
+									 protected function checkbox1_changeHandler(event:Event):void
+									 {
+									 data.isUsed = CheckBox(event.target).selected ? 1 : 0;
+									 }
+									 ]]>
+									 </fx:Script>
+									 </mx:CheckBox>
+									 </fx:Component>
+									 </mx:itemRenderer>
+									 </mx:AdvancedDataGridColumn>-->
+								<mx:AdvancedDataGridColumn dataField="alarmuniqueid"
+														   headerText="告警标识"/>
+								<mx:AdvancedDataGridColumn dataField="alarmtitle"
+														   headerText="告警名称"/>
+								<mx:AdvancedDataGridColumn dataField="daltime"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="circname"
+														   headerText="电路代码"/>
+								<mx:AdvancedDataGridColumn dataField="nename"
+														   headerText="告警网元"/>
+								<mx:AdvancedDataGridColumn dataField="COSTTIME"
+														   headerText="告警历时"/>
+								<!--<mx:AdvancedDataGridColumn dataField="businesssystem"
+									 headerText="业务类型"/>
+									 <mx:AdvancedDataGridColumn dataField="commname"
+									 headerText="业务保障级别"/>-->
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:VGroup width="100%">
+							<s:HGroup width="100%"
+									  horizontalAlign="right"
+									  verticalAlign="top">
+								<ailk_compts:Pagination id="pager"
+														pageSize="200"
+														totalRowCount="{countRecord}"
+														pageChange="pager_pageChangeHandler(event)"/>
+								<s:Group width="10"/>
+							</s:HGroup>
+							<s:Group height="3"/>
+						</s:VGroup>
+
+					</s:VGroup>
+					<!--<mx:Label width="30"
+						 height="20"
+						 right="1"
+						 text="导出"
+						 top="-23"
+						 buttonMode="true"
+						 click="image1_clickHandler(event)"/>-->
+					<!--</s:Scroller>-->
+				</panel:Window>
+			</s:VGroup>
+			<s:VGroup width="100%"
+					  paddingLeft="2"
+					  paddingRight="2"
+					  paddingBottom="2"
+					  paddingTop="2"
+					  gap="0">
+				<panel:Window id="custInfoWindow"
+							  title="客户行为分析"
+							  width="100%"
+							  height="100%"
+							  minHeight="30"
+							  maximizable="false"
+							  closable="false">
+					<!--<s:Scroller width="100%"
+						 height="100%"
+						 verticalScrollPolicy="auto"
+						 horizontalScrollPolicy="auto">-->
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="语音专线（网络指标）"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecNetKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="集团网络接通率"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:Label text="语音专线（业务指标）"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecServKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="集团主叫话务量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="集团被叫话务量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="集团中继每线话务量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="集团客户目的码统计(国际、国内、本地、群内)"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="来话接通率(%)"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="来话话务量（Erl）"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="忙时每线话务量（Erl）"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</s:VGroup>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="GPRS专线（网络指标）"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecNetKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="GGSN到客户端设备丢包率"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="GGSN到客户端设备时延"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="APN PDP激活成功率"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="RADIUS认证成功率"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="APN 地址池利用率"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:Label text="GPRS专线（业务指标）"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecServKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="APN 在线终端用户数"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="APN行业卡开卡数量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="APN行业卡沉默卡数"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="APN 终端上行流量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="APN 终端下行流量"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</s:VGroup>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="互联网专线（网络指标）"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecNetKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="IP包丢包率"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="IP包平均传输时延"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:Label text="互联网专线（业务指标）"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecServKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="总流量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="流入流量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="流出流量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="流入流出平均总速率"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="流入平均速率"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="流出平均速率"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="峰值带宽利用率"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="均值带宽利用率"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="上行流量（峰值）Mbit/S"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="上行流量（谷值）Mbit/S"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="下行流量（峰值）Mbit/S"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="下行流量（谷值）Mbit/S"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</s:VGroup>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="短信专线（网络指标）"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecNetKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="短信下发失败量"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="端到端下发成功率（去除EC到网关重试）"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="短信下发平均时延"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="集团短信发送时间"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="行业网关上行失败量"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="行业网关上行成功率"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:Label text="短信专线（业务指标）"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecServKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="短信下发失败量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="集团短信发送内容"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="集团短信发送时间"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="集团短信下发端口流量"/>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="集团客户投诉违规情况"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</s:VGroup>
+					<s:VGroup width="100%"
+							  height="100%"
+							  verticalAlign="middle">
+						<s:Label text="数据专线(网络指标)"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecNetKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+								<mx:AdvancedDataGridColumn dataField="spebadlong"
+														   headerText="专线不可用时长"/>
+								<mx:AdvancedDataGridColumn dataField="specbadtime"
+														   headerText="专线故障频次"/>
+								<mx:AdvancedDataGridColumn dataField="speuserper"
+														   headerText="专线可用率"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+						<s:Label text="数据专线(业务指标)"/>
+						<mx:AdvancedDataGrid width="100%"
+											 height="100%"
+											 dataProvider="{dataSpecServKpi}">
+							<mx:columns>
+								<mx:AdvancedDataGridColumn dataField="time"
+														   headerText="时间"/>
+							</mx:columns>
+						</mx:AdvancedDataGrid>
+					</s:VGroup>
+					<!--</s:Scroller>-->
+				</panel:Window>
+			</s:VGroup>
+		</s:VGroup>
+	</s:Scroller>
+</mx:VBox>

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXTreeItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+
+			import mx.controls.Alert;
+			import mx.controls.Tree;
+			import mx.events.ListEvent;
+
+			private var log:ILogger=Log.getLoggerByClass(AreaQuickTreeRender);
+
+			protected function firstPageBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.@cp=1;
+				data.@servClick=true;
+				pageChange();
+
+			}
+
+			protected function prePageBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.@cp=Number(data.@cp) - 1;
+				data.@servClick=true;
+				pageChange();
+			}
+
+
+			protected function nextPageBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.@cp=Number(data.@cp) + 1;
+				data.@servClick=true;
+				pageChange();
+			}
+
+
+			protected function lastPageBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				data.@cp=data.@tp;
+				data.@servClick=true;
+				pageChange();
+			}
+
+			private function pageChange():void
+			{
+				var evt:ListEvent=new ListEvent(ListEvent.CHANGE, true, true);
+				Tree(listData.owner).selectedItem=data;
+				Tree(listData.owner).dispatchEvent(evt);
+			}
+
+			override protected function disclosureGroup_mouseDownHandler(event:MouseEvent):void
+			{
+				log.info("disclosureGroup_mouseDownHandler --->" + event);
+				event.stopPropagation();
+				data.@servClick=true;
+				log.info("disclosureGroup_mouseDownHandler: open:" + treeListData.open + ",hasChildren:" + treeListData.hasChildren);
+				if (!treeListData.open)
+				{
+					if (!treeListData.hasChildren)
+					{
+						data.@cp="1";
+						pageChange();
+						log.info("disclosureGroup_mouseDownHandler 重新取数据--->");
+					}
+					else
+					{
+						Tree(listData.owner).expandItem(data, true);
+						log.info("disclosureGroup_mouseDownHandler 只展开");
+					}
+				}
+				else
+				{
+					Tree(listData.owner).expandItem(data, false);
+					log.info("disclosureGroup_mouseDownHandler--->只关闭");
+				}
+			}
+
+			protected function checkBox_changeHandler(event:Event):void
+			{
+				// TODO Auto-generated method stub
+				data.@checkBoxClick="1";
+				if (Boolean(Number(data.@selected)))
+				{
+					data.@selected=Boolean(Number(data.@selected)) ? 0 : 1;
+				}
+				else
+				{
+					data.@selected=1;
+				}
+				pageChange();
+			}
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="normal"/>
+		<s:State name="hovered"/>
+		<s:State name="selected"/>
+	</s:states>
+	<s:HGroup left="0"
+			  right="0"
+			  top="0"
+			  bottom="0"
+			  gap="5"
+			  verticalAlign="middle">
+		<s:Rect id="indentationSpacer"
+				width="{treeListData.indent}"
+				percentHeight="100"
+				alpha="0">
+			<s:fill>
+				<s:SolidColor color="0xFFFFFF"/>
+			</s:fill>
+		</s:Rect>
+		<s:Group id="disclosureGroup"
+				 click="disclosureGroup_clickHandler(event)">
+			<s:BitmapImage source="{treeListData.disclosureIcon}"
+						   visible="{Boolean(String(data.@falg))}"
+						   includeInLayout="{Boolean(String(data.@falg))}"
+						   verticalCenter="0"/>
+		</s:Group>
+		<s:BitmapImage source="{treeListData.icon}"
+					   visible="{!Boolean(String(data.@falg))}"
+					   includeInLayout="{!Boolean(String(data.@falg))}"
+					   verticalCenter="0"/>
+		<s:CheckBox id="checkBox"
+					selected="{Boolean(Number(data.@selected))}"
+					visible="{Boolean(treeListData.label)}"
+					change="checkBox_changeHandler(event)"/>
+		<s:Label id="labelField"
+				 styleName="treeLabel"
+				 text="{treeListData.label}"
+				 paddingTop="2"
+				 toolTip="{treeListData.label}"/>
+		<s:HGroup paddingLeft="5"
+				  gap="2"
+				  visible="{Boolean(String(data.@tp))?treeListData.open?true:false:false}"
+				  verticalAlign="middle">
+			<s:Button toolTip="首页"
+					  label="首页"
+					  id="firstPageBtn"
+					  buttonMode="true"
+					  click="firstPageBtn_clickHandler(event)"
+					  enabled="{Number(data.@cp)>1}"
+					  skinClass="com.linkage.module.cms.scene.view.components.skins.CustTreeFirstBtnSkin"/>
+			<s:Button toolTip="上一页"
+					  label="上一页"
+					  id="prePageBtn"
+					  buttonMode="true"
+					  click="prePageBtn_clickHandler(event)"
+					  enabled="{Number(data.@cp)>1}"
+					  skinClass="com.linkage.module.cms.scene.view.components.skins.CustTreePreBtnSkin"/>
+			<s:Button toolTip="下一页"
+					  label="下一页"
+					  id="nextPageBtn"
+					  buttonMode="true"
+					  click="nextPageBtn_clickHandler(event)"
+					  enabled="{Number(data.@tp)-Number(data.@cp)>0}"
+					  skinClass="com.linkage.module.cms.scene.view.components.skins.CustTreeNextBtnSkin"/>
+			<s:Button toolTip="末页"
+					  label="末页"
+					  id="lastPageBtn"
+					  buttonMode="true"
+					  click="lastPageBtn_clickHandler(event)"
+					  enabled="{Number(data.@tp)-Number(data.@cp)>0}"
+					  skinClass="com.linkage.module.cms.scene.view.components.skins.CustTreeLastBtnSkin"/>
+			<s:Label styleName="treeLabel"
+					 text="第{Boolean(String(data.@cp))?String(data.@cp):'1'}页"
+					 toolTip="第{Boolean(String(data.@cp))?String(data.@cp):'1'}页  共{Boolean(String(data.@tp))?String(data.@tp):'0'}页"/>
+			<s:Label styleName="treeLabel"
+					 text="共{Boolean(String(data.@tp))?String(data.@tp):'0'}页"
+					 toolTip="第{Boolean(String(data.@cp))?String(data.@cp):'1'}页  共{Boolean(String(data.@tp))?String(data.@tp):'0'}页"/>
+		</s:HGroup>
+	</s:HGroup>
+</s:MXTreeItemRenderer>

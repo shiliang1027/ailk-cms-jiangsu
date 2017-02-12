@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datashow:DataWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+					 xmlns:s="library://ns.adobe.com/flex/spark"
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:datashow="com.linkage.module.cms.general.monitor.datashow.*"
+					 width="100%"
+					 height="100%"
+					 xmlns:kpishow="com.linkage.module.cms.general.monitor.datashow.kpishow.*"
+					 configable="true"
+					 config="initConfig(event)">
+	<datashow:layout>
+		<s:BasicLayout/>
+	</datashow:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.linkage.module.cms.components.extend.WindowExtEvent;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.general.monitor.datamanager.RemoteDataManager;
+			import com.linkage.system.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.Canvas;
+			import mx.controls.Alert;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+
+			import nl.demonsters.debugger.MonsterDebugger;
+
+			import spark.components.Group;
+
+			//日志
+			public var log:ILogger = Log.getLogger("com.linkage.module.cms.general.monitor.datashow.kpishow");
+
+			//数据接口
+			private var _remoteData:RemoteDataManager = null;
+
+			//属地编号
+			private var _cityId:String = null;
+
+			//专业列表
+			private var _specList:ArrayList = null;
+
+			//定时调度
+			private var t:Timer = new Timer(300000);
+
+			//获取的数据
+			private var dataObj:Object = null;
+
+			public var kpiList:ArrayCollection = new ArrayCollection([
+				{title: "KPI指标统计"
+					, name: ["区域", "GSM话务量（ERL）", "语音信道溢出率", "最坏小区数", "互连互通话务量", "系统寻呼成功率"]
+					, column: ["city", "a", "b", "c", "d", "e"]
+					, datalist: [{city: "全省", a: "10", b: "2", c: "2", d: "2", e: "2"}
+						, {city: "南京", a: "10", b: "2", c: "2", d: "2", e: "2"}
+						, {city: "苏州", a: "10", b: "2", c: "2", d: "2", e: "2"}]}
+				]);
+
+			public function get specList():ArrayList
+			{
+				return _specList;
+			}
+
+			public function set specList(value:ArrayList):void
+			{
+				_specList = value;
+			}
+
+			public function get cityId():String
+			{
+				return _cityId;
+			}
+
+			public function set cityId(value:String):void
+			{
+				_cityId = value;
+			}
+
+			public function get remoteData():RemoteDataManager
+			{
+				return _remoteData;
+			}
+
+			public function set remoteData(value:RemoteDataManager):void
+			{
+				_remoteData = value;
+			}
+
+			override public function initData():void
+			{
+				//显示等待界面
+				//loadInfo = new LoadManager(this.info);
+				//loadInfo.showLoading("正在加载数据，请稍候");
+
+				//加载数据
+				loadData();
+
+				//定时调度
+				t.addEventListener(TimerEvent.TIMER, loadData);
+				t.start();
+				//-------------------------------------历史回退修改------------------------------------
+				this.parentApplication.add(t);
+				//-------------------------------------历史回退修改------------------------------------
+			}
+
+			//显示页面，启动定时任务
+			override public function showView():void
+			{
+				if(t != null && !t.running)
+				{
+					t.start();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.add(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//隐藏页面，停止定时任务
+			override public function hideView():void
+			{
+				if(t != null && t.running)
+				{
+					t.stop();
+					//-------------------------------------历史回退修改------------------------------------
+					this.parentApplication.remove(t);
+						//-------------------------------------历史回退修改------------------------------------
+				}
+			}
+
+			//加载数据
+			public function loadData(event:TimerEvent = null):void
+			{
+				var t1:int = (new Date()).getTime() / 1000;
+				var t2:int = t1 - 60 * 60;
+				log.info("输入时间参数：" + t1 + " " + t2);
+
+				if(_cityId != null && !StringUtils.isEmpty(_cityId))
+				{
+					_remoteData.getCityKpiPerfData(_cityId, t2.toFixed(0), t1.toFixed(0), new ArrayList(), _specList, getResInfo, null, getResInfoErr);
+				}
+				else
+				{
+					_remoteData.getKpiPerfData(t2.toFixed(0), t1.toFixed(0), new ArrayList(), _specList, getResInfo, null, getResInfoErr);
+				}
+			}
+
+			public function getResInfo(obj:Object):void
+			{
+				log.info("查询KPI指标数据结果：" + obj);
+				this.grid.visible = true;
+				if(obj != null && obj[0] != null)
+				{
+					createTable(obj);
+					obj = null;
+				}
+				//查询无数据
+				else
+				{
+					log.info("KPI指标：查询无数据");
+					//createTable(kpiList);
+					Alert.show("查询KPI统计数据为空！");
+				}
+
+				//loadInfo.hideLoading();
+			}
+
+			private function createTable(obj:Object):void
+			{
+				//生成列
+				var workList:Object = obj[0];
+
+				if(this.grid.columns == null || this.grid.columns.length != workList.column.length)
+				{
+					var columnArr:Array = new Array();
+					for(var i:String in workList.name)
+					{
+						var scol:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+						scol.dataField = workList.column[i];
+						scol.headerText = workList.name[i];
+						if(workList.column[i] == "city")
+						{
+							scol.width = 100;
+						}
+						else
+						{
+							scol.width = 150;
+						}
+
+						columnArr = columnArr.concat(scol);
+					}
+
+					this.grid.columns = columnArr;
+
+					initConfigTitle(obj[0].name);
+				}
+
+				//数据
+				this.grid.dataProvider = workList.datalist;
+
+				dataObj = obj;
+				obj = null;
+			}
+
+			public function getResInfoErr(obj:Object):void
+			{
+				log.info("KPI指标：查询数据异常");
+				Alert.show("查询KPI统计数据异常！");
+				//createTable(kpiList);
+				//loadInfo.hideLoading();
+			}
+
+			//初始化选择列的页面
+			public function initConfigTitle(colList:Object):void
+			{
+				showConfig.initConfigList(colList, filterColumns);
+			}
+
+			//过滤显示的列
+			public function filterColumns(selectList:Object):void
+			{
+				var arr:ArrayCollection = (selectList as ArrayCollection);
+				//遍历所有的列
+				var workList:Object = dataObj[0];
+				var columnArr:Array = new Array();
+				for(var i:String in workList.name)
+				{
+					for each(var tmp:String in arr)
+					{
+						if(tmp == workList.name[i])
+						{
+							var scol:AdvancedDataGridColumn = new AdvancedDataGridColumn();
+							scol.dataField = workList.column[i];
+							scol.headerText = workList.name[i];
+							if(workList.column[i] == "city")
+							{
+								scol.width = 80;
+							}
+							else
+							{
+								scol.width = 250;
+							}
+
+							columnArr = columnArr.concat(scol);
+						}
+					}
+				}
+
+				grid.columns = columnArr;
+			}
+
+
+			public function initConfig(event:WindowExtEvent):void
+			{
+				showConfig.visible = true;
+			}
+
+			override public function hideDataGroup():void
+			{
+				this.showGroup.visible = false;
+				this.showGroup.includeInLayout = false;
+			}
+
+			override public function showDataGroup():void
+			{
+				this.showGroup.visible = true;
+				this.showGroup.includeInLayout = true;
+			}
+
+			override public function showGroupInfo():Group
+			{
+				return this.showGroup;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup id="showGroup"
+			  width="100%"
+			  height="100%"
+			  visible="false"
+			  includeInLayout="false">
+		<s:Scroller width="100%"
+					height="100%"
+					horizontalScrollPolicy="auto"
+					verticalScrollPolicy="auto">
+			<s:VGroup>
+				<mx:AdvancedDataGrid id="grid"
+									 visible="false"
+									 height="100%"
+									 sortableColumns="false"
+									 horizontalScrollPolicy="off"
+									 verticalScrollPolicy="auto">
+				</mx:AdvancedDataGrid>
+			</s:VGroup>
+		</s:Scroller>
+	</s:VGroup>
+	<kpishow:ShowConfig id="showConfig"
+						visible="false">
+	</kpishow:ShowConfig>
+</datashow:DataWindow>

@@ -1,0 +1,86 @@
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:parsley="http://www.spicefactory.org/parsley"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					title="场景共享"
+					dragable="true"
+					styleName="windowScene"
+					minimizable="false"
+					maximizable="false"
+					close="PopUpManager.removePopUp(ShareSceneWin);">
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.ui.components.requestserver.RequestServerUtil;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.gsscene.view.components.common.domain.IUser;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			import com.linkage.module.cms.gsscene.view.components.mapview.MapViewPM;
+			import com.linkage.module.cms.gsscene.view.components.sceneintro.SceneIntroPM;
+			
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			
+			[Inject("user")]
+			public var user:IUser;
+			[Inject("requestServerUtil")]
+			public var requestServerUtil:RequestServerUtil;
+			[Inject("mapViewPM")]
+			[Bindable]
+			public var mapViewPM:MapViewPM;
+			
+			private var log:ILogger = Log.getLoggerByClass(this);
+			
+		]]>
+	</fx:Script>
+		<s:VGroup width="100%"
+				  height="100%">
+			<mx:AdvancedDataGrid id="shareSceneDataGrid"
+								 styleName="sceneDG"
+								 verticalAlign="middle"
+								 width="100%"
+								 height="100%"
+								 horizontalScrollPolicy="auto"
+								 textAlign="left"
+								 dataProvider="{kpiSituationPM.kpiSituationDM.shareSceneList}">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn id="isUsedColumn"
+											   headerText="   全选">
+						<mx:itemRenderer>
+							<fx:Component>
+								<mx:CheckBox width="50"
+											 label="是否共享"
+											 selected="{data.isUsed==1?true:false}"
+											 change="checkbox1_changeHandler(event)">
+									<fx:Script>
+										<![CDATA[
+											protected function checkbox1_changeHandler(event:Event):void
+											{
+												data.isUsed = CheckBox(event.target).selected ? 1 : 0;
+											}
+										]]>
+									</fx:Script>
+								</mx:CheckBox>
+							</fx:Component>
+						</mx:itemRenderer>
+					</mx:AdvancedDataGridColumn>
+					<mx:AdvancedDataGridColumn dataField="sceneName"
+											   headerText="场景名称"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+			<s:HGroup width="100%"
+					  verticalAlign="middle"
+					  horizontalAlign="center">
+				<s:Button label="共享配置"
+						  click="button3_clickHandler(event)"
+						  buttonMode="true"/>
+			</s:HGroup>
+		</s:VGroup>
+	</ailk_compts:Window>

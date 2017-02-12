@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark"
+								  xmlns:mx="library://ns.adobe.com/flex/mx"
+								  focusEnabled="true"
+								  dataChange="dataChangeRenderer()"
+								  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+		<mx:Glow id="glow1"
+				 duration="400"
+				 alphaFrom="0"
+				 alphaTo="1.0"
+				 blurXFrom="50.0"
+				 blurXTo="0.0"
+				 blurYFrom="50.0"
+				 blurYTo="0.0"
+				 repeatCount="0"
+				 color="0XFF0000"/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.Log;
+			import com.linkage.module.cms.quitstatnew.domain.QuitStatDM;
+			
+			import mx.collections.ArrayCollection;
+
+			private var log:ILogger = Log.getLoggerByClass(ThresHoldDyeRenderer);
+
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+			import mx.events.FlexEvent;
+
+			[Inject("quitStatDM")]
+			[Bindable]
+			public var dm:QuitStatDM;
+
+			private function dataChangeRenderer():void
+			{
+				try
+				{
+					glow1.end();
+					var field:String = (listData as AdvancedDataGridListData).dataField;
+					lblData.clearStyle("backgroundColor");
+					if (listData && listData.label)
+					{
+//						lblData.clearStyle("backgroundColor");
+						if (listData.label == "" || listData.label == null)
+							listData.label = "0";
+						var nowdata:Number = Number(listData.label);
+						var up:Number = -1;
+						var down:Number = -1;
+						if (dm.thresHoldDyes && dm.thresHoldDyes[field])
+						{
+
+							var th:Object = dm.thresHoldDyes[field];
+
+							var cth:Object; //存放处理数据
+							if (data.city == "全省")
+							{
+								if (th.hasOwnProperty("is_szx") && (th["is_szx"] as ArrayCollection).length > 0)
+								{
+									cth = th["is_szx"]
+								}
+							}
+							else
+							{
+								if (th.hasOwnProperty("not_szx") && (th["not_szx"] as ArrayCollection).length > 0)
+								{
+									cth = th["not_szx"]
+								}
+							}
+							if (cth)
+							{
+								for each (var obj:Object in cth)
+								{
+									up = -1;
+									down = -1;
+									if (obj && obj.upThresHold)
+									{
+										up = Number(obj.upThresHold);
+									}
+									if (obj && obj.downThresHold)
+									{
+										down = Number(obj.downThresHold);
+									}
+//									log.info("down:{0},up:{1},nowdata:{2};", down, up, nowdata);
+									if (up != -1 && down != -1)
+									{
+										if (up > nowdata && down <= nowdata)
+											lblData.setStyle("backgroundColor", dm.levelColorMap[obj.index]);
+									}
+									else if (up != -1 && down == -1)
+									{
+										if (up > nowdata)
+											lblData.setStyle("backgroundColor", dm.levelColorMap[obj.index]);
+									}
+									else if (up == -1 && down != -1)
+									{
+										if (down <= nowdata)
+											lblData.setStyle("backgroundColor", dm.levelColorMap[obj.index]);
+									}
+								}
+							}
+//							else
+//								lblData.setStyle("backgroundColor", dm.levelColorMap["0"]);
+						}
+//						else
+//						{
+//							lblData.setStyle("backgroundColor", dm.levelColorMap["0"]);
+//						}
+					}
+
+					//取红色，并且让其闪烁
+					if (lblData.getStyle("backgroundColor") == 0XFF0000)
+					{
+//						log.info("rowindex:{0},colindex:{0}", listData.rowIndex, listData.columnIndex);
+						glow1.target = lblData;
+						glow1.play();
+					}
+
+				}
+				catch (e:Error)
+				{
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup left="0"
+			  right="0"
+			  bottom="0"
+			  top="0"
+			  verticalAlign="middle"
+			  horizontalAlign="center">
+		<s:Label id="lblData"
+				 width="36"
+				 top="2"
+				 bottom="2"
+				 textAlign="center"
+				 verticalAlign="middle"
+				 text="{listData.label}"/>
+	</s:VGroup>
+</s:MXAdvancedDataGridItemRenderer>

@@ -1,0 +1,789 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ailk_compts:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ailk_compts="http://www.asiainfo-linkage.com.cn/flex/components"
+					xmlns:panel="com.linkage.system.component.panel.*"
+					xmlns:components="com.linkage.module.cms.baseline.dynamic.components.*" 
+					xmlns:ailk_chart="http://www.asiainfo-linkage.com.cn/flex/chart"
+					creationComplete="baseLine_creationCompleteHandler(event)"
+					dragable="true" width="100%" height="100%" 
+					minimizable="true" minimizableBottom="35" minimizableLeft="5" minWidth="300" minHeight="30"
+					maximizable="false"
+					title="基线定义维护"
+					styleName="windowScene" close="window_closeHandler(event)">
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ properties of parent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metadata ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Metadata>
+	</fx:Metadata>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Style ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Script ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Script>
+		<![CDATA[			
+			import com.ailk.common.system.logging.ILogger;
+			import com.ailk.common.system.logging.ILoggingTarget;
+			import com.ailk.common.system.logging.Log;
+			import com.ailk.common.system.logging.LogEventLevel;
+			import com.ailk.common.system.logging.targets.MonsterTarget2;
+			import com.ailk.common.ui.components.window.standardwindow.event.WindowEvent;
+			import com.linkage.module.cms.baseline.DynamicBaseLineModule;
+			import com.linkage.module.cms.baseline.dynamic.components.BLSwatchGrid;
+			import com.linkage.module.cms.baseline.dynamic.data.BaseLineDataManager;
+			import com.linkage.module.cms.baseline.dynamic.data.BaseLineDataManagerBS;
+			import com.linkage.module.cms.baseline.dynamic.demoData.DemoDatas;
+			import com.linkage.module.cms.baseline.dynamic.event.ADGridEditEvent;
+			import com.linkage.module.cms.baseline.dynamic.event.BaseLineEvent;
+			import com.linkage.module.cms.baseline.dynamic.staticData.BaseLineBean;
+			import com.linkage.module.cms.components.loadmanager.LoadManager;
+			import com.linkage.module.cms.gsscene.view.components.common.event.SceneEvent;
+			
+			import mx.charts.chartClasses.DataTip;
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			public var lm:LoadManager = null;
+			public var parameters:Object;
+			public var dataParameter:Object;
+			[Bindable]
+			private var _showName:String = "aaa";
+			[Bindable]
+			private var gaterhTimestr:String = "bbb";
+			
+			[Bindable]
+			private var initChartFlag:Boolean = false; 
+			[Bindable]
+			private var _datas:ArrayCollection = new ArrayCollection();
+			private var _datas0:ArrayCollection = new ArrayCollection();
+			private var _datas1:ArrayCollection = new ArrayCollection();
+			private var _datas2:ArrayCollection = new ArrayCollection();
+			private var _datas3:ArrayCollection = new ArrayCollection();
+			private var _datas4:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var inMoDatas:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var outMoDatas:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			public var baseLineDataManager:BaseLineDataManager;
+			private static var log:ILogger = Log.getLogger("com.linkage.module.cms.baseline.dynamic.components.BaseLineView");
+			//运算类型
+			private var evaltypeAC:ArrayCollection = new ArrayCollection(
+				[
+					{label: '请选择', value: ''},
+					{label: '概率算法', value: '1'},
+					{label: '排序算法', value: '2'}
+				]
+			);
+			
+			private var dataLevel:ArrayCollection = new ArrayCollection(
+				[
+					{label: '告警级别', value: '0'},
+					{label: '一级告警', value: '1'},
+					{label: '二级告警', value: '2'},
+					{label: '三级告警', value: '3'},
+					{label: '四级告警', value: '4'}
+				]
+			);
+			[MessageDispatcher]
+			public var dispatchMsg:Function;
+			
+			private function baseLine_creationCompleteHandler(event:FlexEvent):void
+			{
+				log.info("BaseLineView初始化！");
+				log.info("baseLineDataManager" + baseLineDataManager);
+				kpiDataGrid.addEventListener(ADGridEditEvent.EDITBUTTONEDITOK,doeditbuttoneditok);
+//				this._datas.addEventListener(CollectionEvent.COLLECTION_CHANGE,doRefresh);
+				this.outMoGrid.addEventListener(SceneEvent.CHECKBOX_ALL_SELECTED, allSelectedCheckBox);
+				showBaseLineData();
+			}
+			/**
+			 *全选
+			 **/
+			private function allSelectedCheckBox(event:SceneEvent):void
+			{
+				log.info("全选：{0}", event);
+				for each (var item:Object in outMoGrid.dataProvider)
+				{
+					if (event.param == "1")
+					{
+						item.selected = true;
+					}
+					else
+					{
+						item.selected = false;
+					}
+				}
+				ArrayCollection(outMoGrid.dataProvider).refresh();
+			}
+			private function doeditbuttoneditok(event:ADGridEditEvent):void
+			{
+				lm.showLoading();
+				log.info("保存动态基线-参数：");
+				log.info(event.param);
+				baseLineDataManager.saveManualBaseLineInfo(event.param,saveManualBaseLineHandler);
+			}
+			/**
+			 *1.保存基线
+			 *2.重新加载基线信息 
+			 * 
+			 **/
+			private function saveManualBaseLineHandler(result:Object):void{
+				lm.hideLoading();
+				log.info("保存修改的网元指标基线success！");
+				log.info(result.params);
+				log.info(result.saveFlag);
+				baselineParam = {};
+				baselineParam.moTypeId = String(result.params.moTypeId);
+				baselineParam.moId = String(result.params.moId);
+				baselineParam.perfTypeId = String(result.params.perfTypeId);
+				baselineParam.perfTypeDesc = String(result.params.perfTypeDesc);
+				baselineParam.rebuildflag = false;
+				if(result.saveFlag){
+					lm.showLoading();
+					baseLineDataManager.getBaseLineInfo(baselineParam,getBaseLineHandler);
+					Alert.show('保存成功！');
+				}else{
+					Alert.show('保存失败，请稍后重试！');
+				}
+			}
+			/**
+			 * 这里刷新数据，重新获取数据
+			 **/
+			private function doRefresh(event:CollectionEvent):void{
+				log.info("刷新页面数据！");
+				log.info(baselineParam);
+				log.info("返回数据！");
+				log.info(_datas);
+//				this._datas.refresh();
+				if(null!=baselineParam&&Boolean(baselineParam.rebuildflag)){
+					this.pc.buildChart(baselineParam.dateTime);
+					this.pc.chartData(_datas,true);
+				}else{
+					this.pc.chartData(_datas,false);
+				}
+			}
+			
+			
+			private var baselineParam:Object = {};
+			
+			private function getBaseLineHandler(result:Object):void{
+				lm.hideLoading();
+				log.info("查询网元指标基线success！");
+				log.info(result.perfTypeDesc);
+				if(null!=result.perfTypeDesc&&""!=result.perfTypeDesc
+					&&undefined!=result.perfTypeDesc&&"undefined"!=result.perfTypeDesc){
+					this._showName = result.perfTypeDesc;
+				}
+				this.initChartFlag = true;
+				//				this.chartGroup.depth = 10;
+//				this._datas = result.datas as ArrayCollection;
+				this._datas.removeAll();
+				this._datas1.removeAll();
+				this._datas2.removeAll();
+				this._datas3.removeAll();
+				this._datas4.removeAll();
+				var list:ArrayCollection = result.datas as ArrayCollection;
+				log.info(list);
+				/* for(var i:int=0;i<list.length;i++){  
+					var o:Object = list.getItemAt(i);  
+					switch(o["warnLevel"]){
+						case "0":
+							this._datas0.addItem(o);
+							break;
+						case "1":
+							this._datas1.addItem(o);
+							break;
+						case "2":
+							this._datas2.addItem(o);
+							break;
+						case "3":
+							this._datas3.addItem(o);
+							break;
+						case "4":
+							this._datas4.addItem(o);
+							break;
+					}
+					
+				}   */
+				
+				_datas0=list[0];
+				_datas1=list[1];
+				_datas2=list[2];
+				_datas3=list[3];
+				_datas4=list[4];
+				switch(levelCombox.selectedItem.value){
+					case "0":
+						_datas=_datas0;
+						break;
+					case "1":
+						_datas=_datas1;
+						break;
+					case "2":
+						_datas=_datas2;
+						break;
+					case "3":
+						_datas=_datas3;
+						break;
+					case "4":
+						_datas=_datas4;
+						break;
+				}
+				//刷新
+				this.doRefresh(null);
+			}
+			/****************************************************************查询网元 ******************************************************************/
+			
+			protected function inMoName_keyUpHandler(event:KeyboardEvent):void
+			{
+				if (event.keyCode == 13)
+				{
+					inQueryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			private var queryInMoParam:Object = {};//查询tree的参数
+			protected function inQueryBtn_clickHandler():void
+			{
+				queryInMoParam.baselineFlag = true;
+				queryInMoParam.moName=inMoName.text;
+				queryInMoParam.perfTypeId=BaseLineBean.perfTypeId;
+				queryInMoParam.perfTypeName=BaseLineBean.perfTypeName;
+				queryInMoParam.moTypeId=BaseLineBean.moTypeId;
+				queryInMoParam.moTypeName=BaseLineBean.moTypeId;
+				baseLineDataManager.getBaseLineMos(queryInMoParam,getBaseLineInMosHandler);
+			}
+			
+			//查看最近生成的基线
+			protected function showBL_near_clickHandler():void
+			{
+				queryInMoParam.baselineFlag = true;
+				queryInMoParam.moName="";
+				queryInMoParam.perfTypeId=BaseLineBean.perfTypeId;
+				queryInMoParam.perfTypeName=BaseLineBean.perfTypeName;
+				queryInMoParam.moTypeId=BaseLineBean.moTypeId;
+				queryInMoParam.moTypeName=BaseLineBean.moTypeId;
+				baseLineDataManager.getBaseLineMos(queryInMoParam,getBaseLineInMosHandler);
+			}
+			
+			private function getBaseLineInMosHandler(result:Object):void{
+				lm.hideLoading();
+				log.info("查询配置了指标基线网元success！");
+				log.info(result.datas);
+				if(null!=result.datas&&""!=result.datas&&undefined!=result.datas&&"undefined"!=result.datas){
+					this.inMoDatas.removeAll();
+					this.inMoDatas.addAll(result.datas as IList);
+				}else{
+					this.inMoDatas.removeAll();
+				}
+			}
+			
+			
+			
+			protected function outMoName_keyUpHandler(event:KeyboardEvent):void
+			{
+				if (event.keyCode == 13)
+				{
+					outQueryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				}
+			}
+			private var queryOutMoParam:Object = {};//查询tree的参数
+			protected function outQueryBtn_clickHandler():void
+			{
+				queryOutMoParam.baselineFlag = false;
+				queryOutMoParam.moName=outMoName.text;
+				queryOutMoParam.perfTypeId=BaseLineBean.perfTypeId;
+				queryOutMoParam.perfTypeName=BaseLineBean.perfTypeName;
+				queryOutMoParam.moTypeId=BaseLineBean.moTypeId;
+				queryOutMoParam.moTypeName=BaseLineBean.moTypeId;
+				baseLineDataManager.getBaseLineMos(queryOutMoParam,getBaseLineOutMosHandler);
+			}
+			private function getBaseLineOutMosHandler(result:Object):void{
+				lm.hideLoading();
+				log.info("查询没有配置指标基线网元success！");
+				log.info(result.datas);
+				if(null!=result.datas&&""!=result.datas&&undefined!=result.datas&&"undefined"!=result.datas){
+					this.outMoDatas.removeAll();
+					this.outMoDatas.addAll(result.datas as IList);
+				}else{
+					this.outMoDatas.removeAll();
+				}
+			}
+			/****************************************************************以上---查询网元 ******************************************************************/
+			
+			/****************************************************************以下---查看基线和生成基线 ******************************************************************/
+			
+			protected function showBL_clickHandler():void
+			{
+				if (inMoGrid.selectedItem==null)
+				{
+					Alert.show("请选择一个网元！");
+					return;
+				}
+				var fr:DateFormatter=new DateFormatter();
+				var uom:Date = new Date();
+				uom.setDate(uom.getDate()); 
+				fr.formatString="YYYY-MM-DD"; 
+				dateField.text =fr.format(uom)+"";
+				baselineParam = {};
+				baselineParam.dateTime = fr.format(uom);
+//				baselineParam.moTypeId = BaseLineBean.moTypeId;
+//				baselineParam.perfTypeId = BaseLineBean.perfTypeId;
+//				baselineParam.perfTypeDesc = BaseLineBean.perfTypeName;//label即指标名
+				baselineParam.moTypeId = dataParameter.moTypeId;
+				baselineParam.perfTypeId = dataParameter.perfTypeId;
+				baselineParam.perfTypeDesc = dataParameter.perfTypeName;//label即指标名
+				baselineParam.moId = inMoGrid.selectedItem["moId"];
+				baselineParam.moName = inMoGrid.selectedItem["moName"];
+				this.gaterhTimestr = inMoGrid.selectedItem["gaterh_timestr"];
+				baselineParam.rebuildflag = true;
+				baselineParam.toleranceLevel= "0";
+				levelCombox.selectedIndex=0;
+				log.info("param参数：moTypeId->" + baselineParam.moTypeId +",moId->" + baselineParam.moId
+					+",perfTypeId->" + baselineParam.perfTypeId +",perfTypeDesc->" + baselineParam.perfTypeDesc+"moName->"+baselineParam.moName);
+				lm.showLoading();
+				baseLineDataManager.getBaseLineInfo(baselineParam,getBaseLineHandler);
+			}
+			
+			//删除
+			protected function removeBL_clickHandler():void
+			{
+				if (inMoGrid.selectedItem==null)
+				{
+					Alert.show("请选择一个网元！");
+					return;
+				}
+				log.info("removeParams===================================");
+				baselineParam = {};
+				baselineParam.moId = inMoGrid.selectedItem["moId"];
+				baselineParam.baseline_id = inMoGrid.selectedItem["baseline_id"];
+				log.info("param参数：moId->" + baselineParam.moId +",baseline_id->" + baselineParam.baseline_id);
+				baseLineDataManager.deleteBaseLine(baselineParam,getRemoveBaseLineHandler);
+			}
+			
+			private function getRemoveBaseLineHandler(result:Object):void{
+				log.info("删除基线success！");
+				log.info(result);
+				if(result.deleteFlag==1){
+					Alert.show('删除成功！');
+				}else{
+					Alert.show('删除失败，请重试！');
+				}
+				//刷新
+				this.showBL_near_clickHandler();
+				this.outQueryBtn_clickHandler(); 
+			}
+			
+			protected function createBL_clickHandler():void
+			{
+				log.info("生成基线！");
+				var moIds:String  = "";
+				for each (var item:Object in outMoGrid.dataProvider)
+				{
+					if (item.selected)
+					{
+						moIds+= item.moId + ",";
+					}
+				}
+				if(""==moIds){
+					Alert.show("请至少选择一个网元！");
+					return;
+				}
+				if(null!=BaseLineBean.evaltype&&""==BaseLineBean.evaltype){
+					Alert.show("请先选择并保存基线算法类型后，使用生成基线功能！");
+					return;
+				}
+				var params:Object = BaseLineBean.getParams();
+				params.moIds = moIds.substr(0,moIds.length-1);
+				log.info(params);
+				lm.showLoading();
+				baseLineDataManager.createBaseLines(params,getCreateBaseLineHandler);
+			}
+			private function getCreateBaseLineHandler(result:Object):void{
+				lm.hideLoading();
+				log.info(result);
+				Alert.show("正在计算生成基线，请稍后查看！");
+				//刷新
+//				inMoGrid.invalidateList(); 
+//				outMoGrid.invalidateList();
+				this.showBL_near_clickHandler();
+				this.outQueryBtn_clickHandler();
+			}
+			/****************************************************************以下---右键菜单 ******************************************************************/
+			protected function showSwatchFun(params:Object):void
+			{
+				//查看样本数据
+				log.info("查看样本数据");
+				log.info("BaseLineView BLSwatchGrid");
+				PopUpManager.addPopUp(blsgrid, this.parentDocument as DisplayObject);
+				blsgrid.visible = true;
+				PopUpManager.centerPopUp(blsgrid);//居中显示;
+				var queryParams:Object = BaseLineBean.getParams();
+				queryParams.pointTime = params.pointTime;
+				queryParams.moId = params.moId;
+				queryParams.moName = params.moName;
+				log.info(queryParams);
+				blsgrid.initDatas(queryParams);
+			}
+			protected function exportDataFun(params:Object):void
+			{
+				//导出数据
+				var param:String = "";
+				param += "&baseLineFO.moId="+baselineParam.moId;
+				param += "&baseLineFO.perfTypeId="+baselineParam.perfTypeId;
+				param += "&baseLineFO.perfTypeDesc="+baselineParam.perfTypeDesc;
+				param += "&baseLineFO.moTypeId="+baselineParam.moTypeId;
+				var url:String = "performance/baseline/baseLineAction!exportBLInfo.action?" + param;
+				log.info("跳转到基线导出：" +　url);
+				navigateToURL(new URLRequest(this.parentApplication.parameters.context + url));
+			}
+			/****************************************************************以上---右键菜单 ******************************************************************/
+			private function showBaseLineData(e:BaseLineEvent=null):void{
+				log.info("加载基线页面数据。。。。");
+				this.title = "("+BaseLineBean.perfTypeName+")基线定义维护";
+				inQueryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				outQueryBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				this._datas.removeAll();
+				this.initChartFlag = false;
+				//基线算法
+				/* if(null!=BaseLineBean.evaltype&&""!=BaseLineBean.evaltype){
+				for each (var obj:Object in evaltypeAC) 
+				{
+				if(obj.value==BaseLineBean.evaltype){
+				evaltype.selectedItem = obj;
+				break;
+				}
+				}
+				} */
+				
+				//关闭样本值弹出框
+//				if(blsgrid.visible){
+//					blsgrid.dispatchEvent(new WindowEvent(WindowEvent.CLOSE,blsgrid));
+//				}
+			}
+//			public function hideBaseLineData(e:BaseLineEvent=null):void{
+//				log.info("隐藏基线页面数据。。。。");
+//				//关闭样本值弹出框
+//				if(blsgrid.visible){
+//					blsgrid.dispatchEvent(new WindowEvent(WindowEvent.CLOSE,blsgrid));
+//				}
+//			}
+			
+			/****************************************************************以下---保存基线算法类型 ******************************************************************/
+			
+			/* protected function ok_clickHandler():void
+			{
+			var params:Object = BaseLineBean.getParams();
+			if(null!=params.evaltype||""!=String(params.evaltype)){
+			params.addFlag = "false";
+			}else{
+			params.addFlag = "true";
+			}
+			var evaltypeValue:String = evaltype.selectedItem.value;
+			if(""==evaltypeValue){
+			Alert.show("请选择基线算法！");
+			return;
+			}
+			params.evaltype = evaltypeValue;
+			baseLineDataManager.saveBSLineEvaltype(params,saveBSLineEvaltype_Handler);
+			} */
+			/* 概率算法 */
+			protected function ok_probability_clickHandler():void
+			{
+				var params:Object = BaseLineBean.getParams();
+//				if(null!=params.evaltype||""!=String(params.evaltype)){
+//					params.addFlag = "false";
+//				}else{
+//					params.addFlag = "true";
+//				}
+//				params.evaltype = "1";
+				BaseLineBean.evaltype = "1";
+				createBL_clickHandler();
+//				baseLineDataManager.saveBSLineEvaltype(params,saveBSLineEvaltype_probability_Handler);
+				
+			} 
+			/* 排序算法 */
+			protected function ok_order_clickHandler():void
+			{
+				var params:Object = BaseLineBean.getParams();
+//				if(null!=params.evaltype||""!=String(params.evaltype)){
+//					params.addFlag = "false";
+//				}else{
+//					params.addFlag = "true";
+//				}
+//				params.evaltype = "2";
+				BaseLineBean.evaltype = "2";
+				createBL_clickHandler();
+//				baseLineDataManager.saveBSLineEvaltype(params,saveBSLineEvaltype_order_Handler);
+				
+			} 
+			
+			
+			
+			/**
+			 * 
+			 **/
+			private function saveBSLineEvaltype_probability_Handler(result:Object):void{
+				log.info("保存修改的概率算法success！");
+				log.info(result);
+				log.info(result.saveFlag);
+				if(result.saveFlag){
+					BaseLineBean.evaltype = "1";
+					createBL_clickHandler();
+//					Alert.show('保存成功！');
+//				}else{
+//					Alert.show('保存失败，请重试！');
+				}
+			}
+			/**
+			 * 
+			 **/
+			private function saveBSLineEvaltype_order_Handler(result:Object):void{
+				log.info("保存修改的排序算法success！");
+				log.info(result.params);
+				log.info(result.saveFlag);
+				if(result.saveFlag){
+					BaseLineBean.evaltype = "2";
+					createBL_clickHandler();
+//					Alert.show('保存成功！');
+//				}else{
+//					Alert.show('保存失败，请重试！');
+				}
+			}
+			/**
+			 * 
+			 **/
+			/* private function saveBSLineEvaltype_Handler(result:Object):void{
+			log.info("保存修改的排序算法success！");
+			log.info(result.params);
+			log.info(result.saveFlag);
+			if(result.saveFlag){
+			BaseLineBean.evaltype =evaltype.selectedItem.value;
+			Alert.show('保存成功！');
+			}else{
+			Alert.show('保存失败，请重试！');
+			}
+			} */
+			
+			protected function dateField_changeHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				baselineParam.dateTime= dateField.text;
+				baselineParam.toleranceLevel= levelCombox.selectedItem.value;
+				log.info("param参数：moTypeId->" + baselineParam.moTypeId +",moId->" + baselineParam.moId
+					+",perfTypeId->" + baselineParam.perfTypeId +",moName->" + baselineParam.moName+"dateTime->"+baselineParam.dateTime);
+				log.info(baselineParam);
+				lm.showLoading();
+				baseLineDataManager.getBaseLineInfo(baselineParam,getBaseLineHandler);
+			}
+			
+			protected function levelCombox_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+//				baselineParam.toleranceLevel= levelCombox.selectedItem.value;
+//				log.info("param参数：moTypeId->" + baselineParam.moTypeId +",moId->" + baselineParam.moId
+//					+",perfTypeId->" + baselineParam.perfTypeId +",moName->" + baselineParam.moName+"dateTime->"+baselineParam.dateTime+"toleranceLevel->"+baselineParam.toleranceLevel);
+//				lm.showLoading();
+//				baseLineDataManager.getBaseLineInfo(baselineParam,getBaseLineHandler);
+//				var levelNum:Number = levelCombox.selectedItem.value;
+				switch(levelCombox.selectedItem.value){
+					case "0":
+						_datas=_datas0;
+						break;
+					case "1":
+						_datas=_datas1;
+						break;
+					case "2":
+						_datas=_datas2;
+						break;
+					case "3":
+						_datas=_datas3;
+						break;
+					case "4":
+						_datas=_datas4;
+						break;
+				}
+				doRefresh(null);
+//				log.info("返回数据！");
+//				log.info(_datas);
+//				if(null!=baselineParam&&Boolean(baselineParam.rebuildflag)){
+//					this.pc.buildChart(baselineParam.dateTime);
+//					this.pc.chartData(_datas,true);
+//				}else{
+//					this.pc.chartData(_datas,false);
+//				}
+				
+			}
+			
+			protected function window_closeHandler(event:WindowEvent):void
+			{
+				// TODO Auto-generated method stub
+				(this.parent as Group).removeElement(this);
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Declarations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ UI Components ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+	<s:HGroup gap="4" right="4" left="4" top="4" bottom="10"  width="100%" height="100%" >
+		<s:VGroup width="20%" height="100%" gap="5">
+			
+			<!--<panel:Window id="evaltypeWin" 
+			width="100%"
+			height="40"
+			minimizable="false"
+			maximizable="false"
+			closable="false"
+			dragable="false"
+			horizontalCenter="0"
+			verticalCenter="0">
+			<s:HGroup verticalAlign="middle" horizontalAlign="center"  width="100%" height="100%" top="-15">
+			<s:Label text="基线算法：" />
+			<s:DropDownList id="evaltype"
+			width="150"
+			selectedIndex="0"
+			dataProvider="{evaltypeAC}"
+			contentBackgroundAlpha="1"/>
+			<s:Button label="保  存" width="60"  click="ok_clickHandler()" buttonMode="true"/>
+			</s:HGroup>
+			</panel:Window>-->
+			<panel:Window id="inWin" 
+						  width="100%"
+						  height="50%"
+						  minimizable="false"
+						  maximizable="false"
+						  closable="false"
+						  dragable="false"
+						  horizontalCenter="0"
+						  verticalCenter="0"
+						  title="已选择网元">
+				<s:VGroup width="100%" height="100%" gap="5">
+					<s:HGroup verticalAlign="middle" horizontalAlign="center">
+						<s:Label text="网元名称：" />
+						<!--<s:Label width="1"/>-->
+						<s:TextInput id="inMoName" keyUp="inMoName_keyUpHandler(event)" width="100"/>
+						<s:Button label="查  询" width="60" id="inQueryBtn" click="inQueryBtn_clickHandler()" buttonMode="true"/>
+						<s:Button label="查询最近生成基线" width="140" id="inQueryBtnNew" click="showBL_near_clickHandler()" buttonMode="true"/>
+						
+						
+					</s:HGroup>
+					<mx:AdvancedDataGrid id="inMoGrid"
+										 width="100%"
+										 height="100%"
+										 dataProvider="{inMoDatas}"
+										 showHeaders="false"
+										 styleName="sceneDG"
+										 horizontalScrollPolicy="auto"
+										 verticalAlign="middle">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn  dataField="moName" headerText="网元名称"/>
+							<mx:AdvancedDataGridColumn width="160" dataField="gaterh_timestr" headerText="生成时间" />
+							<mx:AdvancedDataGridColumn  dataField="evaltypestr" headerText="基线算法" />
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+					<s:HGroup verticalAlign="middle" horizontalAlign="right" gap="5" width="98%">
+						<s:Button label="删除基线" width="80" click="removeBL_clickHandler()" buttonMode="true"/>
+						<s:Button label="查看基线" width="80" click="showBL_clickHandler()" buttonMode="true"/>
+					</s:HGroup>
+				</s:VGroup>
+			</panel:Window>
+			<panel:Window id="outWin" 
+						  width="100%"
+						  height="50%"
+						  minimizable="false"
+						  maximizable="false"
+						  closable="false"
+						  dragable="false"
+						  horizontalCenter="0"
+						  verticalCenter="0"
+						  title="未选择网元">
+				<s:VGroup width="100%" height="100%" gap="5">
+					<s:HGroup verticalAlign="middle" horizontalAlign="center">
+						<s:Label text="网元名称：" />
+						<s:Label width="1"/>
+						<s:TextInput id="outMoName" keyUp="outMoName_keyUpHandler(event)" width="100"/>
+						<s:Button label="查  询" width="60" id="outQueryBtn" click="outQueryBtn_clickHandler()" buttonMode="true"/>
+					</s:HGroup>
+					<mx:AdvancedDataGrid id="outMoGrid"
+										 width="100%"
+										 height="100%"
+										 dataProvider="{outMoDatas}"
+										 showHeaders="false"
+										 horizontalScrollPolicy="auto"
+										 styleName="sceneDG"
+										 verticalAlign="middle">
+						<mx:columns>
+							<mx:AdvancedDataGridColumn width="50" headerRenderer="com.linkage.module.cms.baseline.dynamic.renderer.CheckBoxSelectHeaderRenderer"
+													   itemRenderer="com.linkage.module.cms.baseline.dynamic.renderer.CheckBoxSelectedRenderer"/>
+							<mx:AdvancedDataGridColumn dataField="moName" headerText="网元名称"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+					<s:HGroup verticalAlign="middle" horizontalAlign="right" gap="5" width="98%">
+						<!--<s:Button label="生成基线" width="80" click="createBL_clickHandler()" buttonMode="true"/>-->
+						<s:Button label="生成概率算法" width="100" click="ok_probability_clickHandler()" buttonMode="true"/>
+						<s:Button label="生成排序算法" width="100" click="ok_order_clickHandler()" buttonMode="true"/>
+					</s:HGroup>
+				</s:VGroup>
+			</panel:Window>
+			<!--tree网元树-->
+		</s:VGroup>
+		<s:VGroup width="80%" height="100%">
+			<s:Group width="100%" height="50%">
+				<s:Group width="100%" height="100%" id="chartGroup" visible="{initChartFlag}">
+					<s:Label fontSize="18" top="20" left="0"   text="{gaterhTimestr}" />
+					<s:Label fontSize="18" top="20" horizontalCenter="0" fontWeight="bold" text="{_showName}" />
+					<mx:DateField id="dateField" right="60"  width="120" showToday="false" editable="true" formatString="YYYY-MM-DD" />
+					<s:Button label="确定"  right="10" click="dateField_changeHandler(event)"  buttonMode="true"/>
+					
+					<s:DropDownList id="levelCombox" width="90" right="190" selectedIndex="0" 
+									contentBackgroundAlpha="1" contentBackgroundColor="#c8deec" color="#000000"
+									dataProvider="{dataLevel}" change="levelCombox_changeHandler(event)"/>
+					<!--折线图展示基线信息-->
+					<components:BaseLineChart id="pc" top="40" data="{_datas}"/>
+				</s:Group>
+				<s:Rect alpha="1" width="100%" height="100%" radiusX="5" radiusY="5" visible="{!initChartFlag}">
+					<s:fill>
+						<s:LinearGradient>
+							<s:GradientEntry color="0xDAF9FB"/> 
+						</s:LinearGradient>
+					</s:fill>
+					<s:stroke>
+						<s:LinearGradientStroke weight="1">
+							<s:GradientEntry color="0x888888" alpha="0.5"/>
+						</s:LinearGradientStroke>
+					</s:stroke>
+				</s:Rect>
+				<s:VGroup  visible="{!initChartFlag}"  horizontalCenter="0" verticalCenter="0" horizontalAlign="center">
+					<!--<s:Label fontSize="30" color="0x555555" fontWeight="bold" text="动态基线趋势图展示区" />
+					<s:Label fontSize="18" color="0x222222" fontWeight="bold" text="（请选择左侧网元及指标！）" />-->
+					<s:Label fontSize="18" color="0x555555" fontWeight="bold" text="请选择左侧网元,查看基线！" />
+				</s:VGroup>
+			</s:Group>
+			<s:Scroller width="100%" height="50%" id="dataScroller" verticalScrollPolicy="auto">
+				<s:Group width="100%" height="100%">
+					<!--列表展示基线信息-->
+					<components:BaseLineADGrid id="kpiDataGrid" dataProvider="{_datas}" showSwatchFun="showSwatchFun" exportDataFun="exportDataFun"/>
+				</s:Group>
+			</s:Scroller>
+		</s:VGroup>
+	</s:HGroup>
+	<mx:Box visible="false"
+			includeInLayout="false">
+		<components:BLSwatchGrid id="blsgrid" baseLineDataManager="{baseLineDataManager}" width="400" height="300"/>
+	</mx:Box>
+</ailk_compts:Window>
